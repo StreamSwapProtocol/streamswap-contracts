@@ -1,62 +1,55 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Decimal, Uint128};
+use cosmwasm_std::{Decimal, Timestamp, Uint128, Uint64};
+use cw_utils::Scheduled;
 use cw20::Cw20ReceiveMsg;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
-    pub cw20_token_addr: String,
-    pub unbonding_period: u64,
+    // Address where the sale earnings will go
+    pub treasury: String,
+    // Name of the sale
+    pub name: String,
+    // An external resource describing a sale. Can be IPFS link or a
+    pub url: String,
+    // Payment denom - used to buy `token_out`.
+    // Also known as quote currency.
+    pub token_in: String,
+    // Denom to sale (distributed to the investors).
+    // Also known as a base currency.
+    pub token_out: String,
+    // Unix timestamp when the sale starts.
+    pub start_time: Timestamp,
+    // Unix timestamp when the sale ends.
+    pub end_time: Timestamp,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    ////////////////////
-    /// Owner's operations
-    ///////////////////
+    // Update the distribution index
+    UpdateDistributionIndex {},
 
-    /// Update the reward index
-    UpdateRewardIndex {},
-
-    ////////////////////
-    /// Staking operations
-    ///////////////////
-
-    /// Unbound user staking balance
-    /// Withdraw rewards to pending rewards
-    /// Set current reward index to global index
-    UnbondStake { amount: Uint128 },
-
-    /// Unbound user staking balance
-    /// Withdraws released stake
-    WithdrawStake { cap: Option<Uint128> },
+    // Subscribe to a token sale. Any use at any time before the sale end can join
+    // the sale by sending `token_in` to the Sale through the Subscribe msg.
+    // During the sale, user `token_in` will be automatically charged every
+    // epoch to purchase `token_out`.
+    Subscribe {},
+    // Withdraws released stake
+    Withdraw { cap: Option<Uint128> },
 
     ////////////////////
     /// User's operations
     ///////////////////
-    ClaimRewards { recipient: Option<String> },
-
-    /// This accepts a properly-encoded ReceiveMsg from a cw20 contract
-    Receive(Cw20ReceiveMsg),
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ReceiveMsg {
-    /// Bond stake user staking balance
-    /// Withdraw rewards to pending rewards
-    /// Set current reward index to global index
-    BondStake {},
-    UpdateRewardIndex {},
+    TriggerPositionPurchase { addr: Option<String> },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     State {},
-    AccruedRewards {
+    AccruedDistribution {
         address: String,
     },
     Holder {
@@ -86,16 +79,15 @@ pub struct AccruedRewardsResponse {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct HolderResponse {
+pub struct PositionResponse {
     pub address: String,
     pub balance: Uint128,
     pub index: Decimal,
-    pub pending_rewards: Decimal,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct HoldersResponse {
-    pub holders: Vec<HolderResponse>,
+    pub holders: Vec<PositionResponse>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

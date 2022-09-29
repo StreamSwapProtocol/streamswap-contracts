@@ -1,53 +1,59 @@
-use crate::msg::HolderResponse;
-use cosmwasm_std::{Addr, Api, CanonicalAddr, Decimal, Deps, Order, StdResult, Uint128};
-use cw_controllers::Claims;
+use crate::msg::PositionResponse;
+use cosmwasm_std::{Addr, Api, CanonicalAddr, Decimal, Deps, Order, StdResult, Uint128, Uint64};
+use cw_controllers::{Claims};
 use cw_storage_plus::{Bound, Item, Map};
+use cw_utils::Scheduled;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
-    pub cw20_token_addr: String,
-    pub unbonding_period: u64,
-    pub global_index: Decimal,
-    pub total_balance: Uint128,
-    pub prev_reward_balance: Uint128,
+    pub global_distribution_index: Decimal,
+    // total number of `tokens_out` to be sold during the continuous sale.
+    pub token_out_supply: Uint64,
+    pub total_out_sold: Uint64,
+    pub total_buy: Uint64,
+    // TODO: convert to scheduled
+    // start time when the token emission starts. in nanos
+    pub start_time: Uint64,
+    // end time when the token emission ends. Can't be bigger than start +
+    // 139years (to avoid round overflow)
+    pub end_time: Uint64,
+    pub latest_distribution_stage: Uint64,
 }
 pub const STATE: Item<State> = Item::new("state");
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct Holder {
-    pub balance: Uint128,
+pub struct Position {
+    pub buy_balance: Uint128,
     pub index: Decimal,
-    pub pending_rewards: Decimal,
+    pub purchased: Uint128,
 }
 
-// REWARDS (holder_addr, cw20_addr) -> Holder
-pub const HOLDERS: Map<&Addr, Holder> = Map::new("holders");
-
+// Position (holder_addr, cw20_addr) -> Holder
+pub const POSITIONS: Map<&Addr, Position> = Map::new("positions");
 pub const CLAIMS: Claims = Claims::new("claims");
 
 /// list_accrued_rewards settings for pagination
 const MAX_LIMIT: u32 = 30;
 const DEFAULT_LIMIT: u32 = 10;
-pub fn list_accrued_rewards(
+pub fn list_positions(
     deps: Deps,
     start_after: Option<Addr>,
     limit: Option<u32>,
-) -> StdResult<Vec<HolderResponse>> {
+) -> StdResult<Vec<PositionResponse>> {
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
     let start = calc_range_start(deps.api, start_after.map(Addr::unchecked))?.map(Bound::exclusive);
 
-    HOLDERS
+    POSITIONS
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|elem| {
             let (addr, v) = elem?;
-            Ok(HolderResponse {
+            Ok(PositionResponse {
                 address: addr.to_string(),
-                balance: v.balance,
+                balance: v.buy_balance,
                 index: v.index,
-                pending_rewards: v.pending_rewards,
             })
         })
         .collect()

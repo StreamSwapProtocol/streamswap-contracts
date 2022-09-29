@@ -1,18 +1,16 @@
-use cosmwasm_std::{
-    attr, entry_point, from_binary, to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo,
-    Response, StdError, StdResult, Uint128, WasmMsg, WasmQuery,
-};
+use cosmwasm_std::{attr, entry_point, from_binary, to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg, WasmQuery, BalanceResponse, Uint64};
 
 use crate::msg::{
-    AccruedRewardsResponse, ExecuteMsg, HolderResponse, HoldersResponse, InstantiateMsg,
+    AccruedRewardsResponse, ExecuteMsg, PositionResponse, HoldersResponse, InstantiateMsg,
     MigrateMsg, QueryMsg, ReceiveMsg, StateResponse,
 };
-use crate::state::{list_accrued_rewards, Holder, State, CLAIMS, HOLDERS, STATE};
+use crate::state::{list_positions, Position, State, CLAIMS, POSITIONS, STATE};
 use crate::ContractError;
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg, Cw20ReceiveMsg};
 use cw_controllers::ClaimsResponse;
-use std::ops::{Add, Mul, Sub};
+use std::ops::{Add, Div, Mul, Sub};
 use std::str::FromStr;
+use cw_utils::Scheduled;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -22,12 +20,22 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
     deps.api.addr_validate(&msg.cw20_token_addr.as_str())?;
+
+    // check scheduled start and end are same types
+    match (msg.start_time, msg.end_time) {
+        (Scheduled::AtTime(_), Scheduled::AtHeight(_)) => Err(ContractError::DateInput {}),
+        (Scheduled::AtHeight(_), Scheduled::AtTime(_)) => Err(ContractError::DateInput {}),
+        (_,_) => Ok(())
+    }?;
+
     let state = State {
-        cw20_token_addr: msg.cw20_token_addr,
-        unbonding_period: msg.unbonding_period,
-        global_index: Decimal::zero(),
-        total_balance: Uint128::zero(),
-        prev_reward_balance: Uint128::zero(),
+        latest_distribution_stage: Uint64::zero(),
+        global_distribution_index: Decimal::zero(),
+        token_out_supply: Uint64::zero(),
+        start_time: Uint64::new(msg.start_time.nanos()),
+        end_time: Uint64::new(msg.end_time.nanos()),
+        total_buy: Uint64::zero(),
+        total_out_sold: Uint64::zero(),
     };
     STATE.save(deps.storage, &state)?;
 
@@ -42,79 +50,58 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::ClaimRewards { recipient } => execute_claim_rewards(deps, env, info, recipient),
-        ExecuteMsg::UpdateRewardIndex {} => execute_update_reward_index(deps, env),
-        ExecuteMsg::UnbondStake { amount } => execute_unbound(deps, env, info, amount),
-        ExecuteMsg::WithdrawStake { cap } => execute_withdraw_stake(deps, env, info, cap),
-        ExecuteMsg::Receive(msg) => execute_receive(deps, env, info, msg),
+        ExecuteMsg::TriggerPositionPurchase { addr: String } => execute_trigger_user_purchase(deps, env, info, addr),
+        ExecuteMsg::UpdateDistributionIndex {} => execute_update_distribution_index(deps, env),
+        ExecuteMsg::Subscribe {} => execute_subscribe(deps, env, info),
+        ExecuteMsg::Withdraw { cap } => execute_withdraw(deps, env, info, cap),
     }
 }
 
-/// Increase global_index according to claimed rewards amount
-pub fn execute_update_reward_index(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+/// Increase global_distribution_index with new distribution release
+pub fn execute_update_distribution_index(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let mut state = STATE.load(deps.storage)?;
 
-    // Zero staking balance check
-    if state.total_balance.is_zero() {
-        return Err(ContractError::NoBond {});
-    }
+    let current_distribution_stage = (Uint64::new(env.block.time.nanos()) - state.start_time) / (state.end_time - state.start_time);
+    let diff = current_distribution_stage - state.latest_distribution_stage;
 
-    // Load the reward contract balance
-    let msg = Cw20QueryMsg::Balance {
-        address: env.contract.address.into_string(),
-    };
-    let query = WasmQuery::Smart {
-        contract_addr: state.cw20_token_addr.clone().into(),
-        msg: to_binary(&msg)?,
-    }
-    .into();
+    let new_distribution_balance = diff.mul(state.token_out_supply);
 
-    let balance_res: BalanceResponse = deps.querier.query(&query)?;
-    let previous_balance = state.prev_reward_balance;
+    state.global_distribution_index = state
+        .global_distribution_index
+        .add(Decimal::from_ratio(new_distribution_balance, state.total_buy));
 
-    // claimed_rewards = current_balance - prev_balance;
-    let claimed_rewards = balance_res.balance.checked_sub(previous_balance)?;
-
-    state.prev_reward_balance = balance_res.balance;
-
-    // global_index += claimed_rewards / total_balance;
-    state.global_index = state
-        .global_index
-        .add(Decimal::from_ratio(claimed_rewards, state.total_balance));
-
+    state.latest_distribution_stage = current_distribution_stage;
     STATE.save(deps.storage, &state)?;
 
     let res = Response::new()
-        .add_attribute("action", "update_reward_index")
-        .add_attribute("claimed_rewards", claimed_rewards)
-        .add_attribute("new_index", state.global_index.to_string());
+        .add_attribute("action", "update_distribution_index")
+        .add_attribute("new_distribution_balance", new_distribution_balance)
+        .add_attribute("global_release_index", state.global_distribution_index.to_string());
 
     Ok(res)
 }
 
-pub fn execute_claim_rewards(
+pub fn execute_trigger_user_purchase(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    recipient: Option<String>,
+    addr: Option<String>
 ) -> Result<Response, ContractError> {
-    let recipient = match recipient {
+    let addr = match addr {
         Some(value) => deps.api.addr_validate(value.as_str())?,
         None => info.sender,
     };
 
     let mut state = STATE.load(deps.storage)?;
-    let holder = HOLDERS.load(deps.storage, &recipient)?;
+    let position = POSITIONS.load(deps.storage, &addr)?;
 
-    let reward_with_decimals =
-        calculate_decimal_rewards(state.global_index, holder.index, holder.balance)?;
+    let purchase =
+        trigger_position_purchase(state.global_distribution_index, position.index, position.buy_balance)?;
+    let all_purchased = purchase.add(position.purchased);
+    let all_purchased_u64 = all_purchased * Uint64::new(1);
 
-    let all_reward_with_decimals = reward_with_decimals.add(holder.pending_rewards);
-
-    let rewards = all_reward_with_decimals * Uint128::new(1);
-
-    if rewards.is_zero() {
-        return Err(ContractError::NoRewards {});
+    if all_purchased_u64.is_zero() {
+        return Err(ContractError::NoDistribution {});
     }
 
     let new_balance = (state.prev_reward_balance.checked_sub(rewards))?;
@@ -126,60 +113,34 @@ pub fn execute_claim_rewards(
         .add_attribute("recipient", recipient))
 }
 
-pub fn execute_receive(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    wrapper: Cw20ReceiveMsg,
-) -> Result<Response, ContractError> {
-    let config = STATE.load(deps.storage)?;
-
-    // TODO: move registry and check cw20 exists
-    // only registered contracts can send
-    if info.sender != config.cw20_token_addr {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    let msg: ReceiveMsg = from_binary(&wrapper.msg)?;
-    match msg {
-        ReceiveMsg::BondStake {} => execute_bond(deps, env, info, wrapper.sender, wrapper.amount),
-        ReceiveMsg::UpdateRewardIndex {} => execute_update_reward_index(deps, env),
-    }
-}
-
-pub fn execute_bond(
+pub fn execute_subscribe(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    holder_addr: String,
-    amount: Uint128,
 ) -> Result<Response, ContractError> {
-    if !info.funds.is_empty() {
-        return Err(ContractError::DoNotSendFunds {});
-    }
-    if amount.is_zero() {
-        return Err(ContractError::AmountRequired {});
+    if info.funds.is_empty() {
+        return Err(ContractError::NoFundsSent {});
     }
 
-    let addr = deps.api.addr_validate(&holder_addr.as_str())?;
     let mut state = STATE.load(deps.storage)?;
 
-    let mut holder = HOLDERS.may_load(deps.storage, &addr)?.unwrap_or(Holder {
-        balance: Uint128::zero(),
+    let mut position = POSITIONS.may_load(deps.storage, &addr)?.unwrap_or(Position {
+        buy_balance: Uint128::zero(),
         index: Decimal::zero(),
-        pending_rewards: Decimal::zero(),
+        purchased: Uint128::zero(),
     });
 
     // get decimals
-    let rewards = calculate_decimal_rewards(state.global_index, holder.index, holder.balance)?;
+    let distribution = trigger_position_purchase(state.global_distribution_index, position.index, position.buy_balance)?;
+    let remaining = state.total_buy;
 
-    holder.index = state.global_index;
-    holder.pending_rewards = rewards.sub(holder.pending_rewards);
-    holder.balance = amount;
+    position.index = state.global_distribution_index;
+    position.purchased = distribution.sub(position.purchased);
+    position.buy_balance = amount;
     // save reward and index
-    HOLDERS.save(deps.storage, &addr, &holder)?;
+    POSITIONS.save(deps.storage, &addr, &position)?;
 
-    state.total_balance += amount;
+    state.total_buy += amount;
     STATE.save(deps.storage, &state)?;
 
     let res = Response::new()
@@ -190,35 +151,35 @@ pub fn execute_bond(
     Ok(res)
 }
 
-pub fn execute_unbound(
+pub fn execute_withdraw(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    amount: Uint128,
+    cap: Option<Uint128>,
 ) -> Result<Response, ContractError> {
     let mut state = STATE.load(deps.storage)?;
 
     if !info.funds.is_empty() {
-        return Err(ContractError::DoNotSendFunds {});
+        return Err(ContractError::NoFundsSent {});
     }
     if amount.is_zero() {
         return Err(ContractError::AmountRequired {});
     }
 
-    let mut holder = HOLDERS.load(deps.storage, &info.sender)?;
-    if holder.balance < amount {
-        return Err(ContractError::DecreaseAmountExceeds(holder.balance));
+    let mut holder = POSITIONS.load(deps.storage, &info.sender)?;
+    if holder.buy_balance < amount {
+        return Err(ContractError::DecreaseAmountExceeds(holder.buy_balance));
     }
 
-    let rewards = calculate_decimal_rewards(state.global_index, holder.index, holder.balance)?;
+    let rewards = trigger_position_purchase(state.global_distribution_index, holder.index, holder.buy_balance)?;
 
-    holder.index = state.global_index;
-    holder.pending_rewards = rewards.add(holder.pending_rewards);
-    holder.balance = (holder.balance.checked_sub(amount))?;
-    state.total_balance = (state.total_balance.checked_sub(amount))?;
+    holder.index = state.global_distribution_index;
+    holder.purchased = rewards.add(holder.purchased);
+    holder.buy_balance = (holder.buy_balance.checked_sub(amount))?;
+    state.token_out_supply = (state.token_out_supply.checked_sub(amount))?;
 
     STATE.save(deps.storage, &state)?;
-    HOLDERS.save(deps.storage, &info.sender, &holder)?;
+    POSITIONS.save(deps.storage, &info.sender, &holder)?;
 
     let attributes = vec![
         attr("action", "unbound"),
@@ -229,58 +190,67 @@ pub fn execute_unbound(
     Ok(Response::new().add_attributes(attributes))
 }
 
-pub fn execute_withdraw_stake(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    cap: Option<Uint128>,
-) -> Result<Response, ContractError> {
-    let state = STATE.load(deps.storage)?;
+// calculate the user purchase based on the positions index and the global index.
+// returns purchase amount and spent amount
+pub fn trigger_position_purchase(
+    global_index: Decimal,
+    user_index: Decimal,
+    user_balance: Uint128,
+) -> StdResult<(Decimal, Decimal)> {
+    let decimal_balance = Decimal::from_ratio(user_balance, Uint128::new(1));
 
-    let amount = CLAIMS.claim_tokens(deps.storage, &info.sender, &env.block, cap)?;
-    if amount.is_zero() {
-        return Err(ContractError::WaitUnbonding {});
+    let diff = global_index.sub(user_index);
+
+    let purchased = diff.mul(decimal_balance);
+    let spent = diff.div(global_index).mul(decimal_balance);
+    Ok((purchased, spent))
+}
+
+// calculate the reward with decimal
+pub fn get_decimals(value: Decimal) -> StdResult<Decimal> {
+    let stringed: &str = &*value.to_string();
+    let parts: &[&str] = &*stringed.split('.').collect::<Vec<&str>>();
+    match parts.len() {
+        1 => Ok(Decimal::zero()),
+        2 => {
+            let decimals = Decimal::from_str(&*("0.".to_owned() + parts[1]))?;
+            Ok(decimals)
+        }
+        _ => Err(StdError::generic_err("Unexpected number of dots")),
     }
+}
 
-    let cw20_transfer_msg = Cw20ExecuteMsg::Transfer {
-        recipient: info.sender.to_string(),
-        amount,
-    };
-    let msg = WasmMsg::Execute {
-        contract_addr: state.cw20_token_addr,
-        msg: to_binary(&cw20_transfer_msg)?,
-        funds: vec![],
-    };
-
-    Ok(Response::new()
-        .add_message(msg)
-        .add_attribute("action", "withdraw_stake")
-        .add_attribute("holder_address", &info.sender)
-        .add_attribute("amount", amount))
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    Ok(Response::default())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    /*
     match msg {
         QueryMsg::State {} => to_binary(&query_state(deps, _env, msg)?),
-        QueryMsg::AccruedRewards { address } => to_binary(&query_accrued_rewards(deps, address)?),
+        QueryMsg::AccruedDistribution { address } => to_binary(&query_accrued_rewards(deps, address)?),
         QueryMsg::Holder { address } => to_binary(&query_holder(deps, address)?),
         QueryMsg::Holders { start_after, limit } => {
             to_binary(&query_holders(deps, start_after, limit)?)
         }
         QueryMsg::Claims { address } => to_binary(&query_claims(deps, address)?),
     }
+     */
+    unimplemented!()
 }
 
+/*
 pub fn query_state(deps: Deps, _env: Env, _msg: QueryMsg) -> StdResult<StateResponse> {
     let state = STATE.load(deps.storage)?;
 
     Ok(StateResponse {
         cw20_token_addr: state.cw20_token_addr,
         unbonding_period: state.unbonding_period,
-        global_index: state.global_index,
-        total_balance: state.total_balance,
-        prev_reward_balance: state.prev_reward_balance,
+        global_index: state.global_distribution_index,
+        total_balance: state.token_out_supply,
+        prev_reward_balance: state.latest_distribution_stage,
     })
 }
 
@@ -288,10 +258,10 @@ pub fn query_accrued_rewards(deps: Deps, address: String) -> StdResult<AccruedRe
     let state = STATE.load(deps.storage)?;
 
     let addr = deps.api.addr_validate(address.as_str())?;
-    let holder = HOLDERS.load(deps.storage, &addr)?;
+    let holder = POSITIONS.load(deps.storage, &addr)?;
     let reward_with_decimals =
-        calculate_decimal_rewards(state.global_index, holder.index, holder.balance)?;
-    let all_reward_with_decimals = reward_with_decimals.add(holder.pending_rewards);
+        trigger_position_purchase(state.global_distribution_index, holder.index, holder.buy_balance)?;
+    let all_reward_with_decimals = reward_with_decimals.add(holder.purchased);
 
     let rewards = all_reward_with_decimals * Uint128::new(1);
 
@@ -299,12 +269,12 @@ pub fn query_accrued_rewards(deps: Deps, address: String) -> StdResult<AccruedRe
 }
 
 pub fn query_holder(deps: Deps, address: String) -> StdResult<HolderResponse> {
-    let holder: Holder = HOLDERS.load(deps.storage, &deps.api.addr_validate(address.as_str())?)?;
+    let holder: Position = POSITIONS.load(deps.storage, &deps.api.addr_validate(address.as_str())?)?;
     Ok(HolderResponse {
         address,
-        balance: holder.balance,
+        balance: holder.buy_balance,
         index: holder.index,
-        pending_rewards: holder.pending_rewards,
+        pending_rewards: holder.purchased,
     })
 }
 
@@ -328,32 +298,4 @@ pub fn query_claims(deps: Deps, addr: String) -> StdResult<ClaimsResponse> {
     Ok(CLAIMS.query_claims(deps, &deps.api.addr_validate(addr.as_str())?)?)
 }
 
-// calculate the reward based on the sender's index and the global index.
-pub fn calculate_decimal_rewards(
-    global_index: Decimal,
-    user_index: Decimal,
-    user_balance: Uint128,
-) -> StdResult<Decimal> {
-    let decimal_balance = Decimal::from_ratio(user_balance, Uint128::new(1));
-
-    Ok(global_index.sub(user_index).mul(decimal_balance))
-}
-
-// calculate the reward with decimal
-pub fn get_decimals(value: Decimal) -> StdResult<Decimal> {
-    let stringed: &str = &*value.to_string();
-    let parts: &[&str] = &*stringed.split('.').collect::<Vec<&str>>();
-    match parts.len() {
-        1 => Ok(Decimal::zero()),
-        2 => {
-            let decimals = Decimal::from_str(&*("0.".to_owned() + parts[1]))?;
-            Ok(decimals)
-        }
-        _ => Err(StdError::generic_err("Unexpected number of dots")),
-    }
-}
-
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
-    Ok(Response::default())
-}
+ */

@@ -9,14 +9,17 @@ pub enum ContractError {
     #[error("{0}")]
     Overflow(#[from] OverflowError),
 
+    #[error("Start and end dates should be same type")]
+    DateInput{},
+
     #[error("No rewards accrued")]
-    NoRewards {},
+    NoDistribution {},
 
     #[error("Unauthorized")]
     Unauthorized {},
 
     #[error("Do not send native funds")]
-    DoNotSendFunds {},
+    NoFundsSent {},
 
     #[error("Amount required")]
     AmountRequired {},
