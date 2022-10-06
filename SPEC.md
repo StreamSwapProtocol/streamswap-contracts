@@ -2,7 +2,7 @@
 
 In this spec, relative index design is used.
 
-The code is based on reward distribution smart contract from anchor project.
+The distribution logic is based on reward distribution smart contract from [anchor project](https://github.com/Anchor-Protocol/anchor-bAsset-contracts/tree/master/contracts/anchor_basset_reward)
 
 Distribution is done over time not based on rounds. Distribution precision is higher.
 
@@ -14,15 +14,15 @@ at 1300 unix, %30 percent will be distributed.
 
 at 1600 unix, %60.
 
+It is possible to make the distribution using curves, not only in linear.
+
 ## Distribution
 
 On each `update_distribution_index` call, difference between the previous call and current call is handed out to position stakers.
 
 Whole distribution state is saved under `distribution_index`
 
-
-
-During `update_distribution_index` call `distribution_index` is updated with given calculation.
+On `update_distribution_index` call `distribution_index` is updated with given calculation.
 $$
 current\_stage = \frac{now - start}{end - start}
 $$
@@ -54,9 +54,26 @@ $$
 
 ## Spending
 
-Initially spending will happen linearly.
+In the initial design spending happens linearly.
 
-It is possible to implement curve spending in future.
+Ex: 10000 token is by the user and 0-10000 is start and end unix times.
+
+Spending graph looks like this:
+
+![Screen Shot 2022-09-29 at 18.04.05](/Users/orkunkulce/Library/Application Support/typora-user-images/Screen Shot 2022-09-29 at 18.04.05.png)
+
+Ex: At the half time, half of the token will be spend.
+
+Spent amount is not deduced from positions balance until `withdraw` is triggered.
 
 
 
+It is very possible to implement a curve spending feature in future.
+
+## Curve features
+
+Curved distribution and spending, might create novel and different strategies for stream swapping.
+
+For example: it is possible to distribute more in the initial phase of the sale. This could incentivize buyers to jump onboard early on.
+
+Or 

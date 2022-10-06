@@ -9,31 +9,38 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
     pub global_distribution_index: Decimal,
+
+    pub token_out_denom: String,
     // total number of `tokens_out` to be sold during the continuous sale.
-    pub token_out_supply: Uint64,
-    pub total_out_sold: Uint64,
-    pub total_buy: Uint64,
+    pub token_out_supply: Uint128,
+    pub total_out_sold: Uint128,
+
+    pub token_in_denom: String,
+    pub total_in_supply: Uint128,
+    pub total_in_spent: Uint128,
     // TODO: convert to scheduled
     // start time when the token emission starts. in nanos
     pub start_time: Uint64,
     // end time when the token emission ends. Can't be bigger than start +
     // 139years (to avoid round overflow)
     pub end_time: Uint64,
-    pub latest_distribution_stage: Uint64,
+    pub latest_distribution_stage: Decimal,
 }
 pub const STATE: Item<State> = Item::new("state");
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Position {
+    pub owner: Addr,
     pub buy_balance: Uint128,
     pub index: Decimal,
     pub purchased: Uint128,
+    pub spent: Uint128
 }
 
 // Position (holder_addr, cw20_addr) -> Holder
 pub const POSITIONS: Map<&Addr, Position> = Map::new("positions");
-pub const CLAIMS: Claims = Claims::new("claims");
 
+/*
 /// list_accrued_rewards settings for pagination
 const MAX_LIMIT: u32 = 30;
 const DEFAULT_LIMIT: u32 = 10;
@@ -69,3 +76,6 @@ fn calc_range_start(api: &dyn Api, start_after: Option<Addr>) -> StdResult<Optio
         None => Ok(None),
     }
 }
+
+
+ */

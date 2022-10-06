@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{Decimal, Timestamp, Uint128, Uint64};
 use cw_utils::Scheduled;
-use cw20::Cw20ReceiveMsg;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -15,10 +14,11 @@ pub struct InstantiateMsg {
     pub url: String,
     // Payment denom - used to buy `token_out`.
     // Also known as quote currency.
-    pub token_in: String,
+    pub token_in_denom: String,
     // Denom to sale (distributed to the investors).
     // Also known as a base currency.
-    pub token_out: String,
+    pub token_out_denom: String,
+    pub token_out_supply: Uint128,
     // Unix timestamp when the sale starts.
     pub start_time: Timestamp,
     // Unix timestamp when the sale ends.
@@ -42,7 +42,7 @@ pub enum ExecuteMsg {
     ////////////////////
     /// User's operations
     ///////////////////
-    TriggerPositionPurchase { addr: Option<String> },
+    TriggerPositionPurchase {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

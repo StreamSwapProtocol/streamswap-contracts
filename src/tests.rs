@@ -1,6 +1,6 @@
-/*
 #[cfg(test)]
 mod tests {
+    /*
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{
         from_binary, to_binary, Addr, BankMsg, Coin, Decimal, Empty, MessageInfo, SubMsg, Uint128,
@@ -994,7 +994,5 @@ mod tests {
         .unwrap();
         assert_eq!(reward.to_string(), "0.9999999");
     }
-}
-
-
  */
+}

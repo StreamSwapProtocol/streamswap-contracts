@@ -1,4 +1,5 @@
 use cosmwasm_std::{OverflowError, StdError, Uint128};
+use cw_utils::PaymentError;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -8,6 +9,9 @@ pub enum ContractError {
 
     #[error("{0}")]
     Overflow(#[from] OverflowError),
+
+    #[error("{0}")]
+    Payment(#[from] PaymentError),
 
     #[error("Start and end dates should be same type")]
     DateInput{},
