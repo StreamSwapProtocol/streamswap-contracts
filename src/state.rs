@@ -5,15 +5,21 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
+    // Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub global_distribution_index: Decimal,
-
+    // last calculated stage of sale, %0 -> %100
+    pub latest_distribution_stage: Decimal,
+    // denom of the `token_out`
     pub token_out_denom: String,
-    // total number of `tokens_out` to be sold during the continuous sale.
+    // total number of `token_out` to be sold during the continuous sale.
     pub token_out_supply: Uint128,
+    // total number of `token_out` sold at latest state
     pub total_out_sold: Uint128,
-
+    // denom of the `token_in`
     pub token_in_denom: String,
+    // total number of `token_in` on the buy side at latest state
     pub total_in_supply: Uint128,
+    // total number of `token_in` spent at latest state
     pub total_in_spent: Uint128,
     // TODO: convert to scheduled
     // start time when the token emission starts. in nanos
@@ -21,16 +27,20 @@ pub struct State {
     // end time when the token emission ends. Can't be bigger than start +
     // 139years (to avoid round overflow)
     pub end_time: Uint64,
-    pub latest_distribution_stage: Decimal,
 }
 pub const STATE: Item<State> = Item::new("state");
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Position {
+    // creator of the position
     pub owner: Addr,
+    // current amount of tokens in buy pool
     pub buy_balance: Uint128,
+    // index is used to calculate the distribution a position has
     pub index: Decimal,
+    // total amount of purchased in tokens at latest calculation
     pub purchased: Uint128,
+    // total amount of spent out tokens at latest calculation
     pub spent: Uint128
 }
 

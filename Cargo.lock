@@ -227,7 +227,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "cw-osmosis-lpb"
+name = "cw-storage-plus"
+version = "0.15.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc6cf70ef7686e2da9ad7b067c5942cd3e88dd9453f7af42f54557f8af300fb0"
+dependencies = [
+ "cosmwasm-std",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "cw-streamswap"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-schema",
@@ -241,17 +252,6 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
-]
-
-[[package]]
-name = "cw-storage-plus"
-version = "0.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc6cf70ef7686e2da9ad7b067c5942cd3e88dd9453f7af42f54557f8af300fb0"
-dependencies = [
- "cosmwasm-std",
- "schemars",
- "serde",
 ]
 
 [[package]]

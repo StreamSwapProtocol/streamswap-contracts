@@ -28,14 +28,14 @@ pub fn instantiate(
     let state = State {
         latest_distribution_stage: Decimal::zero(),
         global_distribution_index: Decimal::zero(),
-        token_out_denom: msg.token_out_denom,
-        token_in_denom: msg.token_in_denom,
-        token_out_supply: msg.token_out_supply,
         start_time: Uint64::new(msg.start_time.nanos()),
         end_time: Uint64::new(msg.end_time.nanos()),
-        total_in_supply: Uint128::zero(),
+        token_out_denom: msg.token_out_denom,
+        token_out_supply: msg.token_out_supply,
         total_out_sold: Uint128::zero(),
-        total_in_spent: Uint128::zero()
+        token_in_denom: msg.token_in_denom,
+        total_in_supply: Uint128::zero(),
+        total_in_spent: Uint128::zero(),
     };
     STATE.save(deps.storage, &state)?;
 
@@ -84,16 +84,16 @@ pub fn update_distribution_index(
     // calculate new distribution
     let diff = current_distribution_stage.checked_sub(current_state.latest_distribution_stage)?;
     let new_distribution_balance = diff.mul(current_state.token_out_supply);
+    let spent_buy_side = diff.mul(current_state.total_in_supply);
 
     // TODO: check calculation
-    let new_total_buy = current_state.total_in_supply.checked_sub(diff.mul(current_state.total_in_supply))?;
+    let deduced_buy_supply = current_state.total_in_supply.checked_sub(spent_buy_side)?;
 
     // update global_distribution_index
-    current_state.global_distribution_index = current_state
-        .global_distribution_index
-        .add(Decimal::from_ratio(new_distribution_balance, new_total_buy));
+    current_state.global_distribution_index += Decimal::from_ratio(new_distribution_balance, deduced_buy_supply);
     current_state.latest_distribution_stage = current_distribution_stage;
-    current_state.total_in_supply = new_total_buy;
+    current_state.total_in_spent += spent_buy_side;
+    current_state.total_in_supply = deduced_buy_supply;
 
     STATE.save(storage, &current_state)?;
 

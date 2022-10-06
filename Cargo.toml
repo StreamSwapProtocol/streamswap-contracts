@@ -1,5 +1,5 @@
 [package]
-name = "cw-osmosis-lpb"
+name = "cw-streamswap"
 version = "0.1.0"
 authors = ["Orkun Külçe <orkunkl@users.noreply.github.com>"]
 edition = "2021"
