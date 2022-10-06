@@ -1,16 +1,15 @@
-use std::f32::consts::E;
-use cosmwasm_std::{attr, entry_point, from_binary, to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg, WasmQuery, BalanceResponse, Uint64, Addr, Storage, Timestamp};
+
+use cosmwasm_std::{attr, entry_point, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128, Uint64, Storage, Timestamp};
 
 use crate::msg::{
-    AccruedRewardsResponse, ExecuteMsg, PositionResponse, HoldersResponse, InstantiateMsg,
-    MigrateMsg, QueryMsg, StateResponse,
+    ExecuteMsg, InstantiateMsg,
+    MigrateMsg, QueryMsg,
 };
 use crate::state::{Position, State, POSITIONS, STATE};
 use crate::ContractError;
-use cw_controllers::ClaimsResponse;
-use std::ops::{Add, Div, Mul, Sub};
-use std::str::FromStr;
-use cw_utils::{Expiration, must_pay, Scheduled};
+
+use std::ops::{Add, Mul, Sub};
+use cw_utils::{must_pay};
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -60,7 +59,6 @@ pub fn execute(
 
 /// Increase global_distribution_index with new distribution release
 pub fn execute_update_distribution_index(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
-    let mut current_state = STATE.load(deps.storage)?;
     let (state, _, new_distribution_balance) = update_distribution_index(deps.storage, env.block.time)?;
     // need new_distribution_balance, global_distribution_index,
     STATE.save(deps.storage, &state)?;
@@ -109,7 +107,7 @@ pub fn execute_trigger_position_purchase(
 ) -> Result<Response, ContractError> {
     let addr = info.sender;
 
-    let mut position = POSITIONS.load(deps.storage, &addr)?;
+    let position = POSITIONS.load(deps.storage, &addr)?;
     let (purchased, spent) =
         trigger_position_purchase(deps.storage, env.block.time, position)?;
 
@@ -238,27 +236,13 @@ pub fn execute_withdraw(
     Ok(Response::new().add_attributes(attributes))
 }
 
-// calculate the reward with decimal
-pub fn get_decimals(value: Decimal) -> StdResult<Decimal> {
-    let stringed: &str = &*value.to_string();
-    let parts: &[&str] = &*stringed.split('.').collect::<Vec<&str>>();
-    match parts.len() {
-        1 => Ok(Decimal::zero()),
-        2 => {
-            let decimals = Decimal::from_str(&*("0.".to_owned() + parts[1]))?;
-            Ok(decimals)
-        }
-        _ => Err(StdError::generic_err("Unexpected number of dots")),
-    }
-}
-
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
     Ok(Response::default())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(_deps: Deps, _env: Env, _msg: QueryMsg) -> StdResult<Binary> {
     /*
     match msg {
         QueryMsg::State {} => to_binary(&query_state(deps, _env, msg)?),

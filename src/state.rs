@@ -1,8 +1,5 @@
-use crate::msg::PositionResponse;
-use cosmwasm_std::{Addr, Api, CanonicalAddr, Decimal, Deps, Order, StdResult, Uint128, Uint64};
-use cw_controllers::{Claims};
-use cw_storage_plus::{Bound, Item, Map};
-use cw_utils::Scheduled;
+use cosmwasm_std::{Addr, Decimal, Uint128, Uint64};
+use cw_storage_plus::{Item, Map};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
