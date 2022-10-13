@@ -44,7 +44,7 @@ pub struct Position {
     pub spent: Uint128
 }
 
-// Position (holder_addr, cw20_addr) -> Holder
+// Position (owner_addr) -> Position
 pub const POSITIONS: Map<&Addr, Position> = Map::new("positions");
 
 /*

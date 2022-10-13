@@ -59,7 +59,8 @@ pub fn execute(
 
 /// Increase global_distribution_index with new distribution release
 pub fn execute_update_distribution_index(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
-    let (state, _, new_distribution_balance) = update_distribution_index(deps.storage, env.block.time)?;
+    let mut state = STATE.load(deps.storage)?;
+    let (_, new_distribution_balance) = update_distribution_index(env.block.time, &mut state)?;
     // need new_distribution_balance, global_distribution_index,
     STATE.save(deps.storage, &state)?;
 
@@ -72,10 +73,9 @@ pub fn execute_update_distribution_index(deps: DepsMut, env: Env) -> Result<Resp
 }
 
 pub fn update_distribution_index(
-    storage: &mut dyn Storage,
     now: Timestamp,
-) -> Result<(State, Decimal, Uint128), ContractError> {
-    let mut current_state = STATE.load(storage)?;
+    current_state: &mut State
+) -> Result<(Decimal, Uint128), ContractError> {
     // calculate the current distribution stage
     let numerator = Decimal::new(Uint128::from(now.nanos()) - Uint128::from(current_state.start_time));
     let denominator = Decimal::new(Uint128::from(current_state.end_time - current_state.start_time));
@@ -95,9 +95,7 @@ pub fn update_distribution_index(
     current_state.total_in_spent += spent_buy_side;
     current_state.total_in_supply = deduced_buy_supply;
 
-    STATE.save(storage, &current_state)?;
-
-    Ok((current_state, diff, new_distribution_balance))
+    Ok((diff, new_distribution_balance))
 }
 
 pub fn execute_trigger_position_purchase(
@@ -126,10 +124,12 @@ pub fn trigger_position_purchase(
     // TODO: revisit design
     mut position: Position
 ) -> Result<(Uint128, Uint128), ContractError> {
+    let mut state = STATE.load(storage)?;
     // update distribution index
-    let (state, diff, _) =
-        update_distribution_index(storage, now)?;
+    let (diff, _) =
+        update_distribution_index(now, &mut state)?;
 
+    STATE.save(storage, &state)?;
     // trigger position purchase
     let spent = position.buy_balance.mul(diff);
     let new_position_balance = position.buy_balance.checked_sub(spent)?;
@@ -172,14 +172,8 @@ pub fn execute_subscribe(
             };
             POSITIONS.save(deps.storage, &info.sender, &new_position)?;
         }
-        Some(mut position) => {
-            let (purchased, spent) = trigger_position_purchase(deps.storage, env.block.time, position.clone())?;
-
-            position.index = state.global_distribution_index;
-            position.purchased += purchased;
-            position.buy_balance += funds;
-            position.spent += spent;
-            POSITIONS.save(deps.storage, &info.sender.clone(), &position)?;
+        Some(position) => {
+            trigger_position_purchase(deps.storage, env.block.time, position.clone())?;
         }
     }
 
