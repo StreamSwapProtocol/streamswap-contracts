@@ -8,7 +8,7 @@ pub struct State {
     // Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub global_distribution_index: Decimal,
     // last calculated stage of sale, %0 -> %100
-    pub latest_distribution_stage: Decimal,
+    pub latest_dist_stage: Decimal,
     // denom of the `token_out`
     pub token_out_denom: String,
     // total number of `token_out` to be sold during the continuous sale.
@@ -38,7 +38,7 @@ pub struct Position {
     pub buy_balance: Uint128,
     // index is used to calculate the distribution a position has
     pub index: Decimal,
-    pub last_action_stage: Decimal,
+    pub latest_dist_stage: Decimal,
     // total amount of purchased in tokens at latest calculation
     pub purchased: Uint128,
     // total amount of spent out tokens at latest calculation

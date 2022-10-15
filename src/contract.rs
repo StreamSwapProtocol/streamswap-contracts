@@ -26,7 +26,7 @@ pub fn instantiate(
     }
 
     let state = State {
-        latest_distribution_stage: Decimal::zero(),
+        latest_dist_stage: Decimal::zero(),
         global_distribution_index: Decimal::zero(),
         start_time: Uint64::new(msg.start_time.nanos()),
         end_time: Uint64::new(msg.end_time.nanos()),
@@ -79,10 +79,27 @@ pub fn update_distribution_index(
     // calculate the current distribution stage
     let numerator = Decimal::new(Uint128::from(now.nanos()) - Uint128::from(current_state.start_time));
     let denominator = Decimal::new(Uint128::from(current_state.end_time - current_state.start_time));
+    // %30
+    // user A creates position
+    // treasury total: 2000
+    // distribution_bal = 600
+    // cds = 3/10
+    // position_total: 1000
+    // position_spent = 300
+    // new position total = 700
+    // new_dist_index = 600 / 700: 6/7
+    // streaming_price =  700/600: 1.1
+
+    // %60
+    // user B creates position
+    // distribution_bal = 600
+    // position_total = 200
+    // distribution_index = 6/7
+    // position_spent =
     let current_distribution_stage = numerator / denominator;
 
     // calculate new distribution
-    let diff = current_distribution_stage.checked_sub(current_state.latest_distribution_stage)?;
+    let diff = current_distribution_stage.checked_sub(current_state.latest_dist_stage)?;
     let new_distribution_balance = diff.mul(current_state.token_out_supply);
     let spent_buy_side = diff.mul(current_state.total_in_supply);
 
@@ -91,7 +108,7 @@ pub fn update_distribution_index(
 
     // update global_distribution_index
     current_state.global_distribution_index += Decimal::from_ratio(new_distribution_balance, deduced_buy_supply);
-    current_state.latest_distribution_stage = current_distribution_stage;
+    current_state.latest_dist_stage = current_distribution_stage;
     current_state.total_in_spent += spent_buy_side;
     current_state.total_in_supply = deduced_buy_supply;
 
@@ -126,20 +143,21 @@ pub fn trigger_position_purchase(
 ) -> Result<(Uint128, Uint128), ContractError> {
     let mut state = STATE.load(storage)?;
     // update distribution index
-    let (diff, _) =
+    let (_, _) =
         update_distribution_index(now, &mut state)?;
 
     STATE.save(storage, &state)?;
 
+    let diff = state.global_distribution_index.checked_sub(position.index)?;
+    let spent_diff = state.latest_dist_stage - position.latest_dist_stage;
+    let spent = spent_diff.mul(position.buy_balance);
+    position.buy_balance -= spent;
     // trigger position purchase
     let claim = position.buy_balance.mul(diff);
-    let spent_diff = state.latest_distribution_stage - position.last_action_stage;
-    let spent = spent_diff.mul(position.buy_balance);
 
     position.purchased += claim;
-    position.last_action_stage = state.latest_distribution_stage;
+    position.latest_dist_stage = state.latest_dist_stage;
     position.spent += spent;
-    position.buy_balance -= spent;
     position.index = state.global_distribution_index;
 
     POSITIONS.save(storage, &position.owner, &position)?;
@@ -165,6 +183,7 @@ pub fn execute_subscribe(
                 owner: info.sender.clone(),
                 buy_balance: funds,
                 index: state.global_distribution_index,
+                latest_dist_stage: Decimal::zero(),
                 purchased: Uint128::zero(),
                 spent: Uint128::zero()
             };
