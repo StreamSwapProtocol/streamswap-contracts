@@ -1,15 +1,14 @@
-
-use cosmwasm_std::{attr, entry_point, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128, Uint64, Storage, Timestamp};
-
-use crate::msg::{
-    ExecuteMsg, InstantiateMsg,
-    MigrateMsg, QueryMsg,
+use cosmwasm_std::{
+    attr, entry_point, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    Storage, Timestamp, Uint128, Uint64,
 };
+
+use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::state::{Position, State, POSITIONS, STATE};
 use crate::ContractError;
 
-use std::ops::{Add, Mul, Sub};
-use cw_utils::{must_pay};
+use cw_utils::must_pay;
+use std::ops::{Mul};
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -50,7 +49,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::TriggerPositionPurchase { } => execute_trigger_position_purchase(deps, env, info),
+        ExecuteMsg::TriggerPositionPurchase {} => {
+            execute_trigger_position_purchase(deps, env, info)
+        }
         ExecuteMsg::UpdateDistributionIndex {} => execute_update_distribution_index(deps, env),
         ExecuteMsg::Subscribe {} => execute_subscribe(deps, env, info),
         ExecuteMsg::Withdraw { cap } => execute_withdraw(deps, env, info, cap),
@@ -58,7 +59,10 @@ pub fn execute(
 }
 
 /// Increase global_distribution_index with new distribution release
-pub fn execute_update_distribution_index(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+pub fn execute_update_distribution_index(
+    deps: DepsMut,
+    env: Env,
+) -> Result<Response, ContractError> {
     let mut state = STATE.load(deps.storage)?;
     let (_, new_distribution_balance) = update_distribution_index(env.block.time, &mut state)?;
     // need new_distribution_balance, global_distribution_index,
@@ -67,18 +71,24 @@ pub fn execute_update_distribution_index(deps: DepsMut, env: Env) -> Result<Resp
     let res = Response::new()
         .add_attribute("action", "update_distribution_index")
         .add_attribute("new_distribution_balance", new_distribution_balance)
-        .add_attribute("global_distribution_index", state.global_distribution_index.to_string());
+        .add_attribute(
+            "global_distribution_index",
+            state.global_distribution_index.to_string(),
+        );
 
     Ok(res)
 }
 
 pub fn update_distribution_index(
     now: Timestamp,
-    current_state: &mut State
+    current_state: &mut State,
 ) -> Result<(Decimal, Uint128), ContractError> {
     // calculate the current distribution stage
-    let numerator = Decimal::new(Uint128::from(now.nanos()) - Uint128::from(current_state.start_time));
-    let denominator = Decimal::new(Uint128::from(current_state.end_time - current_state.start_time));
+    let numerator =
+        Decimal::new(Uint128::from(now.nanos()) - Uint128::from(current_state.start_time));
+    let denominator = Decimal::new(Uint128::from(
+        current_state.end_time - current_state.start_time,
+    ));
     // %30
     // user A creates position
     // treasury total: 2000
@@ -107,7 +117,8 @@ pub fn update_distribution_index(
     let deduced_buy_supply = current_state.total_in_supply.checked_sub(spent_buy_side)?;
 
     // update global_distribution_index
-    current_state.global_distribution_index += Decimal::from_ratio(new_distribution_balance, deduced_buy_supply);
+    current_state.global_distribution_index +=
+        Decimal::from_ratio(new_distribution_balance, deduced_buy_supply);
     current_state.latest_dist_stage = current_distribution_stage;
     current_state.total_in_spent += spent_buy_side;
     current_state.total_in_supply = deduced_buy_supply;
@@ -123,8 +134,7 @@ pub fn execute_trigger_position_purchase(
     let addr = info.sender;
 
     let position = POSITIONS.load(deps.storage, &addr)?;
-    let (purchased, spent) =
-        trigger_position_purchase(deps.storage, env.block.time, position)?;
+    let (purchased, spent) = update_position_sale(deps.storage, env.block.time, position)?;
 
     Ok(Response::new()
         .add_attribute("action", "trigger_position_purchase")
@@ -135,27 +145,28 @@ pub fn execute_trigger_position_purchase(
 
 // calculate the user purchase based on the positions index and the global index.
 // returns purchase amount and spent amount
-pub fn trigger_position_purchase(
+pub fn update_position_sale(
     storage: &mut dyn Storage,
     now: Timestamp,
     // TODO: revisit design
-    mut position: Position
+    mut position: Position,
 ) -> Result<(Uint128, Uint128), ContractError> {
     let mut state = STATE.load(storage)?;
     // update distribution index
-    let (_, _) =
-        update_distribution_index(now, &mut state)?;
+    let (_, _) = update_distribution_index(now, &mut state)?;
 
     STATE.save(storage, &state)?;
 
-    let diff = state.global_distribution_index.checked_sub(position.index)?;
+    let diff = state
+        .global_distribution_index
+        .checked_sub(position.index)?;
     let spent_diff = state.latest_dist_stage - position.latest_dist_stage;
     let spent = spent_diff.mul(position.buy_balance);
     position.buy_balance -= spent;
     // trigger position purchase
-    let claim = position.buy_balance.mul(diff);
+    let purchased = position.buy_balance.mul(diff);
 
-    position.purchased += claim;
+    position.purchased += purchased;
     position.latest_dist_stage = state.latest_dist_stage;
     position.spent += spent;
     position.index = state.global_distribution_index;
@@ -185,12 +196,12 @@ pub fn execute_subscribe(
                 index: state.global_distribution_index,
                 latest_dist_stage: Decimal::zero(),
                 purchased: Uint128::zero(),
-                spent: Uint128::zero()
+                spent: Uint128::zero(),
             };
             POSITIONS.save(deps.storage, &info.sender, &new_position)?;
         }
         Some(position) => {
-            trigger_position_purchase(deps.storage, env.block.time, position.clone())?;
+            update_position_sale(deps.storage, env.block.time, position.clone())?;
         }
     }
 
@@ -221,7 +232,7 @@ pub fn execute_withdraw(
     let mut position = POSITIONS.load(deps.storage, &info.sender)?;
     let amount_to_withdraw = amount.unwrap_or(position.buy_balance);
 
-    let (purchased, spent) = trigger_position_purchase(deps.storage, env.block.time, position.clone())?;
+    let (purchased, spent) = update_position_sale(deps.storage, env.block.time, position.clone())?;
 
     // if amount to withdraw more then deduced buy balance throw error
     if amount_to_withdraw > position.buy_balance - spent {

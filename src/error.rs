@@ -14,7 +14,7 @@ pub enum ContractError {
     Payment(#[from] PaymentError),
 
     #[error("Start and end dates should be same type")]
-    DateInput{},
+    DateInput {},
 
     #[error("No rewards accrued")]
     NoDistribution {},

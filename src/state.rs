@@ -42,7 +42,7 @@ pub struct Position {
     // total amount of purchased in tokens at latest calculation
     pub purchased: Uint128,
     // total amount of spent out tokens at latest calculation
-    pub spent: Uint128
+    pub spent: Uint128,
 }
 
 // Position (owner_addr) -> Position

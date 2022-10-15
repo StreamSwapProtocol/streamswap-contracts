@@ -36,7 +36,9 @@ pub enum ExecuteMsg {
     // epoch to purchase `token_out`.
     Subscribe {},
     // Withdraws released stake
-    Withdraw { cap: Option<Uint128> },
+    Withdraw {
+        cap: Option<Uint128>,
+    },
 
     ////////////////////
     /// User's operations
