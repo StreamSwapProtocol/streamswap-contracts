@@ -38,6 +38,7 @@ pub struct Position {
     pub buy_balance: Uint128,
     // index is used to calculate the distribution a position has
     pub index: Decimal,
+    pub last_action_stage: Decimal,
     // total amount of purchased in tokens at latest calculation
     pub purchased: Uint128,
     // total amount of spent out tokens at latest calculation

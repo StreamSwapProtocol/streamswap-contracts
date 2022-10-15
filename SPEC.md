@@ -27,8 +27,9 @@ $$
 current\_stage = \frac{now - start}{end - start}
 $$
 
+
 $$
-diff = current\_stage - last\_known\_stage
+diff = current\_stage - state.last\_known\_stage
 $$
 
 $$
@@ -36,39 +37,18 @@ new\_distribution\_balance = diff \times token\_out\_supply
 $$
 
 $$
-distribution\_index = distribution\_index + \frac{new\_distribution\_balance}{total\_buy}
-$$
-
-
-
-Each position state holds a `position_index` value which represents the current state of release a position has.
-
-On `trigger_purchase` calls, `position_index` is caught up to `distribution_index`
-$$
-diff = distribution\_index - position\_index
+spent\_buy = diff \times total\_buy\_supply
 $$
 
 $$
-purchased = diff \times position\_balance
+deduced\_buy\_supply = total\_buy\_supply - spent\_buy
 $$
 
-## Spending
-
-In the initial design spending happens linearly.
-
-Ex: 10000 token is by the user and 0-10000 is start and end unix times.
-
-Spending graph looks like this:
-
-![Screen Shot 2022-09-29 at 18.04.05](/Users/orkunkulce/Library/Application Support/typora-user-images/Screen Shot 2022-09-29 at 18.04.05.png)
-
-Ex: At the half time, half of the token will be spend.
-
-Spent amount is not deduced from positions balance until `withdraw` is triggered.
+$$
+distribution\_index = distribution\_index + \frac{new\_distribution\_balance}{deduced\_buy\_supply}
+$$
 
 
-
-It is very possible to implement a curve spending feature in future.
 
 ## Curve features
 
@@ -76,4 +56,3 @@ Curved distribution and spending, might create novel and different strategies fo
 
 For example: it is possible to distribute more in the initial phase of the sale. This could incentivize buyers to jump onboard early on.
 
-Or 

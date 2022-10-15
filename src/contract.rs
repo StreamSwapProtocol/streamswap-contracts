@@ -130,19 +130,17 @@ pub fn trigger_position_purchase(
         update_distribution_index(now, &mut state)?;
 
     STATE.save(storage, &state)?;
+
     // trigger position purchase
-    let spent = position.buy_balance.mul(diff);
-    let new_position_balance = position.buy_balance.checked_sub(spent)?;
+    let claim = position.buy_balance.mul(diff);
+    let spent_diff = state.latest_distribution_stage - position.last_action_stage;
+    let spent = spent_diff.mul(position.buy_balance);
 
-    let decimal_balance = Decimal::from_ratio(new_position_balance, Uint128::new(1));
-    let diff = state.global_distribution_index.sub(position.index);
-
-    let purchased = diff.mul(decimal_balance).atomics();
-
-    position.purchased += purchased;
-    position.buy_balance = new_position_balance;
-    position.index = state.global_distribution_index;
+    position.purchased += claim;
+    position.last_action_stage = state.latest_distribution_stage;
     position.spent += spent;
+    position.buy_balance -= spent;
+    position.index = state.global_distribution_index;
 
     POSITIONS.save(storage, &position.owner, &position)?;
 
