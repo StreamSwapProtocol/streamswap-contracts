@@ -162,8 +162,8 @@ pub fn update_position_sale(
 
     let spent_diff = state.latest_dist_stage - position.latest_dist_stage;
     let spent = spent_diff.mul(position.buy_balance);
-
     position.buy_balance -= spent;
+
     let purchased = position.buy_balance.mul(index_diff);
 
     position.latest_dist_stage = state.latest_dist_stage;
