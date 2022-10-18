@@ -24,28 +24,59 @@ Whole distribution state is saved under `distribution_index`
 
 On `update_distribution_index` call `distribution_index` is updated with given calculation.
 $$
-current\_stage = \frac{now - start}{end - start}
+current\_distribution\_stage = \frac{now - start}{end - start}
 $$
 
 
 $$
-diff = current\_stage - state.last\_known\_stage
+diff = current\_dist\_stage - state.latest\_dist\_stage
 $$
 
 $$
-new\_distribution\_balance = diff \times token\_out\_supply
+new\_distribution\_balance = diff \times state.token\_out\_supply
 $$
 
 $$
-spent\_buy = diff \times total\_buy\_supply
+spent\_buy = diff \times state.total\_buy\_supply
 $$
 
 $$
-deduced\_buy\_supply = total\_buy\_supply - spent\_buy
+deduced\_buy\_supply = state.total\_buy\_supply - spent\_buy
 $$
 
 $$
-distribution\_index = distribution\_index + \frac{new\_distribution\_balance}{deduced\_buy\_supply}
+state.global\_dist\_index = state.global\_dist\_index + \frac{new\_dist\_balance}{deduced\_buy\_supply}
+$$
+
+After this calculation 
+
+current distribution stage is saved to state as global_dist_index
+
+current calculated stage is saved to state as latest_dist_stage
+
+## Trigger position purchase 
+
+Before a position purchase global distribution index is updated, total buy supply updated with spent amount.
+
+Before withdraw and subscribe position purchase is triggered.
+$$
+index\_diff = state.global\_distribution\_index - position.index
+$$
+
+$$
+spent\_diff = state.latest\_dist\_stage - position.latest\_dist\_stage
+$$
+
+$$
+spent = spent\_diff - position.latest\_dist\_stage
+$$
+
+$$
+purchased = position.buy_balance \times index\_diff
+$$
+
+$$
+position.index = state.global\_dist\_index
 $$
 
 

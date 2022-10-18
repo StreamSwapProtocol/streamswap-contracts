@@ -26,7 +26,7 @@ pub fn instantiate(
 
     let state = State {
         latest_dist_stage: Decimal::zero(),
-        global_distribution_index: Decimal::zero(),
+        global_dist_index: Decimal::zero(),
         start_time: Uint64::new(msg.start_time.nanos()),
         end_time: Uint64::new(msg.end_time.nanos()),
         token_out_denom: msg.token_out_denom,
@@ -73,7 +73,7 @@ pub fn execute_update_distribution_index(
         .add_attribute("new_distribution_balance", new_distribution_balance)
         .add_attribute(
             "global_distribution_index",
-            state.global_distribution_index.to_string(),
+            state.global_dist_index.to_string(),
         );
 
     Ok(res)
@@ -106,20 +106,19 @@ pub fn update_distribution_index(
     // position_total = 200
     // distribution_index = 6/7
     // position_spent =
-    let current_distribution_stage = numerator / denominator;
+    let current_dist_stage = numerator / denominator;
 
     // calculate new distribution
-    let diff = current_distribution_stage.checked_sub(current_state.latest_dist_stage)?;
+    let diff = current_dist_stage.checked_sub(current_state.latest_dist_stage)?;
     let new_distribution_balance = diff.mul(current_state.token_out_supply);
     let spent_buy_side = diff.mul(current_state.total_in_supply);
 
     // TODO: check calculation
     let deduced_buy_supply = current_state.total_in_supply.checked_sub(spent_buy_side)?;
 
-    // update global_distribution_index
-    current_state.global_distribution_index +=
+    current_state.global_dist_index +=
         Decimal::from_ratio(new_distribution_balance, deduced_buy_supply);
-    current_state.latest_dist_stage = current_distribution_stage;
+    current_state.latest_dist_stage = current_dist_stage;
     current_state.total_in_spent += spent_buy_side;
     current_state.total_in_supply = deduced_buy_supply;
 
@@ -157,19 +156,20 @@ pub fn update_position_sale(
 
     STATE.save(storage, &state)?;
 
-    let diff = state
-        .global_distribution_index
+    let index_diff = state
+        .global_dist_index
         .checked_sub(position.index)?;
+
     let spent_diff = state.latest_dist_stage - position.latest_dist_stage;
     let spent = spent_diff.mul(position.buy_balance);
-    position.buy_balance -= spent;
-    // trigger position purchase
-    let purchased = position.buy_balance.mul(diff);
 
-    position.purchased += purchased;
+    position.buy_balance -= spent;
+    let purchased = position.buy_balance.mul(index_diff);
+
     position.latest_dist_stage = state.latest_dist_stage;
+    position.purchased += purchased;
     position.spent += spent;
-    position.index = state.global_distribution_index;
+    position.index = state.global_dist_index;
 
     POSITIONS.save(storage, &position.owner, &position)?;
 
@@ -193,7 +193,7 @@ pub fn execute_subscribe(
             let new_position = Position {
                 owner: info.sender.clone(),
                 buy_balance: funds,
-                index: state.global_distribution_index,
+                index: state.global_dist_index,
                 latest_dist_stage: Decimal::zero(),
                 purchased: Uint128::zero(),
                 spent: Uint128::zero(),
@@ -239,7 +239,7 @@ pub fn execute_withdraw(
         return Err(ContractError::DecreaseAmountExceeds(amount_to_withdraw));
     }
 
-    position.index = state.global_distribution_index;
+    position.index = state.global_dist_index;
     position.purchased += purchased;
     position.spent += spent;
     position.buy_balance -= spent;

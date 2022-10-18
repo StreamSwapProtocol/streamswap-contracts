@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
     // Proportional distribution variable to calculate the distribution of in token_out to buyers.
-    pub global_distribution_index: Decimal,
+    pub global_dist_index: Decimal,
     // last calculated stage of sale, %0 -> %100
     pub latest_dist_stage: Decimal,
     // denom of the `token_out`
