@@ -200,8 +200,10 @@ pub fn execute_subscribe(
             };
             POSITIONS.save(deps.storage, &info.sender, &new_position)?;
         }
-        Some(position) => {
+        Some(mut position) => {
             update_position_sale(deps.storage, env.block.time, position.clone())?;
+            position.buy_balance += funds;
+            POSITIONS.save(deps.storage, &info.sender, &position)?;
         }
     }
 
