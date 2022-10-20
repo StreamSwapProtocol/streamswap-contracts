@@ -59,8 +59,22 @@ current calculated stage is saved to state as latest_dist_stage
 Before a position purchase global distribution index is updated, total buy supply updated with spent amount.
 
 Before withdraw and subscribe position purchase is triggered.
+
+position.latest_stage is the percentage of the current stage of the sale like %5 or %50
+
+spent calculation is done by calculating the stage change after latest action. Let's say user subscribed some tokens at %10 of the sale. And he withdrawed it at %50 of the sale. This means that subscribed tokens will be deduced by %40.
+
+If a user subscribed at %0 and did not withdraw or add any tokens, at %100 all of his tokens will be sold.
+
+If the user subscribes at %0 and adds more tokens at %30, at the new subsription action %30 percent of the tokens he loaded will deduced and stream will continue with `(initial_token_amount * 30/100) + new_token_amount`
+
+Here is the position purchase algorithm that calculates the purchased and sold amount.
 $$
 index\_diff = state.global\_distribution\_index - position.index
+$$
+
+$$
+purchased =  index\_diff \times position.buy\_balance
 $$
 
 $$
@@ -68,11 +82,7 @@ spent\_diff = state.latest\_dist\_stage - position.latest\_dist\_stage
 $$
 
 $$
-spent = spent\_diff - position.latest\_dist\_stage
-$$
-
-$$
-purchased = position.buy_balance \times index\_diff
+spent = spent\_diff \times position.buy\_balance
 $$
 
 $$
