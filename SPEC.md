@@ -66,7 +66,7 @@ spent calculation is done by calculating the stage change after latest action. L
 
 If a user subscribed at %0 and did not withdraw or add any tokens, at %100 all of his tokens will be sold.
 
-If the user subscribes at %0 and adds more tokens at %30, at the new subsription action %30 percent of the tokens he loaded will deduced and stream will continue with `(initial_token_amount * 30/100) + new_token_amount`
+If the user subscribes at %0 and adds more tokens at %30, at the new subsription action %30 percent of the inital tokens will deduced and stream will continue with `(initial_token_amount * 30/100) + new_token_amount`
 
 Here is the position purchase algorithm that calculates the purchased and sold amount.
 $$
