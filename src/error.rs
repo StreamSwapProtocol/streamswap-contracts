@@ -36,4 +36,25 @@ pub enum ContractError {
 
     #[error("No bond")]
     NoBond {},
+
+    #[error("Sale not ended")]
+    SaleNotEnded {},
+
+    #[error("Update dist index")]
+    UpdateDistIndex {},
+
+    #[error("Trigger position purchase")]
+    TriggerPositionPurchase {},
+
+    #[error("Position is already exited")]
+    PositionAlreadyExited {},
+
+    #[error("Sale duration is too short")]
+    SaleDurationTooShort {},
+
+    #[error("Sale starts too soon")]
+    SaleStartsTooSoon {},
+
+    #[error("Creation Fee Required")]
+    CreationFeeRequired {},
 }

@@ -4,7 +4,20 @@ use cosmwasm_std::{Addr, Decimal, Storage, Uint128, Uint64};
 use cw_storage_plus::{Item, Map};
 
 #[cw_serde]
+pub struct Config {
+    pub min_sale_duration: Uint64,
+    pub min_duration_until_start_time: Uint64,
+    pub sale_creation_denom: String,
+    pub sale_creation_fee: Uint128,
+    pub fee_collector: Addr,
+}
+
+pub const CONFIG: Item<Config> = Item::new("config");
+
+#[cw_serde]
 pub struct Sale {
+    // Destination for the earned token_in
+    pub treasury: Addr,
     // Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal,
     // last calculated stage of sale, %0 -> %100
@@ -27,6 +40,8 @@ pub struct Sale {
     // end time when the token emission ends. Can't be bigger than start +
     // 139years (to avoid round overflow)
     pub end_time: Uint64,
+    // price at the time when distribution is triggered last
+    pub latest_streamed_price: Uint128,
 }
 
 pub const SALES: Map<u64, Sale> = Map::new("sales");
@@ -52,6 +67,8 @@ pub struct Position {
     pub purchased: Uint128,
     // total amount of spent out tokens at latest calculation
     pub spent: Uint128,
+    // finalized becomes true when position is finalized and tokens are sent to the recipient
+    pub exited: bool,
 }
 
 // Position (owner_addr) -> Position
