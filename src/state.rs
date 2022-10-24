@@ -1,8 +1,8 @@
+use crate::ContractError;
 use cosmwasm_std::{Addr, Decimal, Storage, Uint128, Uint64};
 use cw_storage_plus::{Item, Map};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use crate::ContractError;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Sale {

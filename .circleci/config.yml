@@ -11,10 +11,19 @@ jobs:
           command: rustc --version; cargo --version; rustup --version
       - restore_cache:
           keys:
-            - v4-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+            - cargocache-v2-cw-streamswap:1.64.0-{{ checksum "~/project/Cargo.lock" }}
+      - run:
+          name: Add rustfmt component
+          command: rustup component add rustfmt
+      - run:
+          name: Add clippy component
+          command: rustup component add clippy
       - run:
           name: Add wasm32 target
           command: rustup target add wasm32-unknown-unknown
+      - run:
+          name: Format source code
+          command: cargo fmt
       - run:
           name: Unit tests
           env: RUST_BACKTRACE=1
@@ -22,12 +31,6 @@ jobs:
       - run:
           name: Build
           command: cargo wasm --locked
-      - run:
-          name: Format source code
-          command: cargo fmt
-      - run:
-          name: Build and run schema generator
-          command: cargo schema --locked
       - run:
           name: Ensure checked-in source code and schemas are up-to-date
           command: |
@@ -46,4 +49,4 @@ jobs:
             - target/wasm32-unknown-unknown/release/.fingerprint
             - target/wasm32-unknown-unknown/release/build
             - target/wasm32-unknown-unknown/release/deps
-          key: v4-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-cw-streamswap:1.64.0-{{ checksum "~/project/Cargo.lock" }}
