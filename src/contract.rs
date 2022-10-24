@@ -269,3 +269,9 @@ pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Respons
 pub fn query(_deps: Deps, _env: Env, _msg: QueryMsg) -> StdResult<Binary> {
     unimplemented!()
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn basic() {}
+}

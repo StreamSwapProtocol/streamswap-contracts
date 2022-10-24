@@ -1,9 +1,7 @@
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::{Timestamp, Uint128};
 
-use cosmwasm_std::{Decimal, Timestamp, Uint128};
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct InstantiateMsg {
     // Address where the sale earnings will go
     pub treasury: String,
@@ -24,8 +22,7 @@ pub struct InstantiateMsg {
     pub end_time: Timestamp,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ExecuteMsg {
     // Update the distribution index
     UpdateDistributionIndex {
@@ -51,8 +48,7 @@ pub enum ExecuteMsg {
     },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum QueryMsg {
     // Returns the current state of the sale
     Sale { sale_id: u64 },
@@ -60,5 +56,5 @@ pub enum QueryMsg {
     Position { sale_id: u64, owner: String },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct MigrateMsg {}

@@ -1,10 +1,9 @@
 use crate::ContractError;
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Decimal, Storage, Uint128, Uint64};
 use cw_storage_plus::{Item, Map};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct Sale {
     // Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal,
@@ -40,7 +39,7 @@ pub fn next_sales_id(store: &mut dyn Storage) -> Result<u64, ContractError> {
     Ok(id)
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct Position {
     // creator of the position
     pub owner: Addr,
