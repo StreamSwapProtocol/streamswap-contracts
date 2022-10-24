@@ -28,67 +28,36 @@ pub struct InstantiateMsg {
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     // Update the distribution index
-    UpdateDistributionIndex {},
+    UpdateDistributionIndex {
+        sale_id: u64,
+    },
 
     // Subscribe to a token sale. Any use at any time before the sale end can join
     // the sale by sending `token_in` to the Sale through the Subscribe msg.
     // During the sale, user `token_in` will be automatically charged every
     // epoch to purchase `token_out`.
-    Subscribe {},
+    Subscribe {
+        sale_id: u64,
+    },
     // Withdraws released stake
     Withdraw {
+        sale_id: u64,
         cap: Option<Uint128>,
+        recipient: Option<String>,
     },
 
-    ////////////////////
-    /// User's operations
-    ///////////////////
-    TriggerPositionPurchase {},
+    TriggerPositionPurchase {
+        sale_id: u64,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    State {},
-    AccruedDistribution {
-        address: String,
-    },
-    Holder {
-        address: String,
-    },
-    Holders {
-        start_after: Option<String>,
-        limit: Option<u32>,
-    },
-    Claims {
-        address: String,
-    },
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct StateResponse {
-    pub cw20_token_addr: String,
-    pub unbonding_period: u64,
-    pub global_index: Decimal,
-    pub total_balance: Uint128,
-    pub prev_reward_balance: Uint128,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct AccruedRewardsResponse {
-    pub rewards: Uint128,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct PositionResponse {
-    pub address: String,
-    pub balance: Uint128,
-    pub index: Decimal,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct HoldersResponse {
-    pub holders: Vec<PositionResponse>,
+    // Returns the current state of the sale
+    Sale { sale_id: u64 },
+    // Returns the current state of the position
+    Position { sale_id: u64, owner: String },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

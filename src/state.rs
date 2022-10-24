@@ -1,14 +1,15 @@
-use cosmwasm_std::{Addr, Decimal, Uint128, Uint64};
+use cosmwasm_std::{Addr, Decimal, Storage, Uint128, Uint64};
 use cw_storage_plus::{Item, Map};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use crate::ContractError;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct State {
+pub struct Sale {
     // Proportional distribution variable to calculate the distribution of in token_out to buyers.
-    pub global_dist_index: Decimal,
+    pub dist_index: Decimal,
     // last calculated stage of sale, %0 -> %100
-    pub latest_dist_stage: Decimal,
+    pub latest_stage: Decimal,
     // denom of the `token_out`
     pub token_out_denom: String,
     // total number of `token_out` to be sold during the continuous sale.
@@ -28,7 +29,16 @@ pub struct State {
     // 139years (to avoid round overflow)
     pub end_time: Uint64,
 }
-pub const STATE: Item<State> = Item::new("state");
+
+pub const SALES: Map<u64, Sale> = Map::new("sales");
+
+const SALES_ID_COUNTER: Item<u64> = Item::new("sales_id_counter");
+
+pub fn next_sales_id(store: &mut dyn Storage) -> Result<u64, ContractError> {
+    let id: u64 = SALES_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
+    SALES_ID_COUNTER.save(store, &id)?;
+    Ok(id)
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Position {
@@ -46,7 +56,7 @@ pub struct Position {
 }
 
 // Position (owner_addr) -> Position
-pub const POSITIONS: Map<&Addr, Position> = Map::new("positions");
+pub const POSITIONS: Map<(u64, &Addr), Position> = Map::new("positions");
 
 /*
 /// list_accrued_rewards settings for pagination
