@@ -72,6 +72,12 @@ pub enum ExecuteMsg {
         stream_id: u64,
         recipient: Option<String>,
     },
+
+    //
+    // Collector
+    //
+    // CollectFees collects fees from the contract
+    CollectFees {},
 }
 
 #[cw_serde]

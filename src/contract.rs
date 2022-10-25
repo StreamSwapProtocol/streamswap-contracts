@@ -1,5 +1,8 @@
-use crate::msg::{AveragePriceResponse, ExecuteMsg, InstantiateMsg, LatestStreamedPriceResponse, MigrateMsg, PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse, SudoMsg};
-use crate::state::{Config, Position, CONFIG, POSITIONS, STREAMS, Stream, next_stream_id};
+use crate::msg::{
+    AveragePriceResponse, ExecuteMsg, InstantiateMsg, LatestStreamedPriceResponse, MigrateMsg,
+    PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse, SudoMsg,
+};
+use crate::state::{next_stream_id, Config, Position, Stream, CONFIG, POSITIONS, STREAMS};
 use crate::ContractError;
 use cosmwasm_std::{
     attr, entry_point, to_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
@@ -83,9 +86,11 @@ pub fn execute(
             stream_id,
             new_treasury,
         } => execute_finalize_stream(deps, env, info, stream_id, new_treasury),
-        ExecuteMsg::ExitStream { stream_id, recipient } => {
-            execute_finalize_stream(deps, env, info, stream_id, recipient)
-        }
+        ExecuteMsg::ExitStream {
+            stream_id,
+            recipient,
+        } => execute_finalize_stream(deps, env, info, stream_id, recipient),
+        ExecuteMsg::CollectFees {} => execute_collect_fees(deps, env, info),
     }
 }
 
@@ -121,7 +126,7 @@ pub fn execute_create_stream(
         return Err(ContractError::CreationFeeRequired {});
     }
 
-    let state = Stream{
+    let state = Stream {
         treasury: deps.api.addr_validate(&treasury)?,
         current_stage: Decimal::zero(),
         dist_index: Decimal::zero(),
@@ -221,7 +226,8 @@ pub fn execute_trigger_purchase(
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let mut position = POSITIONS.load(deps.storage, (stream_id, &addr))?;
-    let (purchased, spent) = trigger_purchase(stream.dist_index, stream.current_stage, &mut position)?;
+    let (purchased, spent) =
+        trigger_purchase(stream.dist_index, stream.current_stage, &mut position)?;
     POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
 
     Ok(Response::new()
@@ -329,7 +335,8 @@ pub fn execute_withdraw(
     update_dist_index(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
-    let (purchased, spent) = trigger_purchase(stream.dist_index, stream.current_stage, &mut position)?;
+    let (purchased, spent) =
+        trigger_purchase(stream.dist_index, stream.current_stage, &mut position)?;
     POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
     let withdraw_amount = amount.unwrap_or(position.in_balance - spent);
 
@@ -471,6 +478,26 @@ pub fn execute_exit_stream(
         .add_attributes(attributes))
 }
 
+pub fn execute_collect_fees(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+    if config.fee_collector != info.sender {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    let collected_fees = deps
+        .querier
+        .query_balance(env.contract.address, config.stream_creation_denom.as_str())?;
+    let send_msg = CosmosMsg::Bank(BankMsg::Send {
+        to_address: config.fee_collector.to_string(),
+        amount: vec![collected_fees],
+    });
+
+    Ok(Response::new().add_message(send_msg))
+}
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractError> {
     match msg {
@@ -552,7 +579,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             start_after,
             limit,
         } => to_binary(&list_positions(deps, stream_id, start_after, limit)?),
-        QueryMsg::AveragePrice { stream_id } => to_binary(&query_average_price(deps, env, stream_id)?),
+        QueryMsg::AveragePrice { stream_id } => {
+            to_binary(&query_average_price(deps, env, stream_id)?)
+        }
         QueryMsg::LastStreamedPrice { stream_id } => {
             to_binary(&query_last_streamed_price(deps, env, stream_id)?)
         }
@@ -669,7 +698,11 @@ pub fn list_positions(
     Ok(PositionsResponse { positions })
 }
 
-pub fn query_average_price(deps: Deps, _env: Env, stream_id: u64) -> StdResult<AveragePriceResponse> {
+pub fn query_average_price(
+    deps: Deps,
+    _env: Env,
+    stream_id: u64,
+) -> StdResult<AveragePriceResponse> {
     let stream = STREAMS.load(deps.storage, stream_id)?;
     let average_price = stream.current_out / stream.current_in;
     Ok(AveragePriceResponse { average_price })
