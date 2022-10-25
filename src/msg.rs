@@ -124,9 +124,9 @@ pub struct SalesResponse {
 pub struct PositionResponse {
     pub sale_id: u64,
     pub owner: String,
-    pub buy_balance: Uint128,
+    pub in_balance: Uint128,
     pub index: Decimal,
-    pub latest_dist_stage: Decimal,
+    pub current_stage: Decimal,
     pub purchased: Uint128,
     pub spent: Uint128,
     pub exited: bool,
@@ -144,7 +144,7 @@ pub struct AveragePriceResponse {
 
 #[cw_serde]
 pub struct LatestStreamedPriceResponse {
-    pub lastest_streamed_price: Uint128,
+    pub current_streamed_price: Uint128,
 }
 
 #[cw_serde]

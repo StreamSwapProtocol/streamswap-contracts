@@ -12,7 +12,6 @@ use cosmwasm_std::{
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay};
 use std::ops::Mul;
-use crate::math::{decimal_multiplication_in_256, decimal_subtraction_in_256};
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -137,7 +136,7 @@ pub fn execute_create_sale(
         in_denom: in_denom.clone(),
         in_supply: Uint128::zero(),
         current_in: Uint128::zero(),
-        latest_streamed_price: Uint128::zero(),
+        current_streamed_price: Uint128::zero(),
     };
     let id = next_sales_id(deps.storage)?;
     SALES.save(deps.storage, id, &state)?;
@@ -195,7 +194,7 @@ pub fn update_dist_index(
     let current_dist_stage = Decimal::from_ratio(numerator, denominator);
 
     // calculate new distribution
-    let stage_diff = decimal_subtraction_in_256(current_dist_stage, sale.current_stage);
+    let stage_diff = current_dist_stage.mul(sale.current_stage);
 
     let new_distribution_balance = stage_diff.mul(sale.out_supply);
     let spent_in = stage_diff.mul(sale.in_supply);
@@ -206,7 +205,8 @@ pub fn update_dist_index(
     sale.current_in += spent_in;
     sale.in_supply = deducted_in_supply;
 
-    sale.latest_streamed_price = new_distribution_balance / spent_in;
+    // streamed price is new dist / spent in
+    sale.current_streamed_price = new_distribution_balance / spent_in;
 
     Ok((stage_diff, new_distribution_balance))
 }
@@ -224,8 +224,7 @@ pub fn execute_trigger_purchase(
     SALES.save(deps.storage, sale_id, &sale)?;
 
     let mut position = POSITIONS.load(deps.storage, (sale_id, &addr))?;
-    let (purchased, spent) =
-        trigger_purchase(sale.dist_index, sale.current_stage, &mut position)?;
+    let (purchased, spent) = trigger_purchase(sale.dist_index, sale.current_stage, &mut position)?;
     POSITIONS.save(deps.storage, (sale_id, &position.owner), &position)?;
 
     Ok(Response::new()
@@ -239,22 +238,22 @@ pub fn execute_trigger_purchase(
 // returns purchased out amount and spent in amount
 pub fn trigger_purchase(
     sale_dist_index: Decimal,
-    sale_latest_stage: Decimal,
+    sale_current_stage: Decimal,
     position: &mut Position,
 ) -> Result<(Uint128, Uint128), ContractError> {
-    let index_diff = decimal_subtraction_in_256(index_diff, position.index);
-    let spent_diff = decimal_subtraction_in_256(sale_latest_stage, position.latest_dist_stage);
-
+    let spent_diff = sale_current_stage - position.current_stage;
     let spent = spent_diff.mul(position.in_balance);
 
-    // update buy balance with spent tokens before calculating purchase, to correct for supply reduce
+    let index_diff = sale_dist_index - position.index;
+
+    // update buy balance with spent tokens before calculating purchase, to correct supply reduce
     // on update distribution index
     position.in_balance -= spent;
-    let purchased = position.in_balance.mul(index_diff)?;
+    let purchased = position.in_balance.mul(index_diff);
 
     position.index = sale_dist_index;
     position.in_balance -= spent;
-    position.latest_dist_stage = sale_latest_stage;
+    position.current_stage = sale_current_stage;
     position.purchased += purchased;
     position.spent += spent;
 
@@ -279,7 +278,7 @@ pub fn execute_subscribe(
                 owner: info.sender.clone(),
                 in_balance: in_amount,
                 index: sale.dist_index,
-                latest_dist_stage: Decimal::zero(),
+                current_stage: Decimal::zero(),
                 purchased: Uint128::zero(),
                 spent: Uint128::zero(),
                 exited: false,
@@ -331,8 +330,7 @@ pub fn execute_withdraw(
     update_dist_index(env.block.time, &mut sale)?;
     SALES.save(deps.storage, sale_id, &sale)?;
 
-    let (purchased, spent) =
-        trigger_purchase(sale.dist_index, sale.current_stage, &mut position)?;
+    let (purchased, spent) = trigger_purchase(sale.dist_index, sale.current_stage, &mut position)?;
     POSITIONS.save(deps.storage, (sale_id, &position.owner), &position)?;
     let withdraw_amount = amount.unwrap_or(position.in_balance - spent);
 
@@ -436,14 +434,12 @@ pub fn execute_exit_sale(
     if env.block.time.nanos() < sale.end_time.u64() {
         return Err(ContractError::SaleNotEnded {});
     }
-
     if sale.current_stage < Decimal::one() {
         return Err(ContractError::UpdateDistIndex {});
     }
 
     let mut position = POSITIONS.load(deps.storage, (sale_id, &info.sender))?;
-
-    if position.latest_dist_stage < Decimal::one() {
+    if position.current_stage < Decimal::one() {
         return Err(ContractError::TriggerPositionPurchase {});
     }
 
@@ -521,6 +517,7 @@ pub fn sudo_update_config(
     cfg.fee_collector = collector;
 
     CONFIG.save(deps.storage, &cfg)?;
+
     let attributes = vec![
         attr("action", "update_config"),
         attr("min_sale_duration", cfg.min_sale_duration),
@@ -630,9 +627,9 @@ pub fn query_position(
     let res = PositionResponse {
         sale_id,
         owner: owner.to_string(),
-        buy_balance: position.in_balance,
+        in_balance: position.in_balance,
         purchased: position.purchased,
-        latest_dist_stage: position.latest_dist_stage,
+        current_stage: position.current_stage,
         exited: position.exited,
         index: position.index,
         spent: position.spent,
@@ -660,10 +657,10 @@ pub fn list_positions(
                 sale_id,
                 owner: owner.to_string(),
                 index: sale.index,
-                latest_dist_stage: sale.latest_dist_stage,
+                current_stage: sale.current_stage,
                 purchased: sale.purchased,
                 spent: sale.spent,
-                buy_balance: sale.in_balance,
+                in_balance: sale.in_balance,
                 exited: sale.exited,
             };
             Ok(position)
@@ -686,7 +683,7 @@ pub fn query_last_streamed_price(
 ) -> StdResult<LatestStreamedPriceResponse> {
     let sale = SALES.load(deps.storage, sale_id)?;
     Ok(LatestStreamedPriceResponse {
-        lastest_streamed_price: sale.latest_streamed_price,
+        current_streamed_price: sale.current_streamed_price,
     })
 }
 

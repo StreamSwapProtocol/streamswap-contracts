@@ -41,7 +41,7 @@ pub struct Sale {
     // 139years (to avoid round overflow)
     pub end_time: Uint64,
     // price at the time when distribution is triggered last
-    pub latest_streamed_price: Uint128,
+    pub current_streamed_price: Uint128,
 }
 
 type SaleId = u64;
@@ -63,7 +63,7 @@ pub struct Position {
     pub in_balance: Uint128,
     // index is used to calculate the distribution a position has
     pub index: Decimal,
-    pub latest_dist_stage: Decimal,
+    pub current_stage: Decimal,
     // total amount of `token_out` purchased in tokens at latest calculation
     pub purchased: Uint128,
     // total amount of `token_in` spent tokens at latest calculation

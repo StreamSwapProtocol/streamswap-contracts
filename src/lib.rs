@@ -5,4 +5,3 @@ pub mod msg;
 pub mod state;
 #[cfg(test)]
 mod tests;
-mod math;
