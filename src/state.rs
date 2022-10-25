@@ -21,20 +21,20 @@ pub struct Sale {
     // Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal,
     // last calculated stage of sale, %0 -> %100
-    pub latest_stage: Decimal,
+    pub current_stage: Decimal,
     // denom of the `token_out`
-    pub token_out_denom: String,
+    pub out_denom: String,
     // total number of `token_out` to be sold during the continuous sale.
-    pub token_out_supply: Uint128,
+    pub out_supply: Uint128,
     // total number of `token_out` sold at latest state
-    pub total_out_sold: Uint128,
+    pub current_out: Uint128,
     // denom of the `token_in`
-    pub token_in_denom: String,
+    pub in_denom: String,
     // total number of `token_in` on the buy side at latest state
-    pub total_in_supply: Uint128,
+    pub in_supply: Uint128,
     // total number of `token_in` spent at latest state
-    pub total_in_spent: Uint128,
-    // TODO: convert to scheduled
+    pub current_in: Uint128,
+    // TODO: convert to Timestamp
     // start time when the token emission starts. in nanos
     pub start_time: Uint64,
     // end time when the token emission ends. Can't be bigger than start +
@@ -44,9 +44,10 @@ pub struct Sale {
     pub latest_streamed_price: Uint128,
 }
 
-pub const SALES: Map<u64, Sale> = Map::new("sales");
+type SaleId = u64;
+pub const SALES: Map<SaleId, Sale> = Map::new("sales");
 
-const SALES_ID_COUNTER: Item<u64> = Item::new("sales_id_counter");
+const SALES_ID_COUNTER: Item<SaleId> = Item::new("sales_id_counter");
 
 pub fn next_sales_id(store: &mut dyn Storage) -> Result<u64, ContractError> {
     let id: u64 = SALES_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
@@ -59,57 +60,17 @@ pub struct Position {
     // creator of the position
     pub owner: Addr,
     // current amount of tokens in buy pool
-    pub buy_balance: Uint128,
+    pub in_balance: Uint128,
     // index is used to calculate the distribution a position has
     pub index: Decimal,
     pub latest_dist_stage: Decimal,
-    // total amount of purchased in tokens at latest calculation
+    // total amount of `token_out` purchased in tokens at latest calculation
     pub purchased: Uint128,
-    // total amount of spent out tokens at latest calculation
+    // total amount of `token_in` spent tokens at latest calculation
     pub spent: Uint128,
     // finalized becomes true when position is finalized and tokens are sent to the recipient
     pub exited: bool,
 }
 
-// Position (owner_addr) -> Position
-pub const POSITIONS: Map<(u64, &Addr), Position> = Map::new("positions");
-
-/*
-/// list_accrued_rewards settings for pagination
-const MAX_LIMIT: u32 = 30;
-const DEFAULT_LIMIT: u32 = 10;
-pub fn list_positions(
-    deps: Deps,
-    start_after: Option<Addr>,
-    limit: Option<u32>,
-) -> StdResult<Vec<PositionResponse>> {
-    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
-    let start = calc_range_start(deps.api, start_after.map(Addr::unchecked))?.map(Bound::exclusive);
-
-    POSITIONS
-        .range(deps.storage, start, None, Order::Ascending)
-        .take(limit)
-        .map(|elem| {
-            let (addr, v) = elem?;
-            Ok(PositionResponse {
-                address: addr.to_string(),
-                balance: v.buy_balance,
-                index: v.index,
-            })
-        })
-        .collect()
-}
-
-fn calc_range_start(api: &dyn Api, start_after: Option<Addr>) -> StdResult<Option<Vec<u8>>> {
-    match start_after {
-        Some(human) => {
-            let mut v: Vec<u8> = api.addr_canonicalize(human.as_ref())?.0.into();
-            v.push(0);
-            Ok(Some(v))
-        }
-        None => Ok(None),
-    }
-}
-
-
- */
+// Position (sale_id, owner_addr) -> Position
+pub const POSITIONS: Map<(SaleId, &Addr), Position> = Map::new("positions");

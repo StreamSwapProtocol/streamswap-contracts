@@ -12,6 +12,7 @@ use cosmwasm_std::{
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay};
 use std::ops::Mul;
+use crate::math::{decimal_multiplication_in_256, decimal_subtraction_in_256};
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -99,9 +100,9 @@ pub fn execute_create_sale(
     treasury: String,
     name: String,
     url: String,
-    token_in_denom: String,
-    token_out_denom: String,
-    token_out_supply: Uint128,
+    in_denom: String,
+    out_denom: String,
+    out_supply: Uint128,
     start_time: Timestamp,
     end_time: Timestamp,
 ) -> Result<Response, ContractError> {
@@ -114,8 +115,8 @@ pub fn execute_create_sale(
         return Err(ContractError::SaleStartsTooSoon {});
     }
 
-    let funds = must_pay(&info, token_out_denom.as_str())?;
-    if funds != token_out_supply {
+    let funds = must_pay(&info, out_denom.as_str())?;
+    if funds != out_supply {
         return Err(ContractError::AmountRequired {});
     }
 
@@ -126,16 +127,16 @@ pub fn execute_create_sale(
 
     let state = Sale {
         treasury: deps.api.addr_validate(&treasury)?,
-        latest_stage: Decimal::zero(),
+        current_stage: Decimal::zero(),
         dist_index: Decimal::zero(),
         start_time: Uint64::new(start_time.nanos()),
         end_time: Uint64::new(end_time.nanos()),
-        token_out_denom: token_out_denom.clone(),
-        token_out_supply: token_out_supply.clone(),
-        total_out_sold: Uint128::zero(),
-        token_in_denom: token_in_denom.clone(),
-        total_in_supply: Uint128::zero(),
-        total_in_spent: Uint128::zero(),
+        out_denom: out_denom.clone(),
+        out_supply: out_supply.clone(),
+        current_out: Uint128::zero(),
+        in_denom: in_denom.clone(),
+        in_supply: Uint128::zero(),
+        current_in: Uint128::zero(),
         latest_streamed_price: Uint128::zero(),
     };
     let id = next_sales_id(deps.storage)?;
@@ -147,9 +148,9 @@ pub fn execute_create_sale(
         attr("treasury", treasury),
         attr("name", name),
         attr("url", url),
-        attr("token_in_denom", token_in_denom),
-        attr("token_out_denom", token_out_denom),
-        attr("token_out_supply", token_out_supply),
+        attr("token_in_denom", in_denom),
+        attr("token_out_denom", out_denom),
+        attr("token_out_supply", out_supply),
         attr("start_time", start_time.to_string()),
         attr("end_time", end_time.to_string()),
     ];
@@ -188,24 +189,26 @@ pub fn update_dist_index(
     };
 
     // calculate the current distribution stage
-    let numerator = Decimal::new(Uint128::from(now) - Uint128::from(sale.start_time));
-    let denominator = Decimal::new(Uint128::from(sale.end_time - sale.start_time));
-    let current_dist_stage = numerator / denominator;
+    // dist stage is the (now - start) / (end - start), gives %0-100 percentage
+    let numerator = now - sale.start_time.u64();
+    let denominator = sale.end_time - sale.start_time;
+    let current_dist_stage = Decimal::from_ratio(numerator, denominator);
 
     // calculate new distribution
-    let diff = current_dist_stage.checked_sub(sale.latest_stage)?;
-    let new_distribution_balance = diff.mul(sale.token_out_supply);
-    let spent_buy_side = diff.mul(sale.total_in_supply);
+    let stage_diff = decimal_subtraction_in_256(current_dist_stage, sale.current_stage);
 
-    let deduced_buy_supply = sale.total_in_supply.checked_sub(spent_buy_side)?;
+    let new_distribution_balance = stage_diff.mul(sale.out_supply);
+    let spent_in = stage_diff.mul(sale.in_supply);
+    let deducted_in_supply = sale.in_supply.checked_sub(spent_in)?;
 
-    sale.dist_index += Decimal::from_ratio(new_distribution_balance, deduced_buy_supply);
-    sale.latest_stage = current_dist_stage;
-    sale.total_in_spent += spent_buy_side;
-    sale.total_in_supply = deduced_buy_supply;
-    sale.latest_streamed_price = new_distribution_balance / spent_buy_side;
+    sale.dist_index += Decimal::from_ratio(new_distribution_balance, deducted_in_supply);
+    sale.current_stage = current_dist_stage;
+    sale.current_in += spent_in;
+    sale.in_supply = deducted_in_supply;
 
-    Ok((diff, new_distribution_balance))
+    sale.latest_streamed_price = new_distribution_balance / spent_in;
+
+    Ok((stage_diff, new_distribution_balance))
 }
 
 pub fn execute_trigger_purchase(
@@ -222,7 +225,7 @@ pub fn execute_trigger_purchase(
 
     let mut position = POSITIONS.load(deps.storage, (sale_id, &addr))?;
     let (purchased, spent) =
-        trigger_update_purchase(sale.dist_index, sale.latest_stage, &mut position)?;
+        trigger_purchase(sale.dist_index, sale.current_stage, &mut position)?;
     POSITIONS.save(deps.storage, (sale_id, &position.owner), &position)?;
 
     Ok(Response::new()
@@ -233,23 +236,27 @@ pub fn execute_trigger_purchase(
 }
 
 // calculate the user purchase based on the positions index and the global index.
-// returns purchase amount and spent amount
-pub fn trigger_update_purchase(
+// returns purchased out amount and spent in amount
+pub fn trigger_purchase(
     sale_dist_index: Decimal,
     sale_latest_stage: Decimal,
     position: &mut Position,
 ) -> Result<(Uint128, Uint128), ContractError> {
-    let index_diff = sale_dist_index.checked_sub(position.index)?;
-    let purchased = position.buy_balance.mul(index_diff);
+    let index_diff = decimal_subtraction_in_256(index_diff, position.index);
+    let spent_diff = decimal_subtraction_in_256(sale_latest_stage, position.latest_dist_stage);
 
-    let spent_diff = sale_latest_stage - position.latest_dist_stage;
-    let spent = spent_diff.mul(position.buy_balance);
+    let spent = spent_diff.mul(position.in_balance);
 
-    position.buy_balance -= spent;
+    // update buy balance with spent tokens before calculating purchase, to correct for supply reduce
+    // on update distribution index
+    position.in_balance -= spent;
+    let purchased = position.in_balance.mul(index_diff)?;
+
+    position.index = sale_dist_index;
+    position.in_balance -= spent;
     position.latest_dist_stage = sale_latest_stage;
     position.purchased += purchased;
     position.spent += spent;
-    position.index = sale_dist_index;
 
     Ok((purchased, spent))
 }
@@ -261,14 +268,16 @@ pub fn execute_subscribe(
     sale_id: u64,
 ) -> Result<Response, ContractError> {
     let mut sale = SALES.load(deps.storage, sale_id)?;
-    let funds = must_pay(&info, &sale.token_in_denom)?;
+    let in_amount = must_pay(&info, &sale.in_denom)?;
 
+    // if option exists, update the distribution index
+    // else create subscription
     let position = POSITIONS.may_load(deps.storage, (sale_id, &info.sender))?;
     match position {
         None => {
             let new_position = Position {
                 owner: info.sender.clone(),
-                buy_balance: funds,
+                in_balance: in_amount,
                 index: sale.dist_index,
                 latest_dist_stage: Decimal::zero(),
                 purchased: Uint128::zero(),
@@ -284,22 +293,22 @@ pub fn execute_subscribe(
 
             update_dist_index(env.block.time, &mut sale)?;
 
-            trigger_update_purchase(sale.dist_index, sale.latest_stage, &mut position)?;
-            position.buy_balance += funds;
+            trigger_purchase(sale.dist_index, sale.current_stage, &mut position)?;
+            position.in_balance += in_amount;
             POSITIONS.save(deps.storage, (sale_id, &info.sender), &position)?;
         }
     }
 
-    sale.total_in_supply += funds;
+    // increase in supply
+    sale.in_supply += in_amount;
     SALES.save(deps.storage, sale_id, &sale)?;
 
-    // TODO: refactor attributes
     let res = Response::new()
         .add_attribute("action", "subscribe")
         .add_attribute("sale_id", sale_id.to_string())
         .add_attribute("owner", info.sender)
-        .add_attribute("total_in_supply", sale.total_in_supply)
-        .add_attribute("subscribe_amount", funds);
+        .add_attribute("in_supply", sale.in_supply)
+        .add_attribute("in_amount", in_amount);
 
     Ok(res)
 }
@@ -323,18 +332,18 @@ pub fn execute_withdraw(
     SALES.save(deps.storage, sale_id, &sale)?;
 
     let (purchased, spent) =
-        trigger_update_purchase(sale.dist_index, sale.latest_stage, &mut position)?;
+        trigger_purchase(sale.dist_index, sale.current_stage, &mut position)?;
     POSITIONS.save(deps.storage, (sale_id, &position.owner), &position)?;
-    let withdraw_amount = amount.unwrap_or(position.buy_balance - spent);
+    let withdraw_amount = amount.unwrap_or(position.in_balance - spent);
 
     // if amount to withdraw more then deduced buy balance throw error
-    if withdraw_amount > position.buy_balance - spent {
+    if withdraw_amount > position.in_balance - spent {
         return Err(ContractError::DecreaseAmountExceeds(withdraw_amount));
     }
 
-    sale.total_out_sold += purchased;
-    sale.total_in_spent += spent;
-    sale.total_in_supply -= withdraw_amount;
+    sale.current_out += purchased;
+    sale.current_in += spent;
+    sale.in_supply -= withdraw_amount;
     SALES.save(deps.storage, sale_id, &sale)?;
 
     let recipient = recipient
@@ -352,7 +361,7 @@ pub fn execute_withdraw(
         .add_message(CosmosMsg::Bank(BankMsg::Send {
             to_address: recipient.to_string(),
             amount: vec![Coin {
-                denom: sale.token_in_denom,
+                denom: sale.in_denom,
                 amount: withdraw_amount,
             }],
         }))
@@ -377,7 +386,7 @@ pub fn execute_finalize_sale(
         return Err(ContractError::SaleNotEnded {});
     }
 
-    if sale.latest_stage < Decimal::one() {
+    if sale.current_stage < Decimal::one() {
         return Err(ContractError::UpdateDistIndex {});
     }
 
@@ -389,8 +398,8 @@ pub fn execute_finalize_sale(
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: treasury.to_string(),
         amount: vec![Coin {
-            denom: sale.token_in_denom,
-            amount: sale.total_in_spent,
+            denom: sale.in_denom,
+            amount: sale.current_in,
         }],
     });
 
@@ -407,7 +416,7 @@ pub fn execute_finalize_sale(
         attr("action", "finalize_sale"),
         attr("sale_id", sale_id.to_string()),
         attr("treasury", treasury.as_str()),
-        attr("total_in_spent", sale.total_in_spent),
+        attr("total_in_spent", sale.current_in),
     ];
 
     Ok(Response::new()
@@ -428,7 +437,7 @@ pub fn execute_exit_sale(
         return Err(ContractError::SaleNotEnded {});
     }
 
-    if sale.latest_stage < Decimal::one() {
+    if sale.current_stage < Decimal::one() {
         return Err(ContractError::UpdateDistIndex {});
     }
 
@@ -453,7 +462,7 @@ pub fn execute_exit_sale(
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: recipient.to_string(),
         amount: vec![Coin {
-            denom: sale.token_out_denom,
+            denom: sale.out_denom,
             amount: position.purchased,
         }],
     });
@@ -559,16 +568,16 @@ pub fn query_sale(deps: Deps, _env: Env, sale_id: u64) -> StdResult<SaleResponse
     let sale = SaleResponse {
         id: sale_id,
         treasury: sale.treasury.to_string(),
-        token_in_denom: sale.token_in_denom,
-        token_out_denom: sale.token_out_denom,
-        token_out_supply: sale.token_out_supply,
+        token_in_denom: sale.in_denom,
+        token_out_denom: sale.out_denom,
+        token_out_supply: sale.out_supply,
         start_time: Timestamp::from_nanos(sale.start_time.u64()),
         end_time: Timestamp::from_nanos(sale.end_time.u64()),
-        total_in_spent: sale.total_in_spent,
-        latest_stage: sale.latest_stage,
+        total_in_spent: sale.current_in,
+        latest_stage: sale.current_stage,
         dist_index: sale.dist_index,
-        total_out_sold: sale.total_out_sold,
-        total_in_supply: sale.total_in_supply,
+        total_out_sold: sale.current_out,
+        total_in_supply: sale.in_supply,
     };
     Ok(sale)
 }
@@ -592,16 +601,16 @@ pub fn list_sales(
             let sale = SaleResponse {
                 id: sale_id,
                 treasury: sale.treasury.to_string(),
-                token_in_denom: sale.token_in_denom,
-                token_out_denom: sale.token_out_denom,
-                token_out_supply: sale.token_out_supply,
+                token_in_denom: sale.in_denom,
+                token_out_denom: sale.out_denom,
+                token_out_supply: sale.out_supply,
                 start_time: Timestamp::from_nanos(sale.start_time.u64()),
                 end_time: Timestamp::from_nanos(sale.end_time.u64()),
-                total_in_spent: sale.total_in_spent,
-                latest_stage: sale.latest_stage,
+                total_in_spent: sale.current_in,
+                latest_stage: sale.current_stage,
                 dist_index: sale.dist_index,
-                total_out_sold: sale.total_out_sold,
-                total_in_supply: sale.total_in_supply,
+                total_out_sold: sale.current_out,
+                total_in_supply: sale.in_supply,
             };
             Ok(sale)
         })
@@ -621,7 +630,7 @@ pub fn query_position(
     let res = PositionResponse {
         sale_id,
         owner: owner.to_string(),
-        buy_balance: position.buy_balance,
+        buy_balance: position.in_balance,
         purchased: position.purchased,
         latest_dist_stage: position.latest_dist_stage,
         exited: position.exited,
@@ -654,7 +663,7 @@ pub fn list_positions(
                 latest_dist_stage: sale.latest_dist_stage,
                 purchased: sale.purchased,
                 spent: sale.spent,
-                buy_balance: sale.buy_balance,
+                buy_balance: sale.in_balance,
                 exited: sale.exited,
             };
             Ok(position)
@@ -666,7 +675,7 @@ pub fn list_positions(
 
 pub fn query_average_price(deps: Deps, _env: Env, sale_id: u64) -> StdResult<AveragePriceResponse> {
     let sale = SALES.load(deps.storage, sale_id)?;
-    let average_price = sale.total_out_sold / sale.total_in_spent;
+    let average_price = sale.current_out / sale.current_in;
     Ok(AveragePriceResponse { average_price })
 }
 

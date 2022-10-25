@@ -1,4 +1,4 @@
-use cosmwasm_std::Decimal;
+use cosmwasm_std::{Decimal, Decimal256};
 
 /// return a * b
 pub fn decimal_multiplication_in_256(a: Decimal, b: Decimal) -> Decimal {
