@@ -5,26 +5,26 @@ use cw_storage_plus::{Item, Map};
 
 #[cw_serde]
 pub struct Config {
-    pub min_sale_duration: Uint64,
+    pub min_stream_duration: Uint64,
     pub min_duration_until_start_time: Uint64,
-    pub sale_creation_denom: String,
-    pub sale_creation_fee: Uint128,
+    pub stream_creation_denom: String,
+    pub stream_creation_fee: Uint128,
     pub fee_collector: Addr,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");
 
 #[cw_serde]
-pub struct Sale {
+pub struct Stream {
     // Destination for the earned token_in
     pub treasury: Addr,
     // Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal,
-    // last calculated stage of sale, %0 -> %100
+    // last calculated stage of stream, %0 -> %100
     pub current_stage: Decimal,
     // denom of the `token_out`
     pub out_denom: String,
-    // total number of `token_out` to be sold during the continuous sale.
+    // total number of `token_out` to be sold during the continuous stream.
     pub out_supply: Uint128,
     // total number of `token_out` sold at latest state
     pub current_out: Uint128,
@@ -44,14 +44,12 @@ pub struct Sale {
     pub current_streamed_price: Uint128,
 }
 
-type SaleId = u64;
-pub const SALES: Map<SaleId, Sale> = Map::new("sales");
-
-const SALES_ID_COUNTER: Item<SaleId> = Item::new("sales_id_counter");
-
-pub fn next_sales_id(store: &mut dyn Storage) -> Result<u64, ContractError> {
-    let id: u64 = SALES_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
-    SALES_ID_COUNTER.save(store, &id)?;
+type StreamId = u64;
+pub const STREAMS: Map<StreamId, Stream> = Map::new("stream");
+const STREAM_ID_COUNTER: Item<StreamId> = Item::new("streams_id_counter");
+pub fn next_stream_id(store: &mut dyn Storage) -> Result<u64, ContractError> {
+    let id: u64 = STREAM_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
+    STREAM_ID_COUNTER.save(store, &id)?;
     Ok(id)
 }
 
@@ -72,5 +70,5 @@ pub struct Position {
     pub exited: bool,
 }
 
-// Position (sale_id, owner_addr) -> Position
-pub const POSITIONS: Map<(SaleId, &Addr), Position> = Map::new("positions");
+// Position (stream_id, owner_addr) -> Position
+pub const POSITIONS: Map<(StreamId, &Addr), Position> = Map::new("positions");

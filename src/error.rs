@@ -37,8 +37,8 @@ pub enum ContractError {
     #[error("No bond")]
     NoBond {},
 
-    #[error("Sale not ended")]
-    SaleNotEnded {},
+    #[error("Stream not ended")]
+    StreamNotEnded {},
 
     #[error("Update dist index")]
     UpdateDistIndex {},
@@ -49,11 +49,11 @@ pub enum ContractError {
     #[error("Position is already exited")]
     PositionAlreadyExited {},
 
-    #[error("Sale duration is too short")]
-    SaleDurationTooShort {},
+    #[error("Stream duration is too short")]
+    StreamDurationTooShort {},
 
-    #[error("Sale starts too soon")]
-    SaleStartsTooSoon {},
+    #[error("Stream starts too soon")]
+    StreamStartsTooSoon {},
 
     #[error("Creation Fee Required")]
     CreationFeeRequired {},
