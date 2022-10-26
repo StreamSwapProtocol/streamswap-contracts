@@ -468,13 +468,24 @@ pub fn execute_exit_stream(
             amount: position.purchased,
         }],
     });
+    let leftover_msg = CosmosMsg::Bank(BankMsg::Send {
+        to_address: recipient.to_string(),
+        amount: vec![Coin {
+            denom: stream.in_denom,
+            amount: position.in_balance,
+        }],
+    });
+
     let attributes = vec![
         attr("action", "exit_stream"),
+        attr("stream_id", stream_id.to_string()),
         attr("recipient", recipient.as_str()),
         attr("purchased", position.purchased),
+        attr("leftover", position.in_balance),
     ];
     Ok(Response::new()
         .add_message(send_msg)
+        .add_message(leftover_msg)
         .add_attributes(attributes))
 }
 

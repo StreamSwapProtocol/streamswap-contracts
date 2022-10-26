@@ -5,7 +5,9 @@ use cw_storage_plus::{Item, Map};
 
 #[cw_serde]
 pub struct Config {
+    // minimum sale duration in unix seconds
     pub min_stream_duration: Uint64,
+    // min duration between start time and current time in unix seconds
     pub min_duration_until_start_time: Uint64,
     pub stream_creation_denom: String,
     pub stream_creation_fee: Uint128,
@@ -44,7 +46,7 @@ pub struct Stream {
     // end time when the token emission ends. Can't be bigger than start +
     // 139years (to avoid round overflow)
     pub end_time: Timestamp,
-    // price at the time when distribution is triggered last
+    // price at when latest distribution is triggered
     pub current_streamed_price: Uint128,
 }
 
