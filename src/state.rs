@@ -16,8 +16,12 @@ pub const CONFIG: Item<Config> = Item::new("config");
 
 #[cw_serde]
 pub struct Stream {
+    // Name of the stream
+    pub name: String,
     // Destination for the earned token_in
     pub treasury: Addr,
+    // URL for more information about the stream
+    pub url: String,
     // Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal,
     // last calculated stage of stream, %0 -> %100
@@ -46,29 +50,30 @@ pub struct Stream {
 
 impl Stream {
     pub fn new(
+        name: String,
         treasury: Addr,
+        url: String,
         out_denom: String,
         out_supply: Uint128,
         in_denom: String,
-        in_supply: Uint128,
-        spent_in: Uint128,
         start_time: Uint64,
         end_time: Uint64,
-        current_streamed_price: Uint128,
     ) -> Self {
         Stream {
+            name,
             treasury,
-            dist_index,
-            current_stage,
+            url,
+            dist_index: Decimal::zero(),
+            current_stage: Decimal::zero(),
             out_denom,
             out_supply,
-            current_out,
+            current_out: Uint128::zero(),
             in_denom,
-            in_supply,
-            spent_in,
+            in_supply: Uint128::zero(),
+            spent_in: Uint128::zero(),
             start_time,
             end_time,
-            current_streamed_price,
+            current_streamed_price: Uint128::zero(),
         }
     }
 }

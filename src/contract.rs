@@ -52,9 +52,9 @@ pub fn execute(
             treasury,
             name,
             url,
-            token_in_denom,
-            token_out_denom,
-            token_out_supply,
+            in_denom: token_in_denom,
+            out_denom: token_out_denom,
+            out_supply: token_out_supply,
             start_time,
             end_time,
         } => execute_create_stream(
@@ -121,27 +121,24 @@ pub fn execute_create_stream(
         return Err(ContractError::AmountRequired {});
     }
 
+    // TODO: what if fee denom and out denom are same?
     let creation_fee = must_pay(&info, config.stream_creation_denom.as_str())?;
     if creation_fee != config.stream_creation_fee {
         return Err(ContractError::CreationFeeRequired {});
     }
 
-    let state = Stream {
-        treasury: deps.api.addr_validate(&treasury)?,
-        current_stage: Decimal::zero(),
-        dist_index: Decimal::zero(),
-        start_time: Uint64::new(start_time.nanos()),
-        end_time: Uint64::new(end_time.nanos()),
-        out_denom: out_denom.clone(),
-        out_supply: out_supply.clone(),
-        current_out: Uint128::zero(),
-        in_denom: in_denom.clone(),
-        in_supply: Uint128::zero(),
-        spent_in: Uint128::zero(),
-        current_streamed_price: Uint128::zero(),
-    };
+    let stream = Stream::new(
+        name.clone(),
+        deps.api.addr_validate(&treasury)?,
+        url.clone(),
+        out_denom.clone(),
+        out_supply,
+        in_denom.clone(),
+        Uint64::from(start_time.nanos()),
+        Uint64::from(end_time.nanos()),
+    );
     let id = next_stream_id(deps.storage)?;
-    STREAMS.save(deps.storage, id, &state)?;
+    STREAMS.save(deps.storage, id, &stream)?;
 
     let attr = vec![
         attr("action", "create_stream"),
@@ -270,7 +267,7 @@ pub fn execute_subscribe(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    if now > stream.end_time {
+    if env.block.time.nanos() > stream.end_time.u64() {
         return Err(ContractError::StreamEnded {});
     }
     let in_amount = must_pay(&info, &stream.in_denom)?;

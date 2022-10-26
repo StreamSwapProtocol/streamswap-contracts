@@ -28,11 +28,11 @@ pub enum ExecuteMsg {
         url: String,
         // Payment denom - used to buy `token_out`.
         // Also known as quote currency.
-        token_in_denom: String,
+        in_denom: String,
         // Denom to stream (distributed to the investors).
         // Also known as a base currency.
-        token_out_denom: String,
-        token_out_supply: Uint128,
+        out_denom: String,
+        out_supply: Uint128,
         // Unix timestamp when the stream starts.
         start_time: Timestamp,
         // Unix timestamp when the stream ends.
