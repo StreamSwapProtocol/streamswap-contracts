@@ -33,7 +33,7 @@ pub struct Stream {
     // total number of `token_in` on the buy side at latest state
     pub in_supply: Uint128,
     // total number of `token_in` spent at latest state
-    pub current_in: Uint128,
+    pub spent_in: Uint128,
     // TODO: convert to Timestamp
     // start time when the token emission starts. in nanos
     pub start_time: Uint64,
@@ -44,9 +44,37 @@ pub struct Stream {
     pub current_streamed_price: Uint128,
 }
 
+impl Stream {
+    pub fn new(
+        treasury: Addr,
+        out_denom: String,
+        out_supply: Uint128,
+        in_denom: String,
+        in_supply: Uint128,
+        spent_in: Uint128,
+        start_time: Uint64,
+        end_time: Uint64,
+        current_streamed_price: Uint128,
+    ) -> Self {
+        Stream {
+            treasury,
+            dist_index,
+            current_stage,
+            out_denom,
+            out_supply,
+            current_out,
+            in_denom,
+            in_supply,
+            spent_in,
+            start_time,
+            end_time,
+            current_streamed_price,
+        }
+    }
+}
 type StreamId = u64;
 pub const STREAMS: Map<StreamId, Stream> = Map::new("stream");
-const STREAM_ID_COUNTER: Item<StreamId> = Item::new("streams_id_counter");
+const STREAM_ID_COUNTER: Item<StreamId> = Item::new("stream_id_counter");
 pub fn next_stream_id(store: &mut dyn Storage) -> Result<u64, ContractError> {
     let id: u64 = STREAM_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
     STREAM_ID_COUNTER.save(store, &id)?;

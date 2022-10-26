@@ -81,7 +81,7 @@ pub fn execute(
             stream_id,
             cap,
             recipient,
-        } => execute_withdraw(deps, env, info, cap, stream_id, recipient),
+        } => execute_withdraw(deps, env, info, stream_id, recipient, cap),
         ExecuteMsg::FinalizeStream {
             stream_id,
             new_treasury,
@@ -89,7 +89,7 @@ pub fn execute(
         ExecuteMsg::ExitStream {
             stream_id,
             recipient,
-        } => execute_finalize_stream(deps, env, info, stream_id, recipient),
+        } => execute_exit_stream(deps, env, info, stream_id, recipient),
         ExecuteMsg::CollectFees {} => execute_collect_fees(deps, env, info),
     }
 }
@@ -137,7 +137,7 @@ pub fn execute_create_stream(
         current_out: Uint128::zero(),
         in_denom: in_denom.clone(),
         in_supply: Uint128::zero(),
-        current_in: Uint128::zero(),
+        spent_in: Uint128::zero(),
         current_streamed_price: Uint128::zero(),
     };
     let id = next_stream_id(deps.storage)?;
@@ -204,7 +204,7 @@ pub fn update_dist_index(
 
     stream.dist_index += Decimal::from_ratio(new_distribution_balance, deducted_in_supply);
     stream.current_stage = current_dist_stage;
-    stream.current_in += spent_in;
+    stream.spent_in += spent_in;
     stream.in_supply = deducted_in_supply;
 
     // streamed price is new dist / spent in
@@ -270,6 +270,9 @@ pub fn execute_subscribe(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    if now > stream.end_time {
+        return Err(ContractError::StreamEnded {});
+    }
     let in_amount = must_pay(&info, &stream.in_denom)?;
 
     // if option exists, update the distribution index
@@ -321,9 +324,9 @@ pub fn execute_withdraw(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    amount: Option<Uint128>,
     stream_id: u64,
     recipient: Option<String>,
+    cap: Option<Uint128>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
 
@@ -338,7 +341,7 @@ pub fn execute_withdraw(
     let (purchased, spent) =
         trigger_purchase(stream.dist_index, stream.current_stage, &mut position)?;
     POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
-    let withdraw_amount = amount.unwrap_or(position.in_balance - spent);
+    let withdraw_amount = cap.unwrap_or(position.in_balance - spent);
 
     // if amount to withdraw more then deduced buy balance throw error
     if withdraw_amount > position.in_balance - spent {
@@ -346,7 +349,7 @@ pub fn execute_withdraw(
     }
 
     stream.current_out += purchased;
-    stream.current_in += spent;
+    stream.spent_in += spent;
     stream.in_supply -= withdraw_amount;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
@@ -403,7 +406,7 @@ pub fn execute_finalize_stream(
         to_address: treasury.to_string(),
         amount: vec![Coin {
             denom: stream.in_denom,
-            amount: stream.current_in,
+            amount: stream.spent_in,
         }],
     });
 
@@ -420,7 +423,7 @@ pub fn execute_finalize_stream(
         attr("action", "finalize_stream"),
         attr("stream_id", stream_id.to_string()),
         attr("treasury", treasury.as_str()),
-        attr("total_in_spent", stream.current_in),
+        attr("spent_in", stream.spent_in),
     ];
 
     Ok(Response::new()
@@ -598,7 +601,7 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
         token_out_supply: stream.out_supply,
         start_time: Timestamp::from_nanos(stream.start_time.u64()),
         end_time: Timestamp::from_nanos(stream.end_time.u64()),
-        total_in_spent: stream.current_in,
+        total_in_spent: stream.spent_in,
         latest_stage: stream.current_stage,
         dist_index: stream.dist_index,
         total_out_sold: stream.current_out,
@@ -631,7 +634,7 @@ pub fn list_streams(
                 token_out_supply: stream.out_supply,
                 start_time: Timestamp::from_nanos(stream.start_time.u64()),
                 end_time: Timestamp::from_nanos(stream.end_time.u64()),
-                total_in_spent: stream.current_in,
+                total_in_spent: stream.spent_in,
                 latest_stage: stream.current_stage,
                 dist_index: stream.dist_index,
                 total_out_sold: stream.current_out,
@@ -704,7 +707,7 @@ pub fn query_average_price(
     stream_id: u64,
 ) -> StdResult<AveragePriceResponse> {
     let stream = STREAMS.load(deps.storage, stream_id)?;
-    let average_price = stream.current_out / stream.current_in;
+    let average_price = stream.current_out / stream.spent_in;
     Ok(AveragePriceResponse { average_price })
 }
 

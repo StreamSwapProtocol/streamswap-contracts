@@ -57,4 +57,7 @@ pub enum ContractError {
 
     #[error("Creation Fee Required")]
     CreationFeeRequired {},
+
+    #[error("Stream Ended")]
+    StreamEnded {},
 }
