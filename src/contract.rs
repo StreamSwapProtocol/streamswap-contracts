@@ -453,9 +453,6 @@ pub fn execute_exit_stream(
         return Err(ContractError::PositionAlreadyExited {});
     }
 
-    position.exited = true;
-    POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
-
     let recipient = recipient
         .map(|r| deps.api.addr_validate(&r))
         .transpose()?
@@ -475,6 +472,10 @@ pub fn execute_exit_stream(
             amount: position.in_balance,
         }],
     });
+
+    position.exited = true;
+    position.in_balance = Uint128::zero();
+    POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
 
     let attributes = vec![
         attr("action", "exit_stream"),
