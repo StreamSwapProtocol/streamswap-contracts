@@ -1,6 +1,6 @@
 use crate::ContractError;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Decimal, Storage, Uint128, Uint64};
+use cosmwasm_std::{Addr, Decimal, Storage, Timestamp, Uint128, Uint64};
 use cw_storage_plus::{Item, Map};
 
 #[cw_serde]
@@ -40,10 +40,10 @@ pub struct Stream {
     pub spent_in: Uint128,
     // TODO: convert to Timestamp
     // start time when the token emission starts. in nanos
-    pub start_time: Uint64,
+    pub start_time: Timestamp,
     // end time when the token emission ends. Can't be bigger than start +
     // 139years (to avoid round overflow)
-    pub end_time: Uint64,
+    pub end_time: Timestamp,
     // price at the time when distribution is triggered last
     pub current_streamed_price: Uint128,
 }
@@ -56,8 +56,8 @@ impl Stream {
         out_denom: String,
         out_supply: Uint128,
         in_denom: String,
-        start_time: Uint64,
-        end_time: Uint64,
+        start_time: Timestamp,
+        end_time: Timestamp,
     ) -> Self {
         Stream {
             name,

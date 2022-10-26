@@ -134,8 +134,8 @@ pub fn execute_create_stream(
         out_denom.clone(),
         out_supply,
         in_denom.clone(),
-        Uint64::from(start_time.nanos()),
-        Uint64::from(end_time.nanos()),
+        start_time,
+        end_time,
     );
     let id = next_stream_id(deps.storage)?;
     STREAMS.save(deps.storage, id, &stream)?;
@@ -180,16 +180,16 @@ pub fn update_dist_index(
     stream: &mut Stream,
 ) -> Result<(Decimal, Uint128), ContractError> {
     // if now is after end_time, set now to end_time
-    let now = if now.nanos() > stream.end_time.u64() {
-        stream.end_time.u64()
+    let now = if now > stream.end_time {
+        stream.end_time
     } else {
-        now.nanos()
+        now
     };
 
     // calculate the current distribution stage
     // dist stage is the (now - start) / (end - start), gives %0-100 percentage
-    let numerator = now - stream.start_time.u64();
-    let denominator = stream.end_time - stream.start_time;
+    let numerator = now.nanos() - stream.start_time.nanos();
+    let denominator = stream.end_time.nanos() - stream.start_time.nanos();
     let current_dist_stage = Decimal::from_ratio(numerator, denominator);
 
     // calculate new distribution
@@ -267,7 +267,7 @@ pub fn execute_subscribe(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    if env.block.time.nanos() > stream.end_time.u64() {
+    if env.block.time > stream.end_time {
         return Err(ContractError::StreamEnded {});
     }
     let in_amount = must_pay(&info, &stream.in_denom)?;
@@ -386,7 +386,7 @@ pub fn execute_finalize_stream(
     if stream.treasury != info.sender {
         return Err(ContractError::Unauthorized {});
     }
-    if env.block.time.nanos() < stream.end_time.u64() {
+    if env.block.time < stream.end_time {
         return Err(ContractError::StreamNotEnded {});
     }
 
@@ -437,7 +437,7 @@ pub fn execute_exit_stream(
     recipient: Option<String>,
 ) -> Result<Response, ContractError> {
     let stream = STREAMS.load(deps.storage, stream_id)?;
-    if env.block.time.nanos() < stream.end_time.u64() {
+    if env.block.time < stream.end_time {
         return Err(ContractError::StreamNotEnded {});
     }
     if stream.current_stage < Decimal::one() {
@@ -596,8 +596,8 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
         token_in_denom: stream.in_denom,
         token_out_denom: stream.out_denom,
         token_out_supply: stream.out_supply,
-        start_time: Timestamp::from_nanos(stream.start_time.u64()),
-        end_time: Timestamp::from_nanos(stream.end_time.u64()),
+        start_time: stream.start_time,
+        end_time: stream.end_time,
         total_in_spent: stream.spent_in,
         latest_stage: stream.current_stage,
         dist_index: stream.dist_index,
@@ -629,8 +629,8 @@ pub fn list_streams(
                 token_in_denom: stream.in_denom,
                 token_out_denom: stream.out_denom,
                 token_out_supply: stream.out_supply,
-                start_time: Timestamp::from_nanos(stream.start_time.u64()),
-                end_time: Timestamp::from_nanos(stream.end_time.u64()),
+                start_time: stream.start_time,
+                end_time: stream.end_time,
                 total_in_spent: stream.spent_in,
                 latest_stage: stream.current_stage,
                 dist_index: stream.dist_index,

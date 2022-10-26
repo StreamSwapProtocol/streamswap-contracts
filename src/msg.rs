@@ -33,9 +33,9 @@ pub enum ExecuteMsg {
         // Also known as a base currency.
         out_denom: String,
         out_supply: Uint128,
-        // Unix timestamp when the stream starts.
+        // Unix timestamp when the stream starts. Calculations in nano sec precision
         start_time: Timestamp,
-        // Unix timestamp when the stream ends.
+        // Unix timestamp when the stream ends. Calculations in nano sec precision
         end_time: Timestamp,
     },
 
