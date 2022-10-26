@@ -445,6 +445,9 @@ pub fn execute_exit_stream(
     }
 
     let mut position = POSITIONS.load(deps.storage, (stream_id, &info.sender))?;
+    if position.owner != info.sender {
+        return Err(ContractError::Unauthorized {});
+    }
     if position.current_stage < Decimal::one() {
         return Err(ContractError::TriggerPositionPurchase {});
     }
