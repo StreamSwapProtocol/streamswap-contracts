@@ -253,7 +253,6 @@ pub fn trigger_purchase(
     let purchased = position.in_balance.mul(index_diff);
 
     position.index = stream_dist_index;
-    position.in_balance -= spent;
     position.current_stage = stream_current_stage;
     position.purchased += purchased;
     position.spent += spent;
