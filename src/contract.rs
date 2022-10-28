@@ -199,6 +199,7 @@ pub fn update_dist_index(
     let spent_in = stage_diff.mul(stream.in_supply);
     let deducted_in_supply = stream.in_supply.checked_sub(spent_in)?;
 
+    // can deduct from in_supply be zero?
     stream.dist_index += Decimal::from_ratio(new_distribution_balance, deducted_in_supply);
     stream.current_stage = current_dist_stage;
     stream.spent_in += spent_in;
@@ -241,8 +242,8 @@ pub fn trigger_purchase(
     stream_current_stage: Decimal,
     position: &mut Position,
 ) -> Result<(Uint128, Uint128), ContractError> {
-    let spent_diff = stream_current_stage - position.current_stage;
-    let spent = spent_diff.mul(position.in_balance);
+    let stage_diff = stream_current_stage - position.current_stage;
+    let spent = stage_diff.mul(position.in_balance);
 
     let index_diff = stream_dist_index - position.index;
 
@@ -272,20 +273,12 @@ pub fn execute_subscribe(
     }
     let in_amount = must_pay(&info, &stream.in_denom)?;
 
-    // if option exists, update the distribution index
-    // else create subscription
+    // if position exists, first update the distribution index and trigger purchase
+    // else create position
     let position = POSITIONS.may_load(deps.storage, (stream_id, &info.sender))?;
     match position {
         None => {
-            let new_position = Position {
-                owner: info.sender.clone(),
-                in_balance: in_amount,
-                index: stream.dist_index,
-                current_stage: Decimal::zero(),
-                purchased: Uint128::zero(),
-                spent: Uint128::zero(),
-                exited: false,
-            };
+            let new_position = Position::new(info.sender.clone(), in_amount);
             // TODO: update dist before position creation?
             POSITIONS.save(deps.storage, (stream_id, &info.sender), &new_position)?;
         }
@@ -445,15 +438,14 @@ pub fn execute_exit_stream(
     }
 
     let mut position = POSITIONS.load(deps.storage, (stream_id, &info.sender))?;
+    if position.exited {
+        return Err(ContractError::PositionAlreadyExited {});
+    }
     if position.owner != info.sender {
         return Err(ContractError::Unauthorized {});
     }
     if position.current_stage < Decimal::one() {
         return Err(ContractError::TriggerPositionPurchase {});
-    }
-
-    if position.exited {
-        return Err(ContractError::PositionAlreadyExited {});
     }
 
     let recipient = recipient

@@ -48,13 +48,13 @@ $$
 state.global\_dist\_index = state.global\_dist\_index + \frac{new\_dist\_balance}{deduced\_buy\_supply}
 $$
 
-After this calculation 
+After this calculation
 
 current distribution stage is saved to state as global_dist_index
 
 current calculated stage is saved to state as latest_dist_stage
 
-## Trigger position purchase 
+## Trigger position purchase
 
 Before a position purchase global distribution index is updated, total buy supply updated with spent amount.
 
@@ -69,6 +69,7 @@ If a user subscribed at %0 and did not withdraw or add any tokens, at %100 all o
 If the user subscribes at %0 and adds more tokens at %30, at the new subsription action %30 percent of the inital tokens will deduced and stream will continue with `(initial_token_amount * 30/100) + new_token_amount`
 
 Here is the position purchase algorithm that calculates the purchased and sold amount.
+
 $$
 index\_diff = state.global\_distribution\_index - position.index
 $$

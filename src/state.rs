@@ -105,5 +105,19 @@ pub struct Position {
     pub exited: bool,
 }
 
+impl Position {
+    pub fn new(owner: Addr, in_balance: Uint128) -> Self {
+        Position {
+            owner,
+            in_balance,
+            index: Decimal::zero(),
+            current_stage: Decimal::zero(),
+            purchased: Uint128::zero(),
+            spent: Uint128::zero(),
+            exited: false,
+        }
+    }
+}
+
 // Position (stream_id, owner_addr) -> Position
 pub const POSITIONS: Map<(StreamId, &Addr), Position> = Map::new("positions");
