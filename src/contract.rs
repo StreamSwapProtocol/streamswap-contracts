@@ -10,7 +10,7 @@ use cosmwasm_std::{
 };
 
 use cw_storage_plus::Bound;
-use cw_utils::{maybe_addr, must_pay};
+use cw_utils::{may_pay, maybe_addr, must_pay};
 use std::ops::Mul;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -116,14 +116,14 @@ pub fn execute_create_stream(
         return Err(ContractError::StreamStartsTooSoon {});
     }
 
-    let funds = must_pay(&info, out_denom.as_str())?;
-    if funds != out_supply {
+    let funds = info.funds.iter().find(|p| p.denom == out_denom).ok_or(ContractError::NoFundsSent{} )?;
+    if funds.amount != out_supply {
         return Err(ContractError::AmountRequired {});
     }
 
     // TODO: what if fee denom and out denom are same?
-    let creation_fee = must_pay(&info, config.stream_creation_denom.as_str())?;
-    if creation_fee != config.stream_creation_fee {
+    let creation_fee = info.funds.iter().find(|p| p.denom == config.stream_creation_denom).ok_or(ContractError::NoFundsSent{} )?;
+    if creation_fee.amount != config.stream_creation_fee {
         return Err(ContractError::CreationFeeRequired {});
     }
 
