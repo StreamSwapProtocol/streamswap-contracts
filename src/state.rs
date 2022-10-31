@@ -106,11 +106,11 @@ pub struct Position {
 }
 
 impl Position {
-    pub fn new(owner: Addr, in_balance: Uint128) -> Self {
+    pub fn new(owner: Addr, in_balance: Uint128, index: Option<Decimal>) -> Self {
         Position {
             owner,
             in_balance,
-            index: Decimal::zero(),
+            index: index.unwrap_or_default(),
             current_stage: Decimal::zero(),
             purchased: Uint128::zero(),
             spent: Uint128::zero(),

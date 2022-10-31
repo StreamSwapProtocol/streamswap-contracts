@@ -277,7 +277,7 @@ pub fn execute_subscribe(
     let position = POSITIONS.may_load(deps.storage, (stream_id, &info.sender))?;
     match position {
         None => {
-            let new_position = Position::new(info.sender.clone(), in_amount);
+            let new_position = Position::new(info.sender.clone(), in_amount, Some(stream.dist_index));
             // TODO: update dist before position creation?
             POSITIONS.save(deps.storage, (stream_id, &info.sender), &new_position)?;
         }
