@@ -5,6 +5,37 @@ mod tests {
     use crate::contract::{execute, instantiate};
     use crate::msg::{ExecuteMsg, InstantiateMsg};
 
+    /*
+    initial out supply: 50_000_000
+    stream duration 1_000_000
+
+    subscribe 1
+
+    in: 25_000
+    time: 1000 unix
+    stage: 0,001
+    new_dist: 50000
+    dist_index: 50000/50000000 0,001
+
+    subscribe 2
+
+    in: 50_000
+    time: 250_000
+    stage: 0.25
+    spent in:
+    dist_index:
+
+    withdraw 1
+
+    withdraw 2
+
+    subscribe 1 - load
+
+    finalize
+
+    exit 1
+    exit 2
+     */
     #[test]
     fn scenario_one() {
         // initial sell supply: 1_000_000
