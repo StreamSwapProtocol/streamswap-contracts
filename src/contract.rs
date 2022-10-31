@@ -10,7 +10,7 @@ use cosmwasm_std::{
 };
 
 use cw_storage_plus::Bound;
-use cw_utils::{may_pay, maybe_addr, must_pay};
+use cw_utils::{maybe_addr, must_pay};
 use std::ops::Mul;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -199,7 +199,6 @@ pub fn update_dist_index(
     let spent_in = stage_diff.mul(stream.in_supply);
     let deducted_in_supply = stream.in_supply.checked_sub(spent_in)?;
 
-    // can deduct from in_supply be zero?
     stream.dist_index += Decimal::from_ratio(new_distribution_balance, deducted_in_supply);
     stream.current_stage = current_dist_stage;
     stream.spent_in += spent_in;
@@ -217,20 +216,22 @@ pub fn execute_trigger_purchase(
     info: MessageInfo,
     stream_id: u64,
 ) -> Result<Response, ContractError> {
-    let addr = info.sender;
+    let mut position = POSITIONS.load(deps.storage, (stream_id, &info.sender))?;
+    if info.sender != position.owner {
+        return Err(ContractError::Unauthorized {});
+    }
 
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     let (_, _) = update_dist_index(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
-    let mut position = POSITIONS.load(deps.storage, (stream_id, &addr))?;
     let (purchased, spent) =
         trigger_purchase(stream.dist_index, stream.current_stage, &mut position)?;
     POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
 
     Ok(Response::new()
         .add_attribute("action", "trigger_position_purchase")
-        .add_attribute("recipient", addr)
+        .add_attribute("recipient", info.sender)
         .add_attribute("purchased", purchased)
         .add_attribute("spent", spent))
 }
@@ -279,11 +280,11 @@ pub fn execute_subscribe(
         None => {
             // TODO: on the first start, should position claim distributed out until this point? This is an open question.
             // code below sets index on first subscription. does not claim distributed out until first release.
-            let positions:StdResult<Vec<Position>> = POSITIONS.prefix(stream_id)
+            let positions: Vec<Vec<u8>> = POSITIONS.prefix(stream_id)
                 .keys_raw(deps.storage, None, None, Order::Ascending)
-                .take(1)
-                .collect();
-            if positions?.len() == 0 {
+                .take(1).collect();
+            if positions.len() == 0 {
+                stream.in_supply += in_amount;
                 update_dist_index(env.block.time, &mut stream)?;
             }
 
@@ -299,13 +300,13 @@ pub fn execute_subscribe(
             update_dist_index(env.block.time, &mut stream)?;
             trigger_purchase(stream.dist_index, stream.current_stage, &mut position)?;
 
+            stream.in_supply += in_amount;
             position.in_balance += in_amount;
             POSITIONS.save(deps.storage, (stream_id, &info.sender), &position)?;
         }
     }
 
     // increase in supply
-    stream.in_supply += in_amount;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let res = Response::new()
@@ -408,6 +409,17 @@ pub fn execute_finalize_stream(
         }],
     });
 
+    // collect left over out tokens and send it back to treasury
+    let leftover = stream.out_supply - stream.current_out;
+    let leftover_msg = CosmosMsg::Bank(BankMsg::Send {
+        to_address: treasury.to_string(),
+        amount: vec![Coin {
+            denom: stream.out_denom,
+            amount: leftover,
+        }],
+    });
+
+
     let config = CONFIG.load(deps.storage)?;
     let fee_send_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: config.fee_collector.to_string(),
@@ -425,8 +437,9 @@ pub fn execute_finalize_stream(
     ];
 
     Ok(Response::new()
-        .add_message(send_msg)
         .add_message(fee_send_msg)
+        .add_message(send_msg)
+        .add_message(leftover_msg)
         .add_attributes(attributes))
 }
 
