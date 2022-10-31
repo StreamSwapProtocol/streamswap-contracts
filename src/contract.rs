@@ -193,7 +193,7 @@ pub fn update_dist_index(
     let current_dist_stage = Decimal::from_ratio(numerator, denominator);
 
     // calculate new distribution
-    let stage_diff = current_dist_stage.mul(stream.current_stage);
+    let stage_diff = current_dist_stage.checked_sub(stream.current_stage)?;
 
     let new_distribution_balance = stage_diff.mul(stream.out_supply);
     let spent_in = stage_diff.mul(stream.in_supply);
