@@ -277,8 +277,17 @@ pub fn execute_subscribe(
     let position = POSITIONS.may_load(deps.storage, (stream_id, &info.sender))?;
     match position {
         None => {
+            // TODO: on the first start, should position claim distributed out until this point? This is an open question.
+            // code below sets index on first subscription. does not claim distributed out until first release.
+            let positions:StdResult<Vec<Position>> = POSITIONS.prefix(stream_id)
+                .keys_raw(deps.storage, None, None, Order::Ascending)
+                .take(1)
+                .collect();
+            if positions?.len() == 0 {
+                update_dist_index(env.block.time, &mut stream)?;
+            }
+
             let new_position = Position::new(info.sender.clone(), in_amount, Some(stream.dist_index));
-            // TODO: update dist before position creation?
             POSITIONS.save(deps.storage, (stream_id, &info.sender), &new_position)?;
         }
         Some(mut position) => {
