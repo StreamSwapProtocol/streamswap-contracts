@@ -284,10 +284,10 @@ pub fn execute_subscribe(
                 .keys_raw(deps.storage, None, None, Order::Ascending)
                 .take(1).collect();
             if positions.len() == 0 {
-                stream.in_supply += in_amount;
                 update_dist_index(env.block.time, &mut stream)?;
             }
 
+            stream.in_supply += in_amount;
             let new_position = Position::new(info.sender.clone(), in_amount, Some(stream.dist_index));
             POSITIONS.save(deps.storage, (stream_id, &info.sender), &new_position)?;
         }
