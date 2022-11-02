@@ -205,7 +205,7 @@ pub fn update_dist_index(
     stream.in_supply = deducted_in_supply;
 
     // streamed price is new dist / spent in
-    stream.current_streamed_price = new_distribution_balance / spent_in;
+    stream.current_streamed_price = spent_in / new_distribution_balance;
 
     Ok((stage_diff, new_distribution_balance))
 }
@@ -732,7 +732,7 @@ pub fn query_average_price(
     stream_id: u64,
 ) -> StdResult<AveragePriceResponse> {
     let stream = STREAMS.load(deps.storage, stream_id)?;
-    let average_price = stream.current_out / stream.spent_in;
+    let average_price = stream.spent_in / stream.current_out;
     Ok(AveragePriceResponse { average_price })
 }
 
