@@ -287,7 +287,6 @@ pub fn execute_subscribe(
                 update_dist_index(env.block.time, &mut stream)?;
             }
 
-            stream.in_supply += in_amount;
             let new_position = Position::new(info.sender.clone(), in_amount, Some(stream.dist_index));
             POSITIONS.save(deps.storage, (stream_id, &info.sender), &new_position)?;
         }
@@ -300,13 +299,13 @@ pub fn execute_subscribe(
             update_dist_index(env.block.time, &mut stream)?;
             trigger_purchase(stream.dist_index, stream.current_stage, &mut position)?;
 
-            stream.in_supply += in_amount;
             position.in_balance += in_amount;
             POSITIONS.save(deps.storage, (stream_id, &info.sender), &position)?;
         }
     }
 
     // increase in supply
+    stream.in_supply += in_amount;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let res = Response::new()
