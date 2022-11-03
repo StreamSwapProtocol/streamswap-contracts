@@ -100,7 +100,7 @@ purchased = index_diff * position.in_balance
 After the calculation, position balance, spent and purchased will be updated.
 
 // TODO: we can use the previous design's formula for distribution and spending.
-// (stream.current_stage - now) / (stream.current_stage - stream.end_time)
+// (stream.current_stage - now) / (stream.end_time - stream.current_stage)
 
 ### Exit Stream
 
