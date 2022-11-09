@@ -1,0 +1,145 @@
+/*
+    initial out supply: 50_000_000
+    stream duration 1_000_000
+
+    subscribe Bob
+
+    in: 25_000
+    time: 1000 unix
+    stage: 0,001
+    new_dist: 50000
+    dist_index: 50000/50000000 0,001
+
+    subscribe Alice
+
+    in: 50_000
+    time: 250_000
+    stage: 0.25
+    spent in:
+    dist_index:
+
+    withdraw 1
+    time: 300_000
+
+    withdraw 2
+    time:800_000
+
+    subscribe 1 - load
+
+    finalize
+
+    exit 1
+    exit 2
+     */
+
+
+
+     Stream {
+            StreamId:1
+            name: test
+            treasury: 
+            url
+            dist_index: 0
+            current_stage: 0/100,
+            out_denom,:Loop
+            out_supply:50_000_000
+            current_out: 0,
+            in_denom: Juno
+            in_supply: 0,
+            spent_in: 0,
+            start_time:0,
+            end_time:1_000_000,
+            current_streamed_price: 0,
+        }
+    Bob's Position:
+    
+    Position {
+        owner:Bob
+        in_balance:25_000
+        index:0
+        current_stage: 1000,
+        purchased: 0,
+        spent: 0,
+        exited: false,
+    }
+
+    Stream after Bob's subscription: {
+        StreamId:1
+        name: test
+        treasury: 
+        url
+        dist_index: 0
+        current_stage: 1/1000,
+        out_denom,:Loop
+        out_supply:50_000_000
+        current_out: 0,
+        in_denom: Juno
+        in_supply: 25_000,
+        spent_in: 0,
+        start_time:0,
+        end_time:1_000_000,
+        current_streamed_price: 25/50000=0.0005,
+    }
+
+    Alice's Position:
+    
+    Position {
+        owner:Alice
+        in_balance:50_000
+        index:
+        current_stage: 250000,
+        purchased: 0,
+        spent: 0,
+        exited: false,
+    }
+
+
+    Stream after Alice's subscription: {
+        StreamId:1
+        name: test
+        treasury: 
+        url
+        dist_index: 662.5
+        current_stage: 1/4,
+        out_denom,:Loop
+        out_supply:50_000_000
+        current_out: 0,
+        in_denom: Juno
+        in_supply: 68775 ,
+        spent_in: 6225,
+        start_time:0,
+        end_time:1_000_000,
+        current_streamed_price: 2000,
+    }
+
+    Bob's withdraws position:{
+        Position 
+        {
+        owner:Bob
+        in_balance:12325
+        index:662.5
+        current_stage: 3/10,
+        purchased: 8.165.312,5,
+        spent: 5175,
+        exited: false,
+    }
+
+    }
+ Stream after Bobs withdrawal: {
+        StreamId:1
+        name: test
+        treasury: 
+        url
+        dist_index: 310.5
+        current_stage: 0,3,
+        out_denom,:Loop
+        out_supply:50_000_000
+        current_out: 8.165.312,5,
+        in_denom: Juno
+        in_supply: 65337 ,
+        spent_in: 9663,
+        start_time:0,
+        end_time:1_000_000,
+        current_streamed_price: 2000,
+    }
+    
