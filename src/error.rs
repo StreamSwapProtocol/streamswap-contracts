@@ -13,9 +13,6 @@ pub enum ContractError {
     #[error("{0}")]
     Payment(#[from] PaymentError),
 
-    #[error("Start and end dates should be same type")]
-    DateInput {},
-
     #[error("No rewards accrued")]
     NoDistribution {},
 
@@ -25,8 +22,8 @@ pub enum ContractError {
     #[error("Do not send native funds")]
     NoFundsSent {},
 
-    #[error("Amount required")]
-    AmountRequired {},
+    #[error("Supply out funds required")]
+    StreamOutSupplyFundsRequired {},
 
     #[error("Decrease amount exceeds user balance: {0}")]
     DecreaseAmountExceeds(Uint128),
@@ -55,9 +52,18 @@ pub enum ContractError {
     #[error("Stream starts too soon")]
     StreamStartsTooSoon {},
 
-    #[error("Creation Fee Required")]
-    CreationFeeRequired {},
+    #[error("Invalid start time")]
+    StreamInvalidStartTime {},
+
+    #[error("Invalid end time")]
+    StreamInvalidEndTime {},
+
+    #[error("Creation fee required")]
+    StreamCreationFeeRequired {},
 
     #[error("Stream Ended")]
     StreamEnded {},
+
+    #[error("Stream not started")]
+    StreamNotStarted {},
 }

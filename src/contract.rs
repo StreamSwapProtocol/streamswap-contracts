@@ -108,23 +108,38 @@ pub fn execute_create_stream(
     end_time: Timestamp,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    if end_time.nanos() - start_time.nanos() < config.min_stream_duration.u64() {
+    if end_time < start_time {
+        return Err(ContractError::StreamInvalidEndTime {});
+    }
+    if env.block.time > start_time {
+        return Err(ContractError::StreamInvalidStartTime {});
+    }
+    if end_time.seconds() - start_time.seconds() < config.min_stream_duration.u64() {
         return Err(ContractError::StreamDurationTooShort {});
     }
 
-    if start_time.nanos() - env.block.time.nanos() < config.min_duration_until_start_time.u64() {
+    if start_time.seconds() - env.block.time.seconds() < config.min_duration_until_start_time.u64()
+    {
         return Err(ContractError::StreamStartsTooSoon {});
     }
 
-    let funds = info.funds.iter().find(|p| p.denom == out_denom).ok_or(ContractError::NoFundsSent{} )?;
+    let funds = info
+        .funds
+        .iter()
+        .find(|p| p.denom == out_denom)
+        .ok_or(ContractError::NoFundsSent {})?;
     if funds.amount != out_supply {
-        return Err(ContractError::AmountRequired {});
+        return Err(ContractError::StreamOutSupplyFundsRequired {});
     }
 
     // TODO: what if fee denom and out denom are same?
-    let creation_fee = info.funds.iter().find(|p| p.denom == config.stream_creation_denom).ok_or(ContractError::NoFundsSent{} )?;
+    let creation_fee = info
+        .funds
+        .iter()
+        .find(|p| p.denom == config.stream_creation_denom)
+        .ok_or(ContractError::NoFundsSent {})?;
     if creation_fee.amount != config.stream_creation_fee {
-        return Err(ContractError::CreationFeeRequired {});
+        return Err(ContractError::StreamCreationFeeRequired {});
     }
 
     let stream = Stream::new(
@@ -191,21 +206,26 @@ pub fn update_dist_index(
     let numerator = now.nanos() - stream.start_time.nanos();
     let denominator = stream.end_time.nanos() - stream.start_time.nanos();
     let current_dist_stage = Decimal::from_ratio(numerator, denominator);
-
-    // calculate new distribution
     let stage_diff = current_dist_stage.checked_sub(stream.current_stage)?;
 
-    let new_distribution_balance = stage_diff.mul(stream.out_supply);
-    let spent_in = stage_diff.mul(stream.in_supply);
-    let deducted_in_supply = stream.in_supply.checked_sub(spent_in)?;
+    let mut new_distribution_balance = Uint128::zero();
+    if stream.in_supply != Uint128::zero() {
+        // TODO: maybe use uint256 for higher precision?
+        new_distribution_balance = stream.out_supply.mul(stage_diff);
+        let spent_in = stream.in_supply.mul(stage_diff);
 
-    stream.dist_index += Decimal::from_ratio(new_distribution_balance, deducted_in_supply);
+        stream.in_supply = stream.in_supply.checked_sub(spent_in)?;
+        stream.dist_index += Decimal::from_ratio(new_distribution_balance, stream.in_supply);
+        stream.spent_in += spent_in;
+        stream.current_out += new_distribution_balance;
+        // if stream not ended calculate balance
+        // streamed price is spent in / new_distribution_balance
+        if stream.current_stage != Decimal::one() {
+            stream.current_streamed_price = spent_in / new_distribution_balance;
+        }
+    }
+
     stream.current_stage = current_dist_stage;
-    stream.spent_in += spent_in;
-    stream.in_supply = deducted_in_supply;
-
-    // streamed price is new dist / spent in
-    stream.current_streamed_price = spent_in / new_distribution_balance;
 
     Ok((stage_diff, new_distribution_balance))
 }
@@ -216,13 +236,14 @@ pub fn execute_trigger_purchase(
     info: MessageInfo,
     stream_id: u64,
 ) -> Result<Response, ContractError> {
+    // TODO: anyone can trigger?
     let mut position = POSITIONS.load(deps.storage, (stream_id, &info.sender))?;
     if info.sender != position.owner {
         return Err(ContractError::Unauthorized {});
     }
 
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    let (_, _) = update_dist_index(env.block.time, &mut stream)?;
+    update_dist_index(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let (purchased, spent) =
@@ -244,7 +265,7 @@ pub fn trigger_purchase(
     position: &mut Position,
 ) -> Result<(Uint128, Uint128), ContractError> {
     let stage_diff = stream_current_stage - position.current_stage;
-    let spent = stage_diff.mul(position.in_balance);
+    let spent = position.in_balance.mul(stage_diff);
 
     let index_diff = stream_dist_index - position.index;
 
@@ -268,26 +289,26 @@ pub fn execute_subscribe(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    if env.block.time < stream.start_time {
+        return Err(ContractError::StreamNotStarted {});
+    }
     if env.block.time > stream.end_time {
         return Err(ContractError::StreamEnded {});
     }
+
     let in_amount = must_pay(&info, &stream.in_denom)?;
 
-    // if position exists, first update the distribution index and trigger purchase
-    // else create position
     let position = POSITIONS.may_load(deps.storage, (stream_id, &info.sender))?;
     match position {
+        // new positions do not trigger purchase as they have no effect on distribution on subscribe
         None => {
-            // TODO: on the first start, should position claim distributed out until this point? This is an open question.
-            // code below sets index on first subscription. does not claim distributed out until first release.
-            let positions: Vec<Vec<u8>> = POSITIONS.prefix(stream_id)
-                .keys_raw(deps.storage, None, None, Order::Ascending)
-                .take(1).collect();
-            if positions.len() == 0 {
-                update_dist_index(env.block.time, &mut stream)?;
-            }
-
-            let new_position = Position::new(info.sender.clone(), in_amount, Some(stream.dist_index));
+            update_dist_index(env.block.time, &mut stream)?;
+            let new_position = Position::new(
+                info.sender.clone(),
+                in_amount,
+                Some(stream.dist_index),
+                Some(stream.current_stage),
+            );
             POSITIONS.save(deps.storage, (stream_id, &info.sender), &new_position)?;
         }
         Some(mut position) => {
@@ -327,6 +348,10 @@ pub fn execute_withdraw(
     cap: Option<Uint128>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    // can't withdraw after stream ended
+    if env.block.time > stream.end_time {
+        return Err(ContractError::StreamEnded {});
+    }
 
     let mut position = POSITIONS.load(deps.storage, (stream_id, &info.sender))?;
     if position.owner != info.sender {
@@ -334,27 +359,19 @@ pub fn execute_withdraw(
     }
 
     update_dist_index(env.block.time, &mut stream)?;
-    STREAMS.save(deps.storage, stream_id, &stream)?;
+    trigger_purchase(stream.dist_index, stream.current_stage, &mut position)?;
 
-    let (purchased, spent) =
-        trigger_purchase(stream.dist_index, stream.current_stage, &mut position)?;
-    POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
-    let withdraw_amount = cap.unwrap_or(position.in_balance - spent);
-
+    let withdraw_amount = cap.unwrap_or(position.in_balance);
     // if amount to withdraw more then deduced buy balance throw error
-    if withdraw_amount > position.in_balance - spent {
+    if withdraw_amount > position.in_balance {
         return Err(ContractError::DecreaseAmountExceeds(withdraw_amount));
     }
-
-    stream.current_out += purchased;
-    stream.spent_in += spent;
     stream.in_supply -= withdraw_amount;
+    position.in_balance -= withdraw_amount;
     STREAMS.save(deps.storage, stream_id, &stream)?;
+    POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
 
-    let recipient = recipient
-        .map(|r| deps.api.addr_validate(&r))
-        .transpose()?
-        .unwrap_or(info.sender);
+    let recipient = maybe_addr(deps.api, recipient)?.unwrap_or(info.sender);
     let attributes = vec![
         attr("action", "withdraw"),
         attr("recipient", recipient.as_str()),
@@ -390,15 +407,11 @@ pub fn execute_finalize_stream(
     if env.block.time < stream.end_time {
         return Err(ContractError::StreamNotEnded {});
     }
-
     if stream.current_stage < Decimal::one() {
         return Err(ContractError::UpdateDistIndex {});
     }
 
-    let treasury = new_treasury
-        .map(|t| deps.api.addr_validate(&t))
-        .transpose()?
-        .unwrap_or(stream.treasury);
+    let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or(stream.treasury);
 
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: treasury.to_string(),
@@ -417,7 +430,6 @@ pub fn execute_finalize_stream(
             amount: leftover,
         }],
     });
-
 
     let config = CONFIG.load(deps.storage)?;
     let fee_send_msg = CosmosMsg::Bank(BankMsg::Send {
@@ -461,18 +473,15 @@ pub fn execute_exit_stream(
     if position.exited {
         return Err(ContractError::PositionAlreadyExited {});
     }
+    // TODO: maybe callable by everyone? if then remove new recipient
     if position.owner != info.sender {
         return Err(ContractError::Unauthorized {});
     }
-    if position.current_stage < Decimal::one() {
-        return Err(ContractError::TriggerPositionPurchase {});
-    }
 
-    let recipient = recipient
-        .map(|r| deps.api.addr_validate(&r))
-        .transpose()?
-        .unwrap_or(position.owner.clone());
+    // trigger purchase before exit
+    trigger_purchase(stream.dist_index, stream.current_stage, &mut position)?;
 
+    let recipient = maybe_addr(deps.api, recipient)?.unwrap_or(position.owner.clone());
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: recipient.to_string(),
         amount: vec![Coin {
@@ -505,6 +514,8 @@ pub fn execute_exit_stream(
         .add_attributes(attributes))
 }
 
+// TODO: finalize already sends back the fees, so this is not needed, but in case there is extra fees
+// best to keep this
 pub fn execute_collect_fees(
     deps: DepsMut,
     env: Env,
@@ -563,10 +574,7 @@ pub fn sudo_update_config(
     cfg.stream_creation_denom = stream_creation_denom.unwrap_or(cfg.stream_creation_denom);
     cfg.stream_creation_fee = stream_creation_fee.unwrap_or(cfg.stream_creation_fee);
 
-    let collector = fee_collector
-        .map(|r| deps.api.addr_validate(&r))
-        .transpose()?
-        .unwrap_or(cfg.fee_collector);
+    let collector = maybe_addr(deps.api, fee_collector)?.unwrap_or(cfg.fee_collector);
     cfg.fee_collector = collector;
 
     CONFIG.save(deps.storage, &cfg)?;
@@ -626,7 +634,7 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
         start_time: stream.start_time,
         end_time: stream.end_time,
         total_in_spent: stream.spent_in,
-        latest_stage: stream.current_stage,
+        current_stage: stream.current_stage,
         dist_index: stream.dist_index,
         total_out_sold: stream.current_out,
         total_in_supply: stream.in_supply,
@@ -659,7 +667,7 @@ pub fn list_streams(
                 start_time: stream.start_time,
                 end_time: stream.end_time,
                 total_in_spent: stream.spent_in,
-                latest_stage: stream.current_stage,
+                current_stage: stream.current_stage,
                 dist_index: stream.dist_index,
                 total_out_sold: stream.current_out,
                 total_in_supply: stream.in_supply,

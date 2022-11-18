@@ -40,7 +40,6 @@ pub struct Stream {
     pub in_supply: Uint128,
     // total number of `token_in` spent at latest state
     pub spent_in: Uint128,
-    // TODO: convert to Timestamp
     // start time when the token emission starts. in nanos
     pub start_time: Timestamp,
     // end time when the token emission ends. Can't be bigger than start +
@@ -106,12 +105,17 @@ pub struct Position {
 }
 
 impl Position {
-    pub fn new(owner: Addr, in_balance: Uint128, index: Option<Decimal>) -> Self {
+    pub fn new(
+        owner: Addr,
+        in_balance: Uint128,
+        index: Option<Decimal>,
+        current_stage: Option<Decimal>,
+    ) -> Self {
         Position {
             owner,
             in_balance,
             index: index.unwrap_or_default(),
-            current_stage: Decimal::zero(),
+            current_stage: current_stage.unwrap_or_default(),
             purchased: Uint128::zero(),
             spent: Uint128::zero(),
             exited: false,

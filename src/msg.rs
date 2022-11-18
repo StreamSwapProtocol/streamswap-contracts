@@ -109,7 +109,7 @@ pub struct StreamResponse {
     pub id: u64,
     pub treasury: String,
     pub dist_index: Decimal,
-    pub latest_stage: Decimal,
+    pub current_stage: Decimal,
     pub token_out_denom: String,
     pub token_out_supply: Uint128,
     pub total_out_sold: Uint128,

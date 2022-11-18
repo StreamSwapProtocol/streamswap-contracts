@@ -1,998 +1,1028 @@
 #[cfg(test)]
 mod tests {
-    /*
-      use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-      use cosmwasm_std::{
-          from_binary, to_binary, Addr, BankMsg, Coin, Decimal, Empty, MessageInfo, SubMsg, Uint128,
-          WasmMsg,
-      };
-
-      use crate::contract::{execute, get_decimals, instantiate, query};
-      use crate::msg::{
-          ExecuteMsg, HolderResponse, HoldersResponse, InstantiateMsg, QueryMsg, ReceiveMsg,
-          StateResponse,
-      };
-
-      use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
-
-      use crate::state::{Holder, State, HOLDERS, STATE};
-      use crate::ContractError;
-      use cw_multi_test::{App, Contract, ContractWrapper};
-      use std::borrow::BorrowMut;
-      use std::ops::{Mul, Sub};
-      use std::str::FromStr;
-
-      fn mock_app() -> App {
-          App::default()
-      }
-
-      pub fn contract_cw20_reward() -> Box<dyn Contract<Empty>> {
-          let contract = ContractWrapper::new(execute, instantiate, query);
-          Box::new(contract)
-      }
-
-      pub fn contract_cw20() -> Box<dyn Contract<Empty>> {
-          let contract = ContractWrapper::new(
-              cw20_base::contract::execute,
-              cw20_base::contract::instantiate,
-              cw20_base::contract::query,
-          );
-          Box::new(contract)
-      }
-
-      const MOCK_CW20_CONTRACT_ADDR: &str = "cw20";
-      fn default_init() -> InstantiateMsg {
-          InstantiateMsg {
-              cw20_token_addr: MOCK_CW20_CONTRACT_ADDR.into(),
-              unbonding_period: 1000,
-          }
-      }
-
-      fn receive_stake_msg(sender: &str, amount: u128) -> ExecuteMsg {
-          let bond_msg = ReceiveMsg::BondStake {};
-          let cw20_receive_msg = Cw20ReceiveMsg {
-              sender: sender.to_string(),
-              amount: Uint128::new(amount),
-              msg: to_binary(&bond_msg).unwrap(),
-          };
-          ExecuteMsg::Receive(cw20_receive_msg)
-      }
-
-      #[test]
-      fn proper_init() {
-          let mut deps = mock_dependencies();
-          let init_msg = default_init();
-          let env = mock_env();
-          let info = MessageInfo {
-              sender: Addr::unchecked("ok"),
-              funds: vec![],
-          };
-          let res = instantiate(deps.as_mut(), env.clone(), info, init_msg).unwrap();
-          assert_eq!(0, res.messages.len());
-
-          let res = query(deps.as_ref(), env.clone(), QueryMsg::State {}).unwrap();
-          let config_response: StateResponse = from_binary(&res).unwrap();
-          assert_eq!(
-              config_response,
-              StateResponse {
-                  cw20_token_addr: MOCK_CW20_CONTRACT_ADDR.to_string(),
-                  unbonding_period: 1000,
-                  total_balance: Default::default(),
-                  global_index: Decimal::zero(),
-                  prev_reward_balance: Default::default()
-              }
-          );
-
-          let res = query(deps.as_ref(), env, QueryMsg::State {}).unwrap();
-          let state_response: StateResponse = from_binary(&res).unwrap();
-          assert_eq!(
-              state_response,
-              StateResponse {
-                  cw20_token_addr: MOCK_CW20_CONTRACT_ADDR.into(),
-                  unbonding_period: 1000,
-                  global_index: Decimal::zero(),
-                  total_balance: Default::default(),
-                  prev_reward_balance: Uint128::zero()
-              }
-          );
-      }
-
-      #[test]
-      fn update_global_index() {
-          let mut deps = mock_dependencies();
-
-          let init_msg = default_init();
-          let env = mock_env();
-          let info = mock_info("sender", &[]);
-          instantiate(deps.as_mut(), env.clone(), info.clone(), init_msg).unwrap();
-
-          let msg = ExecuteMsg::UpdateRewardIndex {};
-
-          // Failed zero staking balance
-          let res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
-          match res {
-              Err(ContractError::NoBond {}) => {}
-              _ => panic!("DO NOT ENTER HERE"),
-          }
-          STATE
-              .save(
-                  deps.as_mut().storage,
-                  &State {
-                      cw20_token_addr: MOCK_CW20_CONTRACT_ADDR.into(),
-                      unbonding_period: 0,
-                      global_index: Decimal::zero(),
-                      total_balance: Uint128::from(100u128),
-                      prev_reward_balance: Uint128::zero(),
-                  },
-              )
-              .unwrap();
-
-          // claimed_rewards = 100, total_balance = 100
-          // global_index == 1
-          //handle(&mut deps, env, msg).unwrap();
-          execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-          let res = query(deps.as_ref(), env, QueryMsg::State {}).unwrap();
-          let state_response: State = from_binary(&res).unwrap();
-          assert_eq!(
-              state_response,
-              State {
-                  cw20_token_addr: MOCK_CW20_CONTRACT_ADDR.into(),
-                  unbonding_period: 0,
-                  global_index: Decimal::one(),
-                  total_balance: Uint128::from(100u128),
-                  prev_reward_balance: Uint128::from(100u128)
-              }
-          );
-      }
-
-      #[test]
-      fn increase_balance() {
-          let mut deps = mock_dependencies();
-
-          let init_msg = default_init();
-          let env = mock_env();
-          let info = mock_info("addr0000", &[]);
-          instantiate(deps.as_mut(), env.clone(), info.clone(), init_msg).unwrap();
-
-          let info = mock_info(MOCK_CW20_CONTRACT_ADDR, &[]);
-          let receive_msg = receive_stake_msg("addr0000", 100);
-          execute(
-              deps.as_mut(),
-              env.clone(),
-              info.clone(),
-              receive_msg.clone(),
-          )
-          .unwrap();
-
-          let res = query(
-              deps.as_ref(),
-              env.clone(),
-              QueryMsg::Holder {
-                  address: "addr0000".to_string(),
-              },
-          )
-          .unwrap();
-
-          let holder_response: HolderResponse = from_binary(&res).unwrap();
-          assert_eq!(
-              holder_response,
-              HolderResponse {
-                  address: "addr0000".to_string(),
-                  balance: Uint128::from(100u128),
-                  index: Decimal::zero(),
-                  pending_rewards: Decimal::zero(),
-              }
-          );
-
-          // claimed_rewards = 100, total_balance = 100
-          // global_index == 1
-          let info = mock_info("addr0000", &[]);
-          let msg = ExecuteMsg::UpdateRewardIndex {};
-          execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
-
-          let info = mock_info("sender", &[]);
-          execute(deps.as_mut(), env.clone(), info.clone(), receive_msg).unwrap();
-          let res = query(
-              deps.as_ref(),
-              env.clone(),
-              QueryMsg::Holder {
-                  address: "addr0000".to_string(),
-              },
-          )
-          .unwrap();
-
-          let holder_response: HolderResponse = from_binary(&res).unwrap();
-          assert_eq!(
-              holder_response,
-              HolderResponse {
-                  address: "addr0000".to_string(),
-                  balance: Uint128::from(200u128),
-                  index: Decimal::one(),
-                  pending_rewards: Decimal::from_str("100").unwrap(),
-              }
-          );
-      }
-
-      #[test]
-      fn increase_balance_with_decimals() {
-          let mut deps = mock_dependencies();
-
-          let init_msg = default_init();
-          let env = mock_env();
-          let info = mock_info("addr0000", &[]);
-          instantiate(deps.as_mut(), env.clone(), info.clone(), init_msg).unwrap();
-
-          let info = mock_info("sender", &[]);
-          let receive_msg = receive_stake_msg("addr0000", 11);
-          execute(
-              deps.as_mut(),
-              env.clone(),
-              info.clone(),
-              receive_msg.clone(),
-          )
-          .unwrap();
-          let res = query(
-              deps.as_ref(),
-              env.clone(),
-              QueryMsg::Holder {
-                  address: "addr0000".to_string(),
-              },
-          )
-          .unwrap();
-
-          let holder_response: HolderResponse = from_binary(&res).unwrap();
-          assert_eq!(
-              holder_response,
-              HolderResponse {
-                  address: "addr0000".to_string(),
-                  balance: Uint128::from(11u128),
-                  index: Decimal::zero(),
-                  pending_rewards: Decimal::zero(),
-              }
-          );
-
-          // claimed_rewards = 100000 , total_balance = 11
-          // global_index == 9077.727272727272727272
-          let info = mock_info("addr0000", &[]);
-          let msg = ExecuteMsg::UpdateRewardIndex {};
-          execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
-
-          let info = mock_info("sender", &[]);
-          let receive_msg = receive_stake_msg("addr0000", 10);
-          execute(
-              deps.as_mut(),
-              env.clone(),
-              info.clone(),
-              receive_msg.clone(),
-          )
-          .unwrap();
-
-          let res = query(
-              deps.as_ref(),
-              env.clone(),
-              QueryMsg::Holder {
-                  address: "addr0000".to_string(),
-              },
-          )
-          .unwrap();
-
-          let holder_response: HolderResponse = from_binary(&res).unwrap();
-
-          let value1 = Decimal::from_ratio(Uint128::new(100000), Uint128::new(11));
-          let index = value1.mul(Decimal::one());
-          let pend_value1 = holder_response.index.sub(Decimal::zero());
-          let user_pend_reward = Decimal::from_str("11").unwrap().mul(pend_value1);
-          assert_eq!(
-              holder_response,
-              HolderResponse {
-                  address: "addr0000".to_string(),
-                  balance: Uint128::from(21u128),
-                  index,
-                  pending_rewards: user_pend_reward,
-              }
-          );
-      }
-
-      #[test]
-      fn unbond_stake() {
-          let mut deps = mock_dependencies();
-
-          let init_msg = default_init();
-          let env = mock_env();
-          let info = mock_info("addr0000", &[]);
-          instantiate(deps.as_mut(), env.clone(), info, init_msg).unwrap();
-
-          let msg = ExecuteMsg::UnbondStake {
-              amount: Uint128::from(100u128),
-          };
-
-          // Failed underflow
-          let info = mock_info("addr0000", &[]);
-          let res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
-          match res {
-              Err(ContractError::DecreaseAmountExceeds(amount)) => {
-                  assert_eq!(amount, Uint128::zero())
-              }
-              _ => panic!("DO NOT ENTER HERE"),
-          };
-
-          let info = mock_info("sender", &[]);
-          let receive_msg = receive_stake_msg("addr0000", 100);
-          execute(deps.as_mut(), env.clone(), info, receive_msg).unwrap();
-
-          // claimed_rewards = 100, total_balance = 100
-          // global_index == 1
-          let info = mock_info("addr0000", &[]);
-          let msg = ExecuteMsg::UpdateRewardIndex {};
-          execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-
-          let info = mock_info("addr0000", &[]);
-          let msg = ExecuteMsg::UnbondStake {
-              amount: Uint128::from(100u128),
-          };
-          execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-
-          let res = query(
-              deps.as_ref(),
-              env.clone(),
-              QueryMsg::Holder {
-                  address: "addr0000".to_string(),
-              },
-          )
-          .unwrap();
-
-          let holder_response: HolderResponse = from_binary(&res).unwrap();
-          assert_eq!(
-              holder_response,
-              HolderResponse {
-                  address: "addr0000".to_string(),
-                  balance: Uint128::zero(),
-                  index: Decimal::one(),
-                  pending_rewards: Decimal::from_str("100").unwrap(),
-              }
-          );
-      }
-
-      #[test]
-      fn claim_rewards() {
-          let mut deps = mock_dependencies();
-
-          let init_msg = default_init();
-          let env = mock_env();
-          let info = mock_info("sender", &[]);
-          instantiate(deps.as_mut(), env.clone(), info, init_msg).unwrap();
-
-          let info = mock_info(MOCK_CW20_CONTRACT_ADDR, &[]);
-          let receive_msg = receive_stake_msg("addr0000", 100);
-          execute(deps.as_mut(), env.clone(), info, receive_msg).unwrap();
-          let res = query(
-              deps.as_ref(),
-              env.clone(),
-              QueryMsg::Holder {
-                  address: "addr0000".to_string(),
-              },
-          )
-          .unwrap();
-
-          let holder_response: HolderResponse = from_binary(&res).unwrap();
-          assert_eq!(
-              holder_response,
-              HolderResponse {
-                  address: "addr0000".to_string(),
-                  balance: Uint128::from(100u128),
-                  index: Decimal::zero(),
-                  pending_rewards: Decimal::zero(),
-              }
-          );
-
-          // claimed_rewards = 100, total_balance = 100
-          // global_index == 1
-          let info = mock_info(MOCK_CW20_CONTRACT_ADDR, &[]);
-          let msg = ExecuteMsg::UpdateRewardIndex {};
-          execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-
-          let msg = ExecuteMsg::ClaimRewards { recipient: None };
-          let info = mock_info("addr0000", &[]);
-          let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-
-          assert_eq!(
-              res.messages,
-              vec![SubMsg::new(BankMsg::Send {
-                  to_address: "addr0000".to_string(),
-                  amount: vec![Coin {
-                      denom: "uusd".to_string(),
-                      amount: Uint128::from(99u128), // 1% tax
-                  },]
-              })]
-          );
-
-          // Set recipient
-          // claimed_rewards = 100, total_balance = 100
-          // global_index == 1
-          let info = mock_info("sender", &[]);
-          let msg = ExecuteMsg::UpdateRewardIndex {};
-          execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-
-          let msg = ExecuteMsg::ClaimRewards {
-              recipient: Some(Addr::unchecked("addr0001").to_string()),
-          };
-          let info = mock_info("addr0000", &[]);
-          let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-          assert_eq!(
-              res.messages,
-              vec![SubMsg::new(BankMsg::Send {
-                  to_address: "addr0001".to_string(),
-                  amount: vec![Coin {
-                      denom: "uusd".to_string(),
-                      amount: Uint128::from(99u128), // 1% tax
-                  },]
-              })]
-          );
-      }
-
-      #[test]
-      fn withdraw_stake() {
-          let mut deps = mock_dependencies();
-
-          let init_msg = default_init();
-          let mut env = mock_env();
-          let info = mock_info("sender", &[]);
-          instantiate(deps.as_mut(), env.clone(), info, init_msg).unwrap();
-
-          let info = mock_info("sender", &[]);
-          let receive_msg = receive_stake_msg("addr0000", 100);
-          execute(deps.as_mut(), env.clone(), info, receive_msg.clone()).unwrap();
-
-          let res = query(
-              deps.as_ref(),
-              env.clone(),
-              QueryMsg::Holder {
-                  address: "addr0000".to_string(),
-              },
-          )
-          .unwrap();
-
-          let holder_response: HolderResponse = from_binary(&res).unwrap();
-          assert_eq!(
-              holder_response,
-              HolderResponse {
-                  address: "addr0000".to_string(),
-                  balance: Uint128::from(100u128),
-                  index: Decimal::zero(),
-                  pending_rewards: Decimal::zero(),
-              }
-          );
-
-          // claimed_rewards = 100, total_balance = 100
-          // global_index == 1
-          let info = mock_info("sender", &[]);
-          let msg = ExecuteMsg::UpdateRewardIndex {};
-          execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-
-          let msg = ExecuteMsg::ClaimRewards { recipient: None };
-          let info = mock_info("addr0000", &[]);
-          let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-          assert_eq!(
-              res.messages,
-              vec![SubMsg::new(BankMsg::Send {
-                  to_address: "addr0000".to_string(),
-                  amount: vec![Coin {
-                      denom: "uusd".to_string(),
-                      amount: Uint128::from(99u128), // 1% tax
-                  }]
-              })]
-          );
-
-          // withdraw stake
-          let msg = ExecuteMsg::UnbondStake {
-              amount: Uint128::from(100u128),
-          };
-          let info = mock_info("addr0000", &[]);
-          env.block.height = 5;
-          execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-
-          // withdraw before unbonding fails
-          let msg = ExecuteMsg::WithdrawStake { cap: None };
-          let info = mock_info("addr0000", &[]);
-          env.block.height = 10;
-          let res = execute(deps.as_mut(), env.clone(), info, msg);
-
-          match res {
-              Err(ContractError::WaitUnbonding {}) => {}
-              _ => panic!("Unexpected error"),
-          }
-
-          // withdraw works after unbonding period
-          let msg = ExecuteMsg::WithdrawStake { cap: None };
-          let info = mock_info("addr0000", &[]);
-          env.block.height = 10000;
-          let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-
-          let cw20_transfer_msg = Cw20ExecuteMsg::Transfer {
-              recipient: "addr0000".to_string(),
-              amount: Uint128::from(100u128),
-          };
-          assert_eq!(
-              res.messages,
-              vec![SubMsg::new(WasmMsg::Execute {
-                  contract_addr: MOCK_CW20_CONTRACT_ADDR.to_string(),
-                  msg: to_binary(&cw20_transfer_msg).unwrap(),
-                  funds: vec![]
-              })]
-          );
-      }
-
-      #[test]
-      fn withdraw_stake_cap() {
-          let mut deps = mock_dependencies();
-
-          let init_msg = default_init();
-          let mut env = mock_env();
-          let info = mock_info("addr0000", &[]);
-          instantiate(deps.as_mut(), env.clone(), info, init_msg).unwrap();
-
-          let info = mock_info(MOCK_CW20_CONTRACT_ADDR, &[]);
-          let receive_msg = receive_stake_msg("addr0000", 100);
-          execute(deps.as_mut(), env.clone(), info, receive_msg.clone()).unwrap();
-
-          let res = query(
-              deps.as_ref(),
-              env.clone(),
-              QueryMsg::Holder {
-                  address: "addr0000".to_string(),
-              },
-          )
-          .unwrap();
-
-          let holder_response: HolderResponse = from_binary(&res).unwrap();
-          assert_eq!(
-              holder_response,
-              HolderResponse {
-                  address: "addr0000".to_string(),
-                  balance: Uint128::from(100u128),
-                  index: Decimal::zero(),
-                  pending_rewards: Decimal::zero(),
-              }
-          );
-
-          // claimed_rewards = 100, total_balance = 100
-          // global_index == 1
-          let info = mock_info("addr0000", &[]);
-          let msg = ExecuteMsg::UpdateRewardIndex {};
-          execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-
-          let msg = ExecuteMsg::ClaimRewards { recipient: None };
-          let info = mock_info("addr0000", &[]);
-          let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-          assert_eq!(
-              res.messages,
-              vec![SubMsg::new(BankMsg::Send {
-                  to_address: "addr0000".to_string(),
-                  amount: vec![Coin {
-                      denom: "uusd".to_string(),
-                      amount: Uint128::from(99u128), // 1% tax
-                  }]
-              })]
-          );
-
-          // withdraw stake
-          let msg = ExecuteMsg::UnbondStake {
-              amount: Uint128::from(100u128),
-          };
-          let info = mock_info("addr0000", &[]);
-          env.block.height = 5;
-          execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-
-          // cap is less then release, wait for more to unbond
-          let msg = ExecuteMsg::WithdrawStake {
-              cap: Some(Uint128::from(50u128)),
-          };
-          let info = mock_info("addr0000", &[]);
-          env.block.height = 100000;
-          let res = execute(deps.as_mut(), env.clone(), info, msg);
-          match res {
-              Err(ContractError::WaitUnbonding {}) => {}
-
-              _ => panic!("Unexpected error"),
-          }
-
-          let msg = ExecuteMsg::WithdrawStake {
-              cap: Some(Uint128::from(150u128)),
-          };
-          let info = mock_info("addr0000", &[]);
-          env.block.height = 100000;
-          let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-
-          let cw20_transfer_msg = Cw20ExecuteMsg::Transfer {
-              recipient: "addr0000".to_string(),
-              amount: Uint128::from(100u128),
-          };
-          assert_eq!(
-              res.messages,
-              vec![SubMsg::new(WasmMsg::Execute {
-                  contract_addr: MOCK_CW20_CONTRACT_ADDR.to_string(),
-                  msg: to_binary(&cw20_transfer_msg).unwrap(),
-                  funds: vec![]
-              })]
-          );
-      }
-
-      #[test]
-      fn claim_rewards_with_decimals() {
-          let mut deps = mock_dependencies();
-          let init_msg = default_init();
-          let env = mock_env();
-          let info = mock_info("addr0000", &[]);
-          instantiate(deps.as_mut(), env.clone(), info, init_msg).unwrap();
-
-          let info = mock_info(MOCK_CW20_CONTRACT_ADDR, &[]);
-          let receive_msg = receive_stake_msg("addr0000", 11);
-          execute(deps.as_mut(), env.clone(), info, receive_msg.clone()).unwrap();
-
-          let res = query(
-              deps.as_ref(),
-              env.clone(),
-              QueryMsg::Holder {
-                  address: "addr0000".to_string(),
-              },
-          )
-          .unwrap();
-
-          let holder_response: HolderResponse = from_binary(&res).unwrap();
-          assert_eq!(
-              holder_response,
-              HolderResponse {
-                  address: "addr0000".to_string(),
-                  balance: Uint128::from(11u128),
-                  index: Decimal::zero(),
-                  pending_rewards: Decimal::zero(),
-              }
-          );
-
-          // claimed_rewards = 1000000, total_balance = 11
-          // global_index ==
-          let info = mock_info("sender", &[]);
-          let msg = ExecuteMsg::UpdateRewardIndex {};
-          execute(deps.as_mut(), env.clone(), info, msg.clone()).unwrap();
-
-          let msg = ExecuteMsg::ClaimRewards { recipient: None };
-          let info = mock_info("addr0000", &[]);
-          let res = execute(deps.as_mut(), env.clone(), info, msg.clone()).unwrap();
-          assert_eq!(
-              res.messages,
-              vec![SubMsg::new(BankMsg::Send {
-                  to_address: "addr0000".to_string(),
-                  amount: vec![Coin {
-                      denom: "uusd".to_string(),
-                      amount: Uint128::from(99007u128), // 1% tax
-                  },]
-              })]
-          );
-
-          let res = query(
-              deps.as_ref(),
-              env.clone(),
-              QueryMsg::Holder {
-                  address: "addr0000".to_string(),
-              },
-          )
-          .unwrap();
-          let holder_response: HolderResponse = from_binary(&res).unwrap();
-          let value1 = Decimal::from_ratio(Uint128::new(99999), Uint128::new(11));
-          let index = Decimal::one().mul(value1);
-          assert_eq!(
-              holder_response,
-              HolderResponse {
-                  address: "addr0000".to_string(),
-                  balance: Uint128::from(11u128),
-                  index,
-                  pending_rewards: Decimal::from_str("0.999999999999999991").unwrap(),
-              }
-          );
-
-          let res = query(deps.as_ref(), env, QueryMsg::State {}).unwrap();
-          let state_response: StateResponse = from_binary(&res).unwrap();
-          assert_eq!(
-              state_response,
-              StateResponse {
-                  cw20_token_addr: MOCK_CW20_CONTRACT_ADDR.into(),
-                  unbonding_period: 0,
-                  global_index: index,
-                  total_balance: Uint128::new(11u128),
-                  prev_reward_balance: Uint128::new(1)
-              }
-          );
-      }
-
-      #[test]
-      fn query_holders() {
-          let mut deps = mock_dependencies();
-
-          let init_msg = default_init();
-          let env = mock_env();
-          let info = mock_info("addr0000", &[]);
-          instantiate(deps.as_mut(), env.clone(), info, init_msg).unwrap();
-
-          let info = mock_info(MOCK_CW20_CONTRACT_ADDR, &[]);
-          let receive_msg = receive_stake_msg(Addr::unchecked("addr0000").as_str(), 100);
-          execute(deps.as_mut(), env.clone(), info, receive_msg.clone()).unwrap();
-
-          let info = mock_info(MOCK_CW20_CONTRACT_ADDR, &[]);
-          let receive_msg = receive_stake_msg(Addr::unchecked("addr0001").as_str(), 200);
-          execute(deps.as_mut(), env.clone(), info, receive_msg.clone()).unwrap();
-
-          let info = mock_info(MOCK_CW20_CONTRACT_ADDR, &[]);
-          let receive_msg = receive_stake_msg(Addr::unchecked("addr0002").as_str(), 300);
-          execute(deps.as_mut(), env.clone(), info, receive_msg.clone()).unwrap();
-
-          let res = query(
-              deps.as_ref(),
-              env.clone(),
-              QueryMsg::Holders {
-                  start_after: None,
-                  limit: None,
-              },
-          )
-          .unwrap();
-          let holders_response: HoldersResponse = from_binary(&res).unwrap();
-          assert_eq!(
-              holders_response,
-              HoldersResponse {
-                  holders: vec![
-                      HolderResponse {
-                          address: String::from("addr0000"),
-                          balance: Uint128::from(100u128),
-                          index: Decimal::zero(),
-                          pending_rewards: Decimal::zero(),
-                      },
-                      HolderResponse {
-                          address: String::from("addr0001"),
-                          balance: Uint128::from(200u128),
-                          index: Decimal::zero(),
-                          pending_rewards: Decimal::zero(),
-                      },
-                      HolderResponse {
-                          address: String::from("addr0002"),
-                          balance: Uint128::from(300u128),
-                          index: Decimal::zero(),
-                          pending_rewards: Decimal::zero(),
-                      }
-                  ],
-              }
-          );
-
-          // Set limit
-          let res = query(
-              deps.as_ref(),
-              env.clone(),
-              QueryMsg::Holders {
-                  start_after: None,
-                  limit: Some(1),
-              },
-          )
-          .unwrap();
-          let holders_response: HoldersResponse = from_binary(&res).unwrap();
-          assert_eq!(
-              holders_response,
-              HoldersResponse {
-                  holders: vec![HolderResponse {
-                      address: String::from("addr0000"),
-                      balance: Uint128::from(100u128),
-                      index: Decimal::zero(),
-                      pending_rewards: Decimal::zero(),
-                  }],
-              }
-          );
-
-          // Set start_after
-          let res = query(
-              deps.as_ref(),
-              env.clone(),
-              QueryMsg::Holders {
-                  start_after: Some(String::from("addr0002")),
-                  limit: None,
-              },
-          )
-          .unwrap();
-          let holders_response: HoldersResponse = from_binary(&res).unwrap();
-          assert_eq!(holders_response, HoldersResponse { holders: vec![] });
-
-          // Set start_after and limit
-          let res = query(
-              deps.as_ref(),
-              env.clone(),
-              QueryMsg::Holders {
-                  start_after: Some("addr0000".to_string()),
-                  limit: Some(1),
-              },
-          )
-          .unwrap();
-          let holders_response: HoldersResponse = from_binary(&res).unwrap();
-          assert_eq!(
-              holders_response,
-              HoldersResponse {
-                  holders: vec![HolderResponse {
-                      address: String::from("addr0001"),
-                      balance: Uint128::from(200u128),
-                      index: Decimal::zero(),
-                      pending_rewards: Decimal::zero(),
-                  }],
-              }
-          );
-      }
-
-      #[test]
-      fn proper_prev_balance() {
-          let mut deps = mock_dependencies();
-
-          let init_msg = default_init();
-          let env = mock_env();
-          let info = mock_info("addr0000", &[]);
-          instantiate(deps.as_mut(), env.clone(), info, init_msg).unwrap();
-
-          let amount1 = Uint128::from(8899999999988889u128);
-          let amount2 = Uint128::from(14487875351811111u128);
-          let amount3 = Uint128::from(1100000000000000u128);
-
-          let rewards = Uint128::new(677101666827000000u128);
-
-          let all_balance = amount1 + amount2 + amount3;
-
-          let global_index = Decimal::from_ratio(rewards, all_balance);
-          STATE
-              .save(
-                  deps.as_mut().storage,
-                  &State {
-                      cw20_token_addr: MOCK_CW20_CONTRACT_ADDR.into(),
-                      unbonding_period: 0,
-                      global_index,
-                      total_balance: all_balance,
-                      prev_reward_balance: rewards,
-                  },
-              )
-              .unwrap();
-
-          let holder = Holder {
-              balance: amount1,
-              index: Decimal::from_str("0").unwrap(),
-              pending_rewards: Decimal::from_str("0").unwrap(),
-          };
-          HOLDERS
-              .save(
-                  deps.storage.borrow_mut(),
-                  &Addr::unchecked("addr0000"),
-                  &holder,
-              )
-              .unwrap();
-
-          let holder = Holder {
-              balance: amount2,
-              index: Decimal::from_str("0").unwrap(),
-              pending_rewards: Decimal::from_str("0").unwrap(),
-          };
-          HOLDERS
-              .save(
-                  deps.storage.borrow_mut(),
-                  &Addr::unchecked("addr0001"),
-                  &holder,
-              )
-              .unwrap();
-
-          let holder = Holder {
-              balance: amount3,
-              index: Decimal::from_str("0").unwrap(),
-              pending_rewards: Decimal::from_str("0").unwrap(),
-          };
-          HOLDERS
-              .save(
-                  deps.storage.borrow_mut(),
-                  &Addr::unchecked("addr0002"),
-                  &holder,
-              )
-              .unwrap();
-
-          let msg = ExecuteMsg::ClaimRewards { recipient: None };
-          let info = mock_info("addr0000", &[]);
-          execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-
-          let msg = ExecuteMsg::ClaimRewards { recipient: None };
-          let info = mock_info("addr0001", &[]);
-          execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-
-          let msg = ExecuteMsg::ClaimRewards { recipient: None };
-          let info = mock_info("addr0002", &[]);
-          execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-
-          let res = query(deps.as_ref(), env.clone(), QueryMsg::State {}).unwrap();
-          let state_response: StateResponse = from_binary(&res).unwrap();
-          assert_eq!(
-              state_response,
-              StateResponse {
-                  cw20_token_addr: "".to_string(),
-                  unbonding_period: 0,
-                  global_index,
-                  total_balance: all_balance,
-                  prev_reward_balance: Uint128::new(1)
-              }
-          );
-          let res = query(
-              deps.as_ref(),
-              env.clone(),
-              QueryMsg::Holder {
-                  address: "addr0000".to_string(),
-              },
-          )
-          .unwrap();
-
-          let holder_response: HolderResponse = from_binary(&res).unwrap();
-          assert_eq!(
-              holder_response,
-              HolderResponse {
-                  address: "addr0000".to_string(),
-                  balance: amount1,
-                  index: global_index,
-                  pending_rewards: Decimal::from_str("0.212799238975421283").unwrap(),
-              }
-          );
-
-          let res = query(
-              deps.as_ref(),
-              env.clone(),
-              QueryMsg::Holder {
-                  address: "addr0001".to_string(),
-              },
-          )
-          .unwrap();
-          let holder_response: HolderResponse = from_binary(&res).unwrap();
-          assert_eq!(
-              holder_response,
-              HolderResponse {
-                  address: "addr0001".to_string(),
-                  balance: amount2,
-                  index: global_index,
-                  pending_rewards: Decimal::from_str("0.078595712259178717").unwrap(),
-              }
-          );
-
-          let res = query(
-              deps.as_ref(),
-              env.clone(),
-              QueryMsg::Holder {
-                  address: "addr0002".to_string(),
-              },
-          )
-          .unwrap();
-          let holder_response: HolderResponse = from_binary(&res).unwrap();
-          assert_eq!(
-              holder_response,
-              HolderResponse {
-                  address: "addr0002".to_string(),
-                  balance: amount3,
-                  index: global_index,
-                  pending_rewards: Decimal::from_str("0.701700000000000000").unwrap(),
-              }
-          );
-      }
-
-      #[test]
-      pub fn proper_calculate_rewards() {
-          let global_index = Decimal::from_ratio(Uint128::new(9), Uint128::new(100));
-          let user_index = Decimal::zero();
-          let user_balance = Uint128::new(1000);
-          let reward = calculate_decimal_rewards(global_index, user_index, user_balance).unwrap();
-          assert_eq!(reward.to_string(), "90");
-      }
-
-      #[test]
-      pub fn proper_get_decimals() {
-          let global_index = Decimal::from_ratio(Uint128::new(9999999), Uint128::new(100000000));
-          let user_index = Decimal::zero();
-          let user_balance = Uint128::new(10);
-          let reward = get_decimals(
-              calculate_decimal_rewards(global_index, user_index, user_balance).unwrap(),
-          )
-          .unwrap();
-          assert_eq!(reward.to_string(), "0.9999999");
-      }
-    */
+    use crate::contract::{
+        execute_create_stream, execute_exit_stream, execute_finalize_stream, execute_subscribe,
+        execute_trigger_purchase, execute_update_dist_index, execute_withdraw, instantiate,
+        query_position, query_stream, update_dist_index,
+    };
+    use crate::state::Stream;
+    use crate::ContractError;
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::{Addr, BankMsg, Coin, CosmosMsg, Decimal, Timestamp, Uint128, Uint64};
+    use cw_utils::PaymentError;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_create_stream() {
+        let mut deps = mock_dependencies();
+        let msg = crate::msg::InstantiateMsg {
+            min_stream_duration: Uint64::new(1000),
+            min_duration_until_start_time: Uint64::new(1000),
+            stream_creation_denom: "fee".to_string(),
+            stream_creation_fee: Uint128::new(100),
+            fee_collector: "collector".to_string(),
+        };
+        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+        // end < start case
+        let treasury = "treasury";
+        let name = "name";
+        let url = "url";
+        let start_time = Timestamp::from_seconds(1000);
+        let end_time = Timestamp::from_seconds(10);
+        let out_supply = Uint128::new(50_000_000);
+        let out_denom = "out_denom";
+        let in_denom = "in_denom";
+
+        let info = mock_info("creator", &[]);
+        let env = mock_env();
+        let res = execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            name.to_string(),
+            url.to_string(),
+            in_denom.to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start_time,
+            end_time,
+        );
+        assert_eq!(res, Err(ContractError::StreamInvalidEndTime {}));
+
+        // min_stream_duration is not sufficient
+        let end_time = Timestamp::from_seconds(1000);
+        let start_time = Timestamp::from_seconds(500);
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(0);
+        let info = mock_info("creator1", &[]);
+        let res = execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            name.to_string(),
+            url.to_string(),
+            in_denom.to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start_time,
+            end_time,
+        );
+        assert_eq!(res, Err(ContractError::StreamDurationTooShort {}));
+
+        // start cannot be before current time
+        let end_time = Timestamp::from_seconds(1000);
+        let start_time = Timestamp::from_seconds(500);
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(600);
+        let info = mock_info("creator1", &[]);
+        let res = execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            name.to_string(),
+            url.to_string(),
+            in_denom.to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start_time,
+            end_time,
+        );
+        assert_eq!(res, Err(ContractError::StreamInvalidStartTime {}));
+
+        // stream starts too soon case
+        let end_time = Timestamp::from_seconds(100000);
+        let start_time = Timestamp::from_seconds(1400);
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(401);
+        let info = mock_info("creator1", &[]);
+        let res = execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            name.to_string(),
+            url.to_string(),
+            in_denom.to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start_time,
+            end_time,
+        );
+        assert_eq!(res, Err(ContractError::StreamStartsTooSoon {}));
+
+        // no funds fee case
+        let end_time = Timestamp::from_seconds(100000);
+        let start_time = Timestamp::from_seconds(3000);
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(1);
+        let info = mock_info("creator1", &[]);
+        let res = execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            name.to_string(),
+            url.to_string(),
+            in_denom.to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start_time,
+            end_time,
+        );
+        assert_eq!(res, Err(ContractError::NoFundsSent {}));
+
+        // wrong supply amount case
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(1);
+        let info = mock_info("creator1", &[Coin::new(1_000_000, "out_denom")]);
+        let res = execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            name.to_string(),
+            url.to_string(),
+            in_denom.to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start_time,
+            end_time,
+        );
+        assert_eq!(res, Err(ContractError::StreamOutSupplyFundsRequired {}));
+
+        // no creation fee case
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(1);
+        let info = mock_info("creator1", &[Coin::new(out_supply.u128(), "out_denom")]);
+        let res = execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            name.to_string(),
+            url.to_string(),
+            in_denom.to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start_time,
+            end_time,
+        );
+        assert_eq!(res, Err(ContractError::NoFundsSent {}));
+
+        // mismatch creation fee case
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(1);
+        let info = mock_info("creator1", &[Coin::new(out_supply.u128(), "out_denom")]);
+        let res = execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            name.to_string(),
+            url.to_string(),
+            in_denom.to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start_time,
+            end_time,
+        );
+        assert_eq!(res, Err(ContractError::NoFundsSent {}));
+
+        // happy path
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(1);
+        let info = mock_info(
+            "creator1",
+            &[
+                Coin::new(out_supply.u128(), "out_denom"),
+                Coin::new(100, "fee"),
+            ],
+        );
+        execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            name.to_string(),
+            url.to_string(),
+            in_denom.to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start_time,
+            end_time,
+        )
+        .unwrap();
+
+        // query stream with id
+        let env = mock_env();
+        let stream = query_stream(deps.as_ref(), env, 1).unwrap();
+        assert_eq!(stream.id, 1);
+    }
+
+    #[test]
+    fn test_subscribe() {
+        let treasury = Addr::unchecked("treasury");
+        let start = Timestamp::from_seconds(2000);
+        let end = Timestamp::from_seconds(1_000_000);
+        let out_supply = Uint128::new(1_000_000);
+        let out_denom = "out_denom";
+
+        // instantiate
+        let mut deps = mock_dependencies();
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(100);
+        let msg = crate::msg::InstantiateMsg {
+            min_stream_duration: Uint64::new(1000),
+            min_duration_until_start_time: Uint64::new(1000),
+            stream_creation_denom: "fee".to_string(),
+            stream_creation_fee: Uint128::new(100),
+            fee_collector: "collector".to_string(),
+        };
+        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+        // create stream
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(1);
+        let info = mock_info(
+            "creator1",
+            &[
+                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(100, "fee"),
+            ],
+        );
+        execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            "test".to_string(),
+            "test".to_string(),
+            "in".to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start,
+            end,
+        )
+        .unwrap();
+
+        // stream did not begin yet
+        let mut env = mock_env();
+        env.block.time = start.minus_seconds(100);
+        let info = mock_info("creator1", &[]);
+        let res = execute_subscribe(deps.as_mut(), env, info, 1).unwrap_err();
+        assert_eq!(res, ContractError::StreamNotStarted {});
+
+        // stream ended
+        let mut env = mock_env();
+        env.block.time = end.plus_seconds(1000000);
+        let info = mock_info("creator1", &[]);
+        let res = execute_subscribe(deps.as_mut(), env, info, 1).unwrap_err();
+        assert_eq!(res, ContractError::StreamEnded {});
+
+        // no funds
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(100);
+        let info = mock_info("creator1", &[]);
+        let res = execute_subscribe(deps.as_mut(), env, info, 1).unwrap_err();
+        assert_eq!(res, PaymentError::NoFunds {}.into());
+
+        // incorrect denom
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(100);
+        let info = mock_info("creator1", &[Coin::new(100, "wrong_denom")]);
+        let res = execute_subscribe(deps.as_mut(), env, info, 1).unwrap_err();
+        assert_eq!(
+            res,
+            PaymentError::MissingDenom {
+                0: "in".to_string()
+            }
+            .into()
+        );
+
+        // first subscribe
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(100);
+        let info = mock_info("creator1", &[Coin::new(1_000_000, "in")]);
+        execute_subscribe(deps.as_mut(), env, info, 1).unwrap();
+
+        // dist index updated
+        let env = mock_env();
+        let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
+        // position index not updated, stage updated, in_supply updated
+        assert_eq!(stream.dist_index, Decimal::zero());
+        assert_eq!(
+            stream.current_stage,
+            Decimal::from_atomics(Uint128::new(100200400801603), 18).unwrap()
+        );
+        assert_eq!(stream.total_in_supply, Uint128::new(1000000));
+        let position = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
+        assert_eq!(position.index, Decimal::zero());
+        assert_eq!(
+            position.current_stage,
+            Decimal::from_atomics(Uint128::new(100200400801603), 18).unwrap()
+        );
+        assert_eq!(position.in_balance, Uint128::new(1000000));
+
+        // subscription increase
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(200);
+        let info = mock_info("creator1", &[Coin::new(1_000_000, "in")]);
+        execute_subscribe(deps.as_mut(), env.clone(), info, 1).unwrap();
+        // dist index updated and stage
+        let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
+        assert_eq!(
+            stream.dist_index,
+            Decimal::from_atomics(Uint128::new(100010001000100), 18).unwrap()
+        );
+        assert_eq!(
+            stream.current_stage,
+            Decimal::from_atomics(Uint128::new(200400801603206), 18).unwrap()
+        );
+        // dist index updated and stage, position reduced and increased
+        let position = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
+        assert_eq!(
+            position.index,
+            Decimal::from_atomics(Uint128::new(100010001000100), 18).unwrap()
+        );
+        assert_eq!(
+            position.current_stage,
+            Decimal::from_atomics(Uint128::new(200400801603206), 18).unwrap()
+        );
+        assert_eq!(position.in_balance, Uint128::new(1999900));
+    }
+
+    #[test]
+    fn test_update_index() {
+        let treasury = Addr::unchecked("treasury");
+        let start = Timestamp::from_seconds(0);
+        let end = Timestamp::from_seconds(1_000_000);
+        let out_supply = Uint128::new(1_000_000);
+        let _cumulative_out = Uint128::zero();
+
+        let mut stream = Stream::new(
+            "test".to_string(),
+            treasury,
+            "test_url".to_string(),
+            "out".to_string(),
+            out_supply,
+            "in".to_string(),
+            start,
+            end,
+        );
+        let now = Timestamp::from_seconds(100);
+
+        // current_stage = 100 / 1_000_000 = 0.0001
+        // new_distribution = 0.0001 * 1_000_000 = 100
+        update_dist_index(now, &mut stream).unwrap();
+        assert_eq!(stream.current_stage, Decimal::from_str("0.0001").unwrap());
+
+        // no in supply, should be 0
+        assert_eq!(stream.current_out, Uint128::new(0));
+        assert_eq!(stream.dist_index, Decimal::zero());
+
+        // out supply not changed
+        assert_eq!(stream.out_supply, out_supply);
+
+        /*
+        user1 subscribes 100_000 at %1
+        current_stage = %1
+        */
+        let now = Timestamp::from_seconds(10_000);
+        update_dist_index(now, &mut stream).unwrap();
+        // still no supply
+        assert_eq!(stream.current_stage, Decimal::from_str("0.01").unwrap());
+        assert_eq!(stream.current_out, Uint128::new(0));
+        assert_eq!(stream.dist_index, Decimal::zero());
+        assert_eq!(stream.out_supply, out_supply);
+        stream.in_supply += Uint128::new(100_000);
+
+        /*
+        update_dist_index triggers at %2
+        */
+
+        // stage_diff is %1
+        // spent_in = 100_000 * %1 = 1_000
+        // in_supply = in_supply - spent_in = 100_000 - 10_000 = 99_000
+        // new_distribution =  1_000_000 * 1 / 100 = 10_000
+        // current_out = 0 + new_distribution = 100_000
+        // new_dist_index = 0 + 10_000 / 99_000 = 0.1010101...
+        let now = Timestamp::from_seconds(20_000);
+        update_dist_index(now, &mut stream).unwrap();
+        assert_eq!(stream.current_stage, Decimal::from_str("0.02").unwrap());
+        assert_eq!(stream.current_out, Uint128::new(10_000));
+        assert_eq!(
+            stream.dist_index,
+            Decimal::from_str("0.10101010101010101").unwrap()
+        );
+        assert_eq!(stream.in_supply, Uint128::new(99_000));
+
+        /*
+        user2 subscribes 100_000 at %4
+        */
+        let now = Timestamp::from_seconds(40_000);
+        update_dist_index(now, &mut stream).unwrap();
+        // TODO: to be cont
+    }
+
+    #[test]
+    fn test_trigger_purchase() {
+        let treasury = Addr::unchecked("treasury");
+        let start = Timestamp::from_seconds(1_000_000);
+        let end = Timestamp::from_seconds(5_000_000);
+        let out_supply = Uint128::new(1_000_000);
+        let out_denom = "out_denom";
+
+        // instantiate
+        let mut deps = mock_dependencies();
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(100);
+        let msg = crate::msg::InstantiateMsg {
+            min_stream_duration: Uint64::new(1000),
+            min_duration_until_start_time: Uint64::new(1000),
+            stream_creation_denom: "fee".to_string(),
+            stream_creation_fee: Uint128::new(100),
+            fee_collector: "collector".to_string(),
+        };
+        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+        // create stream
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(1);
+        let info = mock_info(
+            "creator",
+            &[
+                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(100, "fee"),
+            ],
+        );
+        execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            "test".to_string(),
+            "test".to_string(),
+            "in".to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start,
+            end,
+        )
+        .unwrap();
+
+        // first subscription
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(100);
+        let info = mock_info("creator1", &[Coin::new(1_000_000, "in")]);
+        execute_subscribe(deps.as_mut(), env, info, 1).unwrap();
+
+        // trigger purchase
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(3_000_000);
+        let info = mock_info("creator1", &[]);
+        execute_trigger_purchase(deps.as_mut(), env.clone(), info, 1).unwrap();
+
+        let position =
+            query_position(deps.as_ref(), env.clone(), 1, "creator1".to_string()).unwrap();
+        assert_eq!(position.current_stage, Decimal::from_str("0.75").unwrap());
+        assert_eq!(
+            position.index,
+            Decimal::from_str("2.999600039996000399").unwrap()
+        );
+        assert_eq!(position.purchased, Uint128::new(749974));
+        assert_eq!(position.spent, Uint128::new(749975));
+        assert_eq!(position.in_balance, Uint128::new(250025));
+        let stream = query_stream(deps.as_ref(), env, 1).unwrap();
+        assert_eq!(stream.current_stage, Decimal::from_str("0.75").unwrap());
+        assert_eq!(
+            stream.dist_index,
+            Decimal::from_str("2.999600039996000399").unwrap()
+        );
+
+        // can trigger purchase after stream ends
+        let mut env = mock_env();
+        env.block.time = end.plus_seconds(1);
+        let info = mock_info("creator1", &[]);
+        execute_trigger_purchase(deps.as_mut(), env.clone(), info, 1).unwrap();
+        let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
+        assert_eq!(stream.current_stage, Decimal::one());
+        assert_eq!(
+            stream.dist_index,
+            Decimal::from_str("4.33279827590809464").unwrap()
+        );
+        assert_eq!(stream.total_in_supply, Uint128::new(187519));
+        let position = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
+        assert_eq!(position.current_stage, Decimal::one());
+        assert_eq!(
+            position.index,
+            Decimal::from_str("4.33279827590809464").unwrap()
+        );
+        assert_eq!(position.spent, Uint128::new(812481));
+        assert_eq!(position.in_balance, Uint128::new(187519));
+
+        // TODO: 999975 -999973 = 2? calculation leftover, gotta test it with bigger values
+        assert_eq!(stream.total_out_sold, Uint128::new(999975));
+        assert_eq!(position.purchased, Uint128::new(999973));
+    }
+
+    // this is for testing the leftover amount with bigger values
+    #[test]
+    fn test_rounding_leftover() {
+        let treasury = Addr::unchecked("treasury");
+        let start = Timestamp::from_seconds(1_000_000);
+        let end = Timestamp::from_seconds(5_000_000);
+        let out_supply = Uint128::new(1_000_000_000_000);
+        let out_denom = "out_denom";
+
+        // instantiate
+        let mut deps = mock_dependencies();
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(100);
+        let msg = crate::msg::InstantiateMsg {
+            min_stream_duration: Uint64::new(1000),
+            min_duration_until_start_time: Uint64::new(1000),
+            stream_creation_denom: "fee".to_string(),
+            stream_creation_fee: Uint128::new(100),
+            fee_collector: "collector".to_string(),
+        };
+        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+        // create stream
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(1);
+        let info = mock_info(
+            "creator",
+            &[
+                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(100, "fee"),
+            ],
+        );
+        execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            "test".to_string(),
+            "test".to_string(),
+            "in".to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start,
+            end,
+        )
+        .unwrap();
+
+        // first subscription
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(100);
+        let info = mock_info("creator1", &[Coin::new(1_000_000_000, "in")]);
+        execute_subscribe(deps.as_mut(), env, info, 1).unwrap();
+
+        // second subscription
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(100_000);
+        let info = mock_info("creator2", &[Coin::new(3_000_000_000, "in")]);
+        execute_subscribe(deps.as_mut(), env, info, 1).unwrap();
+
+        // trigger purchase creator1
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(3_000_000);
+        let info = mock_info("creator1", &[]);
+        execute_trigger_purchase(deps.as_mut(), env.clone(), info, 1).unwrap();
+
+        let position =
+            query_position(deps.as_ref(), env.clone(), 1, "creator1".to_string()).unwrap();
+        assert_eq!(position.current_stage, Decimal::from_str("0.75").unwrap());
+        assert_eq!(
+            position.index,
+            Decimal::from_str("688.846691491528021074").unwrap()
+        );
+        assert_eq!(position.purchased, Uint128::new(172_228_894_040));
+        assert_eq!(position.spent, Uint128::new(749_975_000));
+        assert_eq!(position.in_balance, Uint128::new(250_025_000));
+        let stream = query_stream(deps.as_ref(), env, 1).unwrap();
+        assert_eq!(stream.current_stage, Decimal::from_str("0.75").unwrap());
+        assert_eq!(
+            stream.dist_index,
+            Decimal::from_str("688.846691491528021074").unwrap()
+        );
+
+        // trigger purchase creator2
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(3_575_000);
+        let info = mock_info("creator2", &[]);
+        execute_trigger_purchase(deps.as_mut(), env.clone(), info, 1).unwrap();
+
+
+        let position =
+            query_position(deps.as_ref(), env.clone(), 1, "creator2".to_string()).unwrap();
+        assert_eq!(position.current_stage, Decimal::from_str("0.89375").unwrap());
+        println!("{}", position.index.to_string());
+        assert_eq!(
+            position.index,
+            Decimal::from_str("842.426708242230681435").unwrap()
+        );
+        assert_eq!(position.purchased, Uint128::new(321_619_717_288));
+        assert_eq!(position.spent, Uint128::new(2_606_250_000));
+        assert_eq!(position.in_balance, Uint128::new(393_750_000));
+        let stream = query_stream(deps.as_ref(), env, 1).unwrap();
+        assert_eq!(stream.current_stage, Decimal::from_str("0.89375").unwrap());
+        println!("{}", stream.dist_index.to_string());
+        assert_eq!(
+            stream.dist_index,
+            Decimal::from_str("842.426708242230681435").unwrap()
+        );
+
+
+
+        // trigger purchase after stream ends
+        let mut env = mock_env();
+        env.block.time = end.plus_seconds(1);
+        let info = mock_info("creator1", &[]);
+        execute_trigger_purchase(deps.as_mut(), env.clone(), info, 1).unwrap();
+        let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
+        assert_eq!(stream.current_stage, Decimal::one());
+        println!("{}", stream.dist_index.to_string());
+        assert_eq!(
+            stream.dist_index,
+            Decimal::from_str("969.437241956774606129").unwrap()
+        );
+        assert_eq!(stream.total_in_supply, Uint128::new(836_544_788));
+        let position1 = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
+        assert_eq!(position1.current_stage, Decimal::one());
+        assert_eq!(
+            position1.index,
+            Decimal::from_str("969.437241956774606129").unwrap()
+        );
+        assert_eq!(position1.spent, Uint128::new(812_481_250));
+        assert_eq!(position1.in_balance, Uint128::new(187_518_750));
+
+        // trigger purchase after stream ends
+        let mut env = mock_env();
+        env.block.time = end.plus_seconds(1);
+        let info = mock_info("creator2", &[]);
+        execute_trigger_purchase(deps.as_mut(), env.clone(), info, 1).unwrap();
+        let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
+        assert_eq!(stream.current_stage, Decimal::one());
+        println!("{}", stream.dist_index.to_string());
+        assert_eq!(
+            stream.dist_index,
+            Decimal::from_str("969.437241956774606129").unwrap()
+        );
+        assert_eq!(stream.total_in_supply, Uint128::new(836_544_788));
+        let position2 = query_position(deps.as_ref(), env, 1, "creator2".to_string()).unwrap();
+        assert_eq!(position2.current_stage, Decimal::one());
+        assert_eq!(
+            position2.index,
+            Decimal::from_str("969.437241956774606129").unwrap()
+        );
+        assert_eq!(position2.spent, Uint128::new(2_648_085_937));
+        assert_eq!(position2.in_balance, Uint128::new(351_914_063));
+
+        // TODO: 999975000000 - 999974999998 = 2
+        // so always around 1-2 tokens
+        assert_eq!(stream.total_out_sold, Uint128::new(999_975_000_000));
+        println!("{}", position1.purchased);
+        println!("{}", position2.purchased);
+        println!("spent1 {}", position1.spent);
+        assert_eq!(position1.purchased.checked_add(position2.purchased).unwrap(), Uint128::new(591_161_393_576))
+    }
+
+    #[test]
+    fn test_withdraw() {
+        let treasury = Addr::unchecked("treasury");
+        let start = Timestamp::from_seconds(1_000_000);
+        let end = Timestamp::from_seconds(5_000_000);
+        let out_supply = Uint128::new(1_000_000_000_000);
+        let out_denom = "out_denom";
+
+        // instantiate
+        let mut deps = mock_dependencies();
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(0);
+        let msg = crate::msg::InstantiateMsg {
+            min_stream_duration: Uint64::new(1000),
+            min_duration_until_start_time: Uint64::new(0),
+            stream_creation_denom: "fee".to_string(),
+            stream_creation_fee: Uint128::new(100),
+            fee_collector: "collector".to_string(),
+        };
+        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+        // create stream
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(0);
+        let info = mock_info(
+            "creator1",
+            &[
+                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(100, "fee"),
+            ],
+        );
+        execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            "test".to_string(),
+            "test".to_string(),
+            "in".to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start,
+            end,
+        )
+        .unwrap();
+
+        // first subscription
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(0);
+        let funds = Coin::new(2_000_000_000_000, "in");
+        let info = mock_info("creator1", &[funds.clone()]);
+        execute_subscribe(deps.as_mut(), env, info, 1).unwrap();
+
+        // withdraw with cap
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(5000);
+        let info = mock_info("creator1", &[]);
+        let cap = Uint128::new(25_000_000);
+        execute_withdraw(deps.as_mut(), env, info, 1, None, Some(cap)).unwrap();
+        let position =
+            query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
+        assert_eq!(position.in_balance, Uint128::new(1_997_475_000_000));
+        assert_eq!(position.spent, Uint128::new(2_500_000_000));
+        assert_eq!(position.purchased, Uint128::new(1_249_999_999));
+        // first fund amount should be equal to in_balance + spent + cap
+        assert_eq!(position.in_balance + position.spent + cap, funds.amount);
+
+        // withdraw with cap to recipient
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(250_000);
+        let info = mock_info("creator1", &[]);
+        let cap = Uint128::new(25_000_000);
+        let res = execute_withdraw(
+            deps.as_mut(),
+            env,
+            info,
+            1,
+            Some("random".to_string()),
+            Some(cap),
+        )
+        .unwrap();
+        let position =
+            query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
+        assert_eq!(position.in_balance, Uint128::new(1_875_104_656_250));
+        assert_eq!(position.spent, Uint128::new(124_845_343_750));
+        assert_eq!(position.purchased, Uint128::new(62_499_999_998));
+        let msg = res.messages.get(0).unwrap();
+        assert_eq!(
+            msg.msg,
+            CosmosMsg::Bank(BankMsg::Send {
+                to_address: "random".to_string(),
+                amount: vec![Coin::new(25_000_000, "in")]
+            })
+        );
+
+        // can't withdraw after stream ends
+        let mut env = mock_env();
+        env.block.time = end.plus_seconds(1);
+        let info = mock_info("creator1", &[]);
+        let res = execute_withdraw(deps.as_mut(), env, info, 1, None, None).unwrap_err();
+        assert_eq!(res, ContractError::StreamEnded {});
+
+        // withdraw without cap
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(1_000_000);
+        let info = mock_info("creator1", &[]);
+        let res = execute_withdraw(deps.as_mut(), env, info, 1, None, None).unwrap();
+        let position =
+            query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
+        assert_eq!(position.in_balance, Uint128::zero());
+        assert_eq!(position.spent, Uint128::new(476_427_466_796));
+        assert_eq!(position.purchased, Uint128::new(249_999_999_997));
+        let msg = res.messages.get(0).unwrap();
+        assert_eq!(
+            msg.msg,
+            CosmosMsg::Bank(BankMsg::Send {
+                to_address: "creator1".to_string(),
+                amount: vec![Coin::new(1_523_522_533_204, "in")]
+            })
+        );
+    }
+
+    #[test]
+    fn test_finalize_stream() {
+        let treasury = Addr::unchecked("treasury");
+        let start = Timestamp::from_seconds(1_000_000);
+        let end = Timestamp::from_seconds(5_000_000);
+        let out_supply = Uint128::new(1_000_000_000_000);
+        let out_denom = "out_denom";
+
+        // instantiate
+        let mut deps = mock_dependencies();
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(0);
+        let msg = crate::msg::InstantiateMsg {
+            min_stream_duration: Uint64::new(1000),
+            min_duration_until_start_time: Uint64::new(0),
+            stream_creation_denom: "fee".to_string(),
+            stream_creation_fee: Uint128::new(100),
+            fee_collector: "collector".to_string(),
+        };
+        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+        // create stream
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(0);
+        let info = mock_info(
+            "creator1",
+            &[
+                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(100, "fee"),
+            ],
+        );
+        execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            "test".to_string(),
+            "test".to_string(),
+            "in".to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start,
+            end,
+        )
+        .unwrap();
+
+        // first subscription
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(1_000_000);
+        let funds = Coin::new(2_000_000_000_000, "in");
+        let info = mock_info("creator1", &[funds.clone()]);
+        execute_subscribe(deps.as_mut(), env, info, 1).unwrap();
+
+        // only treasury can finalize
+        let mut env = mock_env();
+        env.block.time = end.plus_seconds(1);
+        let info = mock_info("random", &[]);
+        let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
+        assert_eq!(res, ContractError::Unauthorized {});
+
+        // can't finalize before stream ends
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(1);
+        let info = mock_info(treasury.as_str(), &[]);
+        let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
+        assert_eq!(res, ContractError::StreamNotEnded {});
+
+        // can't finalize without update distribution
+        let mut env = mock_env();
+        env.block.time = end.plus_seconds(1);
+        let info = mock_info(treasury.as_str(), &[]);
+        let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
+        assert_eq!(res, ContractError::UpdateDistIndex {});
+
+        // happy path
+        let mut env = mock_env();
+        env.block.time = end.plus_seconds(1);
+        let info = mock_info(treasury.as_str(), &[]);
+        execute_update_dist_index(deps.as_mut(), env.clone(), 1).unwrap();
+
+        let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap();
+        let fee_msg = res.messages.get(0).unwrap();
+        assert_eq!(
+            fee_msg.msg,
+            CosmosMsg::Bank(BankMsg::Send {
+                to_address: "collector".to_string(),
+                amount: vec![Coin::new(100, "fee")]
+            })
+        );
+
+        let leftover_msg = res.messages.get(1).unwrap();
+        assert_eq!(
+            leftover_msg.msg,
+            CosmosMsg::Bank(BankMsg::Send {
+                to_address: treasury.to_string(),
+                amount: vec![Coin::new(1_500_000_000_000, "in")]
+            })
+        );
+        let send_msg = res.messages.get(2).unwrap();
+        assert_eq!(
+            send_msg.msg,
+            CosmosMsg::Bank(BankMsg::Send {
+                to_address: treasury.to_string(),
+                amount: vec![Coin::new(250_000_000_000, "out_denom")]
+            })
+        );
+    }
+
+    #[test]
+    fn test_exit_stream() {
+        let treasury = Addr::unchecked("treasury");
+        let start = Timestamp::from_seconds(1_000_000);
+        let end = Timestamp::from_seconds(5_000_000);
+        let out_supply = Uint128::new(1_000_000_000_000);
+        let out_denom = "out_denom";
+
+        // instantiate
+        let mut deps = mock_dependencies();
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(0);
+        let msg = crate::msg::InstantiateMsg {
+            min_stream_duration: Uint64::new(1000),
+            min_duration_until_start_time: Uint64::new(0),
+            stream_creation_denom: "fee".to_string(),
+            stream_creation_fee: Uint128::new(100),
+            fee_collector: "collector".to_string(),
+        };
+        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+        // create stream
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(0);
+        let info = mock_info(
+            "creator1",
+            &[
+                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(100, "fee"),
+            ],
+        );
+        execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            "test".to_string(),
+            "test".to_string(),
+            "in".to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start,
+            end,
+        )
+        .unwrap();
+
+        // first subscription
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(1_000_000);
+        let funds = Coin::new(2_000_000_000_000, "in");
+        let info = mock_info("creator1", &[funds.clone()]);
+        execute_subscribe(deps.as_mut(), env, info, 1).unwrap();
+
+        // can't exit before stream ends
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(2_000_000);
+        let info = mock_info("creator1", &[]);
+        let res = execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
+        assert_eq!(res, ContractError::StreamNotEnded {});
+
+        // can't exit without update distribution
+        let mut env = mock_env();
+        env.block.time = end.plus_seconds(2_000_000);
+        let info = mock_info("creator1", &[]);
+        let res = execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
+        assert_eq!(res, ContractError::UpdateDistIndex {});
+
+        // update dist
+        let mut env = mock_env();
+        env.block.time = end.plus_seconds(2_000_000);
+        execute_update_dist_index(deps.as_mut(), env.clone(), 1).unwrap();
+
+        // can exit
+        let mut env = mock_env();
+        env.block.time = end.plus_seconds(3_000_000);
+        let info = mock_info("creator1", &[]);
+        let res = execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap();
+
+        let send_msg = res.messages.get(0).unwrap();
+        assert_eq!(
+            send_msg.msg,
+            CosmosMsg::Bank(BankMsg::Send {
+                to_address: "creator1".to_string(),
+                amount: vec![Coin::new(750_000_000_000, "out_denom")]
+            })
+        );
+
+        let leftover_msg = res.messages.get(1).unwrap();
+        assert_eq!(
+            leftover_msg.msg,
+            CosmosMsg::Bank(BankMsg::Send {
+                to_address: "creator1".to_string(),
+                amount: vec![Coin::new(500_000_000_000, "in")]
+            })
+        );
+
+        // can't exit twice
+        let mut env = mock_env();
+        env.block.time = end.plus_seconds(4_000_000);
+        let info = mock_info("creator1", &[]);
+        let res = execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
+        assert_eq!(res, ContractError::PositionAlreadyExited {});
+    }
 }

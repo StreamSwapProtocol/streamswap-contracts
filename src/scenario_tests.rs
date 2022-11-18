@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coin, Timestamp, Uint128, Uint64};
     use crate::contract::{execute, instantiate};
     use crate::msg::{ExecuteMsg, InstantiateMsg};
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::{coin, Timestamp, Uint128, Uint64};
 
     /*
     initial out supply: 50_000_000
@@ -36,6 +36,7 @@ mod tests {
     exit 1
     exit 2
      */
+    /*
     #[test]
     fn scenario_one() {
         // initial sell supply: 1_000_000
@@ -47,12 +48,12 @@ mod tests {
             min_duration_until_start_time: Uint64::new(1000),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
-            fee_collector: "collector".to_string()
+            fee_collector: "collector".to_string(),
         };
         let info = mock_info("creator", &[]);
         let mut env = mock_env();
         env.block.time = Timestamp::from_nanos(0);
-        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let _ = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         let msg = ExecuteMsg::CreateStream {
             treasury: "treasury".to_string(),
@@ -66,6 +67,8 @@ mod tests {
         };
         let funds = vec![coin(100, "fee"), coin(1_000_000, "out")];
         let info = mock_info("stream_creator", &funds);
-        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+        let _ = execute(deps.as_mut(), env, info, msg).unwrap();
     }
+
+     */
 }
