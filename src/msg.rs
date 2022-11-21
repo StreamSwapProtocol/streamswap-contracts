@@ -13,7 +13,7 @@ pub struct InstantiateMsg {
 #[cw_serde]
 pub enum ExecuteMsg {
     // Update the distribution index
-    UpdateDistributionIndex {
+    UpdateDistribution {
         stream_id: u64,
     },
 
@@ -53,7 +53,7 @@ pub enum ExecuteMsg {
         recipient: Option<String>,
     },
 
-    TriggerPositionPurchase {
+    UpdatePosition {
         stream_id: u64,
     },
 

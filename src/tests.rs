@@ -2,8 +2,8 @@
 mod tests {
     use crate::contract::{
         execute_create_stream, execute_exit_stream, execute_finalize_stream, execute_subscribe,
-        execute_trigger_purchase, execute_update_dist_index, execute_withdraw, instantiate,
-        query_position, query_stream, update_dist_index,
+        execute_update_position, execute_update_dist_index, execute_withdraw, instantiate,
+        query_position, query_stream, update_distribution,
     };
     use crate::state::Stream;
     use crate::ContractError;
@@ -405,7 +405,7 @@ mod tests {
         let now = Timestamp::from_seconds(100);
 
         // current_stage = 100 / 1_000_000 = 0.0001
-        update_dist_index(now, &mut stream).unwrap();
+        update_distribution(now, &mut stream).unwrap();
         assert_eq!(stream.current_stage, Decimal::from_str("0.0001").unwrap());
 
         // no in supply, should be 0
@@ -421,7 +421,7 @@ mod tests {
         current_stage = %1
         */
         let now = Timestamp::from_seconds(10_000);
-        update_dist_index(now, &mut stream).unwrap();
+        update_distribution(now, &mut stream).unwrap();
         // still no supply
         assert_eq!(stream.current_stage, Decimal::from_str("0.01").unwrap());
         assert_eq!(stream.current_out, Uint128::new(0));
@@ -442,7 +442,7 @@ mod tests {
         // current_out = 0 + new_distribution = 100_000
         // new_dist_index = 0 + 10_000 / 99_000 = 0.1010101...
         let now = Timestamp::from_seconds(20_000);
-        update_dist_index(now, &mut stream).unwrap();
+        update_distribution(now, &mut stream).unwrap();
         assert_eq!(stream.current_stage, Decimal::from_str("0.02").unwrap());
         assert_eq!(stream.current_out, Uint128::new(10_000));
         assert_eq!(stream.dist_index, Decimal::from_str("0.1").unwrap());
@@ -452,7 +452,7 @@ mod tests {
         user2 subscribes 100_000 at %4
         */
         let now = Timestamp::from_seconds(40_000);
-        update_dist_index(now, &mut stream).unwrap();
+        update_distribution(now, &mut stream).unwrap();
         // TODO: to be cont
     }
 
@@ -508,11 +508,11 @@ mod tests {
         let info = mock_info("creator1", &[Coin::new(1_000_000, "in")]);
         execute_subscribe(deps.as_mut(), env, info, 1).unwrap();
 
-        // trigger purchase
+        // update position
         let mut env = mock_env();
         env.block.time = start.plus_seconds(3_000_000);
         let info = mock_info("creator1", &[]);
-        execute_trigger_purchase(deps.as_mut(), env.clone(), info, 1).unwrap();
+        execute_update_position(deps.as_mut(), env.clone(), info, 1).unwrap();
 
         let position =
             query_position(deps.as_ref(), env.clone(), 1, "creator1".to_string()).unwrap();
@@ -525,11 +525,11 @@ mod tests {
         assert_eq!(stream.current_stage, Decimal::from_str("0.75").unwrap());
         assert_eq!(stream.dist_index, Decimal::from_str("0.749975").unwrap());
 
-        // can trigger purchase after stream ends
+        // can update position after stream ends
         let mut env = mock_env();
         env.block.time = end.plus_seconds(1);
         let info = mock_info("creator1", &[]);
-        execute_trigger_purchase(deps.as_mut(), env.clone(), info, 1).unwrap();
+        execute_update_position(deps.as_mut(), env.clone(), info, 1).unwrap();
         let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
         assert_eq!(stream.current_stage, Decimal::one());
         assert_eq!(stream.dist_index, Decimal::from_str("0.999975").unwrap());
@@ -603,11 +603,11 @@ mod tests {
         let info = mock_info("creator2", &[Coin::new(3_000_000_000, "in")]);
         execute_subscribe(deps.as_mut(), env, info, 1).unwrap();
 
-        // trigger purchase creator1
+        // update position creator1
         let mut env = mock_env();
         env.block.time = start.plus_seconds(3_000_000);
         let info = mock_info("creator1", &[]);
-        execute_trigger_purchase(deps.as_mut(), env.clone(), info, 1).unwrap();
+        execute_update_position(deps.as_mut(), env.clone(), info, 1).unwrap();
 
         let position =
             query_position(deps.as_ref(), env.clone(), 1, "creator1".to_string()).unwrap();
@@ -626,11 +626,11 @@ mod tests {
             Decimal::from_str("206.225000000000000000").unwrap()
         );
 
-        // trigger purchase creator2
+        // update position creator2
         let mut env = mock_env();
         env.block.time = start.plus_seconds(3_575_000);
         let info = mock_info("creator2", &[]);
-        execute_trigger_purchase(deps.as_mut(), env.clone(), info, 1).unwrap();
+        execute_update_position(deps.as_mut(), env.clone(), info, 1).unwrap();
 
         let position =
             query_position(deps.as_ref(), env.clone(), 1, "creator2".to_string()).unwrap();
@@ -652,11 +652,11 @@ mod tests {
             Decimal::from_str("242.162500000000000000").unwrap()
         );
 
-        // trigger purchase after stream ends
+        // update position after stream ends
         let mut env = mock_env();
         env.block.time = end.plus_seconds(1);
         let info = mock_info("creator1", &[]);
-        execute_trigger_purchase(deps.as_mut(), env.clone(), info, 1).unwrap();
+        execute_update_position(deps.as_mut(), env.clone(), info, 1).unwrap();
         let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
         assert_eq!(stream.current_stage, Decimal::one());
         assert_eq!(
@@ -673,11 +673,11 @@ mod tests {
         assert_eq!(position1.spent, Uint128::new(812_481_250));
         assert_eq!(position1.in_balance, Uint128::new(187_518_750));
 
-        // trigger purchase after stream ends
+        // update position after stream ends
         let mut env = mock_env();
         env.block.time = end.plus_seconds(1);
         let info = mock_info("creator2", &[]);
-        execute_trigger_purchase(deps.as_mut(), env.clone(), info, 1).unwrap();
+        execute_update_position(deps.as_mut(), env.clone(), info, 1).unwrap();
         let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
         assert_eq!(stream.current_stage, Decimal::one());
         assert_eq!(

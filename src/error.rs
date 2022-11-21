@@ -40,8 +40,8 @@ pub enum ContractError {
     #[error("Update dist index")]
     UpdateDistIndex {},
 
-    #[error("Trigger position purchase")]
-    TriggerPositionPurchase {},
+    #[error("Update position")]
+    UpdatePosition {},
 
     #[error("Position is already exited")]
     PositionAlreadyExited {},

@@ -45,7 +45,7 @@ Fee amount is determined by governance voting through sudo contract execution.
 
 Anyone can join a sale by sending a [SubscribeMsg](https://github.com/osmosis-labs/osmosis/blob/main/proto/osmosis/streamswap/v1/tx.proto#L13) transaction.
 When doing so, the transaction author has to send the `amount` he wants to spend in transaction funds.
-That `amount` will be credited from tx author and pledged to the sale.
+That `amount` will be credited from tx author and pledged to the sale. Shares will be minted for the position owner.
 
 At any time an investor can increase his participation for the sale by sending again `MsgSubscribe`
 (his pledge will increase accordingly) or cancel it by sending
@@ -72,21 +72,22 @@ In token spending calculation is based on the stage difference.
 
 ```
 spent_in = stream.in_supply * diff
-deducted_buy = stream.in_supply - spent_in
+stream.in_supply -= spent_in
 ```
 
-The `new_distribution_balance` will be distributed to the deducted tokens.
+The `new_distribution_balance` will be distributed to shares.
 Distribution index becomes this:
 ```
-stream.dist_index = stream.dist_index + (new_distribution_balance / deducted_buy)
+stream.dist_index = stream.dist_index + (new_distribution_balance / stream.shares)
 ```
 
 ### Purchase / Spending
 
-Spending happens when `trigger_purchase` is called.
-When a position is purchased, the contract will calculate the amount of `out_denom` tokens to be distributed to the investor.
-Withdrawing and subscribing more tokens will trigger position purchase first.
-Purchase will update distribution index first.
+Spend calculation happens when `update_position` is called. Distribution and spending are working as lazy accounting. Meaning
+the calculations are done continuously, no action required. `update_distribution` and `update_position` just updates the current state of the stream and position.
+
+When `update_position` is called, the contract will calculate the amount of tokens spent and  accumulated so far by the investor.
+Update position updates distribution index first.
 
 ```
 spent_diff = stream.current_stage - position.current_stage
@@ -122,8 +123,8 @@ to the `sale.treasury`.
 
 ### Price
 
-Average price of the sale is `stream.current_out / stream.spent_int`.
-Last streamed price: `new_distribution_balance / spent_in_distribution` at the time of update distribution index.
+Average price of the sale: `stream.current_out / stream.spent_in`.
+Last streamed price: `new_distribution_balance / spent_in_distribution` at latest time of update distribution.
 
 ### Creation Fee
 

@@ -70,10 +70,10 @@ pub fn execute(
             start_time,
             end_time,
         ),
-        ExecuteMsg::TriggerPositionPurchase { stream_id } => {
-            execute_trigger_purchase(deps, env, info, stream_id)
+        ExecuteMsg::UpdatePosition { stream_id } => {
+            execute_update_position(deps, env, info, stream_id)
         }
-        ExecuteMsg::UpdateDistributionIndex { stream_id } => {
+        ExecuteMsg::UpdateDistribution { stream_id } => {
             execute_update_dist_index(deps, env, stream_id)
         }
         ExecuteMsg::Subscribe { stream_id } => execute_subscribe(deps, env, info, stream_id),
@@ -177,11 +177,11 @@ pub fn execute_update_dist_index(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    let (_, dist_amount) = update_dist_index(env.block.time, &mut stream)?;
+    let (_, dist_amount) = update_distribution(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let attrs = vec![
-        attr("action", "update_distribution_index"),
+        attr("action", "update_distribution"),
         attr("stream_id", stream_id.to_string()),
         attr("distribution_amount", dist_amount),
         attr("stream_dist_index", stream.dist_index.to_string()),
@@ -190,7 +190,7 @@ pub fn execute_update_dist_index(
     Ok(res)
 }
 
-pub fn update_dist_index(
+pub fn update_distribution(
     now: Timestamp,
     stream: &mut Stream,
 ) -> Result<(Decimal, Uint128), ContractError> {
@@ -230,7 +230,7 @@ pub fn update_dist_index(
     Ok((stage_diff, new_distribution_balance))
 }
 
-pub fn execute_trigger_purchase(
+pub fn execute_update_position(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -243,15 +243,15 @@ pub fn execute_trigger_purchase(
     }
 
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    update_dist_index(env.block.time, &mut stream)?;
+    update_distribution(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let (purchased, spent) =
-        trigger_purchase(stream.dist_index, stream.current_stage, &mut position)?;
+        update_position(stream.dist_index, stream.current_stage, &mut position)?;
     POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
 
     Ok(Response::new()
-        .add_attribute("action", "trigger_position_purchase")
+        .add_attribute("action", "update_position")
         .add_attribute("recipient", info.sender)
         .add_attribute("purchased", purchased)
         .add_attribute("spent", spent))
@@ -259,7 +259,7 @@ pub fn execute_trigger_purchase(
 
 // calculate the user purchase based on the positions index and the global index.
 // returns purchased out amount and spent in amount
-pub fn trigger_purchase(
+pub fn update_position(
     stream_dist_index: Decimal,
     stream_current_stage: Decimal,
     position: &mut Position,
@@ -300,9 +300,9 @@ pub fn execute_subscribe(
 
     let position = POSITIONS.may_load(deps.storage, (stream_id, &info.sender))?;
     match position {
-        // new positions do not trigger purchase as they have no effect on distribution on subscribe
+        // new positions do not update purchase as it has no effect on distribution
         None => {
-            update_dist_index(env.block.time, &mut stream)?;
+            update_distribution(env.block.time, &mut stream)?;
             let new_position = Position::new(
                 info.sender.clone(),
                 in_amount,
@@ -317,9 +317,9 @@ pub fn execute_subscribe(
                 return Err(ContractError::Unauthorized {});
             }
 
-            // trigger update distribution index before purchase
-            update_dist_index(env.block.time, &mut stream)?;
-            trigger_purchase(stream.dist_index, stream.current_stage, &mut position)?;
+            // update distribution index before updating position
+            update_distribution(env.block.time, &mut stream)?;
+            update_position(stream.dist_index, stream.current_stage, &mut position)?;
 
             position.in_balance += in_amount;
             position.shares += new_shares;
@@ -361,8 +361,8 @@ pub fn execute_withdraw(
         return Err(ContractError::Unauthorized {});
     }
 
-    update_dist_index(env.block.time, &mut stream)?;
-    trigger_purchase(stream.dist_index, stream.current_stage, &mut position)?;
+    update_distribution(env.block.time, &mut stream)?;
+    update_position(stream.dist_index, stream.current_stage, &mut position)?;
 
     let withdraw_amount = cap.unwrap_or(position.in_balance);
     // if amount to withdraw more then deduced buy balance throw error
@@ -488,8 +488,8 @@ pub fn execute_exit_stream(
         return Err(ContractError::Unauthorized {});
     }
 
-    // trigger purchase before exit
-    trigger_purchase(stream.dist_index, stream.current_stage, &mut position)?;
+    // update position before exit
+    update_position(stream.dist_index, stream.current_stage, &mut position)?;
 
     let recipient = maybe_addr(deps.api, recipient)?.unwrap_or(position.owner.clone());
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
