@@ -480,9 +480,6 @@ pub fn execute_exit_stream(
     }
 
     let mut position = POSITIONS.load(deps.storage, (stream_id, &info.sender))?;
-    if position.exited {
-        return Err(ContractError::PositionAlreadyExited {});
-    }
     // TODO: maybe callable by everyone? if then remove new recipient
     if position.owner != info.sender {
         return Err(ContractError::Unauthorized {});
@@ -507,11 +504,7 @@ pub fn execute_exit_stream(
         }],
     });
 
-    position.exited = true;
-    position.in_balance = Uint128::zero();
-    position.shares = Uint128::zero();
-    // TODO: delete position or keep it?
-    POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
+    POSITIONS.remove(deps.storage, (stream_id, &position.owner));
 
     let attributes = vec![
         attr("action", "exit_stream"),
@@ -707,7 +700,6 @@ pub fn query_position(
         in_balance: position.in_balance,
         purchased: position.purchased,
         current_stage: position.current_stage,
-        exited: position.exited,
         index: position.index,
         spent: position.spent,
         shares: position.shares,
@@ -739,7 +731,6 @@ pub fn list_positions(
                 purchased: stream.purchased,
                 spent: stream.spent,
                 in_balance: stream.in_balance,
-                exited: stream.exited,
                 shares: stream.shares,
             };
             Ok(position)

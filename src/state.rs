@@ -118,8 +118,6 @@ pub struct Position {
     pub purchased: Uint128,
     // total amount of `token_in` spent tokens at latest calculation
     pub spent: Uint128,
-    // finalized becomes true when position is finalized and tokens are sent to the recipient
-    pub exited: bool,
 }
 
 impl Position {
@@ -138,7 +136,6 @@ impl Position {
             current_stage: current_stage.unwrap_or_default(),
             purchased: Uint128::zero(),
             spent: Uint128::zero(),
-            exited: false,
         }
     }
 }

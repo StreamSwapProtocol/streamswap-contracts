@@ -43,9 +43,6 @@ pub enum ContractError {
     #[error("Update position")]
     UpdatePosition {},
 
-    #[error("Position is already exited")]
-    PositionAlreadyExited {},
-
     #[error("Stream duration is too short")]
     StreamDurationTooShort {},
 

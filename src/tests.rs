@@ -2,7 +2,7 @@
 mod tests {
     use crate::contract::{
         execute_create_stream, execute_exit_stream, execute_finalize_stream, execute_subscribe,
-        execute_update_position, execute_update_dist_index, execute_withdraw, instantiate,
+        execute_update_dist_index, execute_update_position, execute_withdraw, instantiate,
         query_position, query_stream, update_distribution,
     };
     use crate::state::Stream;
@@ -1030,11 +1030,10 @@ mod tests {
             })
         );
 
-        // can't exit twice
+        // position deleted
         let mut env = mock_env();
         env.block.time = end.plus_seconds(4_000_000);
         let info = mock_info("creator1", &[]);
-        let res = execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
-        assert_eq!(res, ContractError::PositionAlreadyExited {});
+        execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
     }
 }

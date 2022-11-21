@@ -136,7 +136,6 @@ pub struct PositionResponse {
     pub current_stage: Decimal,
     pub purchased: Uint128,
     pub spent: Uint128,
-    pub exited: bool,
 }
 
 #[cw_serde]
