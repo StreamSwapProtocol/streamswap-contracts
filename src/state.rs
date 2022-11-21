@@ -2,6 +2,7 @@ use crate::ContractError;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Decimal, Storage, Timestamp, Uint128, Uint64};
 use cw_storage_plus::{Item, Map};
+use std::ops::Mul;
 
 #[cw_serde]
 pub struct Config {
@@ -40,6 +41,7 @@ pub struct Stream {
     pub in_supply: Uint128,
     // total number of `token_in` spent at latest state
     pub spent_in: Uint128,
+    pub shares: Uint128,
     // start time when the token emission starts. in nanos
     pub start_time: Timestamp,
     // end time when the token emission ends. Can't be bigger than start +
@@ -72,10 +74,25 @@ impl Stream {
             in_denom,
             in_supply: Uint128::zero(),
             spent_in: Uint128::zero(),
+            shares: Uint128::zero(),
             start_time,
             end_time,
             current_streamed_price: Uint128::zero(),
         }
+    }
+
+    // compute amount of shares that should be minted for a new subscription amount
+    pub fn compute_shares_amount(&self, amount_in: Uint128, round_up: bool) -> Uint128 {
+        if self.shares.is_zero() || amount_in.is_zero() {
+            return amount_in;
+        }
+        let mut shares = self.shares.mul(amount_in);
+        if round_up {
+            shares = (shares + self.in_supply - Uint128::one()) / self.in_supply;
+        } else {
+            shares = shares / self.in_supply;
+        }
+        shares
     }
 }
 type StreamId = u64;
@@ -93,6 +110,7 @@ pub struct Position {
     pub owner: Addr,
     // current amount of tokens in buy pool
     pub in_balance: Uint128,
+    pub shares: Uint128,
     // index is used to calculate the distribution a position has
     pub index: Decimal,
     pub current_stage: Decimal,
@@ -108,12 +126,14 @@ impl Position {
     pub fn new(
         owner: Addr,
         in_balance: Uint128,
+        shares: Uint128,
         index: Option<Decimal>,
         current_stage: Option<Decimal>,
     ) -> Self {
         Position {
             owner,
             in_balance,
+            shares,
             index: index.unwrap_or_default(),
             current_stage: current_stage.unwrap_or_default(),
             purchased: Uint128::zero(),

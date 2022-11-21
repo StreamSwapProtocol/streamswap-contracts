@@ -209,13 +209,13 @@ pub fn update_dist_index(
     let stage_diff = current_dist_stage.checked_sub(stream.current_stage)?;
 
     let mut new_distribution_balance = Uint128::zero();
-    if stream.in_supply != Uint128::zero() {
+    if stream.shares != Uint128::zero() {
         // TODO: maybe use uint256 for higher precision?
         new_distribution_balance = stream.out_supply.mul(stage_diff);
         let spent_in = stream.in_supply.mul(stage_diff);
 
         stream.in_supply = stream.in_supply.checked_sub(spent_in)?;
-        stream.dist_index += Decimal::from_ratio(new_distribution_balance, stream.in_supply);
+        stream.dist_index += Decimal::from_ratio(new_distribution_balance, stream.shares);
         stream.spent_in += spent_in;
         stream.current_out += new_distribution_balance;
         // if stream not ended calculate balance
@@ -269,15 +269,14 @@ pub fn trigger_purchase(
 
     let index_diff = stream_dist_index - position.index;
 
-    // update buy balance with spent tokens before calculating purchase, to correct supply reduce
-    // on update distribution index
-    position.in_balance -= spent;
-    let purchased = position.in_balance.mul(index_diff);
+    let purchased = position.shares.mul(index_diff);
 
     position.index = stream_dist_index;
     position.current_stage = stream_current_stage;
-    position.purchased += purchased;
+
+    position.in_balance -= spent;
     position.spent += spent;
+    position.purchased += purchased;
 
     Ok((purchased, spent))
 }
@@ -297,6 +296,7 @@ pub fn execute_subscribe(
     }
 
     let in_amount = must_pay(&info, &stream.in_denom)?;
+    let new_shares = stream.compute_shares_amount(in_amount, false);
 
     let position = POSITIONS.may_load(deps.storage, (stream_id, &info.sender))?;
     match position {
@@ -306,6 +306,7 @@ pub fn execute_subscribe(
             let new_position = Position::new(
                 info.sender.clone(),
                 in_amount,
+                new_shares,
                 Some(stream.dist_index),
                 Some(stream.current_stage),
             );
@@ -321,12 +322,14 @@ pub fn execute_subscribe(
             trigger_purchase(stream.dist_index, stream.current_stage, &mut position)?;
 
             position.in_balance += in_amount;
+            position.shares += new_shares;
             POSITIONS.save(deps.storage, (stream_id, &info.sender), &position)?;
         }
     }
 
-    // increase in supply
+    // increase in supply and shares
     stream.in_supply += in_amount;
+    stream.shares += new_shares;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let res = Response::new()
@@ -366,8 +369,15 @@ pub fn execute_withdraw(
     if withdraw_amount > position.in_balance {
         return Err(ContractError::DecreaseAmountExceeds(withdraw_amount));
     }
+
+    // decrease in supply and shares
+    let shares_amount = stream.compute_shares_amount(withdraw_amount, true);
+
     stream.in_supply -= withdraw_amount;
+    stream.shares -= shares_amount;
     position.in_balance -= withdraw_amount;
+    position.shares -= shares_amount;
+
     STREAMS.save(deps.storage, stream_id, &stream)?;
     POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
 
@@ -499,6 +509,8 @@ pub fn execute_exit_stream(
 
     position.exited = true;
     position.in_balance = Uint128::zero();
+    position.shares = Uint128::zero();
+    // TODO: delete position or keep it?
     POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
 
     let attributes = vec![
@@ -638,6 +650,7 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
         dist_index: stream.dist_index,
         total_out_sold: stream.current_out,
         total_in_supply: stream.in_supply,
+        shares: stream.shares,
     };
     Ok(stream)
 }
@@ -671,6 +684,7 @@ pub fn list_streams(
                 dist_index: stream.dist_index,
                 total_out_sold: stream.current_out,
                 total_in_supply: stream.in_supply,
+                shares: stream.shares,
             };
             Ok(stream)
         })
@@ -696,6 +710,7 @@ pub fn query_position(
         exited: position.exited,
         index: position.index,
         spent: position.spent,
+        shares: position.shares,
     };
     Ok(res)
 }
@@ -725,6 +740,7 @@ pub fn list_positions(
                 spent: stream.spent,
                 in_balance: stream.in_balance,
                 exited: stream.exited,
+                shares: stream.shares,
             };
             Ok(position)
         })
@@ -752,10 +768,4 @@ pub fn query_last_streamed_price(
     Ok(LatestStreamedPriceResponse {
         current_streamed_price: stream.current_streamed_price,
     })
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn basic() {}
 }

@@ -1,9 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use crate::contract::{execute, instantiate};
-    use crate::msg::{ExecuteMsg, InstantiateMsg};
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coin, Timestamp, Uint128, Uint64};
 
     /*
     initial out supply: 50_000_000
