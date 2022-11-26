@@ -1,10 +1,10 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Decimal, Timestamp, Uint128, Uint64};
+use cosmwasm_std::{Addr, Decimal, Timestamp, Uint128, Uint64};
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    pub min_stream_duration: Uint64,
-    pub min_duration_until_start_time: Uint64,
+    pub min_stream_seconds: Uint64,
+    pub min_seconds_until_start_time: Uint64,
     pub stream_creation_denom: String,
     pub stream_creation_fee: Uint128,
     pub fee_collector: String,
@@ -38,23 +38,31 @@ pub enum ExecuteMsg {
         // Unix timestamp when the stream ends. Calculations in nano sec precision
         end_time: Timestamp,
     },
-
+    UpdateOperator {
+        stream_id: u64,
+        operator: Option<String>,
+    },
     // Subscribe to a token stream. Any use at any time before the stream end can join
     // the stream by sending `token_in` to the Stream through the Subscribe msg.
     // During the stream, user `token_in` will be automatically charged every
     // epoch to purchase `token_out`.
     Subscribe {
         stream_id: u64,
+        // operator can load
+        position_owner: Option<String>,
+        // operator can subscribe/withdraw/update position
+        operator: Option<String>,
     },
     // Withdraws released stake
     Withdraw {
         stream_id: u64,
         cap: Option<Uint128>,
-        recipient: Option<String>,
+        position_owner: Option<String>,
     },
 
     UpdatePosition {
         stream_id: u64,
+        position_owner: Option<String>,
     },
 
     // FinalizeStream clean ups the stream and sends income (earned tokens_in) to the
@@ -70,7 +78,7 @@ pub enum ExecuteMsg {
     // the stream end.
     ExitStream {
         stream_id: u64,
-        recipient: Option<String>,
+        position_owner: Option<String>,
     },
 
     //
@@ -136,6 +144,7 @@ pub struct PositionResponse {
     pub current_stage: Decimal,
     pub purchased: Uint128,
     pub spent: Uint128,
+    pub operator: Option<Addr>,
 }
 
 #[cw_serde]

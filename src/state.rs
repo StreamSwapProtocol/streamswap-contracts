@@ -7,9 +7,9 @@ use std::ops::Mul;
 #[cw_serde]
 pub struct Config {
     // minimum sale duration in unix seconds
-    pub min_stream_duration: Uint64,
+    pub min_stream_seconds: Uint64,
     // min duration between start time and current time in unix seconds
-    pub min_duration_until_start_time: Uint64,
+    pub min_seconds_until_start_time: Uint64,
     pub stream_creation_denom: String,
     pub stream_creation_fee: Uint128,
     pub fee_collector: Addr,
@@ -118,6 +118,8 @@ pub struct Position {
     pub purchased: Uint128,
     // total amount of `token_in` spent tokens at latest calculation
     pub spent: Uint128,
+    // operator can update position
+    pub operator: Option<Addr>,
 }
 
 impl Position {
@@ -127,6 +129,7 @@ impl Position {
         shares: Uint128,
         index: Option<Decimal>,
         current_stage: Option<Decimal>,
+        operator: Option<Addr>,
     ) -> Self {
         Position {
             owner,
@@ -136,6 +139,7 @@ impl Position {
             current_stage: current_stage.unwrap_or_default(),
             purchased: Uint128::zero(),
             spent: Uint128::zero(),
+            operator,
         }
     }
 }

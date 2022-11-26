@@ -5,8 +5,8 @@ use crate::msg::{
 use crate::state::{next_stream_id, Config, Position, Stream, CONFIG, POSITIONS, STREAMS};
 use crate::ContractError;
 use cosmwasm_std::{
-    attr, entry_point, to_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    MessageInfo, Order, Response, StdResult, Timestamp, Uint128, Uint64,
+    attr, entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
+    Env, MessageInfo, Order, Response, StdResult, Timestamp, Uint128, Uint64,
 };
 
 use cw_storage_plus::Bound;
@@ -21,8 +21,8 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     let config = Config {
-        min_stream_duration: msg.min_stream_duration,
-        min_duration_until_start_time: msg.min_duration_until_start_time,
+        min_stream_seconds: msg.min_stream_seconds,
+        min_seconds_until_start_time: msg.min_seconds_until_start_time,
         stream_creation_denom: msg.stream_creation_denom,
         stream_creation_fee: msg.stream_creation_fee,
         fee_collector: deps.api.addr_validate(&msg.fee_collector)?,
@@ -30,10 +30,10 @@ pub fn instantiate(
     CONFIG.save(deps.storage, &config)?;
 
     let attrs = vec![
-        attr("min_stream_duration", msg.min_stream_duration),
+        attr("min_stream_seconds", msg.min_stream_seconds),
         attr(
-            "min_duration_until_start_time",
-            msg.min_duration_until_start_time,
+            "min_seconds_until_start_time",
+            msg.min_seconds_until_start_time,
         ),
         attr("stream_creation_fee", msg.stream_creation_fee),
     ];
@@ -70,26 +70,36 @@ pub fn execute(
             start_time,
             end_time,
         ),
-        ExecuteMsg::UpdatePosition { stream_id } => {
-            execute_update_position(deps, env, info, stream_id)
-        }
+        ExecuteMsg::UpdateOperator {
+            stream_id,
+            operator,
+        } => execute_update_operator(deps, env, info, stream_id, operator),
+
+        ExecuteMsg::UpdatePosition {
+            stream_id,
+            position_owner,
+        } => execute_update_position(deps, env, info, stream_id, position_owner),
         ExecuteMsg::UpdateDistribution { stream_id } => {
             execute_update_dist_index(deps, env, stream_id)
         }
-        ExecuteMsg::Subscribe { stream_id } => execute_subscribe(deps, env, info, stream_id),
+        ExecuteMsg::Subscribe {
+            stream_id,
+            position_owner,
+            operator,
+        } => execute_subscribe(deps, env, info, stream_id, operator, position_owner),
         ExecuteMsg::Withdraw {
             stream_id,
             cap,
-            recipient,
-        } => execute_withdraw(deps, env, info, stream_id, recipient, cap),
+            position_owner,
+        } => execute_withdraw(deps, env, info, stream_id, cap, position_owner),
         ExecuteMsg::FinalizeStream {
             stream_id,
             new_treasury,
         } => execute_finalize_stream(deps, env, info, stream_id, new_treasury),
         ExecuteMsg::ExitStream {
             stream_id,
-            recipient,
-        } => execute_exit_stream(deps, env, info, stream_id, recipient),
+            position_owner,
+        } => execute_exit_stream(deps, env, info, stream_id, position_owner),
         ExecuteMsg::CollectFees {} => execute_collect_fees(deps, env, info),
     }
 }
@@ -114,12 +124,11 @@ pub fn execute_create_stream(
     if env.block.time > start_time {
         return Err(ContractError::StreamInvalidStartTime {});
     }
-    if end_time.seconds() - start_time.seconds() < config.min_stream_duration.u64() {
+    if end_time.seconds() - start_time.seconds() < config.min_stream_seconds.u64() {
         return Err(ContractError::StreamDurationTooShort {});
     }
 
-    if start_time.seconds() - env.block.time.seconds() < config.min_duration_until_start_time.u64()
-    {
+    if start_time.seconds() - env.block.time.seconds() < config.min_seconds_until_start_time.u64() {
         return Err(ContractError::StreamStartsTooSoon {});
     }
 
@@ -177,7 +186,7 @@ pub fn execute_update_dist_index(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    let (_, dist_amount) = update_distribution(env.block.time, &mut stream)?;
+    let (_, dist_amount) = update_stream(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let attrs = vec![
@@ -190,7 +199,7 @@ pub fn execute_update_dist_index(
     Ok(res)
 }
 
-pub fn update_distribution(
+pub fn update_stream(
     now: Timestamp,
     stream: &mut Stream,
 ) -> Result<(Decimal, Uint128), ContractError> {
@@ -203,13 +212,13 @@ pub fn update_distribution(
 
     // calculate the current distribution stage
     // dist stage is the (now - start) / (end - start), gives %0-100 percentage
-    let numerator = now.nanos() - stream.start_time.nanos();
-    let denominator = stream.end_time.nanos() - stream.start_time.nanos();
-    let current_dist_stage = Decimal::from_ratio(numerator, denominator);
+    let numerator = now.minus_nanos(stream.start_time.nanos());
+    let denominator = stream.end_time.minus_nanos(stream.start_time.nanos());
+    let current_dist_stage = Decimal::from_ratio(numerator.nanos(), denominator.nanos());
     let stage_diff = current_dist_stage.checked_sub(stream.current_stage)?;
 
     let mut new_distribution_balance = Uint128::zero();
-    if stream.shares != Uint128::zero() {
+    if stream.shares != Uint128::zero() && !stage_diff.is_zero() {
         // TODO: maybe use uint256 for higher precision?
         new_distribution_balance = stream.out_supply.mul(stage_diff);
         let spent_in = stream.in_supply.mul(stage_diff);
@@ -235,15 +244,22 @@ pub fn execute_update_position(
     env: Env,
     info: MessageInfo,
     stream_id: u64,
+    position_owner: Option<String>,
 ) -> Result<Response, ContractError> {
     // TODO: anyone can trigger?
-    let mut position = POSITIONS.load(deps.storage, (stream_id, &info.sender))?;
-    if info.sender != position.owner {
+    let position_owner = maybe_addr(deps.api, position_owner)?.unwrap_or(info.sender.clone());
+    let mut position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;
+    if info.sender != position.owner
+        && position
+            .operator
+            .as_ref()
+            .map_or(true, |o| o != &info.sender)
+    {
         return Err(ContractError::Unauthorized {});
     }
 
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    update_distribution(env.block.time, &mut stream)?;
+    update_stream(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let (purchased, spent) =
@@ -286,6 +302,8 @@ pub fn execute_subscribe(
     env: Env,
     info: MessageInfo,
     stream_id: u64,
+    operator: Option<String>,
+    position_owner: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     if env.block.time < stream.start_time {
@@ -298,27 +316,39 @@ pub fn execute_subscribe(
     let in_amount = must_pay(&info, &stream.in_denom)?;
     let new_shares = stream.compute_shares_amount(in_amount, false);
 
-    let position = POSITIONS.may_load(deps.storage, (stream_id, &info.sender))?;
+    let operator = maybe_addr(deps.api, operator)?;
+    let position_owner = maybe_addr(deps.api, position_owner)?.unwrap_or(info.sender.clone());
+    let position = POSITIONS.may_load(deps.storage, (stream_id, &position_owner))?;
     match position {
-        // new positions do not update purchase as it has no effect on distribution
         None => {
-            update_distribution(env.block.time, &mut stream)?;
+            // operator cannot create a position in behalf of anyone
+            if position_owner != info.sender {
+                return Err(ContractError::Unauthorized {});
+            }
+            update_stream(env.block.time, &mut stream)?;
+            // new positions do not update purchase as it has no effect on distribution
             let new_position = Position::new(
                 info.sender.clone(),
                 in_amount,
                 new_shares,
                 Some(stream.dist_index),
                 Some(stream.current_stage),
+                operator,
             );
             POSITIONS.save(deps.storage, (stream_id, &info.sender), &new_position)?;
         }
         Some(mut position) => {
-            if position.owner != info.sender {
+            if position.owner != info.sender
+                && position
+                    .operator
+                    .as_ref()
+                    .map_or(true, |o| o != &info.sender)
+            {
                 return Err(ContractError::Unauthorized {});
             }
 
-            // update distribution index before updating position
-            update_distribution(env.block.time, &mut stream)?;
+            // incoming tokens should not participate in prev distribution
+            update_stream(env.block.time, &mut stream)?;
             update_position(stream.dist_index, stream.current_stage, &mut position)?;
 
             position.in_balance += in_amount;
@@ -342,13 +372,40 @@ pub fn execute_subscribe(
     Ok(res)
 }
 
+pub fn execute_update_operator(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    stream_id: u64,
+    operator: Option<String>,
+) -> Result<Response, ContractError> {
+    let mut position = POSITIONS.load(deps.storage, (stream_id, &info.sender))?;
+    if position.owner != info.sender {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    let operator = maybe_addr(deps.api, operator)?;
+    position.operator = operator.clone();
+
+    POSITIONS.save(deps.storage, (stream_id, &info.sender), &position)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "update_operator")
+        .add_attribute("stream_id", stream_id.to_string())
+        .add_attribute("owner", info.sender)
+        .add_attribute(
+            "operator",
+            operator.clone().unwrap_or(Addr::unchecked("")).to_string(),
+        ))
+}
+
 pub fn execute_withdraw(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     stream_id: u64,
-    recipient: Option<String>,
     cap: Option<Uint128>,
+    position_owner: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // can't withdraw after stream ended
@@ -356,12 +413,18 @@ pub fn execute_withdraw(
         return Err(ContractError::StreamEnded {});
     }
 
-    let mut position = POSITIONS.load(deps.storage, (stream_id, &info.sender))?;
-    if position.owner != info.sender {
+    let position_owner = maybe_addr(deps.api, position_owner)?.unwrap_or(info.sender.clone());
+    let mut position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;
+    if position.owner != info.sender
+        && position
+            .operator
+            .as_ref()
+            .map_or(true, |o| o != &info.sender)
+    {
         return Err(ContractError::Unauthorized {});
     }
 
-    update_distribution(env.block.time, &mut stream)?;
+    update_stream(env.block.time, &mut stream)?;
     update_position(stream.dist_index, stream.current_stage, &mut position)?;
 
     let withdraw_amount = cap.unwrap_or(position.in_balance);
@@ -381,17 +444,15 @@ pub fn execute_withdraw(
     STREAMS.save(deps.storage, stream_id, &stream)?;
     POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
 
-    let recipient = maybe_addr(deps.api, recipient)?.unwrap_or(info.sender);
     let attributes = vec![
         attr("action", "withdraw"),
-        attr("recipient", recipient.as_str()),
         attr("withdraw_amount", withdraw_amount),
     ];
 
     // send funds to withdraw address or to the sender
     let res = Response::new()
         .add_message(CosmosMsg::Bank(BankMsg::Send {
-            to_address: recipient.to_string(),
+            to_address: position_owner.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
                 amount: withdraw_amount,
@@ -469,9 +530,9 @@ pub fn execute_exit_stream(
     env: Env,
     info: MessageInfo,
     stream_id: u64,
-    recipient: Option<String>,
+    position_owner: Option<String>,
 ) -> Result<Response, ContractError> {
-    let stream = STREAMS.load(deps.storage, stream_id)?;
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
     if env.block.time < stream.end_time {
         return Err(ContractError::StreamNotEnded {});
     }
@@ -479,37 +540,44 @@ pub fn execute_exit_stream(
         return Err(ContractError::UpdateDistIndex {});
     }
 
-    let mut position = POSITIONS.load(deps.storage, (stream_id, &info.sender))?;
+    let position_owner = maybe_addr(deps.api, position_owner)?.unwrap_or(info.sender.clone());
+    let mut position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;
     // TODO: maybe callable by everyone? if then remove new recipient
-    if position.owner != info.sender {
+    if position.owner != info.sender
+        && position
+            .operator
+            .as_ref()
+            .map_or(true, |o| o != &info.sender)
+    {
         return Err(ContractError::Unauthorized {});
     }
 
     // update position before exit
     update_position(stream.dist_index, stream.current_stage, &mut position)?;
 
-    let recipient = maybe_addr(deps.api, recipient)?.unwrap_or(position.owner.clone());
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
-        to_address: recipient.to_string(),
+        to_address: position_owner.to_string(),
         amount: vec![Coin {
-            denom: stream.out_denom,
+            denom: stream.out_denom.to_string(),
             amount: position.purchased,
         }],
     });
     let leftover_msg = CosmosMsg::Bank(BankMsg::Send {
-        to_address: recipient.to_string(),
+        to_address: position_owner.to_string(),
         amount: vec![Coin {
-            denom: stream.in_denom,
+            denom: stream.in_denom.to_string(),
             amount: position.in_balance,
         }],
     });
 
+    stream.shares -= position.shares;
+    stream.in_supply -= position.in_balance;
+    STREAMS.save(deps.storage, stream_id, &stream)?;
     POSITIONS.remove(deps.storage, (stream_id, &position.owner));
 
     let attributes = vec![
         attr("action", "exit_stream"),
         attr("stream_id", stream_id.to_string()),
-        attr("recipient", recipient.as_str()),
         attr("purchased", position.purchased),
         attr("leftover", position.in_balance),
     ];
@@ -573,9 +641,9 @@ pub fn sudo_update_config(
 ) -> Result<Response, ContractError> {
     let mut cfg = CONFIG.load(deps.storage)?;
 
-    cfg.min_stream_duration = min_stream_duration.unwrap_or(cfg.min_stream_duration);
-    cfg.min_duration_until_start_time =
-        min_duration_until_start_time.unwrap_or(cfg.min_duration_until_start_time);
+    cfg.min_stream_seconds = min_stream_duration.unwrap_or(cfg.min_stream_seconds);
+    cfg.min_seconds_until_start_time =
+        min_duration_until_start_time.unwrap_or(cfg.min_seconds_until_start_time);
     cfg.stream_creation_denom = stream_creation_denom.unwrap_or(cfg.stream_creation_denom);
     cfg.stream_creation_fee = stream_creation_fee.unwrap_or(cfg.stream_creation_fee);
 
@@ -586,10 +654,10 @@ pub fn sudo_update_config(
 
     let attributes = vec![
         attr("action", "update_config"),
-        attr("min_stream_duration", cfg.min_stream_duration),
+        attr("min_stream_duration", cfg.min_stream_seconds),
         attr(
             "min_duration_until_start_time",
-            cfg.min_duration_until_start_time,
+            cfg.min_seconds_until_start_time,
         ),
         attr("stream_creation_denom", cfg.stream_creation_denom),
         attr("stream_creation_fee", cfg.stream_creation_fee),
@@ -703,6 +771,7 @@ pub fn query_position(
         index: position.index,
         spent: position.spent,
         shares: position.shares,
+        operator: position.operator,
     };
     Ok(res)
 }
@@ -722,16 +791,17 @@ pub fn list_positions(
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|item| {
-            let (owner, stream) = item?;
+            let (owner, position) = item?;
             let position = PositionResponse {
                 stream_id,
                 owner: owner.to_string(),
-                index: stream.index,
-                current_stage: stream.current_stage,
-                purchased: stream.purchased,
-                spent: stream.spent,
-                in_balance: stream.in_balance,
-                shares: stream.shares,
+                index: position.index,
+                current_stage: position.current_stage,
+                purchased: position.purchased,
+                spent: position.spent,
+                in_balance: position.in_balance,
+                shares: position.shares,
+                operator: position.operator,
             };
             Ok(position)
         })
