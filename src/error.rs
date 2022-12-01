@@ -1,5 +1,6 @@
-use cosmwasm_std::{OverflowError, StdError, Uint128};
+use cosmwasm_std::{DivideByZeroError, OverflowError, StdError, Uint128};
 use cw_utils::PaymentError;
+use std::convert::Infallible;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -12,6 +13,12 @@ pub enum ContractError {
 
     #[error("{0}")]
     Payment(#[from] PaymentError),
+
+    #[error("{0}")]
+    Infallible(#[from] Infallible),
+
+    #[error("{0}")]
+    DivideByZeroError(#[from] DivideByZeroError),
 
     #[error("No rewards accrued")]
     NoDistribution {},

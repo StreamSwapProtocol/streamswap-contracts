@@ -6,12 +6,11 @@ use crate::state::{next_stream_id, Config, Position, Stream, CONFIG, POSITIONS, 
 use crate::ContractError;
 use cosmwasm_std::{
     attr, entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
-    Env, MessageInfo, Order, Response, StdResult, Timestamp, Uint128, Uint64,
+    Env, Fraction, MessageInfo, Order, Response, StdResult, Timestamp, Uint128, Uint64,
 };
 
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay};
-use std::ops::Mul;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -160,6 +159,7 @@ pub fn execute_create_stream(
         in_denom.clone(),
         start_time,
         end_time,
+        env.block.time,
     );
     let id = next_stream_id(deps.storage)?;
     STREAMS.save(deps.storage, id, &stream)?;
@@ -203,40 +203,48 @@ pub fn update_stream(
     now: Timestamp,
     stream: &mut Stream,
 ) -> Result<(Decimal, Uint128), ContractError> {
-    // if now is after end_time, set now to end_time
-    let now = if now > stream.end_time {
-        stream.end_time
-    } else {
-        now
-    };
-
-    // calculate the current distribution stage
-    // dist stage is the (now - start) / (end - start), gives %0-100 percentage
-    let numerator = now.minus_nanos(stream.start_time.nanos());
-    let denominator = stream.end_time.minus_nanos(stream.start_time.nanos());
-    let current_dist_stage = Decimal::from_ratio(numerator.nanos(), denominator.nanos());
-    let stage_diff = current_dist_stage.checked_sub(stream.current_stage)?;
+    let (diff, last_updated) = calculate_diff(stream.end_time, stream.last_updated, now);
 
     let mut new_distribution_balance = Uint128::zero();
-    if stream.shares != Uint128::zero() && !stage_diff.is_zero() {
-        // TODO: maybe use uint256 for higher precision?
-        new_distribution_balance = stream.out_supply.mul(stage_diff);
-        let spent_in = stream.in_supply.mul(stage_diff);
+    if !stream.shares.is_zero() && !diff.is_zero() {
+        new_distribution_balance = stream
+            .out_remaining
+            .multiply_ratio(diff.numerator(), diff.denominator());
+        let spent_in = stream
+            .in_supply
+            .multiply_ratio(diff.numerator(), diff.denominator());
 
-        stream.in_supply = stream.in_supply.checked_sub(spent_in)?;
-        stream.dist_index += Decimal::from_ratio(new_distribution_balance, stream.shares);
         stream.spent_in += spent_in;
-        stream.current_out += new_distribution_balance;
-        // if stream not ended calculate balance
-        // streamed price is spent in / new_distribution_balance
-        if stream.current_stage != Decimal::one() {
+        stream.in_supply -= spent_in;
+        stream.out_remaining -= new_distribution_balance;
+        stream.dist_index += Decimal::from_ratio(new_distribution_balance, stream.shares);
+
+        if !new_distribution_balance.is_zero() {
             stream.current_streamed_price = spent_in / new_distribution_balance;
         }
     }
 
-    stream.current_stage = current_dist_stage;
+    stream.last_updated = last_updated;
 
-    Ok((stage_diff, new_distribution_balance))
+    Ok((diff, new_distribution_balance))
+}
+
+fn calculate_diff(
+    end_time: Timestamp,
+    last_updated: Timestamp,
+    now: Timestamp,
+) -> (Decimal, Timestamp) {
+    let now = if now > end_time { end_time } else { now };
+    let numerator = now.minus_nanos(last_updated.nanos());
+    let denominator = end_time.minus_nanos(last_updated.nanos());
+    if denominator.nanos() == 0 {
+        (Decimal::zero(), now)
+    } else {
+        (
+            Decimal::from_ratio(numerator.nanos(), denominator.nanos()),
+            now,
+        )
+    }
 }
 
 pub fn execute_update_position(
@@ -262,8 +270,13 @@ pub fn execute_update_position(
     update_stream(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
-    let (purchased, spent) =
-        update_position(stream.dist_index, stream.current_stage, &mut position)?;
+    let (purchased, spent) = update_position(
+        stream.dist_index,
+        stream.shares,
+        stream.last_updated,
+        stream.in_supply,
+        &mut position,
+    )?;
     POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
 
     Ok(Response::new()
@@ -277,21 +290,30 @@ pub fn execute_update_position(
 // returns purchased out amount and spent in amount
 pub fn update_position(
     stream_dist_index: Decimal,
-    stream_current_stage: Decimal,
+    stream_shares: Uint128,
+    stream_last_updated: Timestamp,
+    stream_in_supply: Uint128,
     position: &mut Position,
 ) -> Result<(Uint128, Uint128), ContractError> {
-    let stage_diff = stream_current_stage - position.current_stage;
-    let spent = position.in_balance.mul(stage_diff);
-
     let index_diff = stream_dist_index - position.index;
-
-    let purchased = position.shares.mul(index_diff);
+    let purchased = position
+        .shares
+        .multiply_ratio(index_diff.numerator(), index_diff.denominator());
 
     position.index = stream_dist_index;
-    position.current_stage = stream_current_stage;
+    position.last_updated = stream_last_updated;
 
-    position.in_balance -= spent;
-    position.spent += spent;
+    let mut spent = Uint128::zero();
+    // if no shares available, means no distribution and no spent
+    if !stream_shares.is_zero() {
+        let in_remaining = stream_in_supply
+            .checked_mul(position.shares)?
+            .checked_div(stream_shares)?;
+        spent = position.in_balance.checked_sub(in_remaining)?;
+        position.spent += spent;
+        position.in_balance = in_remaining;
+    }
+
     position.purchased += purchased;
 
     Ok((purchased, spent))
@@ -332,7 +354,7 @@ pub fn execute_subscribe(
                 in_amount,
                 new_shares,
                 Some(stream.dist_index),
-                Some(stream.current_stage),
+                env.block.time,
                 operator,
             );
             POSITIONS.save(deps.storage, (stream_id, &info.sender), &new_position)?;
@@ -349,7 +371,13 @@ pub fn execute_subscribe(
 
             // incoming tokens should not participate in prev distribution
             update_stream(env.block.time, &mut stream)?;
-            update_position(stream.dist_index, stream.current_stage, &mut position)?;
+            update_position(
+                stream.dist_index,
+                stream.shares,
+                stream.last_updated,
+                stream.in_supply,
+                &mut position,
+            )?;
 
             position.in_balance += in_amount;
             position.shares += new_shares;
@@ -425,7 +453,13 @@ pub fn execute_withdraw(
     }
 
     update_stream(env.block.time, &mut stream)?;
-    update_position(stream.dist_index, stream.current_stage, &mut position)?;
+    update_position(
+        stream.dist_index,
+        stream.shares,
+        stream.last_updated,
+        stream.in_supply,
+        &mut position,
+    )?;
 
     let withdraw_amount = cap.unwrap_or(position.in_balance);
     // if amount to withdraw more then deduced buy balance throw error
@@ -478,7 +512,7 @@ pub fn execute_finalize_stream(
     if env.block.time < stream.end_time {
         return Err(ContractError::StreamNotEnded {});
     }
-    if stream.current_stage < Decimal::one() {
+    if stream.last_updated < stream.end_time {
         return Err(ContractError::UpdateDistIndex {});
     }
 
@@ -489,16 +523,6 @@ pub fn execute_finalize_stream(
         amount: vec![Coin {
             denom: stream.in_denom,
             amount: stream.spent_in,
-        }],
-    });
-
-    // collect left over out tokens and send it back to treasury
-    let leftover = stream.out_supply - stream.current_out;
-    let leftover_msg = CosmosMsg::Bank(BankMsg::Send {
-        to_address: treasury.to_string(),
-        amount: vec![Coin {
-            denom: stream.out_denom,
-            amount: leftover,
         }],
     });
 
@@ -521,7 +545,6 @@ pub fn execute_finalize_stream(
     Ok(Response::new()
         .add_message(fee_send_msg)
         .add_message(send_msg)
-        .add_message(leftover_msg)
         .add_attributes(attributes))
 }
 
@@ -536,7 +559,7 @@ pub fn execute_exit_stream(
     if env.block.time < stream.end_time {
         return Err(ContractError::StreamNotEnded {});
     }
-    if stream.current_stage < Decimal::one() {
+    if stream.last_updated < stream.end_time {
         return Err(ContractError::UpdateDistIndex {});
     }
 
@@ -553,7 +576,13 @@ pub fn execute_exit_stream(
     }
 
     // update position before exit
-    update_position(stream.dist_index, stream.current_stage, &mut position)?;
+    update_position(
+        stream.dist_index,
+        stream.shares,
+        stream.last_updated,
+        stream.in_supply,
+        &mut position,
+    )?;
 
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: position_owner.to_string(),
@@ -562,14 +591,6 @@ pub fn execute_exit_stream(
             amount: position.purchased,
         }],
     });
-    let leftover_msg = CosmosMsg::Bank(BankMsg::Send {
-        to_address: position_owner.to_string(),
-        amount: vec![Coin {
-            denom: stream.in_denom.to_string(),
-            amount: position.in_balance,
-        }],
-    });
-
     stream.shares -= position.shares;
     stream.in_supply -= position.in_balance;
     STREAMS.save(deps.storage, stream_id, &stream)?;
@@ -579,11 +600,9 @@ pub fn execute_exit_stream(
         attr("action", "exit_stream"),
         attr("stream_id", stream_id.to_string()),
         attr("purchased", position.purchased),
-        attr("leftover", position.in_balance),
     ];
     Ok(Response::new()
         .add_message(send_msg)
-        .add_message(leftover_msg)
         .add_attributes(attributes))
 }
 
@@ -707,11 +726,11 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
         start_time: stream.start_time,
         end_time: stream.end_time,
         total_in_spent: stream.spent_in,
-        current_stage: stream.current_stage,
         dist_index: stream.dist_index,
-        total_out_sold: stream.current_out,
+        out_remaining: stream.out_remaining,
         total_in_supply: stream.in_supply,
         shares: stream.shares,
+        last_updated: stream.last_updated,
     };
     Ok(stream)
 }
@@ -741,9 +760,9 @@ pub fn list_streams(
                 start_time: stream.start_time,
                 end_time: stream.end_time,
                 total_in_spent: stream.spent_in,
-                current_stage: stream.current_stage,
+                last_updated: stream.last_updated,
                 dist_index: stream.dist_index,
-                total_out_sold: stream.current_out,
+                out_remaining: stream.out_remaining,
                 total_in_supply: stream.in_supply,
                 shares: stream.shares,
             };
@@ -767,11 +786,11 @@ pub fn query_position(
         owner: owner.to_string(),
         in_balance: position.in_balance,
         purchased: position.purchased,
-        current_stage: position.current_stage,
         index: position.index,
         spent: position.spent,
         shares: position.shares,
         operator: position.operator,
+        last_updated: position.last_updated,
     };
     Ok(res)
 }
@@ -796,7 +815,7 @@ pub fn list_positions(
                 stream_id,
                 owner: owner.to_string(),
                 index: position.index,
-                current_stage: position.current_stage,
+                last_updated: position.last_updated,
                 purchased: position.purchased,
                 spent: position.spent,
                 in_balance: position.in_balance,
@@ -816,7 +835,7 @@ pub fn query_average_price(
     stream_id: u64,
 ) -> StdResult<AveragePriceResponse> {
     let stream = STREAMS.load(deps.storage, stream_id)?;
-    let average_price = stream.spent_in / stream.current_out;
+    let average_price = stream.spent_in / stream.out_supply - stream.out_remaining;
     Ok(AveragePriceResponse { average_price })
 }
 

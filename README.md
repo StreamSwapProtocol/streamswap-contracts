@@ -41,7 +41,7 @@ Treasury owner must send creation fee tokens and `in_denom` tokens to contract a
 Creation fees will be collected at an adress later to be withdrawn after a sale finalizes.
 Fee amount is determined by governance voting through sudo contract execution.
 
-### Distribution
+## Subscription
 
 Anyone can join a sale by sending a [SubscribeMsg](https://github.com/osmosis-labs/osmosis/blob/main/proto/osmosis/streamswap/v1/tx.proto#L13) transaction.
 When doing so, the transaction author has to send the `amount` he wants to spend in transaction funds.
@@ -57,28 +57,25 @@ and keep the purchased tokens until the sale end_time.
 
 From that moment, the investor will join the **token sale distribution stream**:
 
-Distribution stream is done based on the current stage of the stream.
-On each `update_dist_index` call, the contract will calculate the current stage of the stream and determine the amount to be distributed to the investors.
-Difference of the current stage and the last known stage will be used to calculate the amount to be distributed. Based on percentage.
+### Distribution
+
+Stream distribution is done based on the total amount of shares and time.
+On each `update_stream` call, the contract will calculate the amount to be distributed to the investors.
 
 ```
-current_stage = (now - start) / (end - start)
-diff = current_stage - stream.current_stage
-new_distribution_balance = stream.out_supply * diff
-```
-
-// TODO: requires review, not sure about this part.
-In token spending calculation is based on the stage difference.
-
-```
+diff = (last_updated - now) / (end - last_updateed)
+new_distribution_balance = stream.out_remaining * diff
 spent_in = stream.in_supply * diff
 stream.in_supply -= spent_in
+stream.out_remaining -= new_distribution_balance
+stream.current_streamed_price = spent_in / new_distribution_balance;
 ```
 
 The `new_distribution_balance` will be distributed to shares.
 Distribution index becomes this:
+
 ```
-stream.dist_index = stream.dist_index + (new_distribution_balance / stream.shares)
+stream.dist_index += new_distribution_balance / stream.in_supply
 ```
 
 ### Purchase / Spending
@@ -90,18 +87,18 @@ When `update_position` is called, the contract will calculate the amount of toke
 Update position updates distribution index first.
 
 ```
-spent_diff = stream.current_stage - position.current_stage
-spent = spent_diff * position.in_balance
-position.in_balance -= spent
+index_diff = stream.dist_index - position.index;
+purchased = position.shares * index_diff;
+in_remaining = stream.in_supply * position.shares / stream.shares;
+spent = position.in_balance - in_remaining;
 
-index_diff = stream.dist_index - position.dist_index
-purchased = index_diff * position.in_balance
+position.spent += spent;
+position.in_balance = in_remaining;
+position.purchased += purchased;
+position.index = stream.dist_index;
 ```
 
 After the calculation, position balance, spent and purchased will be updated.
-
-// TODO: we can use the previous design's formula for distribution and spending.
-// (now - stream.current_stage) / (stream.end_time - stream.current_stage)
 
 ### Exit Stream
 
@@ -110,7 +107,7 @@ These tokens are locked until sale end to avoid second market creating during
 the sale. Once sale is finished (block time is after `stream.end_time`), every
 investor can send [`ExitMsg`](https://github.com/osmosis-labs/osmosis/blob/main/proto/osmosis/streamswap/v1/tx.proto#L37)
 to close his position, withdraw purchased tokens to his account and claim unspent in tokens.
-Sets `position.exited` to `true`.
+On exit position data is removed to save space.
 
 ### Finalize Stream
 
@@ -123,8 +120,8 @@ to the `sale.treasury`.
 
 ### Price
 
-Average price of the sale: `stream.current_out / stream.spent_in`.
-Last streamed price: `new_distribution_balance / spent_in_distribution` at latest time of update distribution.
+Average price of the sale: `stream.spent_in / stream.out_supply - stream.out_remaining`.
+Last streamed price: spent_in / new_distribution_balance` at latest time of update distribution.
 
 ### Creation Fee
 
@@ -155,10 +152,10 @@ required parameters conducting the stream process:
 - `start_time`: unix timestamp when the stream starts.
 - `end_time`: Unix timestamp when the stream ends.
 - `current_streamed_price`: current price of the stream.
-- `current_stage`: current stage of the stream. %0-100, where 0 is the start
-  of the stream and 100 is the end of the stream.
 - `dist_index`: variable to hold the latest distribution index. Used to calculate how much proportionally
   a position holder is entitled to receive from the stream.
+- `last_updated`: last updated time of stream
+- `out_remaining`: total number of remaining out tokens at the time of update
 
 ### Position
 
@@ -166,12 +163,13 @@ required parameters conducting the stream process:
 when a user subsribed to a stream.
 - `owner`: owner of the position.
 - `stream_id`: id of the stream.
+- `last_updated`: last updated time of position
+- `shares`: number of shares of the position.
 - `in_balance`: balance of `token_in` currently in the position.
 - `index`: index of the position. Used to calculate incoming distribution belonging to the position
-- `current_stage`: latest stage when the position was updated. Used to calculate spent amount
 - `purchased`: total amount of `token_out` purchased in tokens at latest calculation
 - `spent`: total amount of `token_in` spent tokens at latest calculation
-- `exited`: exited becomes true when position is finalized and tokens are sent to the owner.
+- `operator`: operator of the position. Can be used to delegate position management to another account.
 
 ## Consequences
 

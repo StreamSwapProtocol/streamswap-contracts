@@ -27,14 +27,14 @@ pub struct Stream {
     pub url: String,
     // Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal,
-    // last calculated stage of stream, %0 -> %100
-    pub current_stage: Decimal,
+    // last updated time of stream
+    pub last_updated: Timestamp,
     // denom of the `token_out`
     pub out_denom: String,
     // total number of `token_out` to be sold during the continuous stream.
     pub out_supply: Uint128,
-    // total number of `token_out` sold at latest state
-    pub current_out: Uint128,
+    // total number of remaining out tokens at the time of update
+    pub out_remaining: Uint128,
     // denom of the `token_in`
     pub in_denom: String,
     // total number of `token_in` on the buy side at latest state
@@ -61,16 +61,17 @@ impl Stream {
         in_denom: String,
         start_time: Timestamp,
         end_time: Timestamp,
+        last_updated: Timestamp,
     ) -> Self {
         Stream {
             name,
             treasury,
             url,
             dist_index: Decimal::zero(),
-            current_stage: Decimal::zero(),
+            last_updated,
             out_denom,
             out_supply,
-            current_out: Uint128::zero(),
+            out_remaining: out_supply,
             in_denom,
             in_supply: Uint128::zero(),
             spent_in: Uint128::zero(),
@@ -113,7 +114,7 @@ pub struct Position {
     pub shares: Uint128,
     // index is used to calculate the distribution a position has
     pub index: Decimal,
-    pub current_stage: Decimal,
+    pub last_updated: Timestamp,
     // total amount of `token_out` purchased in tokens at latest calculation
     pub purchased: Uint128,
     // total amount of `token_in` spent tokens at latest calculation
@@ -128,7 +129,7 @@ impl Position {
         in_balance: Uint128,
         shares: Uint128,
         index: Option<Decimal>,
-        current_stage: Option<Decimal>,
+        last_updated: Timestamp,
         operator: Option<Addr>,
     ) -> Self {
         Position {
@@ -136,7 +137,7 @@ impl Position {
             in_balance,
             shares,
             index: index.unwrap_or_default(),
-            current_stage: current_stage.unwrap_or_default(),
+            last_updated,
             purchased: Uint128::zero(),
             spent: Uint128::zero(),
             operator,
