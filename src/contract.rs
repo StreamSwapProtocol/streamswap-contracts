@@ -131,23 +131,33 @@ pub fn execute_create_stream(
         return Err(ContractError::StreamStartsTooSoon {});
     }
 
-    let funds = info
-        .funds
-        .iter()
-        .find(|p| p.denom == out_denom)
-        .ok_or(ContractError::NoFundsSent {})?;
-    if funds.amount != out_supply {
-        return Err(ContractError::StreamOutSupplyFundsRequired {});
-    }
+    if out_denom == config.stream_creation_denom {
+        let total_funds = info
+            .funds
+            .iter()
+            .find(|p| p.denom == config.stream_creation_denom)
+            .ok_or(ContractError::NoFundsSent {})?;
+        if total_funds.amount != config.stream_creation_fee + out_supply {
+            return Err(ContractError::StreamOutSupplyFundsRequired {});
+        }
+    } else {
+        let funds = info
+            .funds
+            .iter()
+            .find(|p| p.denom == out_denom)
+            .ok_or(ContractError::NoFundsSent {})?;
+        if funds.amount != out_supply {
+            return Err(ContractError::StreamOutSupplyFundsRequired {});
+        }
 
-    // TODO: what if fee denom and out denom are same?
-    let creation_fee = info
-        .funds
-        .iter()
-        .find(|p| p.denom == config.stream_creation_denom)
-        .ok_or(ContractError::NoFundsSent {})?;
-    if creation_fee.amount != config.stream_creation_fee {
-        return Err(ContractError::StreamCreationFeeRequired {});
+        let creation_fee = info
+            .funds
+            .iter()
+            .find(|p| p.denom == config.stream_creation_denom)
+            .ok_or(ContractError::NoFundsSent {})?;
+        if creation_fee.amount != config.stream_creation_fee {
+            return Err(ContractError::StreamCreationFeeRequired {});
+        }
     }
 
     let stream = Stream::new(

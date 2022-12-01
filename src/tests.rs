@@ -229,6 +229,44 @@ mod tests {
         );
         assert_eq!(res, Err(ContractError::NoFundsSent {}));
 
+        // same denom case, insufficient total
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(1);
+        let info = mock_info("creator1", &[Coin::new(1, "fee")]);
+        let res = execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            name.to_string(),
+            url.to_string(),
+            in_denom.to_string(),
+            "fee".to_string(),
+            out_supply,
+            start_time,
+            end_time,
+        );
+        assert_eq!(res, Err(ContractError::StreamOutSupplyFundsRequired {}));
+
+        // same denom case, sufficient total
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(1);
+        let info = mock_info("creator1", &[Coin::new(out_supply.u128() + 100, "fee")]);
+        execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            name.to_string(),
+            url.to_string(),
+            in_denom.to_string(),
+            "fee".to_string(),
+            out_supply,
+            start_time,
+            end_time,
+        )
+        .unwrap();
+
         // happy path
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(1);
@@ -261,7 +299,6 @@ mod tests {
     }
 
     #[test]
-
     fn test_subscribe() {
         let treasury = Addr::unchecked("treasury");
         let start = Timestamp::from_seconds(2000);
