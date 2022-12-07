@@ -5,10 +5,12 @@ use crate::msg::{
 use crate::state::{next_stream_id, Config, Position, Stream, CONFIG, POSITIONS, STREAMS};
 use crate::ContractError;
 use cosmwasm_std::{
-    attr, entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
-    Env, Fraction, MessageInfo, Order, Response, StdResult, Timestamp, Uint128, Uint64,
+    attr, entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
+    Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdResult, Timestamp, Uint128,
+    Uint256, Uint64,
 };
 
+use crate::helpers::get_decimals;
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay};
 
@@ -227,7 +229,7 @@ pub fn update_stream(
         stream.spent_in += spent_in;
         stream.in_supply -= spent_in;
         stream.out_remaining -= new_distribution_balance;
-        stream.dist_index += Decimal::from_ratio(new_distribution_balance, stream.shares);
+        stream.dist_index += Decimal256::from_ratio(new_distribution_balance, stream.shares);
 
         if !new_distribution_balance.is_zero() {
             stream.current_streamed_price = spent_in / new_distribution_balance;
@@ -299,19 +301,21 @@ pub fn execute_update_position(
 // calculate the user purchase based on the positions index and the global index.
 // returns purchased out amount and spent in amount
 pub fn update_position(
-    stream_dist_index: Decimal,
+    stream_dist_index: Decimal256,
     stream_shares: Uint128,
     stream_last_updated: Timestamp,
     stream_in_supply: Uint128,
     position: &mut Position,
 ) -> Result<(Uint128, Uint128), ContractError> {
     let index_diff = stream_dist_index - position.index;
-    let purchased = position
-        .shares
-        .multiply_ratio(index_diff.numerator(), index_diff.denominator());
+    let purchased = Decimal256::from_ratio(position.shares, Uint256::one())
+        .checked_mul(index_diff)?
+        + position.pending_purchase;
+    let decimals = get_decimals(purchased)?;
 
     position.index = stream_dist_index;
     position.last_updated = stream_last_updated;
+    position.pending_purchase = decimals;
 
     let mut spent = Uint128::zero();
     // if no shares available, means no distribution and no spent
@@ -324,9 +328,10 @@ pub fn update_position(
         position.in_balance = in_remaining;
     }
 
-    position.purchased += purchased;
+    let uint128_purchased = (purchased * Uint256::one()).try_into()?;
+    position.purchased += uint128_purchased;
 
-    Ok((purchased, spent))
+    Ok((uint128_purchased, spent))
 }
 
 pub fn execute_subscribe(
@@ -801,6 +806,7 @@ pub fn query_position(
         shares: position.shares,
         operator: position.operator,
         last_updated: position.last_updated,
+        pending_purchase: position.pending_purchase,
     };
     Ok(res)
 }
@@ -827,6 +833,7 @@ pub fn list_positions(
                 index: position.index,
                 last_updated: position.last_updated,
                 purchased: position.purchased,
+                pending_purchase: position.pending_purchase,
                 spent: position.spent,
                 in_balance: position.in_balance,
                 shares: position.shares,

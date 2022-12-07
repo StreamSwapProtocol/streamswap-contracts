@@ -1,46 +1,17 @@
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use crate::ContractError;
+use cosmwasm_std::Decimal256;
+use std::str::FromStr;
 
-use cosmwasm_std::{
-    to_binary, Addr, CosmosMsg, CustomQuery, Querier, QuerierWrapper, StdResult, WasmMsg, WasmQuery,
-};
-
-use crate::msg::{ExecuteMsg, GetCountResponse, QueryMsg};
-
-/// CwTemplateContract is a wrapper around Addr that provides a lot of helpers
-/// for working with this.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct CwTemplateContract(pub Addr);
-
-impl CwTemplateContract {
-    pub fn addr(&self) -> Addr {
-        self.0.clone()
-    }
-
-    pub fn call<T: Into<ExecuteMsg>>(&self, msg: T) -> StdResult<CosmosMsg> {
-        let msg = to_binary(&msg.into())?;
-        Ok(WasmMsg::Execute {
-            contract_addr: self.addr().into(),
-            msg,
-            funds: vec![],
+// calculate the reward with decimal
+pub fn get_decimals(value: Decimal256) -> Result<Decimal256, ContractError> {
+    let stringed: &str = &*value.to_string();
+    let parts: &[&str] = &*stringed.split('.').collect::<Vec<&str>>();
+    match parts.len() {
+        1 => Ok(Decimal256::zero()),
+        2 => {
+            let decimals = Decimal256::from_str(&*("0.".to_owned() + parts[1]))?;
+            Ok(decimals)
         }
-        .into())
-    }
-
-    /// Get Count
-    pub fn count<Q, T, CQ>(&self, querier: &Q) -> StdResult<GetCountResponse>
-    where
-        Q: Querier,
-        T: Into<String>,
-        CQ: CustomQuery,
-    {
-        let msg = QueryMsg::GetCount {};
-        let query = WasmQuery::Smart {
-            contract_addr: self.addr().into(),
-            msg: to_binary(&msg)?,
-        }
-        .into();
-        let res: GetCountResponse = QuerierWrapper::<CQ>::new(querier).query(&query)?;
-        Ok(res)
+        _ => Err(ContractError::InvalidDecimals {}),
     }
 }

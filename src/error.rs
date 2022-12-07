@@ -1,4 +1,4 @@
-use cosmwasm_std::{DivideByZeroError, OverflowError, StdError, Uint128};
+use cosmwasm_std::{ConversionOverflowError, DivideByZeroError, OverflowError, StdError, Uint128};
 use cw_utils::PaymentError;
 use std::convert::Infallible;
 use thiserror::Error;
@@ -19,6 +19,9 @@ pub enum ContractError {
 
     #[error("{0}")]
     DivideByZeroError(#[from] DivideByZeroError),
+
+    #[error("{0}")]
+    ConversionOverflowError(#[from] ConversionOverflowError),
 
     #[error("No rewards accrued")]
     NoDistribution {},
@@ -70,4 +73,7 @@ pub enum ContractError {
 
     #[error("Stream not started")]
     StreamNotStarted {},
+
+    #[error("Invalid decimals")]
+    InvalidDecimals {},
 }

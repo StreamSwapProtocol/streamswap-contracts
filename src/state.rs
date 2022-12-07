@@ -1,6 +1,6 @@
 use crate::ContractError;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Decimal, Storage, Timestamp, Uint128, Uint64};
+use cosmwasm_std::{Addr, Decimal256, Storage, Timestamp, Uint128, Uint64};
 use cw_storage_plus::{Item, Map};
 use std::ops::Mul;
 
@@ -26,7 +26,7 @@ pub struct Stream {
     // URL for more information about the stream
     pub url: String,
     // Proportional distribution variable to calculate the distribution of in token_out to buyers.
-    pub dist_index: Decimal,
+    pub dist_index: Decimal256,
     // last updated time of stream
     pub last_updated: Timestamp,
     // denom of the `token_out`
@@ -67,7 +67,7 @@ impl Stream {
             name,
             treasury,
             url,
-            dist_index: Decimal::zero(),
+            dist_index: Decimal256::zero(),
             last_updated,
             out_denom,
             out_supply,
@@ -113,10 +113,12 @@ pub struct Position {
     pub in_balance: Uint128,
     pub shares: Uint128,
     // index is used to calculate the distribution a position has
-    pub index: Decimal,
+    pub index: Decimal256,
     pub last_updated: Timestamp,
     // total amount of `token_out` purchased in tokens at latest calculation
     pub purchased: Uint128,
+    // pending purchased accumulates purchases after decimal truncation
+    pub pending_purchase: Decimal256,
     // total amount of `token_in` spent tokens at latest calculation
     pub spent: Uint128,
     // operator can update position
@@ -128,7 +130,7 @@ impl Position {
         owner: Addr,
         in_balance: Uint128,
         shares: Uint128,
-        index: Option<Decimal>,
+        index: Option<Decimal256>,
         last_updated: Timestamp,
         operator: Option<Addr>,
     ) -> Self {
@@ -139,6 +141,7 @@ impl Position {
             index: index.unwrap_or_default(),
             last_updated,
             purchased: Uint128::zero(),
+            pending_purchase: Decimal256::zero(),
             spent: Uint128::zero(),
             operator,
         }

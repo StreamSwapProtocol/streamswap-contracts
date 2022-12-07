@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, Timestamp, Uint128, Uint64};
+use cosmwasm_std::{Addr, Decimal256, Timestamp, Uint128, Uint64};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -116,7 +116,7 @@ pub enum QueryMsg {
 pub struct StreamResponse {
     pub id: u64,
     pub treasury: String,
-    pub dist_index: Decimal,
+    pub dist_index: Decimal256,
     pub shares: Uint128,
     pub last_updated: Timestamp,
     pub token_out_denom: String,
@@ -140,9 +140,10 @@ pub struct PositionResponse {
     pub owner: String,
     pub in_balance: Uint128,
     pub shares: Uint128,
-    pub index: Decimal,
+    pub index: Decimal256,
     pub last_updated: Timestamp,
     pub purchased: Uint128,
+    pub pending_purchase: Decimal256,
     pub spent: Uint128,
     pub operator: Option<Addr>,
 }
