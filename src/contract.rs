@@ -483,7 +483,11 @@ pub fn execute_withdraw(
     }
 
     // decrease in supply and shares
-    let shares_amount = stream.compute_shares_amount(withdraw_amount, true);
+    let shares_amount = if withdraw_amount == position.in_balance {
+        position.shares
+    } else {
+        stream.compute_shares_amount(withdraw_amount, true)
+    };
 
     stream.in_supply -= withdraw_amount;
     stream.shares -= shares_amount;

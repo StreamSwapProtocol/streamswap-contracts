@@ -1075,6 +1075,7 @@ mod tests {
         assert_eq!(position.in_balance, Uint128::zero());
         assert_eq!(position.spent, Uint128::new(499_993_773_466));
         assert_eq!(position.purchased, Uint128::new(249_999_999_998));
+        assert_eq!(position.shares, Uint128::zero());
         let msg = res.messages.get(0).unwrap();
         assert_eq!(
             msg.msg,
