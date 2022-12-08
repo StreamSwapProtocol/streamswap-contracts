@@ -12,11 +12,6 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    // Update the distribution index
-    UpdateDistribution {
-        stream_id: u64,
-    },
-
     // CreateStream creates new token stream. Anyone can create a new stream.
     // Creation Fee send along msg prevents spams.
     CreateStream {
@@ -38,6 +33,10 @@ pub enum ExecuteMsg {
         // Unix timestamp when the stream ends. Calculations in nano sec precision
         end_time: Timestamp,
     },
+    // Update stream and calculates distribution state
+    UpdateStream {
+        stream_id: u64,
+    },
     UpdateOperator {
         stream_id: u64,
         operator: Option<String>,
@@ -53,18 +52,16 @@ pub enum ExecuteMsg {
         // operator can subscribe/withdraw/update position
         operator: Option<String>,
     },
-    // Withdraws released stake
+    // Withdraws unspent in balance
     Withdraw {
         stream_id: u64,
         cap: Option<Uint128>,
         position_owner: Option<String>,
     },
-
     UpdatePosition {
         stream_id: u64,
         position_owner: Option<String>,
     },
-
     // FinalizeStream clean ups the stream and sends income (earned tokens_in) to the
     // Stream recipient. Returns error if called before the Stream end. Anyone can
     // call this method.
@@ -72,7 +69,6 @@ pub enum ExecuteMsg {
         stream_id: u64,
         new_treasury: Option<String>,
     },
-
     // ExitStream withdraws (by a user who subscribed to the stream) purchased
     // tokens_out from the pool and remained tokens_in. Must be called before
     // the stream end.
@@ -80,7 +76,6 @@ pub enum ExecuteMsg {
         stream_id: u64,
         position_owner: Option<String>,
     },
-
     //
     // Collector
     //
@@ -119,12 +114,12 @@ pub struct StreamResponse {
     pub dist_index: Decimal256,
     pub shares: Uint128,
     pub last_updated: Timestamp,
-    pub token_out_denom: String,
-    pub token_out_supply: Uint128,
+    pub out_denom: String,
+    pub out_supply: Uint128,
     pub out_remaining: Uint128,
-    pub token_in_denom: String,
-    pub total_in_supply: Uint128,
-    pub total_in_spent: Uint128,
+    pub in_denom: String,
+    pub in_supply: Uint128,
+    pub in_spent: Uint128,
     pub start_time: Timestamp,
     pub end_time: Timestamp,
 }

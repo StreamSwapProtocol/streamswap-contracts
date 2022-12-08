@@ -2,8 +2,8 @@
 mod tests {
     use crate::contract::{
         execute_create_stream, execute_exit_stream, execute_finalize_stream, execute_subscribe,
-        execute_update_dist_index, execute_update_operator, execute_update_position,
-        execute_withdraw, instantiate, query_position, query_stream, update_stream,
+        execute_update_operator, execute_update_position, execute_update_stream, execute_withdraw,
+        instantiate, query_position, query_stream, update_stream,
     };
     use crate::state::Stream;
     use crate::ContractError;
@@ -389,7 +389,7 @@ mod tests {
         let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
         // position index not updated,  in_supply updated
         assert_eq!(stream.dist_index, Decimal256::zero());
-        assert_eq!(stream.total_in_supply, Uint128::new(1000000));
+        assert_eq!(stream.in_supply, Uint128::new(1000000));
         let position = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
         assert_eq!(position.index, Decimal256::zero());
         assert_eq!(position.in_balance, Uint128::new(1000000));
@@ -656,7 +656,7 @@ mod tests {
 
         let mut env = mock_env();
         env.block.time = end.plus_seconds(100);
-        execute_update_dist_index(deps.as_mut(), env, 1).unwrap();
+        execute_update_stream(deps.as_mut(), env, 1).unwrap();
 
         // operator can exit
         let info = mock_info("operator1", &[]);
@@ -838,14 +838,14 @@ mod tests {
         execute_update_position(deps.as_mut(), env.clone(), info, 1, None).unwrap();
         let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
         assert_eq!(stream.dist_index, Decimal256::from_str("1").unwrap());
-        assert_eq!(stream.total_in_supply, Uint128::zero());
+        assert_eq!(stream.in_supply, Uint128::zero());
         let position = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
         assert_eq!(position.index, Decimal256::from_str("1").unwrap());
         assert_eq!(position.spent, Uint128::new(1_000_000));
         assert_eq!(position.in_balance, Uint128::zero());
 
-        assert_eq!(stream.token_out_supply, Uint128::new(1_000_000));
-        assert_eq!(position.purchased, stream.token_out_supply);
+        assert_eq!(stream.out_supply, Uint128::new(1_000_000));
+        assert_eq!(position.purchased, stream.out_supply);
     }
 
     // this is for testing the leftover amount with bigger values
@@ -959,7 +959,7 @@ mod tests {
             stream.dist_index,
             Decimal256::from_str("268.731718292500000000").unwrap()
         );
-        assert_eq!(stream.total_in_supply, Uint128::zero());
+        assert_eq!(stream.in_supply, Uint128::zero());
         let position1 = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
         assert_eq!(
             position1.index,
@@ -978,7 +978,7 @@ mod tests {
             stream.dist_index,
             Decimal256::from_str("268.731718292500000000").unwrap()
         );
-        assert_eq!(stream.total_in_supply, Uint128::zero());
+        assert_eq!(stream.in_supply, Uint128::zero());
         let position2 = query_position(deps.as_ref(), env, 1, "creator2".to_string()).unwrap();
         assert_eq!(
             position2.index,
@@ -994,9 +994,8 @@ mod tests {
                 .checked_add(position2.purchased)
                 .unwrap(),
             // 1 difference due to rounding
-            stream.token_out_supply.sub(Uint128::new(1u128))
+            stream.out_supply.sub(Uint128::new(1u128))
         );
-        println!("position1.pending: {}", position1.pending_purchase);
     }
 
     #[test]
@@ -1171,7 +1170,7 @@ mod tests {
         let mut env = mock_env();
         env.block.time = end.plus_seconds(1);
         let info = mock_info(treasury.as_str(), &[]);
-        execute_update_dist_index(deps.as_mut(), env.clone(), 1).unwrap();
+        execute_update_stream(deps.as_mut(), env.clone(), 1).unwrap();
 
         let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap();
         let fee_msg = res.messages.get(0).unwrap();
@@ -1263,7 +1262,7 @@ mod tests {
         // update dist
         let mut env = mock_env();
         env.block.time = end.plus_seconds(2_000_000);
-        execute_update_dist_index(deps.as_mut(), env.clone(), 1).unwrap();
+        execute_update_stream(deps.as_mut(), env.clone(), 1).unwrap();
 
         // can exit
         let mut env = mock_env();
@@ -1362,7 +1361,7 @@ mod tests {
         // can exit
         let mut env = mock_env();
         env.block.time = end.plus_seconds(1_000_000);
-        execute_update_dist_index(deps.as_mut(), env, 1).unwrap();
+        execute_update_stream(deps.as_mut(), env, 1).unwrap();
 
         let mut env = mock_env();
         env.block.time = end.plus_seconds(1_000_001);

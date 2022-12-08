@@ -53,22 +53,13 @@ pub fn execute(
             treasury,
             name,
             url,
-            in_denom: token_in_denom,
-            out_denom: token_out_denom,
-            out_supply: token_out_supply,
+            in_denom,
+            out_denom,
+            out_supply,
             start_time,
             end_time,
         } => execute_create_stream(
-            deps,
-            env,
-            info,
-            treasury,
-            name,
-            url,
-            token_in_denom,
-            token_out_denom,
-            token_out_supply,
-            start_time,
+            deps, env, info, treasury, name, url, in_denom, out_denom, out_supply, start_time,
             end_time,
         ),
         ExecuteMsg::UpdateOperator {
@@ -80,9 +71,7 @@ pub fn execute(
             stream_id,
             position_owner,
         } => execute_update_position(deps, env, info, stream_id, position_owner),
-        ExecuteMsg::UpdateDistribution { stream_id } => {
-            execute_update_dist_index(deps, env, stream_id)
-        }
+        ExecuteMsg::UpdateStream { stream_id } => execute_update_stream(deps, env, stream_id),
         ExecuteMsg::Subscribe {
             stream_id,
             position_owner,
@@ -182,17 +171,17 @@ pub fn execute_create_stream(
         attr("treasury", treasury),
         attr("name", name),
         attr("url", url),
-        attr("token_in_denom", in_denom),
-        attr("token_out_denom", out_denom),
-        attr("token_out_supply", out_supply),
+        attr("in_denom", in_denom),
+        attr("out_denom", out_denom),
+        attr("out_supply", out_supply),
         attr("start_time", start_time.to_string()),
         attr("end_time", end_time.to_string()),
     ];
     Ok(Response::default().add_attributes(attr))
 }
 
-/// Increase global_distribution_index with new distribution release
-pub fn execute_update_dist_index(
+/// Updates stream to calculate released distribution and spent amount
+pub fn execute_update_stream(
     deps: DepsMut,
     env: Env,
     stream_id: u64,
@@ -204,8 +193,8 @@ pub fn execute_update_dist_index(
     let attrs = vec![
         attr("action", "update_distribution"),
         attr("stream_id", stream_id.to_string()),
-        attr("distribution_amount", dist_amount),
-        attr("stream_dist_index", stream.dist_index.to_string()),
+        attr("new_distribution_amount", dist_amount),
+        attr("dist_index", stream.dist_index.to_string()),
     ];
     let res = Response::new().add_attributes(attrs);
     Ok(res)
@@ -218,6 +207,7 @@ pub fn update_stream(
     let (diff, last_updated) = calculate_diff(stream.end_time, stream.last_updated, now);
 
     let mut new_distribution_balance = Uint128::zero();
+
     if !stream.shares.is_zero() && !diff.is_zero() {
         new_distribution_balance = stream
             .out_remaining
@@ -226,13 +216,16 @@ pub fn update_stream(
             .in_supply
             .multiply_ratio(diff.numerator(), diff.denominator());
 
-        stream.spent_in += spent_in;
-        stream.in_supply -= spent_in;
-        stream.out_remaining -= new_distribution_balance;
-        stream.dist_index += Decimal256::from_ratio(new_distribution_balance, stream.shares);
+        stream.spent_in = stream.spent_in.checked_add(spent_in)?;
+        stream.in_supply = stream.in_supply.checked_sub(spent_in)?;
+        stream.out_remaining = stream.out_remaining.checked_sub(new_distribution_balance)?;
+        stream.dist_index = stream.dist_index.checked_add(Decimal256::from_ratio(
+            new_distribution_balance,
+            stream.shares,
+        ))?;
 
         if !new_distribution_balance.is_zero() {
-            stream.current_streamed_price = spent_in / new_distribution_balance;
+            stream.current_streamed_price = spent_in.checked_div(new_distribution_balance)?;
         }
     }
 
@@ -293,7 +286,8 @@ pub fn execute_update_position(
 
     Ok(Response::new()
         .add_attribute("action", "update_position")
-        .add_attribute("recipient", info.sender)
+        .add_attribute("stream_id", stream_id.to_string())
+        .add_attribute("position_owner", position_owner)
         .add_attribute("purchased", purchased)
         .add_attribute("spent", spent))
 }
@@ -307,31 +301,36 @@ pub fn update_position(
     stream_in_supply: Uint128,
     position: &mut Position,
 ) -> Result<(Uint128, Uint128), ContractError> {
-    let index_diff = stream_dist_index - position.index;
-    let purchased = Decimal256::from_ratio(position.shares, Uint256::one())
-        .checked_mul(index_diff)?
-        + position.pending_purchase;
-    let decimals = get_decimals(purchased)?;
-
-    position.index = stream_dist_index;
-    position.last_updated = stream_last_updated;
-    position.pending_purchase = decimals;
+    let index_diff = stream_dist_index.checked_sub(position.index)?;
 
     let mut spent = Uint128::zero();
+    let mut purchased_uint128 = Uint128::zero();
+
     // if no shares available, means no distribution and no spent
     if !stream_shares.is_zero() {
+        let purchased = Decimal256::from_ratio(position.shares, Uint256::one())
+            .checked_mul(index_diff)?
+            .checked_add(position.pending_purchase)?;
+        let decimals = get_decimals(purchased)?;
+
         let in_remaining = stream_in_supply
             .checked_mul(position.shares)?
             .checked_div(stream_shares)?;
+
         spent = position.in_balance.checked_sub(in_remaining)?;
-        position.spent += spent;
+        position.spent = position.spent.checked_add(spent)?;
         position.in_balance = in_remaining;
+        position.pending_purchase = decimals;
+
+        // floors the decimal points
+        purchased_uint128 = (purchased * Uint256::one()).try_into()?;
+        position.purchased = position.purchased.checked_add(purchased_uint128)?;
     }
 
-    let uint128_purchased = (purchased * Uint256::one()).try_into()?;
-    position.purchased += uint128_purchased;
+    position.index = stream_dist_index;
+    position.last_updated = stream_last_updated;
 
-    Ok((uint128_purchased, spent))
+    Ok((purchased_uint128, spent))
 }
 
 pub fn execute_subscribe(
@@ -394,8 +393,8 @@ pub fn execute_subscribe(
                 &mut position,
             )?;
 
-            position.in_balance += in_amount;
-            position.shares += new_shares;
+            position.in_balance = position.in_balance.checked_add(in_amount)?;
+            position.shares = position.shares.checked_add(new_shares)?;
             POSITIONS.save(deps.storage, (stream_id, &info.sender), &position)?;
         }
     }
@@ -489,16 +488,18 @@ pub fn execute_withdraw(
         stream.compute_shares_amount(withdraw_amount, true)
     };
 
-    stream.in_supply -= withdraw_amount;
-    stream.shares -= shares_amount;
-    position.in_balance -= withdraw_amount;
-    position.shares -= shares_amount;
+    stream.in_supply = stream.in_supply.checked_sub(withdraw_amount)?;
+    stream.shares = stream.shares.checked_sub(shares_amount)?;
+    position.in_balance = position.in_balance.checked_sub(withdraw_amount)?;
+    position.shares = position.shares.checked_sub(shares_amount)?;
 
     STREAMS.save(deps.storage, stream_id, &stream)?;
     POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
 
     let attributes = vec![
         attr("action", "withdraw"),
+        attr("stream_id", stream_id.to_string()),
+        attr("position_owner", position_owner.clone()),
         attr("withdraw_amount", withdraw_amount),
     ];
 
@@ -739,15 +740,15 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
     let stream = StreamResponse {
         id: stream_id,
         treasury: stream.treasury.to_string(),
-        token_in_denom: stream.in_denom,
-        token_out_denom: stream.out_denom,
-        token_out_supply: stream.out_supply,
+        in_denom: stream.in_denom,
+        out_denom: stream.out_denom,
+        out_supply: stream.out_supply,
         start_time: stream.start_time,
         end_time: stream.end_time,
-        total_in_spent: stream.spent_in,
+        in_spent: stream.spent_in,
         dist_index: stream.dist_index,
         out_remaining: stream.out_remaining,
-        total_in_supply: stream.in_supply,
+        in_supply: stream.in_supply,
         shares: stream.shares,
         last_updated: stream.last_updated,
     };
@@ -773,16 +774,16 @@ pub fn list_streams(
             let stream = StreamResponse {
                 id: stream_id,
                 treasury: stream.treasury.to_string(),
-                token_in_denom: stream.in_denom,
-                token_out_denom: stream.out_denom,
-                token_out_supply: stream.out_supply,
+                in_denom: stream.in_denom,
+                out_denom: stream.out_denom,
+                out_supply: stream.out_supply,
                 start_time: stream.start_time,
                 end_time: stream.end_time,
-                total_in_spent: stream.spent_in,
+                in_spent: stream.spent_in,
                 last_updated: stream.last_updated,
                 dist_index: stream.dist_index,
                 out_remaining: stream.out_remaining,
-                total_in_supply: stream.in_supply,
+                in_supply: stream.in_supply,
                 shares: stream.shares,
             };
             Ok(stream)
