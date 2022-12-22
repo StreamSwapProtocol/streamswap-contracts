@@ -3,12 +3,15 @@ mod tests {
     use crate::contract::{
         execute_create_stream, execute_exit_stream, execute_finalize_stream, execute_subscribe,
         execute_update_operator, execute_update_position, execute_update_stream, execute_withdraw,
-        instantiate, query_position, query_stream, update_stream,
+        instantiate, query_average_price, query_last_streamed_price, query_position, query_stream,
+        update_stream,
     };
     use crate::state::Stream;
     use crate::ContractError;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{Addr, BankMsg, Coin, CosmosMsg, Decimal256, Timestamp, Uint128, Uint64};
+    use cosmwasm_std::{
+        Addr, BankMsg, Coin, CosmosMsg, Decimal, Decimal256, Timestamp, Uint128, Uint64,
+    };
     use cw_utils::PaymentError;
     use std::ops::Sub;
     use std::str::FromStr;
@@ -1372,5 +1375,133 @@ mod tests {
         env.block.time = end.plus_seconds(1_000_002);
         let info = mock_info("creator2", &[]);
         execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap();
+    }
+    #[test]
+    fn test_price_feed() {
+        let treasury = Addr::unchecked("treasury");
+        let start = Timestamp::from_seconds(1_000_000);
+        let end = Timestamp::from_seconds(5_000_000);
+        let out_supply = Uint128::new(1_000_000);
+        let out_denom = "out_denom";
+
+        // instantiate
+        let mut deps = mock_dependencies();
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(0);
+        let msg = crate::msg::InstantiateMsg {
+            min_stream_seconds: Uint64::new(1000),
+            min_seconds_until_start_time: Uint64::new(0),
+            stream_creation_denom: "fee".to_string(),
+            stream_creation_fee: Uint128::new(100),
+            fee_collector: "collector".to_string(),
+        };
+        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+        // create stream
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(0);
+        let info = mock_info(
+            "creator1",
+            &[
+                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(100, "fee"),
+            ],
+        );
+        execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            "test".to_string(),
+            "test".to_string(),
+            "in".to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start,
+            end,
+        )
+        .unwrap();
+
+        // first subscription
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(1_000_000);
+        let funds = Coin::new(3_000, "in");
+        let info = mock_info("creator1", &[funds.clone()]);
+        execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
+
+        //check current streamed price before update
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(2_000_000);
+        let res = query_last_streamed_price(deps.as_ref(), env, 1).unwrap();
+        assert_eq!(res.current_streamed_price, Decimal::new(Uint128::new(0)));
+
+        //check current streamed price after update
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(2_000_000);
+        execute_update_stream(deps.as_mut(), env, 1);
+        let res = query_last_streamed_price(deps.as_ref(), mock_env(), 1).unwrap();
+        //approx 1000/333333
+        assert_eq!(
+            res.current_streamed_price,
+            Decimal::from_str("0.002997002997002997").unwrap()
+        );
+        // second subscription
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(2_000_000);
+        let funds = Coin::new(1_000, "in");
+        let info = mock_info("creator2", &[funds.clone()]);
+        execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
+
+        //check current streamed price before update
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(3_000_000);
+        let res = query_last_streamed_price(deps.as_ref(), env, 1).unwrap();
+        assert_eq!(
+            res.current_streamed_price,
+            Decimal::from_str("0.002997002997002997").unwrap()
+        );
+
+        //check current streamed price after update
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(3_000_000);
+        execute_update_stream(deps.as_mut(), env, 1);
+        let res = query_last_streamed_price(deps.as_ref(), mock_env(), 1).unwrap();
+        //approx 2000/333333
+        assert_eq!(
+            res.current_streamed_price,
+            Decimal::from_str("0.0045000045000045").unwrap()
+        );
+
+        //check average streamed price
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(3_000_000);
+        let res = query_average_price(deps.as_ref(), env, 1).unwrap();
+        //approx 2500/333333
+        assert_eq!(
+            res.average_price,
+            Decimal::from_str("0.003748503748503748").unwrap()
+        );
+
+        //withdraw creator 1
+        let info = mock_info("creator1", &[]);
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(3_500_000);
+        execute_withdraw(deps.as_mut(), env, info, 1, None, None).unwrap();
+        let res = query_last_streamed_price(deps.as_ref(), mock_env(), 1).unwrap();
+        assert_eq!(
+            res.current_streamed_price,
+            Decimal::from_str("0.004499991000017999").unwrap()
+        );
+
+        //test price after withdraw
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(3_750_000);
+        execute_update_stream(deps.as_mut(), env, 1);
+        let res = query_last_streamed_price(deps.as_ref(), mock_env(), 1).unwrap();
+        //approx 2500/333333
+        assert_eq!(
+            res.current_streamed_price,
+            Decimal::from_str("0.001500006000024000").unwrap()
+        );
     }
 }

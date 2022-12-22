@@ -225,7 +225,7 @@ pub fn update_stream(
         ))?;
 
         if !new_distribution_balance.is_zero() {
-            stream.current_streamed_price = spent_in.checked_div(new_distribution_balance)?;
+            stream.current_streamed_price = Decimal::from_ratio(spent_in, new_distribution_balance)
         }
     }
 
@@ -857,7 +857,8 @@ pub fn query_average_price(
     stream_id: u64,
 ) -> StdResult<AveragePriceResponse> {
     let stream = STREAMS.load(deps.storage, stream_id)?;
-    let average_price = stream.spent_in / stream.out_supply - stream.out_remaining;
+    let total_purchased = stream.out_supply - stream.out_remaining;
+    let average_price = Decimal::from_ratio(stream.spent_in, total_purchased);
     Ok(AveragePriceResponse { average_price })
 }
 

@@ -1,6 +1,6 @@
 use crate::ContractError;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Decimal256, Storage, Timestamp, Uint128, Uint64};
+use cosmwasm_std::{Addr, Decimal, Decimal256, Storage, Timestamp, Uint128, Uint64};
 use cw_storage_plus::{Item, Map};
 use std::ops::Mul;
 
@@ -48,7 +48,7 @@ pub struct Stream {
     // 139years (to avoid round overflow)
     pub end_time: Timestamp,
     // price at when latest distribution is triggered
-    pub current_streamed_price: Uint128,
+    pub current_streamed_price: Decimal,
 }
 
 impl Stream {
@@ -78,7 +78,7 @@ impl Stream {
             shares: Uint128::zero(),
             start_time,
             end_time,
-            current_streamed_price: Uint128::zero(),
+            current_streamed_price: Decimal::zero(),
         }
     }
 

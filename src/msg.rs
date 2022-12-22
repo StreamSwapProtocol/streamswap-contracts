@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal256, Timestamp, Uint128, Uint64};
+use cosmwasm_std::{Addr, Decimal, Decimal256, Timestamp, Uint128, Uint64};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -150,12 +150,12 @@ pub struct PositionsResponse {
 
 #[cw_serde]
 pub struct AveragePriceResponse {
-    pub average_price: Uint128,
+    pub average_price: Decimal,
 }
 
 #[cw_serde]
 pub struct LatestStreamedPriceResponse {
-    pub current_streamed_price: Uint128,
+    pub current_streamed_price: Decimal,
 }
 
 #[cw_serde]
