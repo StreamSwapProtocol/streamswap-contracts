@@ -29,15 +29,15 @@ optimize = """docker run --rm -v "$(pwd)":/code \
 """
 
 [dependencies]
-cosmwasm-std = "1.1.5"
-cosmwasm-schema = "1.1.5"
-cw-controllers= "0.16.0"
-cw-storage-plus = "0.16.0"
-cw-utils = "0.16.0"
-cw2 = "0.16.0"
+cosmwasm-std = "1.1.9"
+cosmwasm-schema = "1.1.9"
+cw-controllers= " 1.0.1"
+cw-storage-plus = "1.0.1"
+cw-utils = "1.0.1"
+cw2 = "1.0.1 "
 schemars = "0.8.11"
-serde = { version = "1.0.147", default-features = false, features = ["derive"] }
-thiserror = { version = "1.0.37" }
+serde = { version = "1.0.152", default-features = false, features = ["derive"] }
+thiserror = { version = "1.0.38" }
 
 [dev-dependencies]
-cw-multi-test = "0.16.0"
+cw-multi-test = "0.16.2"
