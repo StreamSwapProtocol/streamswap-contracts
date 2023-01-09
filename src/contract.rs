@@ -192,6 +192,9 @@ pub fn execute_update_stream(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    if stream.is_paused {
+        return Err(ContractError::StreamPaused {});
+    }
     let (_, dist_amount) = update_stream(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
@@ -277,6 +280,11 @@ pub fn execute_update_position(
     }
 
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    // check if stream is paused
+    if stream.is_paused {
+        return Err(ContractError::StreamPaused {});
+    }
+
     update_stream(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
@@ -352,6 +360,10 @@ pub fn execute_subscribe(
     }
     if env.block.time > stream.end_time {
         return Err(ContractError::StreamEnded {});
+    }
+    // check if stream is paused
+    if stream.is_paused {
+        return Err(ContractError::StreamPaused {});
     }
 
     let in_amount = must_pay(&info, &stream.in_denom)?;
@@ -459,6 +471,10 @@ pub fn execute_withdraw(
     if env.block.time > stream.end_time {
         return Err(ContractError::StreamEnded {});
     }
+    // check if stream is paused
+    if stream.is_paused {
+        return Err(ContractError::StreamPaused {});
+    }
 
     let position_owner = maybe_addr(deps.api, position_owner)?.unwrap_or(info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;
@@ -540,6 +556,10 @@ pub fn execute_finalize_stream(
     if stream.last_updated < stream.end_time {
         return Err(ContractError::UpdateDistIndex {});
     }
+    // check if stream is paused
+    if stream.is_paused {
+        return Err(ContractError::StreamPaused {});
+    }
 
     let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or(stream.treasury);
 
@@ -586,6 +606,10 @@ pub fn execute_exit_stream(
     }
     if stream.last_updated < stream.end_time {
         return Err(ContractError::UpdateDistIndex {});
+    }
+    // check if stream is paused
+    if stream.is_paused {
+        return Err(ContractError::StreamPaused {});
     }
 
     let position_owner = maybe_addr(deps.api, position_owner)?.unwrap_or(info.sender.clone());
@@ -733,7 +757,11 @@ pub fn sudo_update_config(
     Ok(Response::default().add_attributes(attributes))
 }
 
-pub fn sudo_pause_stream(deps: DepsMut, _env: Env, stream_id: u64) -> Result<Response, ContractError> {
+pub fn sudo_pause_stream(
+    deps: DepsMut,
+    _env: Env,
+    stream_id: u64,
+) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     stream.is_paused = true;
     STREAMS.save(deps.storage, stream_id, &stream)?;

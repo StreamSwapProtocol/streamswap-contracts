@@ -1569,11 +1569,69 @@ mod tests {
 
         let res = execute_pause(deps.as_mut(), env, info, 1);
         assert_eq!(res, Err(ContractError::Unauthorized {}));
-        // protocol admin can pause
 
+        // first subscription
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(1_000_000);
+        let funds = Coin::new(3_000, "in");
+        let info = mock_info("position1", &[funds.clone()]);
+        execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
+
+        // protocol admin can pause
         let info = mock_info("protocol_admin", &[]);
         let mut env = mock_env();
-        env.block.time = start.plus_seconds(100);
+        env.block.time = start.plus_seconds(1_000_001);
         execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+
+        // can't subscribe new
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(1_000_002);
+        let funds = Coin::new(3_000, "in");
+        let info = mock_info("position2", &[funds.clone()]);
+        let res = execute_subscribe(deps.as_mut(), env, info, 1, None, None);
+        assert_eq!(res, Err(ContractError::StreamPaused {}));
+
+        // can't subscribe more
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(1_000_002);
+        let funds = Coin::new(3_000, "in");
+        let info = mock_info("position1", &[funds.clone()]);
+        let res = execute_subscribe(deps.as_mut(), env, info, 1, None, None);
+        assert_eq!(res, Err(ContractError::StreamPaused {}));
+
+        // can't withdraw
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(1_000_002);
+        let info = mock_info("position1", &[]);
+        let res = execute_withdraw(deps.as_mut(), env, info, 1, None, None);
+        assert_eq!(res, Err(ContractError::StreamPaused {}));
+
+        // can't update stream
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(1_000_002);
+        let info = mock_info("random", &[]);
+        let res = execute_update_stream(deps.as_mut(), env, 1);
+        assert_eq!(res, Err(ContractError::StreamPaused {}));
+
+        // can't update position
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(1_000_002);
+        let info = mock_info("random", &[]);
+        let res = execute_update_position(deps.as_mut(), env, info, 1, None);
+        assert_eq!(res, Err(ContractError::StreamPaused {}));
+
+        // can't finalize stream
+        let mut env = mock_env();
+        env.block.time = end.plus_seconds(1_000_002);
+        let info = mock_info("creator1", &[]);
+        let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None);
+        assert_eq!(res, Err(ContractError::StreamPaused {}));
+
+        // can't exit
+        let mut env = mock_env();
+        env.block.time = end.plus_seconds(1_000_002);
+        let info = mock_info("position1", &[]);
+        let res = execute_exit_stream(deps.as_mut(), env, info, 1, None);
+        assert_eq!(res, Err(ContractError::StreamPaused {}));
     }
 }
