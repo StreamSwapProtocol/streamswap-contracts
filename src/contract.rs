@@ -24,9 +24,10 @@ pub fn instantiate(
     let config = Config {
         min_stream_seconds: msg.min_stream_seconds,
         min_seconds_until_start_time: msg.min_seconds_until_start_time,
-        stream_creation_denom: msg.stream_creation_denom,
+        stream_creation_denom: msg.stream_creation_denom.clone(),
         stream_creation_fee: msg.stream_creation_fee,
         fee_collector: deps.api.addr_validate(&msg.fee_collector)?,
+        protocol_admin: deps.api.addr_validate(&msg.protocol_admin)?,
     };
     CONFIG.save(deps.storage, &config)?;
 
@@ -36,7 +37,10 @@ pub fn instantiate(
             "min_seconds_until_start_time",
             msg.min_seconds_until_start_time,
         ),
+        attr("stream_creation_denom", msg.stream_creation_denom),
         attr("stream_creation_fee", msg.stream_creation_fee),
+        attr("fee_collector", msg.fee_collector),
+        attr("protocol_admin", msg.protocol_admin),
     ];
     Ok(Response::default().add_attributes(attrs))
 }

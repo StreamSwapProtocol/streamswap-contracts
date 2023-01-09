@@ -13,6 +13,8 @@ pub struct Config {
     pub stream_creation_denom: String,
     pub stream_creation_fee: Uint128,
     pub fee_collector: Addr,
+    // protocol admin can pause streams in case of emergency.
+    pub protocol_admin: Addr,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");

@@ -8,6 +8,7 @@ pub struct InstantiateMsg {
     pub stream_creation_denom: String,
     pub stream_creation_fee: Uint128,
     pub fee_collector: String,
+    pub protocol_admin: String,
 }
 
 #[cw_serde]
