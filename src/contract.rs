@@ -6,8 +6,8 @@ use crate::state::{next_stream_id, Config, Position, Stream, CONFIG, POSITIONS, 
 use crate::ContractError;
 use cosmwasm_std::{
     attr, entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
-    Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdResult, Timestamp,
-    Uint128, Uint256, Uint64,
+    Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdResult, Timestamp, Uint128,
+    Uint256, Uint64,
 };
 
 use crate::helpers::get_decimals;
