@@ -1616,14 +1616,14 @@ mod tests {
         // can't update position
         let mut env = mock_env();
         env.block.time = start.plus_seconds(1_000_002);
-        let info = mock_info("random", &[]);
+        let info = mock_info("position1", &[]);
         let res = execute_update_position(deps.as_mut(), env, info, 1, None);
         assert_eq!(res, Err(ContractError::StreamPaused {}));
 
         // can't finalize stream
         let mut env = mock_env();
         env.block.time = end.plus_seconds(1_000_002);
-        let info = mock_info("creator1", &[]);
+        let info = mock_info("treasury", &[]);
         let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None);
         assert_eq!(res, Err(ContractError::StreamPaused {}));
 

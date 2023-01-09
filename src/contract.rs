@@ -355,15 +355,15 @@ pub fn execute_subscribe(
     position_owner: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    // check if stream is paused
+    if stream.is_paused {
+        return Err(ContractError::StreamPaused {});
+    }
     if env.block.time < stream.start_time {
         return Err(ContractError::StreamNotStarted {});
     }
     if env.block.time > stream.end_time {
         return Err(ContractError::StreamEnded {});
-    }
-    // check if stream is paused
-    if stream.is_paused {
-        return Err(ContractError::StreamPaused {});
     }
 
     let in_amount = must_pay(&info, &stream.in_denom)?;
@@ -467,13 +467,13 @@ pub fn execute_withdraw(
     position_owner: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    // can't withdraw after stream ended
-    if env.block.time > stream.end_time {
-        return Err(ContractError::StreamEnded {});
-    }
     // check if stream is paused
     if stream.is_paused {
         return Err(ContractError::StreamPaused {});
+    }
+    // can't withdraw after stream ended
+    if env.block.time > stream.end_time {
+        return Err(ContractError::StreamEnded {});
     }
 
     let position_owner = maybe_addr(deps.api, position_owner)?.unwrap_or(info.sender.clone());
@@ -546,7 +546,10 @@ pub fn execute_finalize_stream(
     new_treasury: Option<String>,
 ) -> Result<Response, ContractError> {
     let stream = STREAMS.load(deps.storage, stream_id)?;
-
+    // check if stream is paused
+    if stream.is_paused {
+        return Err(ContractError::StreamPaused {});
+    }
     if stream.treasury != info.sender {
         return Err(ContractError::Unauthorized {});
     }
@@ -555,10 +558,6 @@ pub fn execute_finalize_stream(
     }
     if stream.last_updated < stream.end_time {
         return Err(ContractError::UpdateDistIndex {});
-    }
-    // check if stream is paused
-    if stream.is_paused {
-        return Err(ContractError::StreamPaused {});
     }
 
     let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or(stream.treasury);
@@ -601,15 +600,15 @@ pub fn execute_exit_stream(
     position_owner: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    // check if stream is paused
+    if stream.is_paused {
+        return Err(ContractError::StreamPaused {});
+    }
     if env.block.time < stream.end_time {
         return Err(ContractError::StreamNotEnded {});
     }
     if stream.last_updated < stream.end_time {
         return Err(ContractError::UpdateDistIndex {});
-    }
-    // check if stream is paused
-    if stream.is_paused {
-        return Err(ContractError::StreamPaused {});
     }
 
     let position_owner = maybe_addr(deps.api, position_owner)?.unwrap_or(info.sender.clone());
