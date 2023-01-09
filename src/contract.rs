@@ -6,7 +6,7 @@ use crate::state::{next_stream_id, Config, Position, Stream, CONFIG, POSITIONS, 
 use crate::ContractError;
 use cosmwasm_std::{
     attr, entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
-    Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdResult, Storage, Timestamp,
+    Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdResult, Timestamp,
     Uint128, Uint256, Uint64,
 };
 
@@ -695,7 +695,7 @@ pub fn execute_pause_stream(
 
     Ok(Response::default()
         .add_attribute("stream_id", stream_id.to_string())
-        .add_attribute("is_paused", true))
+        .add_attribute("is_paused", "true"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -768,7 +768,7 @@ pub fn sudo_pause_stream(
 
     Ok(Response::default()
         .add_attribute("stream_id", stream_id.to_string())
-        .add_attribute("is_paused", true))
+        .add_attribute("is_paused", "true"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

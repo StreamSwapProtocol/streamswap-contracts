@@ -1567,7 +1567,7 @@ mod tests {
         let mut env = mock_env();
         env.block.time = start.plus_seconds(100);
 
-        let res = execute_pause(deps.as_mut(), env, info, 1);
+        let res = execute_pause_stream(deps.as_mut(), env, info, 1);
         assert_eq!(res, Err(ContractError::Unauthorized {}));
 
         // first subscription
