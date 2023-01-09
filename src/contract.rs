@@ -6,8 +6,8 @@ use crate::state::{next_stream_id, Config, Position, Stream, CONFIG, POSITIONS, 
 use crate::ContractError;
 use cosmwasm_std::{
     attr, entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
-    Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdResult, Timestamp, Uint128,
-    Uint256, Uint64,
+    Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdResult, Storage, Timestamp,
+    Uint128, Uint256, Uint64,
 };
 
 use crate::helpers::get_decimals;
@@ -95,6 +95,7 @@ pub fn execute(
             position_owner,
         } => execute_exit_stream(deps, env, info, stream_id, position_owner),
         ExecuteMsg::CollectFees {} => execute_collect_fees(deps, env, info),
+        ExecuteMsg::PauseStream { stream_id } => execute_pause_stream(deps, env, info, stream_id),
     }
 }
 
@@ -652,6 +653,27 @@ pub fn execute_collect_fees(
 
     Ok(Response::new().add_message(send_msg))
 }
+
+pub fn execute_pause_stream(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    stream_id: u64,
+) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+    if info.sender != config.protocol_admin {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    stream.is_paused = true;
+    STREAMS.save(deps.storage, stream_id, &stream)?;
+
+    Ok(Response::default()
+        .add_attribute("stream_id", stream_id.to_string())
+        .add_attribute("is_paused", true))
+}
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractError> {
     match msg {
@@ -670,6 +692,7 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
             stream_creation_fee,
             fee_collector,
         ),
+        SudoMsg::PauseStream { stream_id } => sudo_pause_stream(deps, env, stream_id),
     }
 }
 
@@ -708,6 +731,16 @@ pub fn sudo_update_config(
     ];
 
     Ok(Response::default().add_attributes(attributes))
+}
+
+pub fn sudo_pause_stream(deps: DepsMut, _env: Env, stream_id: u64) -> Result<Response, ContractError> {
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    stream.is_paused = true;
+    STREAMS.save(deps.storage, stream_id, &stream)?;
+
+    Ok(Response::default()
+        .add_attribute("stream_id", stream_id.to_string())
+        .add_attribute("is_paused", true))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

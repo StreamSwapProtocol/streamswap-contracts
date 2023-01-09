@@ -51,6 +51,7 @@ pub struct Stream {
     pub end_time: Timestamp,
     // price at when latest distribution is triggered
     pub current_streamed_price: Decimal,
+    pub is_paused: bool,
 }
 
 impl Stream {
@@ -81,6 +82,7 @@ impl Stream {
             start_time,
             end_time,
             current_streamed_price: Decimal::zero(),
+            is_paused: false,
         }
     }
 

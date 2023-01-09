@@ -82,6 +82,10 @@ pub enum ExecuteMsg {
     //
     // CollectFees collects fees from the contract
     CollectFees {},
+    // PauseStream pauses the stream. Only protocol admin and governance can pause the stream.
+    PauseStream {
+        stream_id: u64,
+    },
 }
 
 #[cw_serde]
@@ -167,6 +171,9 @@ pub enum SudoMsg {
         stream_creation_denom: Option<String>,
         stream_creation_fee: Option<Uint128>,
         fee_collector: Option<String>,
+    },
+    PauseStream {
+        stream_id: u64,
     },
 }
 
