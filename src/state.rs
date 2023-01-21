@@ -51,7 +51,16 @@ pub struct Stream {
     pub end_time: Timestamp,
     // price at when latest distribution is triggered
     pub current_streamed_price: Decimal,
-    pub is_paused: bool,
+    pub status: Status,
+}
+
+#[cw_serde]
+pub enum Status {
+    Waiting,
+    Active,
+    Finalized,
+    Paused,
+    Cancelled,
 }
 
 impl Stream {
@@ -82,7 +91,7 @@ impl Stream {
             start_time,
             end_time,
             current_streamed_price: Decimal::zero(),
-            is_paused: false,
+            status: Status::Waiting,
         }
     }
 
@@ -98,6 +107,10 @@ impl Stream {
             shares = shares / self.in_supply;
         }
         shares
+    }
+
+    pub fn is_paused(&self) -> bool {
+        self.status == Status::Paused
     }
 }
 type StreamId = u64;
