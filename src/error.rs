@@ -77,6 +77,9 @@ pub enum ContractError {
     #[error("Invalid decimals")]
     InvalidDecimals {},
 
-    #[error("Stream Paused")]
+    #[error("Stream paused")]
     StreamPaused {},
+
+    #[error("Stream not paused")]
+    StreamNotPaused {},
 }

@@ -82,9 +82,19 @@ pub enum ExecuteMsg {
     //
     // CollectFees collects fees from the contract
     CollectFees {},
+
+    //
+    // Killswitch features
+    //
     // PauseStream pauses the stream. Only protocol admin and governance can pause the stream.
     PauseStream {
         stream_id: u64,
+    },
+    // WithdrawPaused is used to withdraw unspent position funds during pause.
+    WithdrawPaused {
+        stream_id: u64,
+        cap: Option<Uint128>,
+        position_owner: Option<String>,
     },
 }
 
