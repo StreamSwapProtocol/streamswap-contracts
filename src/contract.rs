@@ -2,7 +2,7 @@ use crate::msg::{
     AveragePriceResponse, ExecuteMsg, InstantiateMsg, LatestStreamedPriceResponse, MigrateMsg,
     PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse, SudoMsg,
 };
-use crate::state::{next_stream_id, Config, Position, Stream, CONFIG, POSITIONS, STREAMS, Status};
+use crate::state::{next_stream_id, Config, Position, Status, Stream, CONFIG, POSITIONS, STREAMS};
 use crate::ContractError;
 use cosmwasm_std::{
     attr, entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
@@ -101,6 +101,10 @@ pub fn execute(
             cap,
             position_owner,
         } => execute_withdraw_paused(deps, env, info, stream_id, cap, position_owner),
+        ExecuteMsg::WithdrawCancelled {
+            stream_id,
+            position_owner,
+        } => execute_withdraw_cancelled(deps, env, info, stream_id, position_owner),
     }
 }
 
@@ -197,7 +201,7 @@ pub fn execute_update_stream(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    if stream.is_paused(){
+    if stream.is_paused() {
         return Err(ContractError::StreamPaused {});
     }
     let (_, dist_amount) = update_stream(env.block.time, &mut stream)?;
@@ -286,7 +290,7 @@ pub fn execute_update_position(
 
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
-    if stream.is_paused(){
+    if stream.is_paused() {
         return Err(ContractError::StreamPaused {});
     }
 
@@ -361,7 +365,7 @@ pub fn execute_subscribe(
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
-    if stream.is_paused(){
+    if stream.is_paused() {
         return Err(ContractError::StreamPaused {});
     }
     if env.block.time < stream.start_time {
@@ -473,7 +477,7 @@ pub fn execute_withdraw(
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
-    if stream.is_paused(){
+    if stream.is_paused() {
         return Err(ContractError::StreamPaused {});
     }
     // can't withdraw after stream ended
@@ -553,7 +557,7 @@ pub fn execute_withdraw_paused(
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
-    if !stream.is_paused(){
+    if !stream.is_paused() {
         return Err(ContractError::StreamPaused {});
     }
     // can't withdraw after stream ended
@@ -623,6 +627,60 @@ pub fn execute_withdraw_paused(
     Ok(res)
 }
 
+pub fn execute_withdraw_cancelled(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    stream_id: u64,
+    position_owner: Option<String>,
+) -> Result<Response, ContractError> {
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    // check if stream is paused
+    if !stream.is_cancelled() {
+        return Err(ContractError::StreamPaused {});
+    }
+
+    let position_owner = maybe_addr(deps.api, position_owner)?.unwrap_or(info.sender.clone());
+    let mut position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;
+    if position.owner != info.sender
+        && position
+            .operator
+            .as_ref()
+            .map_or(true, |o| o != &info.sender)
+    {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    stream.in_supply = stream.in_supply.checked_sub(position.in_balance)?;
+    stream.shares = stream.shares.checked_sub(position.shares)?;
+
+    STREAMS.save(deps.storage, stream_id, &stream)?;
+
+    let attributes = vec![
+        attr("action", "withdraw"),
+        attr("stream_id", stream_id.to_string()),
+        attr("position_owner", position_owner.clone()),
+        attr("withdraw_amount", withdraw_amount),
+    ];
+
+    // send funds to withdraw address or to the sender
+    let res = Response::new()
+        .add_message(CosmosMsg::Bank(BankMsg::Send {
+            to_address: position_owner.to_string(),
+            amount: vec![Coin {
+                denom: stream.in_denom,
+                amount: position.in_balance + position.spent,
+            }],
+        }))
+        .add_attributes(attributes);
+
+    position.in_balance = Uint128::zero();
+    position.spent = Uint128::zero();
+    position.shares = Uint128::zero();
+    POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
+    Ok(res)
+}
+
 pub fn execute_finalize_stream(
     deps: DepsMut,
     env: Env,
@@ -645,8 +703,7 @@ pub fn execute_finalize_stream(
         return Err(ContractError::UpdateDistIndex {});
     }
 
-    let treasury = maybe_addr(deps.api, new_treasury)?
-        .unwrap_or(stream.treasury.clone());
+    let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or(stream.treasury.clone());
 
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: treasury.to_string(),
@@ -691,7 +748,7 @@ pub fn execute_exit_stream(
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
-    if stream.is_paused(){
+    if stream.is_paused() {
         return Err(ContractError::StreamPaused {});
     }
     if env.block.time < stream.end_time {

@@ -112,6 +112,10 @@ impl Stream {
     pub fn is_paused(&self) -> bool {
         self.status == Status::Paused
     }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.status == Status::Cancelled
+    }
 }
 type StreamId = u64;
 pub const STREAMS: Map<StreamId, Stream> = Map::new("stream");
