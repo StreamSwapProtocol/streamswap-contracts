@@ -806,6 +806,7 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
             fee_collector,
         ),
         SudoMsg::PauseStream { stream_id } => sudo_pause_stream(deps, env, stream_id),
+        SudoMsg::CancelStream { stream_id } => sudo_cancel_stream(deps, env, stream_id),
     }
 }
 
@@ -858,6 +859,20 @@ pub fn sudo_pause_stream(
     Ok(Response::default()
         .add_attribute("stream_id", stream_id.to_string())
         .add_attribute("is_paused", "true"))
+}
+
+pub fn sudo_cancel_stream(
+    deps: DepsMut,
+    _env: Env,
+    stream_id: u64,
+) -> Result<Response, ContractError> {
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    stream.status = Status::Cancelled;
+    STREAMS.save(deps.storage, stream_id, &stream)?;
+
+    Ok(Response::default()
+        .add_attribute("stream_id", stream_id.to_string())
+        .add_attribute("status", "cancelled"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

@@ -185,6 +185,9 @@ pub enum SudoMsg {
     PauseStream {
         stream_id: u64,
     },
+    CancelStream {
+        stream_id: u64,
+    },
 }
 
 #[cw_serde]
