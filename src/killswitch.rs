@@ -1,4 +1,5 @@
-use crate::state::{Status, CONFIG, POSITIONS, STREAMS};
+use crate::contract::{update_position, update_stream};
+use crate::state::{Status, Stream, CONFIG, POSITIONS, STREAMS};
 use crate::{contract, ContractError};
 use cosmwasm_std::{
     attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult, Timestamp,
@@ -36,7 +37,7 @@ pub fn execute_withdraw_paused(
     }
 
     // on withdraw paused stream we don't update_stream
-    contract::update_position(
+    update_position(
         stream.dist_index,
         stream.shares,
         stream.last_updated,
@@ -94,9 +95,9 @@ pub fn execute_exit_cancelled(
     position_owner: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    // check if stream is paused
+    // check if stream is cancelled
     if !stream.is_cancelled() {
-        return Err(ContractError::StreamPaused {});
+        return Err(ContractError::StreamNotCancelled {});
     }
 
     let position_owner = maybe_addr(deps.api, position_owner)?.unwrap_or(info.sender.clone());
@@ -110,18 +111,15 @@ pub fn execute_exit_cancelled(
         return Err(ContractError::Unauthorized {});
     }
 
-    let withdraw_amount = position.in_balance + position.spent;
+    // no need to update position here, we just need to return total balance
+    let total_balance = position.in_balance + position.spent;
     POSITIONS.remove(deps.storage, (stream_id, &position.owner));
-
-    stream.in_supply = stream.in_supply.checked_sub(position.in_balance)?;
-    stream.shares = stream.shares.checked_sub(position.shares)?;
-    STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let attributes = vec![
         attr("action", "withdraw_cancelled"),
         attr("stream_id", stream_id.to_string()),
         attr("position_owner", position_owner.clone()),
-        attr("withdraw_amount", withdraw_amount),
+        attr("total_balance", total_balance),
     ];
 
     // send funds to withdraw address or to the sender
@@ -130,7 +128,7 @@ pub fn execute_exit_cancelled(
             to_address: position_owner.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
-                amount: withdraw_amount,
+                amount: total_balance,
             }],
         }))
         .add_attributes(attributes);
@@ -149,7 +147,11 @@ pub fn execute_pause_stream(
         return Err(ContractError::Unauthorized {});
     }
 
-    pause_stream(deps, env.block.time, stream_id)?;
+    // update stream before pause
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    update_stream(env.block.time, &mut stream)?;
+    pause_stream(env.block.time, &mut stream)?;
+    STREAMS.save(deps.storage, stream_id, &stream)?;
 
     Ok(Response::default()
         .add_attribute("stream_id", stream_id.to_string())
@@ -157,11 +159,10 @@ pub fn execute_pause_stream(
         .add_attribute("pause_date", env.block.time.to_string()))
 }
 
-pub fn pause_stream(deps: DepsMut, now: Timestamp, stream_id: u64) -> StdResult<()> {
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+pub fn pause_stream(now: Timestamp, stream: &mut Stream) -> StdResult<()> {
     stream.status = Status::Paused;
     stream.pause_date = Some(now);
-    STREAMS.save(deps.storage, stream_id, &stream)
+    Ok(())
 }
 
 pub fn sudo_pause_stream(
@@ -169,7 +170,10 @@ pub fn sudo_pause_stream(
     env: Env,
     stream_id: u64,
 ) -> Result<Response, ContractError> {
-    pause_stream(deps, env.block.time, stream_id)?;
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    update_stream(env.block.time, &mut stream)?;
+    pause_stream(env.block.time, &mut stream)?;
+    STREAMS.save(deps.storage, stream_id, &stream)?;
 
     Ok(Response::default()
         .add_attribute("stream_id", stream_id.to_string())
@@ -205,6 +209,9 @@ pub fn sudo_cancel_stream(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    if !stream.is_paused() {
+        return Err(ContractError::StreamNotPaused {});
+    }
     stream.status = Status::Cancelled;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 

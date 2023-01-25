@@ -82,4 +82,7 @@ pub enum ContractError {
 
     #[error("Stream not paused")]
     StreamNotPaused {},
+
+    #[error("Stream not cancelled")]
+    StreamNotCancelled {},
 }

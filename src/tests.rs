@@ -1520,6 +1520,7 @@ mod tests {
     #[cfg(test)]
     mod killswitch {
         use super::*;
+        use crate::killswitch::{execute_exit_cancelled, sudo_cancel_stream};
         #[test]
         fn test_pause_protocol_admin() {
             let treasury = Addr::unchecked("treasury");
@@ -1878,36 +1879,35 @@ mod tests {
             let info = mock_info("creator1", &[funds.clone()]);
             execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
 
-            // can't withdraw pause
+            // cant cancel withour pause
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(1_000_000);
+            let err = sudo_cancel_stream(deps.as_mut(), env, 1).unwrap_err();
+            assert_eq!(err, ContractError::StreamNotPaused {});
+
             // pause
             let mut env = mock_env();
-            env.block.time = start.plus_seconds(6000);
+            env.block.time = start.plus_seconds(2_000_000);
             let info = mock_info("protocol_admin", &[]);
             execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
 
             let mut env = mock_env();
-            env.block.time = start.plus_seconds(6500);
-            let stream1_old = query_stream(deps.as_ref(), env, 1).unwrap();
+            env.block.time = start.plus_seconds(2_500_000);
+            sudo_cancel_stream(deps.as_mut(), env, 1).unwrap();
 
-            // stream not updated
+            // exit
             let mut env = mock_env();
-            env.block.time = start.plus_seconds(8000);
-            let stream1_new = query_stream(deps.as_ref(), env, 1).unwrap();
-            // dist_index not updated
-            assert_eq!(stream1_old.dist_index, stream1_new.dist_index);
-            assert_eq!(stream1_new.in_supply, Uint128::zero());
-            assert_eq!(stream1_new.shares, Uint128::zero());
-
-            // position updated
-            let mut env = mock_env();
-            env.block.time = start.plus_seconds(8001);
-            let position =
-                query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
-            // in_balance updated
-            assert_eq!(position.in_balance, Uint128::new(0));
-            assert_eq!(position.spent, Uint128::new(2_500_000_000));
-            assert_eq!(position.purchased, Uint128::new(1_250_000_000));
-            assert_eq!(position.shares, Uint128::new(0));
+            env.block.time = start.plus_seconds(3_000_000);
+            let info = mock_info("creator1", &[]);
+            let res = execute_exit_cancelled(deps.as_mut(), env, info, 1, None).unwrap();
+            let msg = res.messages.get(0).unwrap();
+            assert_eq!(
+                msg.msg,
+                CosmosMsg::Bank(BankMsg::Send {
+                    to_address: "creator1".to_string(),
+                    amount: vec![Coin::new(2000000000000, "in")]
+                })
+            );
         }
     }
 }
