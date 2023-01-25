@@ -558,7 +558,7 @@ pub fn execute_withdraw_paused(
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
     if !stream.is_paused() {
-        return Err(ContractError::StreamNotPaused{});
+        return Err(ContractError::StreamNotPaused {});
     }
     // can't withdraw after stream ended
     if env.block.time > stream.end_time {
@@ -833,16 +833,19 @@ pub fn execute_pause_stream(
         return Err(ContractError::Unauthorized {});
     }
 
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    stream.status = Status::Paused;
-    stream.pause_date = Some(env.block.time);
-    STREAMS.save(deps.storage, stream_id, &stream)?;
+    pause_stream(deps, env.block.time, stream_id)?;
 
     Ok(Response::default()
         .add_attribute("stream_id", stream_id.to_string())
         .add_attribute("is_paused", "true")
         .add_attribute("pause_date", env.block.time.to_string()))
-    )
+}
+
+pub fn pause_stream(deps: DepsMut, now: Timestamp, stream_id: u64) -> StdResult<()> {
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    stream.status = Status::Paused;
+    stream.pause_date = Some(now);
+    STREAMS.save(deps.storage, stream_id, &stream)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -865,6 +868,7 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
         ),
         SudoMsg::PauseStream { stream_id } => sudo_pause_stream(deps, env, stream_id),
         SudoMsg::CancelStream { stream_id } => sudo_cancel_stream(deps, env, stream_id),
+        SudoMsg::ResumeStream { stream_id } => sudo_resume_stream(deps, env, stream_id),
     }
 }
 
@@ -907,16 +911,37 @@ pub fn sudo_update_config(
 
 pub fn sudo_pause_stream(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
+    stream_id: u64,
+) -> Result<Response, ContractError> {
+    pause_stream(deps, env.block.time, stream_id)?;
+
+    Ok(Response::default()
+        .add_attribute("stream_id", stream_id.to_string())
+        .add_attribute("is_paused", "true")
+        .add_attribute("pause_date", env.block.time.to_string()))
+}
+
+pub fn sudo_resume_stream(
+    deps: DepsMut,
+    env: Env,
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    stream.status = Status::Paused;
+    // ok to use unwrap here
+    let pause_date = stream.pause_date.unwrap();
+    // new stream end time is the time passed between pause date and now
+    stream.end_time = stream
+        .end_time
+        .plus_nanos(env.block.time.nanos() - pause_date.nanos());
+    stream.status = Status::Active;
+    stream.pause_date = None;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     Ok(Response::default()
         .add_attribute("stream_id", stream_id.to_string())
-        .add_attribute("is_paused", "true"))
+        .add_attribute("new_end_date", stream.end_time.to_string())
+        .add_attribute("status", "active"))
 }
 
 pub fn sudo_cancel_stream(
@@ -978,6 +1003,8 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
         in_supply: stream.in_supply,
         shares: stream.shares,
         last_updated: stream.last_updated,
+        status: stream.status,
+        pause_date: stream.pause_date,
     };
     Ok(stream)
 }
@@ -1012,6 +1039,8 @@ pub fn list_streams(
                 out_remaining: stream.out_remaining,
                 in_supply: stream.in_supply,
                 shares: stream.shares,
+                status: stream.status,
+                pause_date: stream.pause_date,
             };
             Ok(stream)
         })

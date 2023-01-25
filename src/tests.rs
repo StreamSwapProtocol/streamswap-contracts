@@ -4,7 +4,7 @@ mod tests {
         execute_create_stream, execute_exit_stream, execute_finalize_stream, execute_pause_stream,
         execute_subscribe, execute_update_operator, execute_update_position, execute_update_stream,
         execute_withdraw, execute_withdraw_paused, instantiate, query_average_price,
-        query_last_streamed_price, query_position, query_stream, update_stream,
+        query_last_streamed_price, query_position, query_stream, sudo_resume_stream, update_stream,
     };
     use crate::state::Stream;
     use crate::ContractError;
@@ -1385,6 +1385,7 @@ mod tests {
         let info = mock_info("creator2", &[]);
         execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap();
     }
+
     #[test]
     fn test_price_feed() {
         let treasury = Addr::unchecked("treasury");
@@ -1707,7 +1708,7 @@ mod tests {
         env.block.time = start.plus_seconds(6000);
         let info = mock_info("creator1", &[]);
         let err = execute_withdraw_paused(deps.as_mut(), env, info, 1, None, None).unwrap_err();
-        assert_eq!(err, ContractError::StreamNotPaused{});
+        assert_eq!(err, ContractError::StreamNotPaused {});
 
         // pause
         let mut env = mock_env();
@@ -1744,6 +1745,79 @@ mod tests {
         assert_eq!(position.spent, Uint128::new(2_500_000_000));
         assert_eq!(position.purchased, Uint128::new(1_250_000_000));
         assert_eq!(position.shares, Uint128::new(0));
+    }
+
+    #[test]
+    fn test_resume() {
+        let treasury = Addr::unchecked("treasury");
+        let start = Timestamp::from_seconds(1_000_000);
+        let end = Timestamp::from_seconds(5_000_000);
+        let out_supply = Uint128::new(1_000_000_000_000);
+        let out_denom = "out_denom";
+
+        // instantiate
+        let mut deps = mock_dependencies();
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(0);
+        let msg = crate::msg::InstantiateMsg {
+            min_stream_seconds: Uint64::new(1000),
+            min_seconds_until_start_time: Uint64::new(0),
+            stream_creation_denom: "fee".to_string(),
+            stream_creation_fee: Uint128::new(100),
+            fee_collector: "collector".to_string(),
+            protocol_admin: "protocol_admin".to_string(),
+        };
+        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+        // create stream
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(0);
+        let info = mock_info(
+            "creator1",
+            &[
+                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(100, "fee"),
+            ],
+        );
+        execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            "test".to_string(),
+            "test".to_string(),
+            "in".to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start,
+            end,
+        )
+        .unwrap();
+
+        // first subscription
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(1_000_000);
+        let funds = Coin::new(3_000, "in");
+        let info = mock_info("position1", &[funds.clone()]);
+        execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
+
+        // pause
+        let info = mock_info("protocol_admin", &[]);
+        let mut env = mock_env();
+        let pause_date = start.plus_seconds(2_000_000);
+        env.block.time = pause_date;
+        execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+
+        // resume
+        let mut env = mock_env();
+        let resume_date = start.plus_seconds(3_000_000);
+        env.block.time = resume_date;
+        sudo_resume_stream(deps.as_mut(), env, 1).unwrap();
+
+        // new end date is correct
+        let new_end_date = end.plus_nanos(resume_date.nanos() - pause_date.nanos());
+        let stream = query_stream(deps.as_ref(), mock_env(), 1).unwrap();
+        assert_eq!(stream.end_time, new_end_date);
     }
 
     #[test]
@@ -1810,7 +1884,6 @@ mod tests {
         let mut env = mock_env();
         env.block.time = start.plus_seconds(6500);
         let stream1_old = query_stream(deps.as_ref(), env, 1).unwrap();
-
 
         // stream not updated
         let mut env = mock_env();

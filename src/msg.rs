@@ -1,3 +1,4 @@
+use crate::state::Status;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Decimal, Decimal256, Timestamp, Uint128, Uint64};
 
@@ -142,6 +143,8 @@ pub struct StreamResponse {
     pub in_spent: Uint128,
     pub start_time: Timestamp,
     pub end_time: Timestamp,
+    pub status: Status,
+    pub pause_date: Option<Timestamp>,
 }
 
 #[cw_serde]
@@ -191,6 +194,9 @@ pub enum SudoMsg {
         stream_id: u64,
     },
     CancelStream {
+        stream_id: u64,
+    },
+    ResumeStream {
         stream_id: u64,
     },
 }

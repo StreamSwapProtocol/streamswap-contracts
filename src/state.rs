@@ -93,6 +93,7 @@ impl Stream {
             end_time,
             current_streamed_price: Decimal::zero(),
             status: Status::Waiting,
+            pause_date: None,
         }
     }
 
