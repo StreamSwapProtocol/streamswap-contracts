@@ -52,6 +52,7 @@ pub struct Stream {
     // price at when latest distribution is triggered
     pub current_streamed_price: Decimal,
     pub status: Status,
+    pub pause_date: Option<Timestamp>,
 }
 
 #[cw_serde]

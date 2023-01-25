@@ -558,7 +558,7 @@ pub fn execute_withdraw_paused(
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
     if !stream.is_paused() {
-        return Err(ContractError::StreamPaused {});
+        return Err(ContractError::StreamNotPaused{});
     }
     // can't withdraw after stream ended
     if env.block.time > stream.end_time {
@@ -607,7 +607,7 @@ pub fn execute_withdraw_paused(
     POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
 
     let attributes = vec![
-        attr("action", "withdraw"),
+        attr("action", "withdraw_paused"),
         attr("stream_id", stream_id.to_string()),
         attr("position_owner", position_owner.clone()),
         attr("withdraw_amount", withdraw_amount),
@@ -651,13 +651,15 @@ pub fn execute_withdraw_cancelled(
         return Err(ContractError::Unauthorized {});
     }
 
+    let withdraw_amount = position.in_balance + position.spent;
+    POSITIONS.remove(deps.storage, (stream_id, &position.owner));
+
     stream.in_supply = stream.in_supply.checked_sub(position.in_balance)?;
     stream.shares = stream.shares.checked_sub(position.shares)?;
-
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let attributes = vec![
-        attr("action", "withdraw"),
+        attr("action", "withdraw_cancelled"),
         attr("stream_id", stream_id.to_string()),
         attr("position_owner", position_owner.clone()),
         attr("withdraw_amount", withdraw_amount),
@@ -669,15 +671,11 @@ pub fn execute_withdraw_cancelled(
             to_address: position_owner.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
-                amount: position.in_balance + position.spent,
+                amount: withdraw_amount,
             }],
         }))
         .add_attributes(attributes);
 
-    position.in_balance = Uint128::zero();
-    position.spent = Uint128::zero();
-    position.shares = Uint128::zero();
-    POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
     Ok(res)
 }
 
@@ -826,7 +824,7 @@ pub fn execute_collect_fees(
 
 pub fn execute_pause_stream(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     stream_id: u64,
 ) -> Result<Response, ContractError> {
@@ -837,11 +835,14 @@ pub fn execute_pause_stream(
 
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     stream.status = Status::Paused;
+    stream.pause_date = Some(env.block.time);
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     Ok(Response::default()
         .add_attribute("stream_id", stream_id.to_string())
-        .add_attribute("is_paused", "true"))
+        .add_attribute("is_paused", "true")
+        .add_attribute("pause_date", env.block.time.to_string()))
+    )
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
