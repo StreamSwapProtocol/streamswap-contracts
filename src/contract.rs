@@ -103,10 +103,10 @@ pub fn execute(
             cap,
             position_owner,
         } => killswitch::execute_withdraw_paused(deps, env, info, stream_id, cap, position_owner),
-        ExecuteMsg::WithdrawCancelled {
+        ExecuteMsg::ExitCancelled {
             stream_id,
             position_owner,
-        } => killswitch::execute_withdraw_cancelled(deps, env, info, stream_id, position_owner),
+        } => killswitch::execute_exit_cancelled(deps, env, info, stream_id, position_owner),
     }
 }
 

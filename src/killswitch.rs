@@ -86,7 +86,7 @@ pub fn execute_withdraw_paused(
     Ok(res)
 }
 
-pub fn execute_withdraw_cancelled(
+pub fn execute_exit_cancelled(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,

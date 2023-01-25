@@ -97,8 +97,8 @@ pub enum ExecuteMsg {
         cap: Option<Uint128>,
         position_owner: Option<String>,
     },
-    // WithdrawCancelled returns the whole balance user put in the stream, both spent and unspent.
-    WithdrawCancelled {
+    // ExitCancelled returns the whole balance user put in the stream, both spent and unspent.
+    ExitCancelled {
         stream_id: u64,
         position_owner: Option<String>,
     },

@@ -1825,7 +1825,7 @@ mod tests {
         }
 
         #[test]
-        fn test_withdraw_cancel() {
+        fn test_exit_cancel() {
             let treasury = Addr::unchecked("treasury");
             let start = Timestamp::from_seconds(1_000_000);
             let end = Timestamp::from_seconds(5_000_000);
