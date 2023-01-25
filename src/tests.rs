@@ -1,11 +1,12 @@
 #[cfg(test)]
 mod tests {
     use crate::contract::{
-        execute_create_stream, execute_exit_stream, execute_finalize_stream, execute_pause_stream,
-        execute_subscribe, execute_update_operator, execute_update_position, execute_update_stream,
-        execute_withdraw, execute_withdraw_paused, instantiate, query_average_price,
-        query_last_streamed_price, query_position, query_stream, sudo_resume_stream, update_stream,
+        execute_create_stream, execute_exit_stream, execute_finalize_stream, execute_subscribe,
+        execute_update_operator, execute_update_position, execute_update_stream, execute_withdraw,
+        instantiate, query_average_price, query_last_streamed_price, query_position, query_stream,
+        update_stream,
     };
+    use crate::killswitch::{execute_pause_stream, execute_withdraw_paused, sudo_resume_stream};
     use crate::state::Stream;
     use crate::ContractError;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
@@ -1516,393 +1517,397 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_pause_protocol_admin() {
-        let treasury = Addr::unchecked("treasury");
-        let start = Timestamp::from_seconds(1_000_000);
-        let end = Timestamp::from_seconds(5_000_000);
-        let out_supply = Uint128::new(1_000_000_000_000);
-        let out_denom = "out_denom";
+    #[cfg(test)]
+    mod killswitch {
+        use super::*;
+        #[test]
+        fn test_pause_protocol_admin() {
+            let treasury = Addr::unchecked("treasury");
+            let start = Timestamp::from_seconds(1_000_000);
+            let end = Timestamp::from_seconds(5_000_000);
+            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_denom = "out_denom";
 
-        // instantiate
-        let mut deps = mock_dependencies();
-        let mut env = mock_env();
-        env.block.time = Timestamp::from_seconds(0);
-        let msg = crate::msg::InstantiateMsg {
-            min_stream_seconds: Uint64::new(1000),
-            min_seconds_until_start_time: Uint64::new(0),
-            stream_creation_denom: "fee".to_string(),
-            stream_creation_fee: Uint128::new(100),
-            fee_collector: "collector".to_string(),
-            protocol_admin: "protocol_admin".to_string(),
-        };
-        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+            // instantiate
+            let mut deps = mock_dependencies();
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(0);
+            let msg = crate::msg::InstantiateMsg {
+                min_stream_seconds: Uint64::new(1000),
+                min_seconds_until_start_time: Uint64::new(0),
+                stream_creation_denom: "fee".to_string(),
+                stream_creation_fee: Uint128::new(100),
+                fee_collector: "collector".to_string(),
+                protocol_admin: "protocol_admin".to_string(),
+            };
+            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
-        // create stream
-        let mut env = mock_env();
-        env.block.time = Timestamp::from_seconds(0);
-        let info = mock_info(
-            "creator1",
-            &[
-                Coin::new(out_supply.u128(), out_denom),
-                Coin::new(100, "fee"),
-            ],
-        );
-        execute_create_stream(
-            deps.as_mut(),
-            env,
-            info,
-            treasury.to_string(),
-            "test".to_string(),
-            "test".to_string(),
-            "in".to_string(),
-            out_denom.to_string(),
-            out_supply,
-            start,
-            end,
-        )
-        .unwrap();
+            // create stream
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(0);
+            let info = mock_info(
+                "creator1",
+                &[
+                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(100, "fee"),
+                ],
+            );
+            execute_create_stream(
+                deps.as_mut(),
+                env,
+                info,
+                treasury.to_string(),
+                "test".to_string(),
+                "test".to_string(),
+                "in".to_string(),
+                out_denom.to_string(),
+                out_supply,
+                start,
+                end,
+            )
+            .unwrap();
 
-        // non protocol admin can't pause
-        let info = mock_info("non_protocol_admin", &[]);
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(100);
+            // non protocol admin can't pause
+            let info = mock_info("non_protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(100);
 
-        let res = execute_pause_stream(deps.as_mut(), env, info, 1);
-        assert_eq!(res, Err(ContractError::Unauthorized {}));
+            let res = execute_pause_stream(deps.as_mut(), env, info, 1);
+            assert_eq!(res, Err(ContractError::Unauthorized {}));
 
-        // first subscription
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(1_000_000);
-        let funds = Coin::new(3_000, "in");
-        let info = mock_info("position1", &[funds.clone()]);
-        execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
+            // first subscription
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(1_000_000);
+            let funds = Coin::new(3_000, "in");
+            let info = mock_info("position1", &[funds.clone()]);
+            execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
 
-        // protocol admin can pause
-        let info = mock_info("protocol_admin", &[]);
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(1_000_001);
-        execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+            // protocol admin can pause
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(1_000_001);
+            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
 
-        // can't subscribe new
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(1_000_002);
-        let funds = Coin::new(3_000, "in");
-        let info = mock_info("position2", &[funds.clone()]);
-        let res = execute_subscribe(deps.as_mut(), env, info, 1, None, None);
-        assert_eq!(res, Err(ContractError::StreamPaused {}));
+            // can't subscribe new
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(1_000_002);
+            let funds = Coin::new(3_000, "in");
+            let info = mock_info("position2", &[funds.clone()]);
+            let res = execute_subscribe(deps.as_mut(), env, info, 1, None, None);
+            assert_eq!(res, Err(ContractError::StreamPaused {}));
 
-        // can't subscribe more
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(1_000_002);
-        let funds = Coin::new(3_000, "in");
-        let info = mock_info("position1", &[funds.clone()]);
-        let res = execute_subscribe(deps.as_mut(), env, info, 1, None, None);
-        assert_eq!(res, Err(ContractError::StreamPaused {}));
+            // can't subscribe more
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(1_000_002);
+            let funds = Coin::new(3_000, "in");
+            let info = mock_info("position1", &[funds.clone()]);
+            let res = execute_subscribe(deps.as_mut(), env, info, 1, None, None);
+            assert_eq!(res, Err(ContractError::StreamPaused {}));
 
-        // can't withdraw
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(1_000_002);
-        let info = mock_info("position1", &[]);
-        let res = execute_withdraw(deps.as_mut(), env, info, 1, None, None);
-        assert_eq!(res, Err(ContractError::StreamPaused {}));
+            // can't withdraw
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(1_000_002);
+            let info = mock_info("position1", &[]);
+            let res = execute_withdraw(deps.as_mut(), env, info, 1, None, None);
+            assert_eq!(res, Err(ContractError::StreamPaused {}));
 
-        // can't update stream
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(1_000_002);
-        let res = execute_update_stream(deps.as_mut(), env, 1);
-        assert_eq!(res, Err(ContractError::StreamPaused {}));
+            // can't update stream
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(1_000_002);
+            let res = execute_update_stream(deps.as_mut(), env, 1);
+            assert_eq!(res, Err(ContractError::StreamPaused {}));
 
-        // can't update position
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(1_000_002);
-        let info = mock_info("position1", &[]);
-        let res = execute_update_position(deps.as_mut(), env, info, 1, None);
-        assert_eq!(res, Err(ContractError::StreamPaused {}));
+            // can't update position
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(1_000_002);
+            let info = mock_info("position1", &[]);
+            let res = execute_update_position(deps.as_mut(), env, info, 1, None);
+            assert_eq!(res, Err(ContractError::StreamPaused {}));
 
-        // can't finalize stream
-        let mut env = mock_env();
-        env.block.time = end.plus_seconds(1_000_002);
-        let info = mock_info("treasury", &[]);
-        let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None);
-        assert_eq!(res, Err(ContractError::StreamPaused {}));
+            // can't finalize stream
+            let mut env = mock_env();
+            env.block.time = end.plus_seconds(1_000_002);
+            let info = mock_info("treasury", &[]);
+            let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None);
+            assert_eq!(res, Err(ContractError::StreamPaused {}));
 
-        // can't exit
-        let mut env = mock_env();
-        env.block.time = end.plus_seconds(1_000_002);
-        let info = mock_info("position1", &[]);
-        let res = execute_exit_stream(deps.as_mut(), env, info, 1, None);
-        assert_eq!(res, Err(ContractError::StreamPaused {}));
-    }
+            // can't exit
+            let mut env = mock_env();
+            env.block.time = end.plus_seconds(1_000_002);
+            let info = mock_info("position1", &[]);
+            let res = execute_exit_stream(deps.as_mut(), env, info, 1, None);
+            assert_eq!(res, Err(ContractError::StreamPaused {}));
+        }
 
-    #[test]
-    fn test_withdraw_pause() {
-        let treasury = Addr::unchecked("treasury");
-        let start = Timestamp::from_seconds(1_000_000);
-        let end = Timestamp::from_seconds(5_000_000);
-        let out_supply = Uint128::new(1_000_000_000_000);
-        let out_denom = "out_denom";
+        #[test]
+        fn test_withdraw_pause() {
+            let treasury = Addr::unchecked("treasury");
+            let start = Timestamp::from_seconds(1_000_000);
+            let end = Timestamp::from_seconds(5_000_000);
+            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_denom = "out_denom";
 
-        // instantiate
-        let mut deps = mock_dependencies();
-        let mut env = mock_env();
-        env.block.time = Timestamp::from_seconds(0);
-        let msg = crate::msg::InstantiateMsg {
-            min_stream_seconds: Uint64::new(1000),
-            min_seconds_until_start_time: Uint64::new(0),
-            stream_creation_denom: "fee".to_string(),
-            stream_creation_fee: Uint128::new(100),
-            fee_collector: "collector".to_string(),
-            protocol_admin: "protocol_admin".to_string(),
-        };
-        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+            // instantiate
+            let mut deps = mock_dependencies();
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(0);
+            let msg = crate::msg::InstantiateMsg {
+                min_stream_seconds: Uint64::new(1000),
+                min_seconds_until_start_time: Uint64::new(0),
+                stream_creation_denom: "fee".to_string(),
+                stream_creation_fee: Uint128::new(100),
+                fee_collector: "collector".to_string(),
+                protocol_admin: "protocol_admin".to_string(),
+            };
+            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
-        // create stream
-        let mut env = mock_env();
-        env.block.time = Timestamp::from_seconds(0);
-        let info = mock_info(
-            "creator1",
-            &[
-                Coin::new(out_supply.u128(), out_denom),
-                Coin::new(100, "fee"),
-            ],
-        );
-        execute_create_stream(
-            deps.as_mut(),
-            env,
-            info,
-            treasury.to_string(),
-            "test".to_string(),
-            "test".to_string(),
-            "in".to_string(),
-            out_denom.to_string(),
-            out_supply,
-            start,
-            end,
-        )
-        .unwrap();
+            // create stream
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(0);
+            let info = mock_info(
+                "creator1",
+                &[
+                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(100, "fee"),
+                ],
+            );
+            execute_create_stream(
+                deps.as_mut(),
+                env,
+                info,
+                treasury.to_string(),
+                "test".to_string(),
+                "test".to_string(),
+                "in".to_string(),
+                out_denom.to_string(),
+                out_supply,
+                start,
+                end,
+            )
+            .unwrap();
 
-        // subscription
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(0);
-        let funds = Coin::new(2_000_000_000_000, "in");
-        let info = mock_info("creator1", &[funds.clone()]);
-        execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
+            // subscription
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(0);
+            let funds = Coin::new(2_000_000_000_000, "in");
+            let info = mock_info("creator1", &[funds.clone()]);
+            execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
 
-        // withdraw with cap
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(5000);
-        let info = mock_info("creator1", &[]);
-        let cap = Uint128::new(25_000_000);
-        execute_withdraw(deps.as_mut(), env, info, 1, Some(cap), None).unwrap();
-        let position =
-            query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
-        assert_eq!(position.in_balance, Uint128::new(1_997_475_000_000));
-        assert_eq!(position.spent, Uint128::new(2_500_000_000));
-        assert_eq!(position.purchased, Uint128::new(1_250_000_000));
-        // first fund amount should be equal to in_balance + spent + cap
-        assert_eq!(position.in_balance + position.spent + cap, funds.amount);
+            // withdraw with cap
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(5000);
+            let info = mock_info("creator1", &[]);
+            let cap = Uint128::new(25_000_000);
+            execute_withdraw(deps.as_mut(), env, info, 1, Some(cap), None).unwrap();
+            let position =
+                query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
+            assert_eq!(position.in_balance, Uint128::new(1_997_475_000_000));
+            assert_eq!(position.spent, Uint128::new(2_500_000_000));
+            assert_eq!(position.purchased, Uint128::new(1_250_000_000));
+            // first fund amount should be equal to in_balance + spent + cap
+            assert_eq!(position.in_balance + position.spent + cap, funds.amount);
 
-        // can't withdraw pause
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(6000);
-        let info = mock_info("creator1", &[]);
-        let err = execute_withdraw_paused(deps.as_mut(), env, info, 1, None, None).unwrap_err();
-        assert_eq!(err, ContractError::StreamNotPaused {});
+            // can't withdraw pause
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(6000);
+            let info = mock_info("creator1", &[]);
+            let err = execute_withdraw_paused(deps.as_mut(), env, info, 1, None, None).unwrap_err();
+            assert_eq!(err, ContractError::StreamNotPaused {});
 
-        // pause
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(6000);
-        let info = mock_info("protocol_admin", &[]);
-        execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+            // pause
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(6000);
+            let info = mock_info("protocol_admin", &[]);
+            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
 
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(6500);
-        let stream1_old = query_stream(deps.as_ref(), env, 1).unwrap();
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(6500);
+            let stream1_old = query_stream(deps.as_ref(), env, 1).unwrap();
 
-        // withdraw after pause
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(7000);
-        let info = mock_info("creator1", &[]);
-        execute_withdraw_paused(deps.as_mut(), env, info, 1, None, None).unwrap();
+            // withdraw after pause
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(7000);
+            let info = mock_info("creator1", &[]);
+            execute_withdraw_paused(deps.as_mut(), env, info, 1, None, None).unwrap();
 
-        // stream not updated
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(8000);
-        let stream1_new = query_stream(deps.as_ref(), env, 1).unwrap();
-        // dist_index not updated
-        assert_eq!(stream1_old.dist_index, stream1_new.dist_index);
-        assert_eq!(stream1_new.in_supply, Uint128::zero());
-        assert_eq!(stream1_new.shares, Uint128::zero());
+            // stream not updated
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(8000);
+            let stream1_new = query_stream(deps.as_ref(), env, 1).unwrap();
+            // dist_index not updated
+            assert_eq!(stream1_old.dist_index, stream1_new.dist_index);
+            assert_eq!(stream1_new.in_supply, Uint128::zero());
+            assert_eq!(stream1_new.shares, Uint128::zero());
 
-        // position updated
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(8001);
-        let position =
-            query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
-        // in_balance updated
-        assert_eq!(position.in_balance, Uint128::new(0));
-        assert_eq!(position.spent, Uint128::new(2_500_000_000));
-        assert_eq!(position.purchased, Uint128::new(1_250_000_000));
-        assert_eq!(position.shares, Uint128::new(0));
-    }
+            // position updated
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(8001);
+            let position =
+                query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
+            // in_balance updated
+            assert_eq!(position.in_balance, Uint128::new(0));
+            assert_eq!(position.spent, Uint128::new(2_500_000_000));
+            assert_eq!(position.purchased, Uint128::new(1_250_000_000));
+            assert_eq!(position.shares, Uint128::new(0));
+        }
 
-    #[test]
-    fn test_resume() {
-        let treasury = Addr::unchecked("treasury");
-        let start = Timestamp::from_seconds(1_000_000);
-        let end = Timestamp::from_seconds(5_000_000);
-        let out_supply = Uint128::new(1_000_000_000_000);
-        let out_denom = "out_denom";
+        #[test]
+        fn test_resume() {
+            let treasury = Addr::unchecked("treasury");
+            let start = Timestamp::from_seconds(1_000_000);
+            let end = Timestamp::from_seconds(5_000_000);
+            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_denom = "out_denom";
 
-        // instantiate
-        let mut deps = mock_dependencies();
-        let mut env = mock_env();
-        env.block.time = Timestamp::from_seconds(0);
-        let msg = crate::msg::InstantiateMsg {
-            min_stream_seconds: Uint64::new(1000),
-            min_seconds_until_start_time: Uint64::new(0),
-            stream_creation_denom: "fee".to_string(),
-            stream_creation_fee: Uint128::new(100),
-            fee_collector: "collector".to_string(),
-            protocol_admin: "protocol_admin".to_string(),
-        };
-        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+            // instantiate
+            let mut deps = mock_dependencies();
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(0);
+            let msg = crate::msg::InstantiateMsg {
+                min_stream_seconds: Uint64::new(1000),
+                min_seconds_until_start_time: Uint64::new(0),
+                stream_creation_denom: "fee".to_string(),
+                stream_creation_fee: Uint128::new(100),
+                fee_collector: "collector".to_string(),
+                protocol_admin: "protocol_admin".to_string(),
+            };
+            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
-        // create stream
-        let mut env = mock_env();
-        env.block.time = Timestamp::from_seconds(0);
-        let info = mock_info(
-            "creator1",
-            &[
-                Coin::new(out_supply.u128(), out_denom),
-                Coin::new(100, "fee"),
-            ],
-        );
-        execute_create_stream(
-            deps.as_mut(),
-            env,
-            info,
-            treasury.to_string(),
-            "test".to_string(),
-            "test".to_string(),
-            "in".to_string(),
-            out_denom.to_string(),
-            out_supply,
-            start,
-            end,
-        )
-        .unwrap();
+            // create stream
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(0);
+            let info = mock_info(
+                "creator1",
+                &[
+                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(100, "fee"),
+                ],
+            );
+            execute_create_stream(
+                deps.as_mut(),
+                env,
+                info,
+                treasury.to_string(),
+                "test".to_string(),
+                "test".to_string(),
+                "in".to_string(),
+                out_denom.to_string(),
+                out_supply,
+                start,
+                end,
+            )
+            .unwrap();
 
-        // first subscription
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(1_000_000);
-        let funds = Coin::new(3_000, "in");
-        let info = mock_info("position1", &[funds.clone()]);
-        execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
+            // first subscription
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(1_000_000);
+            let funds = Coin::new(3_000, "in");
+            let info = mock_info("position1", &[funds.clone()]);
+            execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
 
-        // pause
-        let info = mock_info("protocol_admin", &[]);
-        let mut env = mock_env();
-        let pause_date = start.plus_seconds(2_000_000);
-        env.block.time = pause_date;
-        execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+            // pause
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            let pause_date = start.plus_seconds(2_000_000);
+            env.block.time = pause_date;
+            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
 
-        // resume
-        let mut env = mock_env();
-        let resume_date = start.plus_seconds(3_000_000);
-        env.block.time = resume_date;
-        sudo_resume_stream(deps.as_mut(), env, 1).unwrap();
+            // resume
+            let mut env = mock_env();
+            let resume_date = start.plus_seconds(3_000_000);
+            env.block.time = resume_date;
+            sudo_resume_stream(deps.as_mut(), env, 1).unwrap();
 
-        // new end date is correct
-        let new_end_date = end.plus_nanos(resume_date.nanos() - pause_date.nanos());
-        let stream = query_stream(deps.as_ref(), mock_env(), 1).unwrap();
-        assert_eq!(stream.end_time, new_end_date);
-    }
+            // new end date is correct
+            let new_end_date = end.plus_nanos(resume_date.nanos() - pause_date.nanos());
+            let stream = query_stream(deps.as_ref(), mock_env(), 1).unwrap();
+            assert_eq!(stream.end_time, new_end_date);
+        }
 
-    #[test]
-    fn test_withdraw_cancel() {
-        let treasury = Addr::unchecked("treasury");
-        let start = Timestamp::from_seconds(1_000_000);
-        let end = Timestamp::from_seconds(5_000_000);
-        let out_supply = Uint128::new(1_000_000_000_000);
-        let out_denom = "out_denom";
+        #[test]
+        fn test_withdraw_cancel() {
+            let treasury = Addr::unchecked("treasury");
+            let start = Timestamp::from_seconds(1_000_000);
+            let end = Timestamp::from_seconds(5_000_000);
+            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_denom = "out_denom";
 
-        // instantiate
-        let mut deps = mock_dependencies();
-        let mut env = mock_env();
-        env.block.time = Timestamp::from_seconds(0);
-        let msg = crate::msg::InstantiateMsg {
-            min_stream_seconds: Uint64::new(1000),
-            min_seconds_until_start_time: Uint64::new(0),
-            stream_creation_denom: "fee".to_string(),
-            stream_creation_fee: Uint128::new(100),
-            fee_collector: "collector".to_string(),
-            protocol_admin: "protocol_admin".to_string(),
-        };
-        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+            // instantiate
+            let mut deps = mock_dependencies();
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(0);
+            let msg = crate::msg::InstantiateMsg {
+                min_stream_seconds: Uint64::new(1000),
+                min_seconds_until_start_time: Uint64::new(0),
+                stream_creation_denom: "fee".to_string(),
+                stream_creation_fee: Uint128::new(100),
+                fee_collector: "collector".to_string(),
+                protocol_admin: "protocol_admin".to_string(),
+            };
+            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
-        // create stream
-        let mut env = mock_env();
-        env.block.time = Timestamp::from_seconds(0);
-        let info = mock_info(
-            "creator1",
-            &[
-                Coin::new(out_supply.u128(), out_denom),
-                Coin::new(100, "fee"),
-            ],
-        );
-        execute_create_stream(
-            deps.as_mut(),
-            env,
-            info,
-            treasury.to_string(),
-            "test".to_string(),
-            "test".to_string(),
-            "in".to_string(),
-            out_denom.to_string(),
-            out_supply,
-            start,
-            end,
-        )
-        .unwrap();
+            // create stream
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(0);
+            let info = mock_info(
+                "creator1",
+                &[
+                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(100, "fee"),
+                ],
+            );
+            execute_create_stream(
+                deps.as_mut(),
+                env,
+                info,
+                treasury.to_string(),
+                "test".to_string(),
+                "test".to_string(),
+                "in".to_string(),
+                out_denom.to_string(),
+                out_supply,
+                start,
+                end,
+            )
+            .unwrap();
 
-        // subscription
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(0);
-        let funds = Coin::new(2_000_000_000_000, "in");
-        let info = mock_info("creator1", &[funds.clone()]);
-        execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
+            // subscription
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(0);
+            let funds = Coin::new(2_000_000_000_000, "in");
+            let info = mock_info("creator1", &[funds.clone()]);
+            execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
 
-        // can't withdraw pause
-        // pause
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(6000);
-        let info = mock_info("protocol_admin", &[]);
-        execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+            // can't withdraw pause
+            // pause
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(6000);
+            let info = mock_info("protocol_admin", &[]);
+            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
 
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(6500);
-        let stream1_old = query_stream(deps.as_ref(), env, 1).unwrap();
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(6500);
+            let stream1_old = query_stream(deps.as_ref(), env, 1).unwrap();
 
-        // stream not updated
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(8000);
-        let stream1_new = query_stream(deps.as_ref(), env, 1).unwrap();
-        // dist_index not updated
-        assert_eq!(stream1_old.dist_index, stream1_new.dist_index);
-        assert_eq!(stream1_new.in_supply, Uint128::zero());
-        assert_eq!(stream1_new.shares, Uint128::zero());
+            // stream not updated
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(8000);
+            let stream1_new = query_stream(deps.as_ref(), env, 1).unwrap();
+            // dist_index not updated
+            assert_eq!(stream1_old.dist_index, stream1_new.dist_index);
+            assert_eq!(stream1_new.in_supply, Uint128::zero());
+            assert_eq!(stream1_new.shares, Uint128::zero());
 
-        // position updated
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(8001);
-        let position =
-            query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
-        // in_balance updated
-        assert_eq!(position.in_balance, Uint128::new(0));
-        assert_eq!(position.spent, Uint128::new(2_500_000_000));
-        assert_eq!(position.purchased, Uint128::new(1_250_000_000));
-        assert_eq!(position.shares, Uint128::new(0));
+            // position updated
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(8001);
+            let position =
+                query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
+            // in_balance updated
+            assert_eq!(position.in_balance, Uint128::new(0));
+            assert_eq!(position.spent, Uint128::new(2_500_000_000));
+            assert_eq!(position.purchased, Uint128::new(1_250_000_000));
+            assert_eq!(position.shares, Uint128::new(0));
+        }
     }
 }
