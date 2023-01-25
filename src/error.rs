@@ -85,4 +85,7 @@ pub enum ContractError {
 
     #[error("Stream not cancelled")]
     StreamNotCancelled {},
+
+    #[error("Killswitch is active")]
+    StreamKillswitchActive{},
 }

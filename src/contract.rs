@@ -367,8 +367,8 @@ pub fn execute_subscribe(
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
-    if stream.is_paused() {
-        return Err(ContractError::StreamPaused {});
+    if stream.is_killswitch_active() {
+        return Err(ContractError::StreamKillswitchActive{});
     }
     if env.block.time < stream.start_time {
         return Err(ContractError::StreamNotStarted {});
@@ -479,8 +479,8 @@ pub fn execute_withdraw(
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
-    if stream.is_paused() {
-        return Err(ContractError::StreamPaused {});
+    if stream.is_killswitch_active() {
+        return Err(ContractError::StreamKillswitchActive{});
     }
     // can't withdraw after stream ended
     if env.block.time > stream.end_time {
@@ -558,8 +558,8 @@ pub fn execute_finalize_stream(
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
-    if stream.is_paused() {
-        return Err(ContractError::StreamPaused {});
+    if stream.is_killswitch_active() {
+        return Err(ContractError::StreamKillswitchActive{});
     }
     if stream.treasury != info.sender {
         return Err(ContractError::Unauthorized {});
@@ -616,8 +616,8 @@ pub fn execute_exit_stream(
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
-    if stream.is_paused() {
-        return Err(ContractError::StreamPaused {});
+    if stream.is_killswitch_active() {
+        return Err(ContractError::StreamKillswitchActive{});
     }
     if env.block.time < stream.end_time {
         return Err(ContractError::StreamNotEnded {});

@@ -118,6 +118,11 @@ impl Stream {
     pub fn is_cancelled(&self) -> bool {
         self.status == Status::Cancelled
     }
+
+
+    pub fn is_killswitch_active(&self) -> bool {
+        self.status == Status::Cancelled || self.status == Status::Paused
+    }
 }
 type StreamId = u64;
 pub const STREAMS: Map<StreamId, Stream> = Map::new("stream");
