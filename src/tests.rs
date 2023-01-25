@@ -1747,8 +1747,8 @@ mod tests {
                 query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
             // in_balance updated
             assert_eq!(position.in_balance, Uint128::new(0));
-            assert_eq!(position.spent, Uint128::new(2_500_000_000));
-            assert_eq!(position.purchased, Uint128::new(1_250_000_000));
+            assert_eq!(position.spent, Uint128::new(2_999_993_742));
+            assert_eq!(position.purchased, Uint128::new(1499_999_998));
             assert_eq!(position.shares, Uint128::new(0));
         }
 

@@ -1,6 +1,6 @@
 use crate::contract::{update_position, update_stream};
 use crate::state::{Status, Stream, CONFIG, POSITIONS, STREAMS};
-use crate::{contract, ContractError};
+use crate::ContractError;
 use cosmwasm_std::{
     attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult, Timestamp,
     Uint128,
@@ -94,14 +94,14 @@ pub fn execute_exit_cancelled(
     stream_id: u64,
     position_owner: Option<String>,
 ) -> Result<Response, ContractError> {
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is cancelled
     if !stream.is_cancelled() {
         return Err(ContractError::StreamNotCancelled {});
     }
 
     let position_owner = maybe_addr(deps.api, position_owner)?.unwrap_or(info.sender.clone());
-    let mut position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;
+    let position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;
     if position.owner != info.sender
         && position
             .operator
