@@ -674,30 +674,6 @@ pub fn execute_exit_stream(
         .add_message(send_msg)
         .add_attributes(attributes))
 }
-
-// TODO: finalize already sends back the fees, so this is not needed, but in case there is extra fees
-// best to keep this
-pub fn execute_collect_fees(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-) -> Result<Response, ContractError> {
-    let config = CONFIG.load(deps.storage)?;
-    if config.fee_collector != info.sender {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    let collected_fees = deps
-        .querier
-        .query_balance(env.contract.address, config.stream_creation_denom.as_str())?;
-    let send_msg = CosmosMsg::Bank(BankMsg::Send {
-        to_address: config.fee_collector.to_string(),
-        amount: vec![collected_fees],
-    });
-
-    Ok(Response::new().add_message(send_msg))
-}
-
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractError> {
     match msg {
