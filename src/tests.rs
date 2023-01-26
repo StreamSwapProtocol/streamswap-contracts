@@ -67,6 +67,33 @@ mod tests {
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
+        // invalid in_denom
+        let treasury = "treasury";
+        let name = "name";
+        let url = "url";
+        let start_time = Timestamp::from_seconds(3000);
+        let end_time = Timestamp::from_seconds(100000);
+        let out_supply = Uint128::new(50_000_000);
+        let out_denom = "out_denom";
+        let in_denom = "random";
+
+        let info = mock_info("creator", &[]);
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(0);
+        let res = execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            name.to_string(),
+            url.to_string(),
+            in_denom.to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start_time,
+            end_time,
+        );
+        assert_eq!(res, Err(ContractError::InDenomIsNotAccepted {}));
         // end < start case
         let treasury = "treasury";
         let name = "name";
@@ -196,6 +223,25 @@ mod tests {
             end_time,
         );
         assert_eq!(res, Err(ContractError::StreamOutSupplyFundsRequired {}));
+
+        // wrong creation fee case
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(1);
+        let info = mock_info("creator1", &[Coin::new(out_supply.u128(), "out_denom"), Coin::new(99, "fee")]);
+        let res = execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            name.to_string(),
+            url.to_string(),
+            in_denom.to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start_time,
+            end_time,
+        );
+        assert_eq!(res, Err(ContractError::StreamCreationFeeRequired {}));
 
         // no creation fee case
         let mut env = mock_env();
