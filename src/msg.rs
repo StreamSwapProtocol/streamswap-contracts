@@ -79,11 +79,6 @@ pub enum ExecuteMsg {
         stream_id: u64,
         position_owner: Option<String>,
     },
-    //
-    // Collector
-    //
-    // CollectFees collects fees from the contract
-    CollectFees {},
 
     //
     // Killswitch features

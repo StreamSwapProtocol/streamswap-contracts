@@ -95,7 +95,7 @@ pub fn execute(
             stream_id,
             position_owner,
         } => execute_exit_stream(deps, env, info, stream_id, position_owner),
-        ExecuteMsg::CollectFees {} => execute_collect_fees(deps, env, info),
+
         ExecuteMsg::PauseStream { stream_id } => {
             killswitch::execute_pause_stream(deps, env, info, stream_id)
         }
