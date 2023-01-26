@@ -139,6 +139,10 @@ pub fn execute_create_stream(
         return Err(ContractError::StreamStartsTooSoon {});
     }
 
+    if in_denom != config.accepted_in_denom {
+        return Err(ContractError::InDenomIsNotAccepted {});
+    }
+
     if out_denom == config.stream_creation_denom {
         let total_funds = info
             .funds

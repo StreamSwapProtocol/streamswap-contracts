@@ -32,6 +32,9 @@ pub enum ContractError {
     #[error("Do not send native funds")]
     NoFundsSent {},
 
+    #[error("In_denom does not match config")]
+    InDenomIsNotAccepted {},
+
     #[error("Supply out funds required")]
     StreamOutSupplyFundsRequired {},
 

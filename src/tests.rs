@@ -63,7 +63,7 @@ mod tests {
             stream_creation_fee: Uint128::new(100),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
-            accepted_in_denom: "in_denom".to_string(),
+            accepted_in_denom: "in".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -75,7 +75,7 @@ mod tests {
         let end_time = Timestamp::from_seconds(10);
         let out_supply = Uint128::new(50_000_000);
         let out_denom = "out_denom";
-        let in_denom = "in_denom";
+        let in_denom = "in";
 
         let info = mock_info("creator", &[]);
         let env = mock_env();
@@ -323,7 +323,7 @@ mod tests {
             stream_creation_fee: Uint128::new(100),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
-            accepted_in_denom: "in_denom".to_string(),
+            accepted_in_denom: "in".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -435,7 +435,7 @@ mod tests {
             stream_creation_fee: Uint128::new(100),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
-            accepted_in_denom: "in_denom".to_string(),
+            accepted_in_denom: "in".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -773,7 +773,7 @@ mod tests {
             stream_creation_fee: Uint128::new(100),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
-            accepted_in_denom: "in_denom".to_string(),
+            accepted_in_denom: "in".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -880,7 +880,7 @@ mod tests {
             stream_creation_fee: Uint128::new(100),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
-            accepted_in_denom: "in_denom".to_string(),
+            accepted_in_denom: "in".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1031,7 +1031,7 @@ mod tests {
             stream_creation_fee: Uint128::new(100),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
-            accepted_in_denom: "in_denom".to_string(),
+            accepted_in_denom: "in".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1127,7 +1127,7 @@ mod tests {
             stream_creation_fee: Uint128::new(100),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
-            accepted_in_denom: "in_denom".to_string(),
+            accepted_in_denom: "in".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1229,7 +1229,7 @@ mod tests {
             stream_creation_fee: Uint128::new(100),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
-            accepted_in_denom: "in_denom".to_string(),
+            accepted_in_denom: "in".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1325,7 +1325,7 @@ mod tests {
             stream_creation_fee: Uint128::new(100),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
-            accepted_in_denom: "in_denom".to_string(),
+            accepted_in_denom: "in".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1415,7 +1415,7 @@ mod tests {
             stream_creation_fee: Uint128::new(100),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
-            accepted_in_denom: "in_denom".to_string(),
+            accepted_in_denom: "in".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1550,7 +1550,7 @@ mod tests {
                 stream_creation_fee: Uint128::new(100),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
-                accepted_in_denom: "in_denom".to_string(),
+                accepted_in_denom: "in".to_string(),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1670,7 +1670,7 @@ mod tests {
                 stream_creation_fee: Uint128::new(100),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
-                accepted_in_denom: "in_denom".to_string(),
+                accepted_in_denom: "in".to_string(),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1783,7 +1783,7 @@ mod tests {
                 stream_creation_fee: Uint128::new(100),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
-                accepted_in_denom: "in_denom".to_string(),
+                accepted_in_denom: "in".to_string(),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1857,7 +1857,7 @@ mod tests {
                 stream_creation_fee: Uint128::new(100),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
-                accepted_in_denom: "in_denom".to_string(),
+                accepted_in_denom: "in".to_string(),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
