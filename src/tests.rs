@@ -7,7 +7,7 @@ mod tests {
         update_stream,
     };
     use crate::killswitch::{execute_pause_stream, execute_withdraw_paused, sudo_resume_stream};
-    use crate::state::Stream;
+    use crate::state::{Status, Stream};
     use crate::ContractError;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{
@@ -423,7 +423,7 @@ mod tests {
         let mut env = mock_env();
         env.block.time = start.plus_seconds(100);
         let info = mock_info("creator1", &[Coin::new(100, "wrong_denom")]);
-        let res = execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap_err();
+        let res = execute_subscribe(deps.as_mut(), env.clone(), info, 1, None, None).unwrap_err();
         assert_eq!(
             res,
             PaymentError::MissingDenom {
@@ -431,6 +431,9 @@ mod tests {
             }
             .into()
         );
+
+        let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
+        assert_eq!(stream.status, Status::Waiting);
 
         // first subscribe
         let mut env = mock_env();
@@ -443,6 +446,8 @@ mod tests {
         let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
         // position index not updated,  in_supply updated
         assert_eq!(stream.dist_index, Decimal256::zero());
+        //see that the status is updated
+        assert_eq!(stream.status, Status::Active);
         assert_eq!(stream.in_supply, Uint128::new(1000000));
         let position = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
         assert_eq!(position.index, Decimal256::zero());
