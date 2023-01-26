@@ -79,7 +79,6 @@ pub enum ExecuteMsg {
         stream_id: u64,
         position_owner: Option<String>,
     },
-
     //
     // Killswitch features
     //

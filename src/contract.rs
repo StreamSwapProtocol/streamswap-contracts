@@ -382,6 +382,10 @@ pub fn execute_subscribe(
     if env.block.time > stream.end_time {
         return Err(ContractError::StreamEnded {});
     }
+    //On first subscibe change status to Active
+    if stream.status == Status::Waiting {
+        stream.status = Status::Active
+    }
 
     let in_amount = must_pay(&info, &stream.in_denom)?;
     let new_shares = stream.compute_shares_amount(in_amount, false);
@@ -577,6 +581,10 @@ pub fn execute_finalize_stream(
         return Err(ContractError::UpdateDistIndex {});
     }
 
+    if stream.status == Status::Active {
+        stream.status = Status::Finalized
+    }
+
     let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or(stream.treasury.clone());
 
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
@@ -597,7 +605,6 @@ pub fn execute_finalize_stream(
     });
 
     // update stream status
-    stream.status = Status::Finalized;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let attributes = vec![
