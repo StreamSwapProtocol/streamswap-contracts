@@ -1,5 +1,6 @@
 use cosmwasm_std::{ConversionOverflowError, DivideByZeroError, OverflowError, StdError, Uint128};
 use cw_utils::PaymentError;
+use schemars::_serde_json::error;
 use std::convert::Infallible;
 use thiserror::Error;
 
@@ -80,12 +81,18 @@ pub enum ContractError {
     #[error("Stream paused")]
     StreamPaused {},
 
+    #[error("Stream is already paused")]
+    StreamAlreadyPaused {},
+
     #[error("Stream not paused")]
     StreamNotPaused {},
 
     #[error("Stream not cancelled")]
     StreamNotCancelled {},
 
+    #[error("Stream is cancelled")]
+    StreamIsCancelled {},
+
     #[error("Killswitch is active")]
-    StreamKillswitchActive{},
+    StreamKillswitchActive {},
 }

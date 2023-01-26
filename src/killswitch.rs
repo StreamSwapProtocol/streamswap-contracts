@@ -146,7 +146,19 @@ pub fn execute_pause_stream(
     if info.sender != config.protocol_admin {
         return Err(ContractError::Unauthorized {});
     }
-
+    //check if stream is ended
+    let stream = STREAMS.load(deps.storage, stream_id)?;
+    if env.block.time > stream.end_time {
+        return Err(ContractError::StreamEnded {});
+    }
+    // check if stream is not started
+    if env.block.time < stream.start_time {
+        return Err(ContractError::StreamNotStarted {});
+    }
+    // paused or cancelled can not be paused
+    if stream.is_killswitch_active() {
+        return Err(ContractError::StreamKillswitchActive {});
+    }
     // update stream before pause
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     update_stream(env.block.time, &mut stream)?;
@@ -171,6 +183,18 @@ pub fn sudo_pause_stream(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+
+    if env.block.time > stream.end_time {
+        return Err(ContractError::StreamEnded {});
+    }
+    // check if stream is not started
+    if env.block.time < stream.start_time {
+        return Err(ContractError::StreamNotStarted {});
+    }
+    // Paused or cancelled can not be paused
+    if stream.is_killswitch_active() {
+        return Err(ContractError::StreamKillswitchActive {});
+    }
     update_stream(env.block.time, &mut stream)?;
     pause_stream(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
@@ -187,6 +211,14 @@ pub fn sudo_resume_stream(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    //Only paused can be resumed
+    if !stream.is_paused() {
+        return Err(ContractError::StreamNotPaused {});
+    }
+    //Canceled can't be resumed
+    if stream.is_cancelled() {
+        return Err(ContractError::StreamIsCancelled {});
+    }
     // ok to use unwrap here
     let pause_date = stream.pause_date.unwrap();
     // new stream end time is the time passed between pause date and now
@@ -211,6 +243,9 @@ pub fn sudo_cancel_stream(
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     if !stream.is_paused() {
         return Err(ContractError::StreamNotPaused {});
+    }
+    if stream.is_cancelled() {
+        return Err(ContractError::StreamIsCancelled {});
     }
     stream.status = Status::Cancelled;
     STREAMS.save(deps.storage, stream_id, &stream)?;
