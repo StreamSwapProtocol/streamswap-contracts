@@ -225,9 +225,6 @@ pub fn sudo_resume_stream(
     stream.end_time = stream
         .end_time
         .plus_nanos(env.block.time.nanos() - pause_date.nanos());
-    stream.start_time = stream
-        .start_time
-        .plus_nanos(env.block.time.nanos() - pause_date.nanos());
     stream.last_updated = stream
         .last_updated
         .plus_nanos(env.block.time.nanos() - pause_date.nanos());
