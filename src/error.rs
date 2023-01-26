@@ -1,6 +1,5 @@
 use cosmwasm_std::{ConversionOverflowError, DivideByZeroError, OverflowError, StdError, Uint128};
 use cw_utils::PaymentError;
-use schemars::_serde_json::error;
 use std::convert::Infallible;
 use thiserror::Error;
 

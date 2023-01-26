@@ -63,6 +63,7 @@ mod tests {
             stream_creation_fee: Uint128::new(100),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "in_denom".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -322,6 +323,7 @@ mod tests {
             stream_creation_fee: Uint128::new(100),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "in_denom".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -433,6 +435,7 @@ mod tests {
             stream_creation_fee: Uint128::new(100),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "in_denom".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -770,6 +773,7 @@ mod tests {
             stream_creation_fee: Uint128::new(100),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "in_denom".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -876,6 +880,7 @@ mod tests {
             stream_creation_fee: Uint128::new(100),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "in_denom".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1026,6 +1031,7 @@ mod tests {
             stream_creation_fee: Uint128::new(100),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "in_denom".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1121,6 +1127,7 @@ mod tests {
             stream_creation_fee: Uint128::new(100),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "in_denom".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1222,6 +1229,7 @@ mod tests {
             stream_creation_fee: Uint128::new(100),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "in_denom".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1317,6 +1325,7 @@ mod tests {
             stream_creation_fee: Uint128::new(100),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "in_denom".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1406,6 +1415,7 @@ mod tests {
             stream_creation_fee: Uint128::new(100),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "in_denom".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1540,6 +1550,7 @@ mod tests {
                 stream_creation_fee: Uint128::new(100),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
+                accepted_in_denom: "in_denom".to_string(),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1659,6 +1670,7 @@ mod tests {
                 stream_creation_fee: Uint128::new(100),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
+                accepted_in_denom: "in_denom".to_string(),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1771,6 +1783,7 @@ mod tests {
                 stream_creation_fee: Uint128::new(100),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
+                accepted_in_denom: "in_denom".to_string(),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1844,6 +1857,7 @@ mod tests {
                 stream_creation_fee: Uint128::new(100),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
+                accepted_in_denom: "in_denom".to_string(),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
