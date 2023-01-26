@@ -1128,6 +1128,11 @@ mod tests {
         let mut env = mock_env();
         env.block.time = start.plus_seconds(5000);
         let info = mock_info("creator1", &[]);
+        //withdraw amount too high
+        let cap = Uint128::new(2_250_000_000_000);
+        let res = execute_withdraw(deps.as_mut(), env.clone(), info.clone(), 1, Some(cap), None).unwrap_err();
+        assert_eq!(res, ContractError::DecreaseAmountExceeds(Uint128::new(2250000000000)));
+        //withdraw with valid cap
         let cap = Uint128::new(25_000_000);
         execute_withdraw(deps.as_mut(), env, info, 1, Some(cap), None).unwrap();
         let position =
