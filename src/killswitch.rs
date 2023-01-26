@@ -143,6 +143,7 @@ pub fn execute_pause_stream(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
+    //Protocol admin can pause
     if info.sender != config.protocol_admin {
         return Err(ContractError::Unauthorized {});
     }
