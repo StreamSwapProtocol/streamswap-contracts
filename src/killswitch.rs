@@ -228,7 +228,9 @@ pub fn sudo_resume_stream(
     stream.start_time = stream
         .start_time
         .plus_nanos(env.block.time.nanos() - pause_date.nanos());
-    stream.last_updated = stream.last_updated.plus_nanos(env.block.time.nanos() - pause_date.nanos());
+    stream.last_updated = stream
+        .last_updated
+        .plus_nanos(env.block.time.nanos() - pause_date.nanos());
 
     stream.status = Status::Active;
     stream.pause_date = None;
@@ -256,11 +258,12 @@ pub fn sudo_cancel_stream(
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     stream.status = Status::Cancelled;
-    //Refund all out tokens to stream creator(treasury)
     let config = CONFIG.load(deps.storage)?;
+
+    //Refund all out tokens to stream creator(treasury)
     let mut messages: Vec<CosmosMsg> = vec![];
     messages.push(CosmosMsg::Bank(BankMsg::Send {
-        to_address: config.treasury.to_string(),
+        to_address: stream.treasury.to_string(),
         amount: vec![Coin {
             denom: stream.out_denom,
             amount: stream.out_supply,
@@ -268,7 +271,7 @@ pub fn sudo_cancel_stream(
     }));
     //Refund stream creation fee to stream creator
     messages.push(CosmosMsg::Bank(BankMsg::Send {
-        to_address: config.treasury.to_string(),
+        to_address: stream.treasury.to_string(),
         amount: vec![Coin {
             denom: config.stream_creation_denom,
             amount: config.stream_creation_fee,

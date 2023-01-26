@@ -119,7 +119,6 @@ impl Stream {
         self.status == Status::Cancelled
     }
 
-
     pub fn is_killswitch_active(&self) -> bool {
         self.status == Status::Cancelled || self.status == Status::Paused
     }
