@@ -16,6 +16,7 @@ mod tests {
     use cw_utils::PaymentError;
     use std::ops::Sub;
     use std::str::FromStr;
+    use cosmwasm_std::StdError::NotFound;
 
     #[test]
     fn test_compute_shares_amount() {
@@ -1345,10 +1346,13 @@ mod tests {
         let mut env = mock_env();
         env.block.time = end.plus_seconds(2_000_000);
         execute_update_stream(deps.as_mut(), env.clone(), 1).unwrap();
-
-        // can exit
+        //failed exit from random address
         let mut env = mock_env();
         env.block.time = end.plus_seconds(3_000_000);
+        let info = mock_info("random", &[]);
+        let res = execute_exit_stream(deps.as_mut(), env.clone(), info.clone(), 1, Some("creator1".to_string())).unwrap_err();
+        assert_eq!(res, ContractError::Unauthorized {});
+        // can exit
         let info = mock_info("creator1", &[]);
         let res = execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap();
 
@@ -1365,7 +1369,8 @@ mod tests {
         let mut env = mock_env();
         env.block.time = end.plus_seconds(4_000_000);
         let info = mock_info("creator1", &[]);
-        execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
+        let res = execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
+        //TODO check error
     }
 
     #[test]
