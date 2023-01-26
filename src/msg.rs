@@ -10,6 +10,7 @@ pub struct InstantiateMsg {
     pub stream_creation_fee: Uint128,
     pub fee_collector: String,
     pub protocol_admin: String,
+    pub accepted_in_denom: String,
 }
 
 #[cw_serde]
@@ -189,6 +190,7 @@ pub enum SudoMsg {
         stream_creation_denom: Option<String>,
         stream_creation_fee: Option<Uint128>,
         fee_collector: Option<String>,
+        accepted_in_denom: Option<String>,
     },
     PauseStream {
         stream_id: u64,

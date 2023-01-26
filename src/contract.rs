@@ -28,6 +28,7 @@ pub fn instantiate(
         stream_creation_fee: msg.stream_creation_fee,
         fee_collector: deps.api.addr_validate(&msg.fee_collector)?,
         protocol_admin: deps.api.addr_validate(&msg.protocol_admin)?,
+        accepted_in_denom: msg.accepted_in_denom,
     };
     CONFIG.save(deps.storage, &config)?;
 
@@ -369,7 +370,7 @@ pub fn execute_subscribe(
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
     if stream.is_killswitch_active() {
-        return Err(ContractError::StreamKillswitchActive{});
+        return Err(ContractError::StreamKillswitchActive {});
     }
     if env.block.time < stream.start_time {
         return Err(ContractError::StreamNotStarted {});
@@ -481,7 +482,7 @@ pub fn execute_withdraw(
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
     if stream.is_killswitch_active() {
-        return Err(ContractError::StreamKillswitchActive{});
+        return Err(ContractError::StreamKillswitchActive {});
     }
     // can't withdraw after stream ended
     if env.block.time > stream.end_time {
@@ -560,7 +561,7 @@ pub fn execute_finalize_stream(
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
     if stream.is_killswitch_active() {
-        return Err(ContractError::StreamKillswitchActive{});
+        return Err(ContractError::StreamKillswitchActive {});
     }
     if stream.treasury != info.sender {
         return Err(ContractError::Unauthorized {});
@@ -618,7 +619,7 @@ pub fn execute_exit_stream(
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
     if stream.is_killswitch_active() {
-        return Err(ContractError::StreamKillswitchActive{});
+        return Err(ContractError::StreamKillswitchActive {});
     }
     if env.block.time < stream.end_time {
         return Err(ContractError::StreamNotEnded {});
@@ -702,6 +703,7 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
             stream_creation_denom,
             stream_creation_fee,
             fee_collector,
+            accepted_in_denom,
         } => sudo_update_config(
             deps,
             env,
@@ -710,6 +712,7 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
             stream_creation_denom,
             stream_creation_fee,
             fee_collector,
+            accepted_in_denom,
         ),
         SudoMsg::PauseStream { stream_id } => killswitch::sudo_pause_stream(deps, env, stream_id),
         SudoMsg::CancelStream { stream_id } => killswitch::sudo_cancel_stream(deps, env, stream_id),
@@ -725,6 +728,7 @@ pub fn sudo_update_config(
     stream_creation_denom: Option<String>,
     stream_creation_fee: Option<Uint128>,
     fee_collector: Option<String>,
+    accepted_in_denom: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut cfg = CONFIG.load(deps.storage)?;
 
@@ -733,7 +737,7 @@ pub fn sudo_update_config(
         min_duration_until_start_time.unwrap_or(cfg.min_seconds_until_start_time);
     cfg.stream_creation_denom = stream_creation_denom.unwrap_or(cfg.stream_creation_denom);
     cfg.stream_creation_fee = stream_creation_fee.unwrap_or(cfg.stream_creation_fee);
-
+    cfg.accepted_in_denom = accepted_in_denom.unwrap_or(cfg.accepted_in_denom);
     let collector = maybe_addr(deps.api, fee_collector)?.unwrap_or(cfg.fee_collector);
     cfg.fee_collector = collector;
 

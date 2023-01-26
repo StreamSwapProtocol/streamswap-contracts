@@ -10,6 +10,7 @@ pub struct Config {
     pub min_stream_seconds: Uint64,
     // min duration between start time and current time in unix seconds
     pub min_seconds_until_start_time: Uint64,
+    pub accepted_in_denom: String,
     pub stream_creation_denom: String,
     pub stream_creation_fee: Uint128,
     pub fee_collector: Addr,
