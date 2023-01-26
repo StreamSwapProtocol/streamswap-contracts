@@ -452,6 +452,12 @@ mod tests {
         let position = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
         assert_eq!(position.index, Decimal256::zero());
         assert_eq!(position.in_balance, Uint128::new(1000000));
+        // unauthorized subscription increase
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(200);
+        let info = mock_info("random", &[Coin::new(1_000_000, "in")]);
+        let res = execute_subscribe(deps.as_mut(), env.clone(), info, 1, None, Some("creator1".to_string())).unwrap_err();
+        assert_eq!(res, ContractError::Unauthorized {});
 
         // subscription increase
         let mut env = mock_env();
