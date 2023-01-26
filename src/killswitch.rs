@@ -221,10 +221,15 @@ pub fn sudo_resume_stream(
     }
     // ok to use unwrap here
     let pause_date = stream.pause_date.unwrap();
-    // new stream end time is the time passed between pause date and now
+    //postpone stream times with respect to pause duration
     stream.end_time = stream
         .end_time
         .plus_nanos(env.block.time.nanos() - pause_date.nanos());
+    stream.start_time = stream
+        .start_time
+        .plus_nanos(env.block.time.nanos() - pause_date.nanos());
+    stream.last_updated = stream.last_updated.plus_nanos(env.block.time.nanos() - pause_date.nanos());
+
     stream.status = Status::Active;
     stream.pause_date = None;
     STREAMS.save(deps.storage, stream_id, &stream)?;

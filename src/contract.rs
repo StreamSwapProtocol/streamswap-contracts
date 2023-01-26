@@ -258,6 +258,7 @@ fn calculate_diff(
     last_updated: Timestamp,
     now: Timestamp,
 ) -> (Decimal, Timestamp) {
+    // diff = (now - last_updated) / (end_time - last_updated)
     let now = if now > end_time { end_time } else { now };
     let numerator = now.minus_nanos(last_updated.nanos());
     let denominator = end_time.minus_nanos(last_updated.nanos());
