@@ -255,7 +255,28 @@ pub fn sudo_cancel_stream(
     stream.status = Status::Cancelled;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
-    Ok(Response::default()
+    stream.status = Status::Cancelled;
+    //Refund all out tokens to stream creator(treasury)
+    let config = CONFIG.load(deps.storage)?;
+    let mut messages: Vec<CosmosMsg> = vec![];
+    messages.push(CosmosMsg::Bank(BankMsg::Send {
+        to_address: config.treasury.to_string(),
+        amount: vec![Coin {
+            denom: stream.out_denom,
+            amount: stream.out_supply,
+        }],
+    }));
+    //Refund stream creation fee to stream creator
+    messages.push(CosmosMsg::Bank(BankMsg::Send {
+        to_address: config.treasury.to_string(),
+        amount: vec![Coin {
+            denom: config.stream_creation_denom,
+            amount: config.stream_creation_fee,
+        }],
+    }));
+
+    Ok(Response::new()
+        .add_messages(messages)
         .add_attribute("stream_id", stream_id.to_string())
         .add_attribute("status", "cancelled"))
 }
