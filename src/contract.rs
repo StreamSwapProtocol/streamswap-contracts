@@ -6,10 +6,15 @@ use cosmwasm_std::{
     Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdResult, Timestamp, Uint128,
     Uint256, Uint64,
 };
+use cw2::{get_contract_version, set_contract_version};
 
 use crate::helpers::get_decimals;
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay};
+
+// Version and contract info for migration
+const CONTRACT_NAME: &str = "crates.io:cw-streamswap";
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -18,6 +23,8 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
     let config = Config {
         min_stream_seconds: msg.min_stream_seconds,
         min_seconds_until_start_time: msg.min_seconds_until_start_time,
@@ -743,7 +750,13 @@ pub fn sudo_update_config(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    let contract_info = get_contract_version(deps.storage)?;
+    if contract_info.contract != CONTRACT_NAME {
+        return Err(ContractError::CannotMigrate {
+            previous_contract: contract_info.contract,
+        });
+    }
     Ok(Response::default())
 }
 
