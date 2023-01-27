@@ -1618,7 +1618,7 @@ mod tests {
         use crate::killswitch::{execute_exit_cancelled, sudo_cancel_stream, sudo_pause_stream};
         use cosmwasm_std::CosmosMsg::Bank;
         use cosmwasm_std::{ReplyOn, SubMsg};
-        use crate::contract::{query_config, sudo_update_config};
+        use crate::contract::{list_positions, list_streams, query_config, sudo_update_config};
 
         #[test]
         fn test_pause_protocol_admin() {
@@ -2043,6 +2043,89 @@ mod tests {
         }
 
         #[test]
+        fn test_range_queries() {
+            let treasury = Addr::unchecked("treasury");
+            let start = Timestamp::from_seconds(2000);
+            let end = Timestamp::from_seconds(1_000_000);
+            let out_supply = Uint128::new(1_000_000);
+            let out_denom = "out_denom";
+
+            // instantiate
+            let mut deps = mock_dependencies();
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(100);
+            let msg = crate::msg::InstantiateMsg {
+                min_stream_seconds: Uint64::new(1000),
+                min_seconds_until_start_time: Uint64::new(1000),
+                stream_creation_denom: "fee".to_string(),
+                stream_creation_fee: Uint128::new(100),
+                fee_collector: "collector".to_string(),
+                protocol_admin: "protocol_admin".to_string(),
+                accepted_in_denom: "in".to_string(),
+            };
+            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+            // create stream
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(1);
+            let info = mock_info(
+                "creator1",
+                &[
+                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(100, "fee"),
+                ],
+            );
+            //first stream
+            execute_create_stream(
+                deps.as_mut(),
+                env.clone(),
+                info.clone(),
+                treasury.to_string(),
+                "test".to_string(),
+                "test".to_string(),
+                "in".to_string(),
+                out_denom.to_string(),
+                out_supply,
+                start,
+                end,
+            )
+                .unwrap();
+            //second stream
+            execute_create_stream(
+                deps.as_mut(),
+                env.clone(),
+                info.clone(),
+                treasury.to_string(),
+                "test".to_string(),
+                "test".to_string(),
+                "in".to_string(),
+                out_denom.to_string(),
+                out_supply,
+                start,
+                end,
+            )
+                .unwrap();
+
+            let res = list_streams(deps.as_ref(), None, None).unwrap();
+            assert_eq!(res.streams.len(), 2);
+
+            // first subscription to first stream
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(100);
+            let info = mock_info("creator1", &[Coin::new(1_000_000, "in")]);
+            execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
+
+            // second subscription to first stream
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(100);
+            let info = mock_info("creator2", &[Coin::new(1_000_000, "in")]);
+            execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
+
+            let res = list_positions(deps.as_ref(), 1, None, None).unwrap();
+            assert_eq!(res.positions.len(), 2);
+        }
+
+        #[test]
         fn test_exit_cancel() {
             let treasury = Addr::unchecked("treasury");
             let start = Timestamp::from_seconds(1_000_000);
@@ -2151,7 +2234,7 @@ mod tests {
             let msg = res.messages.get(0).unwrap();
             assert_eq!(
                 msg.msg,
-                CosmosMsg::Bank(BankMsg::Send {
+                Bank(BankMsg::Send {
                     to_address: "creator1".to_string(),
                     amount: vec![Coin::new(2000000000000, "in")]
                 })
