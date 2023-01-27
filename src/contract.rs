@@ -409,7 +409,7 @@ pub fn execute_subscribe(
                 env.block.time,
                 operator,
             );
-            POSITIONS.save(deps.storage, (stream_id, &info.sender), &new_position)?;
+            POSITIONS.save(deps.storage, (stream_id, &position_owner), &new_position)?;
         }
         Some(mut position) => {
             if position.owner != info.sender
@@ -433,7 +433,7 @@ pub fn execute_subscribe(
 
             position.in_balance = position.in_balance.checked_add(in_amount)?;
             position.shares = position.shares.checked_add(new_shares)?;
-            POSITIONS.save(deps.storage, (stream_id, &info.sender), &position)?;
+            POSITIONS.save(deps.storage, (stream_id, &position_owner), &position)?;
         }
     }
 
@@ -445,7 +445,7 @@ pub fn execute_subscribe(
     let res = Response::new()
         .add_attribute("action", "subscribe")
         .add_attribute("stream_id", stream_id.to_string())
-        .add_attribute("owner", info.sender)
+        .add_attribute("owner", position_owner)
         .add_attribute("in_supply", stream.in_supply)
         .add_attribute("in_amount", in_amount);
 

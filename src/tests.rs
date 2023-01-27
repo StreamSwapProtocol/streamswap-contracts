@@ -10,13 +10,13 @@ mod tests {
     use crate::state::{Status, Stream};
     use crate::ContractError;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::StdError::{self};
     use cosmwasm_std::{
-        Addr, BankMsg, Coin, CosmosMsg, Decimal, Decimal256, Timestamp, Uint128, Uint64,
+        Addr, BankMsg, Coin, CosmosMsg, Decimal, Decimal256, Response, Timestamp, Uint128, Uint64,
     };
     use cw_utils::PaymentError;
     use std::ops::Sub;
     use std::str::FromStr;
-    use cosmwasm_std::StdError::NotFound;
 
     #[test]
     fn test_compute_shares_amount() {
@@ -228,7 +228,13 @@ mod tests {
         // wrong creation fee case
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(1);
-        let info = mock_info("creator1", &[Coin::new(out_supply.u128(), "out_denom"), Coin::new(99, "fee")]);
+        let info = mock_info(
+            "creator1",
+            &[
+                Coin::new(out_supply.u128(), "out_denom"),
+                Coin::new(99, "fee"),
+            ],
+        );
         let res = execute_create_stream(
             deps.as_mut(),
             env,
@@ -457,7 +463,15 @@ mod tests {
         let mut env = mock_env();
         env.block.time = start.plus_seconds(200);
         let info = mock_info("random", &[Coin::new(1_000_000, "in")]);
-        let res = execute_subscribe(deps.as_mut(), env.clone(), info, 1, None, Some("creator1".to_string())).unwrap_err();
+        let res = execute_subscribe(
+            deps.as_mut(),
+            env.clone(),
+            info,
+            1,
+            None,
+            Some("creator1".to_string()),
+        )
+        .unwrap_err();
         assert_eq!(res, ContractError::Unauthorized {});
 
         // subscription increase
@@ -521,8 +535,7 @@ mod tests {
         )
         .unwrap();
 
-        // Without operator
-        // random cannot subscribe on behalf of user
+        //random cannot make the first subscription on behalf of user
         let mut env = mock_env();
         let info = mock_info("random", &[Coin::new(1_000_000, "in")]);
         env.block.time = start.plus_seconds(100);
@@ -537,7 +550,7 @@ mod tests {
         .unwrap_err();
         assert_eq!(res, ContractError::Unauthorized {});
 
-        //random cannot subscribe on behalf of user event if he is the operator in the subscribe message
+        //random cannot make the first subscription on behalf of user even if defined as operator in message
         let mut env = mock_env();
         let info = mock_info("random", &[Coin::new(1_000_000, "in")]);
         env.block.time = start.plus_seconds(100);
@@ -558,12 +571,6 @@ mod tests {
         let info = mock_info("creator1", &[Coin::new(1_000_000, "in")]);
         execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
 
-        // owner can update without position field
-        let info = mock_info("creator1", &[]);
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(100);
-        execute_update_position(deps.as_mut(), env, info, 1, None).unwrap();
-
         // only owner can update
         let mut env = mock_env();
         let info = mock_info("creator2", &[]);
@@ -577,21 +584,33 @@ mod tests {
         let info = mock_info("creator1", &[]);
         let mut env = mock_env();
         env.block.time = start.plus_seconds(100);
-        execute_update_position(deps.as_mut(), env, info, 1, Some("creator1".to_string())).unwrap();
+        let res =
+            execute_update_position(deps.as_mut(), env, info, 1, Some("creator1".to_string()))
+                .unwrap();
+        assert_eq!(
+            res,
+            Response::new()
+                .add_attribute("action", "update_position")
+                .add_attribute("stream_id", "1")
+                .add_attribute("position_owner", "creator1")
+                .add_attribute("purchased", "0")
+                .add_attribute("spent", "0")
+        );
 
         // random cannot update
         let info = mock_info("random", &[]);
         let mut env = mock_env();
         env.block.time = start.plus_seconds(100);
-        execute_update_position(deps.as_mut(), env, info, 1, Some("creator1".to_string()))
-            .unwrap_err();
+        let res =
+            execute_update_position(deps.as_mut(), env, info, 1, Some("creator1".to_string()))
+                .unwrap_err();
         assert_eq!(res, ContractError::Unauthorized {});
 
         // random cannot withdraw
         let info = mock_info("random", &[]);
         let mut env = mock_env();
         env.block.time = start.plus_seconds(100);
-        execute_withdraw(
+        let res = execute_withdraw(
             deps.as_mut(),
             env,
             info,
@@ -619,11 +638,34 @@ mod tests {
         let position = query_position(deps.as_ref(), env.clone(), stream_id, owner).unwrap();
         assert_eq!(position.operator.unwrap().as_str(), "operator1".to_string());
 
+        //operator can increase subscription on behalf of owner
+        let info = mock_info("operator1", &[Coin::new(1_000_000, "in")]);
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(100);
+        let res = execute_subscribe(
+            deps.as_mut(),
+            env,
+            info,
+            1,
+            None,
+            Some("creator1".to_string()),
+        )
+        .unwrap();
+        assert_eq!(
+            res,
+            Response::new()
+                .add_attribute("action", "subscribe")
+                .add_attribute("stream_id", "1")
+                .add_attribute("owner", "creator1")
+                .add_attribute("in_supply", "2000000")
+                .add_attribute("in_amount", "1000000")
+        );
+
         // random cannot update operator
         let info = mock_info("random", &[]);
         let mut env = mock_env();
         env.block.time = start.plus_seconds(100);
-        execute_update_operator(
+        let res = execute_update_operator(
             deps.as_mut(),
             env.clone(),
             info,
@@ -631,14 +673,13 @@ mod tests {
             Some("operator1".to_string()),
         )
         .unwrap_err();
-        assert_eq!(res, ContractError::Unauthorized {});
+        assert!(matches!(res, ContractError::Std(StdError::NotFound { .. })));
 
         // operator can't update operator
-
         let info = mock_info("operator1", &[]);
         let mut env = mock_env();
         env.block.time = start.plus_seconds(100);
-        execute_update_operator(
+        let res = execute_update_operator(
             deps.as_mut(),
             env.clone(),
             info,
@@ -646,63 +687,27 @@ mod tests {
             Some("operator2".to_string()),
         )
         .unwrap_err();
-        assert_eq!(res, ContractError::Unauthorized {});
+        assert!(matches!(res, ContractError::Std(StdError::NotFound { .. })));
 
         // operator can update position
         let info = mock_info("operator1", &[]);
         let mut env = mock_env();
         env.block.time = start.plus_seconds(100);
-        execute_update_position(deps.as_mut(), env, info, 1, Some("creator1".to_string())).unwrap();
-
-        // owner can update without position field
-        let info = mock_info("creator1", &[]);
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(100);
-        execute_update_position(deps.as_mut(), env, info, 1, None).unwrap();
-
-        // owner can update with position field
-        let info = mock_info("creator1", &[]);
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(100);
-        execute_update_position(deps.as_mut(), env, info, 1, Some("creator1".to_string())).unwrap();
-
-        // random cannot withdraw
-        let info = mock_info("random", &[]);
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(100);
-        execute_withdraw(
-            deps.as_mut(),
-            env,
-            info,
-            1,
-            Some(5u128.into()),
-            Some("creator1".to_string()),
-        )
-        .unwrap_err();
-        assert_eq!(res, ContractError::Unauthorized {});
+        let res =
+            execute_update_position(deps.as_mut(), env, info, 1, Some("creator1".to_string()))
+                .unwrap();
+        assert_eq!(
+            res,
+            Response::new()
+                .add_attribute("action", "update_position")
+                .add_attribute("stream_id", "1")
+                .add_attribute("position_owner", "creator1")
+                .add_attribute("purchased", "0")
+                .add_attribute("spent", "0")
+        );
 
         // operator can withdraw
         let info = mock_info("operator1", &[]);
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(100);
-        execute_withdraw(
-            deps.as_mut(),
-            env,
-            info,
-            1,
-            Some(5u128.into()),
-            Some("creator1".to_string()),
-        )
-        .unwrap();
-
-        // owner can withdraw
-        let info = mock_info("creator1", &[]);
-        let mut env = mock_env();
-        env.block.time = start.plus_seconds(100);
-        execute_withdraw(deps.as_mut(), env, info, 1, Some(5u128.into()), None).unwrap();
-
-        // owner can withdraw
-        let info = mock_info("creator1", &[]);
         let mut env = mock_env();
         env.block.time = start.plus_seconds(100);
         execute_withdraw(
@@ -720,7 +725,8 @@ mod tests {
         let mut env = mock_env();
         env.block.time = end.plus_seconds(100);
         execute_update_stream(deps.as_mut(), env.clone(), 1).unwrap();
-        let res = execute_exit_stream(deps.as_mut(), env, info, 1, Some("creator1".to_string())).unwrap_err();
+        let res = execute_exit_stream(deps.as_mut(), env, info, 1, Some("creator1".to_string()))
+            .unwrap_err();
         assert_eq!(res, ContractError::Unauthorized {});
 
         let mut env = mock_env();
@@ -1132,8 +1138,12 @@ mod tests {
         let info = mock_info("creator1", &[]);
         //withdraw amount too high
         let cap = Uint128::new(2_250_000_000_000);
-        let res = execute_withdraw(deps.as_mut(), env.clone(), info.clone(), 1, Some(cap), None).unwrap_err();
-        assert_eq!(res, ContractError::DecreaseAmountExceeds(Uint128::new(2250000000000)));
+        let res = execute_withdraw(deps.as_mut(), env.clone(), info.clone(), 1, Some(cap), None)
+            .unwrap_err();
+        assert_eq!(
+            res,
+            ContractError::DecreaseAmountExceeds(Uint128::new(2250000000000))
+        );
         //withdraw with valid cap
         let cap = Uint128::new(25_000_000);
         execute_withdraw(deps.as_mut(), env, info, 1, Some(cap), None).unwrap();
@@ -1351,7 +1361,14 @@ mod tests {
         let mut env = mock_env();
         env.block.time = end.plus_seconds(3_000_000);
         let info = mock_info("random", &[]);
-        let res = execute_exit_stream(deps.as_mut(), env.clone(), info.clone(), 1, Some("creator1".to_string())).unwrap_err();
+        let res = execute_exit_stream(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            1,
+            Some("creator1".to_string()),
+        )
+        .unwrap_err();
         assert_eq!(res, ContractError::Unauthorized {});
         // can exit
         let info = mock_info("creator1", &[]);
@@ -1370,7 +1387,7 @@ mod tests {
         let mut env = mock_env();
         env.block.time = end.plus_seconds(4_000_000);
         let info = mock_info("creator1", &[]);
-        let res = execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
+        let _res = execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
         //TODO check error
     }
 
@@ -1597,10 +1614,10 @@ mod tests {
 
     #[cfg(test)]
     mod killswitch {
-        use cosmwasm_std::CosmosMsg::Bank;
-        use cosmwasm_std::{ReplyOn, SubMsg};
         use super::*;
         use crate::killswitch::{execute_exit_cancelled, sudo_cancel_stream};
+        use cosmwasm_std::CosmosMsg::Bank;
+        use cosmwasm_std::{ReplyOn, SubMsg};
         #[test]
         fn test_pause_protocol_admin() {
             let treasury = Addr::unchecked("treasury");
@@ -1979,7 +1996,35 @@ mod tests {
             env.block.time = start.plus_seconds(2_500_000);
             let response = sudo_cancel_stream(deps.as_mut(), env.clone(), 1).unwrap();
             //out_tokens and the creation fee are sent back to the treasury upon cancellation
-            assert_eq!(response.messages, [SubMsg { id: 0, msg: Bank(BankMsg::Send { to_address: "treasury".to_string(), amount: Vec::from([Coin { denom: "out_denom".to_string(), amount: Uint128::new(1000000000000) }]) }), gas_limit: None, reply_on: ReplyOn::Never }, SubMsg { id: 0, msg: Bank(BankMsg::Send { to_address: "treasury".to_string(), amount: Vec::from([Coin { denom: "fee".to_string(), amount: Uint128::new(100) }]) }), gas_limit: None, reply_on: ReplyOn::Never }]);
+            assert_eq!(
+                response.messages,
+                [
+                    SubMsg {
+                        id: 0,
+                        msg: Bank(BankMsg::Send {
+                            to_address: "treasury".to_string(),
+                            amount: Vec::from([Coin {
+                                denom: "out_denom".to_string(),
+                                amount: Uint128::new(1000000000000)
+                            }])
+                        }),
+                        gas_limit: None,
+                        reply_on: ReplyOn::Never
+                    },
+                    SubMsg {
+                        id: 0,
+                        msg: Bank(BankMsg::Send {
+                            to_address: "treasury".to_string(),
+                            amount: Vec::from([Coin {
+                                denom: "fee".to_string(),
+                                amount: Uint128::new(100)
+                            }])
+                        }),
+                        gas_limit: None,
+                        reply_on: ReplyOn::Never
+                    }
+                ]
+            );
 
             // exit
             let mut env = mock_env();
