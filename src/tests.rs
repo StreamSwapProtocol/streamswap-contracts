@@ -719,7 +719,8 @@ mod tests {
         let info = mock_info("random", &[]);
         let mut env = mock_env();
         env.block.time = end.plus_seconds(100);
-        execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
+        execute_update_stream(deps.as_mut(), env.clone(), 1).unwrap();
+        let res = execute_exit_stream(deps.as_mut(), env, info, 1, Some("creator1".to_string())).unwrap_err();
         assert_eq!(res, ContractError::Unauthorized {});
 
         let mut env = mock_env();
