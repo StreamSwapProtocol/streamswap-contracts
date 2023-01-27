@@ -102,6 +102,8 @@ pub enum ExecuteMsg {
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
+    #[returns(ConfigResponse)]
+    Config {},
     #[returns(StreamResponse)]
     Stream { stream_id: u64 },
     #[returns(StreamsResponse)]
@@ -121,6 +123,17 @@ pub enum QueryMsg {
     AveragePrice { stream_id: u64 },
     #[returns(LatestStreamedPriceResponse)]
     LastStreamedPrice { stream_id: u64 },
+}
+
+#[cw_serde]
+pub struct ConfigResponse {
+    pub min_stream_seconds: Uint64,
+    pub min_seconds_until_start_time: Uint64,
+    pub stream_creation_denom: String,
+    pub stream_creation_fee: Uint128,
+    pub fee_collector: String,
+    pub protocol_admin: String,
+    pub accepted_in_denom: String,
 }
 
 #[cw_serde]

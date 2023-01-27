@@ -1,7 +1,4 @@
-use crate::msg::{
-    AveragePriceResponse, ExecuteMsg, InstantiateMsg, LatestStreamedPriceResponse, MigrateMsg,
-    PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse, SudoMsg,
-};
+use crate::msg::{AveragePriceResponse, ConfigResponse, ExecuteMsg, InstantiateMsg, LatestStreamedPriceResponse, MigrateMsg, PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse, SudoMsg};
 use crate::state::{next_stream_id, Config, Position, Status, Stream, CONFIG, POSITIONS, STREAMS};
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
@@ -753,6 +750,7 @@ pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Respons
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
+        QueryMsg::Config {} => to_binary(&query_config(deps)?),
         QueryMsg::Stream { stream_id } => to_binary(&query_stream(deps, env, stream_id)?),
         QueryMsg::Position { stream_id, owner } => {
             to_binary(&query_position(deps, env, stream_id, owner)?)
@@ -772,6 +770,18 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             to_binary(&query_last_streamed_price(deps, env, stream_id)?)
         }
     }
+}
+pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
+    let cfg = CONFIG.load(deps.storage)?;
+    Ok(ConfigResponse {
+        min_stream_seconds: cfg.min_stream_seconds,
+        min_seconds_until_start_time: cfg.min_seconds_until_start_time,
+        stream_creation_denom: cfg.stream_creation_denom,
+        stream_creation_fee: cfg.stream_creation_fee,
+        fee_collector: cfg.fee_collector.to_string(),
+        protocol_admin: cfg.protocol_admin.to_string(),
+        accepted_in_denom: cfg.accepted_in_denom,
+    })
 }
 
 pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamResponse> {
