@@ -1596,6 +1596,8 @@ mod tests {
 
     #[cfg(test)]
     mod killswitch {
+        use cosmwasm_std::CosmosMsg::Bank;
+        use cosmwasm_std::{ReplyOn, SubMsg};
         use super::*;
         use crate::killswitch::{execute_exit_cancelled, sudo_cancel_stream};
         #[test]
@@ -1960,7 +1962,7 @@ mod tests {
             let info = mock_info("creator1", &[funds.clone()]);
             execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
 
-            // cant cancel withour pause
+            // cant cancel without pause
             let mut env = mock_env();
             env.block.time = start.plus_seconds(1_000_000);
             let err = sudo_cancel_stream(deps.as_mut(), env, 1).unwrap_err();
@@ -1974,7 +1976,9 @@ mod tests {
 
             let mut env = mock_env();
             env.block.time = start.plus_seconds(2_500_000);
-            sudo_cancel_stream(deps.as_mut(), env, 1).unwrap();
+            let response = sudo_cancel_stream(deps.as_mut(), env.clone(), 1).unwrap();
+            //out_tokens and the creation fee are sent back to the treasury upon cancellation
+            assert_eq!(response.messages, [SubMsg { id: 0, msg: Bank(BankMsg::Send { to_address: "treasury".to_string(), amount: Vec::from([Coin { denom: "out_denom".to_string(), amount: Uint128::new(1000000000000) }]) }), gas_limit: None, reply_on: ReplyOn::Never }, SubMsg { id: 0, msg: Bank(BankMsg::Send { to_address: "treasury".to_string(), amount: Vec::from([Coin { denom: "fee".to_string(), amount: Uint128::new(100) }]) }), gas_limit: None, reply_on: ReplyOn::Never }]);
 
             // exit
             let mut env = mock_env();
