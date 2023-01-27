@@ -1615,7 +1615,7 @@ mod tests {
     #[cfg(test)]
     mod killswitch {
         use super::*;
-        use crate::killswitch::{execute_exit_cancelled, sudo_cancel_stream};
+        use crate::killswitch::{execute_exit_cancelled, sudo_cancel_stream, sudo_pause_stream};
         use cosmwasm_std::CosmosMsg::Bank;
         use cosmwasm_std::{ReplyOn, SubMsg};
         use crate::contract::{query_config, sudo_update_config};
@@ -1929,12 +1929,6 @@ mod tests {
 
         #[test]
         fn test_sudo_update_config() {
-            let treasury = Addr::unchecked("treasury");
-            let start = Timestamp::from_seconds(1_000_000);
-            let end = Timestamp::from_seconds(5_000_000);
-            let out_supply = Uint128::new(1_000_000_000_000);
-            let out_denom = "out_denom";
-
             // instantiate
             let mut deps = mock_dependencies();
             let mut env = mock_env();
@@ -1964,7 +1958,6 @@ mod tests {
             //sudo update config
             let mut env = mock_env();
             env.block.time = Timestamp::from_seconds(0);
-            let info = mock_info("protocol_admin", &[]);
             //update config
             sudo_update_config(deps.as_mut(), env, Some(Uint64::new(2000)), Some(Uint64::new(2000)),Some("fee2".to_string()), Some(Uint128::new(200)), Some("collector2".to_string()), Some("new_denom".to_string())).unwrap();
             //query config
@@ -1977,6 +1970,76 @@ mod tests {
             assert_eq!(config_response.fee_collector, "collector2".to_string());
             assert_eq!(config_response.protocol_admin, "protocol_admin".to_string());
             assert_eq!(config_response.accepted_in_denom, "new_denom".to_string());
+        }
+
+        #[test]
+        fn test_sudo_pause_stream() {
+            let treasury = Addr::unchecked("treasury");
+            let start = Timestamp::from_seconds(1_000_000);
+            let end = Timestamp::from_seconds(5_000_000);
+            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_denom = "out_denom";
+
+            // instantiate
+            let mut deps = mock_dependencies();
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(0);
+            let msg = crate::msg::InstantiateMsg {
+                min_stream_seconds: Uint64::new(1000),
+                min_seconds_until_start_time: Uint64::new(0),
+                stream_creation_denom: "fee".to_string(),
+                stream_creation_fee: Uint128::new(100),
+                fee_collector: "collector".to_string(),
+                protocol_admin: "protocol_admin".to_string(),
+                accepted_in_denom: "in".to_string(),
+            };
+            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+            // create stream
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(0);
+            let info = mock_info(
+                "creator1",
+                &[
+                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(100, "fee"),
+                ],
+            );
+            execute_create_stream(
+                deps.as_mut(),
+                env,
+                info,
+                treasury.to_string(),
+                "test".to_string(),
+                "test".to_string(),
+                "in".to_string(),
+                out_denom.to_string(),
+                out_supply,
+                start,
+                end,
+            )
+                .unwrap();
+
+
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(500_000);
+            let res = sudo_pause_stream(deps.as_mut(), env, 1).unwrap_err();
+            assert_eq!(res, ContractError::StreamNotStarted {});
+
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(6_000_000);
+            let res = sudo_pause_stream(deps.as_mut(), env, 1).unwrap_err();
+            assert_eq!(res, ContractError::StreamEnded {});
+
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(3_000_000);
+            let res = sudo_pause_stream(deps.as_mut(), env, 1).unwrap();
+            assert_eq!(res, Response::new().add_attribute("stream_id", "1").add_attribute("is_paused", "true").add_attribute("pause_date", "3000000.000000000"));
+
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(4_000_000);
+            let res = sudo_pause_stream(deps.as_mut(), env, 1).unwrap_err();
+            assert_eq!(res, ContractError::StreamKillswitchActive {});
         }
 
         #[test]
