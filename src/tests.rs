@@ -1618,6 +1618,8 @@ mod tests {
         use crate::killswitch::{execute_exit_cancelled, sudo_cancel_stream};
         use cosmwasm_std::CosmosMsg::Bank;
         use cosmwasm_std::{ReplyOn, SubMsg};
+        use crate::contract::{query_config, sudo_update_config};
+
         #[test]
         fn test_pause_protocol_admin() {
             let treasury = Addr::unchecked("treasury");
@@ -1923,6 +1925,58 @@ mod tests {
             let new_end_date = end.plus_nanos(resume_date.nanos() - pause_date.nanos());
             let stream = query_stream(deps.as_ref(), mock_env(), 1).unwrap();
             assert_eq!(stream.end_time, new_end_date);
+        }
+
+        #[test]
+        fn test_sudo_update_config() {
+            let treasury = Addr::unchecked("treasury");
+            let start = Timestamp::from_seconds(1_000_000);
+            let end = Timestamp::from_seconds(5_000_000);
+            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_denom = "out_denom";
+
+            // instantiate
+            let mut deps = mock_dependencies();
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(0);
+            let msg = crate::msg::InstantiateMsg {
+                min_stream_seconds: Uint64::new(1000),
+                min_seconds_until_start_time: Uint64::new(0),
+                stream_creation_denom: "fee".to_string(),
+                stream_creation_fee: Uint128::new(100),
+                fee_collector: "collector".to_string(),
+                protocol_admin: "protocol_admin".to_string(),
+                accepted_in_denom: "in".to_string(),
+            };
+            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+            //query config
+            let config_response = query_config(deps.as_ref()).unwrap();
+            //check config
+            assert_eq!(config_response.min_stream_seconds, Uint64::new(1000));
+            assert_eq!(config_response.min_seconds_until_start_time, Uint64::new(0));
+            assert_eq!(config_response.stream_creation_denom, "fee".to_string());
+            assert_eq!(config_response.stream_creation_fee, Uint128::new(100));
+            assert_eq!(config_response.fee_collector, "collector".to_string());
+            assert_eq!(config_response.protocol_admin, "protocol_admin".to_string());
+            assert_eq!(config_response.accepted_in_denom, "in".to_string());
+
+            //sudo update config
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(0);
+            let info = mock_info("protocol_admin", &[]);
+            //update config
+            sudo_update_config(deps.as_mut(), env, Some(Uint64::new(2000)), Some(Uint64::new(2000)),Some("fee2".to_string()), Some(Uint128::new(200)), Some("collector2".to_string()), Some("new_denom".to_string())).unwrap();
+            //query config
+            let config_response = query_config(deps.as_ref()).unwrap();
+            //check config
+            assert_eq!(config_response.min_stream_seconds, Uint64::new(2000));
+            assert_eq!(config_response.min_seconds_until_start_time, Uint64::new(2000));
+            assert_eq!(config_response.stream_creation_denom, "fee2".to_string());
+            assert_eq!(config_response.stream_creation_fee, Uint128::new(200));
+            assert_eq!(config_response.fee_collector, "collector2".to_string());
+            assert_eq!(config_response.protocol_admin, "protocol_admin".to_string());
+            assert_eq!(config_response.accepted_in_denom, "new_denom".to_string());
         }
 
         #[test]
