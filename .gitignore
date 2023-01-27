@@ -13,3 +13,6 @@
 # IDEs
 *.iml
 .idea
+
+# tarpaulin-docs
+/tarpaulin-docs
