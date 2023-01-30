@@ -10,9 +10,17 @@ pub struct Config {
     pub min_stream_seconds: Uint64,
     // min duration between start time and current time in unix seconds
     pub min_seconds_until_start_time: Uint64,
+    // Accepted in_denom to buy out_tokens
+    pub accepted_in_denom: String,
+    //Accepted stream creation fee denom
     pub stream_creation_denom: String,
+    // Stream creation fee amount
     pub stream_creation_fee: Uint128,
+    // in/buy token exit fee in percent
+    pub exit_fee_percent: Decimal,
     pub fee_collector: Addr,
+    // protocol admin can pause streams in case of emergency.
+    pub protocol_admin: Addr,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");
@@ -49,6 +57,17 @@ pub struct Stream {
     pub end_time: Timestamp,
     // price at when latest distribution is triggered
     pub current_streamed_price: Decimal,
+    pub status: Status,
+    pub pause_date: Option<Timestamp>,
+}
+
+#[cw_serde]
+pub enum Status {
+    Waiting,
+    Active,
+    Finalized,
+    Paused,
+    Cancelled,
 }
 
 impl Stream {
@@ -79,6 +98,8 @@ impl Stream {
             start_time,
             end_time,
             current_streamed_price: Decimal::zero(),
+            status: Status::Waiting,
+            pause_date: None,
         }
     }
 
@@ -94,6 +115,18 @@ impl Stream {
             shares = shares / self.in_supply;
         }
         shares
+    }
+
+    pub fn is_paused(&self) -> bool {
+        self.status == Status::Paused
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.status == Status::Cancelled
+    }
+
+    pub fn is_killswitch_active(&self) -> bool {
+        self.status == Status::Cancelled || self.status == Status::Paused
     }
 }
 type StreamId = u64;

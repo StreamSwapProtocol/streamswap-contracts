@@ -23,6 +23,9 @@ pub enum ContractError {
     #[error("{0}")]
     ConversionOverflowError(#[from] ConversionOverflowError),
 
+    #[error("Cannot migrate from different contract type: {previous_contract}")]
+    CannotMigrate { previous_contract: String },
+
     #[error("No rewards accrued")]
     NoDistribution {},
 
@@ -31,6 +34,9 @@ pub enum ContractError {
 
     #[error("Do not send native funds")]
     NoFundsSent {},
+
+    #[error("In_denom does not match config")]
+    InDenomIsNotAccepted {},
 
     #[error("Supply out funds required")]
     StreamOutSupplyFundsRequired {},
@@ -76,4 +82,22 @@ pub enum ContractError {
 
     #[error("Invalid decimals")]
     InvalidDecimals {},
+
+    #[error("Stream paused")]
+    StreamPaused {},
+
+    #[error("Stream is already paused")]
+    StreamAlreadyPaused {},
+
+    #[error("Stream not paused")]
+    StreamNotPaused {},
+
+    #[error("Stream not cancelled")]
+    StreamNotCancelled {},
+
+    #[error("Stream is cancelled")]
+    StreamIsCancelled {},
+
+    #[error("Killswitch is active")]
+    StreamKillswitchActive {},
 }

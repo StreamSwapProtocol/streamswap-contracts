@@ -1,3 +1,4 @@
+use crate::state::Status;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Decimal, Decimal256, Timestamp, Uint128, Uint64};
 
@@ -7,7 +8,10 @@ pub struct InstantiateMsg {
     pub min_seconds_until_start_time: Uint64,
     pub stream_creation_denom: String,
     pub stream_creation_fee: Uint128,
+    pub exit_fee_percent: Decimal,
     pub fee_collector: String,
+    pub protocol_admin: String,
+    pub accepted_in_denom: String,
 }
 
 #[cw_serde]
@@ -77,15 +81,30 @@ pub enum ExecuteMsg {
         position_owner: Option<String>,
     },
     //
-    // Collector
+    // Killswitch features
     //
-    // CollectFees collects fees from the contract
-    CollectFees {},
+    // PauseStream pauses the stream. Only protocol admin and governance can pause the stream.
+    PauseStream {
+        stream_id: u64,
+    },
+    // WithdrawPaused is used to withdraw unspent position funds during pause.
+    WithdrawPaused {
+        stream_id: u64,
+        cap: Option<Uint128>,
+        position_owner: Option<String>,
+    },
+    // ExitCancelled returns the whole balance user put in the stream, both spent and unspent.
+    ExitCancelled {
+        stream_id: u64,
+        position_owner: Option<String>,
+    },
 }
 
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
+    #[returns(ConfigResponse)]
+    Config {},
     #[returns(StreamResponse)]
     Stream { stream_id: u64 },
     #[returns(StreamsResponse)]
@@ -108,6 +127,17 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
+pub struct ConfigResponse {
+    pub min_stream_seconds: Uint64,
+    pub min_seconds_until_start_time: Uint64,
+    pub stream_creation_denom: String,
+    pub stream_creation_fee: Uint128,
+    pub fee_collector: String,
+    pub protocol_admin: String,
+    pub accepted_in_denom: String,
+}
+
+#[cw_serde]
 pub struct StreamResponse {
     pub id: u64,
     pub treasury: String,
@@ -122,6 +152,8 @@ pub struct StreamResponse {
     pub in_spent: Uint128,
     pub start_time: Timestamp,
     pub end_time: Timestamp,
+    pub status: Status,
+    pub pause_date: Option<Timestamp>,
 }
 
 #[cw_serde]
@@ -166,6 +198,16 @@ pub enum SudoMsg {
         stream_creation_denom: Option<String>,
         stream_creation_fee: Option<Uint128>,
         fee_collector: Option<String>,
+        accepted_in_denom: Option<String>,
+    },
+    PauseStream {
+        stream_id: u64,
+    },
+    CancelStream {
+        stream_id: u64,
+    },
+    ResumeStream {
+        stream_id: u64,
     },
 }
 

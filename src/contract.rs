@@ -1,18 +1,24 @@
 use crate::msg::{
-    AveragePriceResponse, ExecuteMsg, InstantiateMsg, LatestStreamedPriceResponse, MigrateMsg,
-    PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse, SudoMsg,
+    AveragePriceResponse, ConfigResponse, ExecuteMsg, InstantiateMsg, LatestStreamedPriceResponse,
+    MigrateMsg, PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse,
+    SudoMsg,
 };
-use crate::state::{next_stream_id, Config, Position, Stream, CONFIG, POSITIONS, STREAMS};
-use crate::ContractError;
+use crate::state::{next_stream_id, Config, Position, Status, Stream, CONFIG, POSITIONS, STREAMS};
+use crate::{killswitch, ContractError};
 use cosmwasm_std::{
     attr, entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
     Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdResult, Timestamp, Uint128,
     Uint256, Uint64,
 };
+use cw2::{get_contract_version, set_contract_version};
 
 use crate::helpers::get_decimals;
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay};
+
+// Version and contract info for migration
+const CONTRACT_NAME: &str = "crates.io:cw-streamswap";
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -21,12 +27,17 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
     let config = Config {
         min_stream_seconds: msg.min_stream_seconds,
         min_seconds_until_start_time: msg.min_seconds_until_start_time,
-        stream_creation_denom: msg.stream_creation_denom,
+        stream_creation_denom: msg.stream_creation_denom.clone(),
         stream_creation_fee: msg.stream_creation_fee,
+        exit_fee_percent: msg.exit_fee_percent,
         fee_collector: deps.api.addr_validate(&msg.fee_collector)?,
+        protocol_admin: deps.api.addr_validate(&msg.protocol_admin)?,
+        accepted_in_denom: msg.accepted_in_denom,
     };
     CONFIG.save(deps.storage, &config)?;
 
@@ -36,7 +47,11 @@ pub fn instantiate(
             "min_seconds_until_start_time",
             msg.min_seconds_until_start_time,
         ),
+        attr("stream_creation_denom", msg.stream_creation_denom),
         attr("stream_creation_fee", msg.stream_creation_fee),
+        attr("exit_fee_percent", msg.exit_fee_percent.to_string()),
+        attr("fee_collector", msg.fee_collector),
+        attr("protocol_admin", msg.protocol_admin),
     ];
     Ok(Response::default().add_attributes(attrs))
 }
@@ -90,7 +105,19 @@ pub fn execute(
             stream_id,
             position_owner,
         } => execute_exit_stream(deps, env, info, stream_id, position_owner),
-        ExecuteMsg::CollectFees {} => execute_collect_fees(deps, env, info),
+
+        ExecuteMsg::PauseStream { stream_id } => {
+            killswitch::execute_pause_stream(deps, env, info, stream_id)
+        }
+        ExecuteMsg::WithdrawPaused {
+            stream_id,
+            cap,
+            position_owner,
+        } => killswitch::execute_withdraw_paused(deps, env, info, stream_id, cap, position_owner),
+        ExecuteMsg::ExitCancelled {
+            stream_id,
+            position_owner,
+        } => killswitch::execute_exit_cancelled(deps, env, info, stream_id, position_owner),
     }
 }
 
@@ -120,6 +147,10 @@ pub fn execute_create_stream(
 
     if start_time.seconds() - env.block.time.seconds() < config.min_seconds_until_start_time.u64() {
         return Err(ContractError::StreamStartsTooSoon {});
+    }
+
+    if in_denom != config.accepted_in_denom {
+        return Err(ContractError::InDenomIsNotAccepted {});
     }
 
     if out_denom == config.stream_creation_denom {
@@ -187,6 +218,9 @@ pub fn execute_update_stream(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    if stream.is_paused() {
+        return Err(ContractError::StreamPaused {});
+    }
     let (_, dist_amount) = update_stream(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
@@ -239,6 +273,7 @@ fn calculate_diff(
     last_updated: Timestamp,
     now: Timestamp,
 ) -> (Decimal, Timestamp) {
+    // diff = (now - last_updated) / (end_time - last_updated)
     let now = if now > end_time { end_time } else { now };
     let numerator = now.minus_nanos(last_updated.nanos());
     let denominator = end_time.minus_nanos(last_updated.nanos());
@@ -272,6 +307,11 @@ pub fn execute_update_position(
     }
 
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    // check if stream is paused
+    if stream.is_paused() {
+        return Err(ContractError::StreamPaused {});
+    }
+
     update_stream(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
@@ -342,11 +382,19 @@ pub fn execute_subscribe(
     position_owner: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    // check if stream is paused
+    if stream.is_killswitch_active() {
+        return Err(ContractError::StreamKillswitchActive {});
+    }
     if env.block.time < stream.start_time {
         return Err(ContractError::StreamNotStarted {});
     }
     if env.block.time > stream.end_time {
         return Err(ContractError::StreamEnded {});
+    }
+    //On first subscibe change status to Active
+    if stream.status == Status::Waiting {
+        stream.status = Status::Active
     }
 
     let in_amount = must_pay(&info, &stream.in_denom)?;
@@ -371,7 +419,7 @@ pub fn execute_subscribe(
                 env.block.time,
                 operator,
             );
-            POSITIONS.save(deps.storage, (stream_id, &info.sender), &new_position)?;
+            POSITIONS.save(deps.storage, (stream_id, &position_owner), &new_position)?;
         }
         Some(mut position) => {
             if position.owner != info.sender
@@ -395,19 +443,19 @@ pub fn execute_subscribe(
 
             position.in_balance = position.in_balance.checked_add(in_amount)?;
             position.shares = position.shares.checked_add(new_shares)?;
-            POSITIONS.save(deps.storage, (stream_id, &info.sender), &position)?;
+            POSITIONS.save(deps.storage, (stream_id, &position_owner), &position)?;
         }
     }
 
     // increase in supply and shares
-    stream.in_supply += in_amount;
-    stream.shares += new_shares;
+    stream.in_supply = stream.in_supply.checked_add(in_amount)?;
+    stream.shares = stream.shares.checked_add(new_shares)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let res = Response::new()
         .add_attribute("action", "subscribe")
         .add_attribute("stream_id", stream_id.to_string())
-        .add_attribute("owner", info.sender)
+        .add_attribute("owner", position_owner)
         .add_attribute("in_supply", stream.in_supply)
         .add_attribute("in_amount", in_amount);
 
@@ -450,6 +498,10 @@ pub fn execute_withdraw(
     position_owner: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    // check if stream is paused
+    if stream.is_killswitch_active() {
+        return Err(ContractError::StreamKillswitchActive {});
+    }
     // can't withdraw after stream ended
     if env.block.time > stream.end_time {
         return Err(ContractError::StreamEnded {});
@@ -524,8 +576,11 @@ pub fn execute_finalize_stream(
     stream_id: u64,
     new_treasury: Option<String>,
 ) -> Result<Response, ContractError> {
-    let stream = STREAMS.load(deps.storage, stream_id)?;
-
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    // check if stream is paused
+    if stream.is_killswitch_active() {
+        return Err(ContractError::StreamKillswitchActive {});
+    }
     if stream.treasury != info.sender {
         return Err(ContractError::Unauthorized {});
     }
@@ -536,17 +591,27 @@ pub fn execute_finalize_stream(
         return Err(ContractError::UpdateDistIndex {});
     }
 
-    let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or(stream.treasury);
+    if stream.status == Status::Active {
+        stream.status = Status::Finalized
+    }
 
+    let config = CONFIG.load(deps.storage)?;
+    let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or(stream.treasury.clone());
+
+    //Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
+    let swap_fee = Decimal::from_ratio(stream.spent_in, Uint128::one())
+        .checked_mul(config.exit_fee_percent)?
+        * Uint128::one();
+
+    //Creator's revenue claimed at finalize
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: treasury.to_string(),
         amount: vec![Coin {
-            denom: stream.in_denom,
+            denom: stream.in_denom.clone(),
             amount: stream.spent_in,
         }],
     });
-
-    let config = CONFIG.load(deps.storage)?;
+    //Exact fee for stream creation claimed at finalize
     let fee_send_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: config.fee_collector.to_string(),
         amount: vec![Coin {
@@ -554,6 +619,16 @@ pub fn execute_finalize_stream(
             amount: config.stream_creation_fee,
         }],
     });
+    let swap_fee_msg = CosmosMsg::Bank(BankMsg::Send {
+        to_address: config.fee_collector.to_string(),
+        amount: vec![Coin {
+            denom: stream.in_denom.to_string(),
+            amount: swap_fee,
+        }],
+    });
+
+    // update stream status
+    STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let attributes = vec![
         attr("action", "finalize_stream"),
@@ -565,6 +640,7 @@ pub fn execute_finalize_stream(
     Ok(Response::new()
         .add_message(fee_send_msg)
         .add_message(send_msg)
+        .add_message(swap_fee_msg)
         .add_attributes(attributes))
 }
 
@@ -576,16 +652,19 @@ pub fn execute_exit_stream(
     position_owner: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let config = CONFIG.load(deps.storage)?;
+    // check if stream is paused
+    if stream.is_killswitch_active() {
+        return Err(ContractError::StreamKillswitchActive {});
+    }
     if env.block.time < stream.end_time {
         return Err(ContractError::StreamNotEnded {});
     }
     if stream.last_updated < stream.end_time {
         return Err(ContractError::UpdateDistIndex {});
     }
-
     let position_owner = maybe_addr(deps.api, position_owner)?.unwrap_or(info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;
-    // TODO: maybe callable by everyone? if then remove new recipient
     if position.owner != info.sender
         && position
             .operator
@@ -594,7 +673,6 @@ pub fn execute_exit_stream(
     {
         return Err(ContractError::Unauthorized {});
     }
-
     // update position before exit
     update_position(
         stream.dist_index,
@@ -603,6 +681,10 @@ pub fn execute_exit_stream(
         stream.in_supply,
         &mut position,
     )?;
+    //Swap fee = fixed_rate*position.spent_in
+    let swap_fee = Decimal::from_ratio(position.spent, Uint128::one())
+        .checked_mul(config.exit_fee_percent)?
+        * Uint128::one();
 
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: position_owner.to_string(),
@@ -611,42 +693,23 @@ pub fn execute_exit_stream(
             amount: position.purchased,
         }],
     });
-    stream.shares -= position.shares;
-    stream.in_supply -= position.in_balance;
+
+    stream.spent_in = stream.spent_in.checked_sub(position.spent)?;
+    stream.shares = stream.shares.checked_sub(position.shares)?;
+
     STREAMS.save(deps.storage, stream_id, &stream)?;
     POSITIONS.remove(deps.storage, (stream_id, &position.owner));
 
     let attributes = vec![
         attr("action", "exit_stream"),
         attr("stream_id", stream_id.to_string()),
+        attr("spent", position.spent.checked_sub(swap_fee)?),
         attr("purchased", position.purchased),
+        attr("swap_fee_paid", swap_fee),
     ];
     Ok(Response::new()
         .add_message(send_msg)
         .add_attributes(attributes))
-}
-
-// TODO: finalize already sends back the fees, so this is not needed, but in case there is extra fees
-// best to keep this
-pub fn execute_collect_fees(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-) -> Result<Response, ContractError> {
-    let config = CONFIG.load(deps.storage)?;
-    if config.fee_collector != info.sender {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    let collected_fees = deps
-        .querier
-        .query_balance(env.contract.address, config.stream_creation_denom.as_str())?;
-    let send_msg = CosmosMsg::Bank(BankMsg::Send {
-        to_address: config.fee_collector.to_string(),
-        amount: vec![collected_fees],
-    });
-
-    Ok(Response::new().add_message(send_msg))
 }
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractError> {
@@ -657,6 +720,7 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
             stream_creation_denom,
             stream_creation_fee,
             fee_collector,
+            accepted_in_denom,
         } => sudo_update_config(
             deps,
             env,
@@ -665,7 +729,11 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
             stream_creation_denom,
             stream_creation_fee,
             fee_collector,
+            accepted_in_denom,
         ),
+        SudoMsg::PauseStream { stream_id } => killswitch::sudo_pause_stream(deps, env, stream_id),
+        SudoMsg::CancelStream { stream_id } => killswitch::sudo_cancel_stream(deps, env, stream_id),
+        SudoMsg::ResumeStream { stream_id } => killswitch::sudo_resume_stream(deps, env, stream_id),
     }
 }
 
@@ -677,6 +745,7 @@ pub fn sudo_update_config(
     stream_creation_denom: Option<String>,
     stream_creation_fee: Option<Uint128>,
     fee_collector: Option<String>,
+    accepted_in_denom: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut cfg = CONFIG.load(deps.storage)?;
 
@@ -685,7 +754,7 @@ pub fn sudo_update_config(
         min_duration_until_start_time.unwrap_or(cfg.min_seconds_until_start_time);
     cfg.stream_creation_denom = stream_creation_denom.unwrap_or(cfg.stream_creation_denom);
     cfg.stream_creation_fee = stream_creation_fee.unwrap_or(cfg.stream_creation_fee);
-
+    cfg.accepted_in_denom = accepted_in_denom.unwrap_or(cfg.accepted_in_denom);
     let collector = maybe_addr(deps.api, fee_collector)?.unwrap_or(cfg.fee_collector);
     cfg.fee_collector = collector;
 
@@ -707,13 +776,20 @@ pub fn sudo_update_config(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    let contract_info = get_contract_version(deps.storage)?;
+    if contract_info.contract != CONTRACT_NAME {
+        return Err(ContractError::CannotMigrate {
+            previous_contract: contract_info.contract,
+        });
+    }
     Ok(Response::default())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
+        QueryMsg::Config {} => to_binary(&query_config(deps)?),
         QueryMsg::Stream { stream_id } => to_binary(&query_stream(deps, env, stream_id)?),
         QueryMsg::Position { stream_id, owner } => {
             to_binary(&query_position(deps, env, stream_id, owner)?)
@@ -734,6 +810,18 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
     }
 }
+pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
+    let cfg = CONFIG.load(deps.storage)?;
+    Ok(ConfigResponse {
+        min_stream_seconds: cfg.min_stream_seconds,
+        min_seconds_until_start_time: cfg.min_seconds_until_start_time,
+        stream_creation_denom: cfg.stream_creation_denom,
+        stream_creation_fee: cfg.stream_creation_fee,
+        fee_collector: cfg.fee_collector.to_string(),
+        protocol_admin: cfg.protocol_admin.to_string(),
+        accepted_in_denom: cfg.accepted_in_denom,
+    })
+}
 
 pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamResponse> {
     let stream = STREAMS.load(deps.storage, stream_id)?;
@@ -751,6 +839,8 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
         in_supply: stream.in_supply,
         shares: stream.shares,
         last_updated: stream.last_updated,
+        status: stream.status,
+        pause_date: stream.pause_date,
     };
     Ok(stream)
 }
@@ -785,6 +875,8 @@ pub fn list_streams(
                 out_remaining: stream.out_remaining,
                 in_supply: stream.in_supply,
                 shares: stream.shares,
+                status: stream.status,
+                pause_date: stream.pause_date,
             };
             Ok(stream)
         })
