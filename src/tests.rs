@@ -1901,6 +1901,12 @@ mod tests {
                 res,
                 ContractError::DecreaseAmountExceeds(Uint128::new(2_000_000_000_001))
             );
+            //withdraw with cap
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(7000);
+            let info = mock_info("creator1", &[]);
+            let cap = Uint128::new(25_000_000);
+            execute_withdraw_paused(deps.as_mut(), env, info, 1, Some(cap), None).unwrap();
 
             // withdraw after pause
             let mut env = mock_env();
@@ -1915,7 +1921,7 @@ mod tests {
                         to_address: "creator1".to_string(),
                         amount: vec![Coin {
                             denom: "in".to_string(),
-                            amount: Uint128::new(1_996_975_006_258),
+                            amount: Uint128::new(1996950006258),
                         }],
                     }
                     .into(),
@@ -2293,7 +2299,15 @@ mod tests {
             env.block.time = start.plus_seconds(0);
             let funds = Coin::new(2_000_000_000_000, "in");
             let info = mock_info("creator1", &[funds.clone()]);
-            execute_subscribe(deps.as_mut(), env, info, 1, Some("operator1".to_string()), None).unwrap();
+            execute_subscribe(
+                deps.as_mut(),
+                env,
+                info,
+                1,
+                Some("operator1".to_string()),
+                None,
+            )
+            .unwrap();
 
             // cant cancel without pause
             let mut env = mock_env();
@@ -2353,7 +2367,9 @@ mod tests {
             let mut env = mock_env();
             env.block.time = start.plus_seconds(2_250_000);
             let info = mock_info("random", &[]);
-            let res = execute_exit_cancelled(deps.as_mut(), env, info, 1, Some("creator1".to_string())).unwrap_err();
+            let res =
+                execute_exit_cancelled(deps.as_mut(), env, info, 1, Some("creator1".to_string()))
+                    .unwrap_err();
             assert_eq!(res, ContractError::Unauthorized {});
 
             // exit
