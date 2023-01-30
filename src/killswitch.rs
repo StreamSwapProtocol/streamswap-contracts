@@ -22,7 +22,8 @@ pub fn execute_withdraw_paused(
     }
     // We are not checking if stream is ended because the paused state duration might exceed end time
 
-    let position_owner = maybe_addr(deps.api, position_owner)?.unwrap_or(info.sender.clone());
+    let position_owner =
+        maybe_addr(deps.api, position_owner)?.unwrap_or_else(|| info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;
     if position.owner != info.sender
         && position
@@ -97,7 +98,8 @@ pub fn execute_exit_cancelled(
         return Err(ContractError::StreamNotCancelled {});
     }
 
-    let position_owner = maybe_addr(deps.api, position_owner)?.unwrap_or(info.sender.clone());
+    let position_owner =
+        maybe_addr(deps.api, position_owner)?.unwrap_or_else(|| info.sender.clone());
     let position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;
     if position.owner != info.sender
         && position
@@ -255,22 +257,23 @@ pub fn sudo_cancel_stream(
     let config = CONFIG.load(deps.storage)?;
 
     //Refund all out tokens to stream creator(treasury)
-    let mut messages: Vec<CosmosMsg> = vec![];
-    messages.push(CosmosMsg::Bank(BankMsg::Send {
-        to_address: stream.treasury.to_string(),
-        amount: vec![Coin {
-            denom: stream.out_denom,
-            amount: stream.out_supply,
-        }],
-    }));
-    //Refund stream creation fee to stream creator
-    messages.push(CosmosMsg::Bank(BankMsg::Send {
-        to_address: stream.treasury.to_string(),
-        amount: vec![Coin {
-            denom: config.stream_creation_denom,
-            amount: config.stream_creation_fee,
-        }],
-    }));
+    let messages: Vec<CosmosMsg> = vec![
+        CosmosMsg::Bank(BankMsg::Send {
+            to_address: stream.treasury.to_string(),
+            amount: vec![Coin {
+                denom: stream.out_denom,
+                amount: stream.out_supply,
+            }],
+        }),
+        //Refund stream creation fee to stream creator
+        CosmosMsg::Bank(BankMsg::Send {
+            to_address: stream.treasury.to_string(),
+            amount: vec![Coin {
+                denom: config.stream_creation_denom,
+                amount: config.stream_creation_fee,
+            }],
+        }),
+    ];
 
     Ok(Response::new()
         .add_messages(messages)

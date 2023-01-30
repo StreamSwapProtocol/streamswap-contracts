@@ -112,7 +112,7 @@ impl Stream {
         if round_up {
             shares = (shares + self.in_supply - Uint128::one()) / self.in_supply;
         } else {
-            shares = shares / self.in_supply;
+            shares /= self.in_supply;
         }
         shares
     }
