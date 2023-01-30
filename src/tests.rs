@@ -1696,11 +1696,32 @@ mod tests {
             let info = mock_info("position1", &[funds.clone()]);
             execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
 
+            //can't pause before start time
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.time = start.minus_seconds(500_000);
+            let res = execute_pause_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            assert_eq!(res, ContractError::StreamNotStarted {});
+
+            // can't pause after end time
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.time = end.plus_seconds(500_000);
+            let res = execute_pause_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            assert_eq!(res, ContractError::StreamEnded {});
+
             // protocol admin can pause
             let info = mock_info("protocol_admin", &[]);
             let mut env = mock_env();
             env.block.time = start.plus_seconds(1_000_001);
             execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+
+            // can't paused if already paused
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(1_000_005);
+            let res = execute_pause_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            assert_eq!(res, ContractError::StreamKillswitchActive {});
 
             // can't subscribe new
             let mut env = mock_env();

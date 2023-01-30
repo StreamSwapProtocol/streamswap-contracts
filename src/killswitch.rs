@@ -9,7 +9,7 @@ use cw_utils::maybe_addr;
 
 pub fn execute_withdraw_paused(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     stream_id: u64,
     cap: Option<Uint128>,
