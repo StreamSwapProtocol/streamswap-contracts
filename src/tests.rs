@@ -1844,7 +1844,7 @@ mod tests {
             env.block.time = start.plus_seconds(6000);
             let info = mock_info("protocol_admin", &[]);
             execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
-            //Stream end time check(Stream cant be paused when ended)
+
             let mut env = mock_env();
             env.block.time = start.plus_seconds(6500);
             let stream1_old = query_stream(deps.as_ref(), env, 1).unwrap();
@@ -1863,6 +1863,24 @@ mod tests {
             .unwrap_err();
 
             assert_eq!(res, ContractError::Unauthorized {});
+            //Cap exceeds in balance check
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(7000);
+            let info = mock_info("creator1", &[]);
+            let res = execute_withdraw_paused(
+                deps.as_mut(),
+                env,
+                info,
+                1,
+                Some(Uint128::new(2_000_000_000_000 + 1)),
+                None,
+            )
+            .unwrap_err();
+            assert_eq!(
+                res,
+                ContractError::DecreaseAmountExceeds(Uint128::new(2_000_000_000_001))
+            );
+
             // withdraw after pause
             let mut env = mock_env();
             env.block.time = start.plus_seconds(7000);
