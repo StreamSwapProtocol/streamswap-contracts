@@ -30,6 +30,7 @@ pub fn instantiate(
         min_seconds_until_start_time: msg.min_seconds_until_start_time,
         stream_creation_denom: msg.stream_creation_denom.clone(),
         stream_creation_fee: msg.stream_creation_fee,
+        exit_fee_percent: msg.exit_fee_percent,
         fee_collector: deps.api.addr_validate(&msg.fee_collector)?,
         protocol_admin: deps.api.addr_validate(&msg.protocol_admin)?,
         accepted_in_denom: msg.accepted_in_denom,
@@ -44,6 +45,7 @@ pub fn instantiate(
         ),
         attr("stream_creation_denom", msg.stream_creation_denom),
         attr("stream_creation_fee", msg.stream_creation_fee),
+        attr("exit_fee_percent", msg.exit_fee_percent.to_string()),
         attr("fee_collector", msg.fee_collector),
         attr("protocol_admin", msg.protocol_admin),
     ];
@@ -664,6 +666,11 @@ pub fn execute_exit_stream(
         &mut position,
     )?;
 
+    let config = CONFIG.load(deps.storage)?;
+    let fee = Decimal::from_ratio(position.spent, Uint128::one())
+        .checked_mul(config.exit_fee_percent)?
+        * Uint128::one();
+
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: position_owner.to_string(),
         amount: vec![Coin {
@@ -671,6 +678,15 @@ pub fn execute_exit_stream(
             amount: position.purchased,
         }],
     });
+
+    let fee_msg = CosmosMsg::Bank(BankMsg::Send {
+        to_address: config.fee_collector.to_string(),
+        amount: vec![Coin {
+            denom: stream.in_denom.to_string(),
+            amount: fee,
+        }],
+    });
+
     stream.shares -= position.shares;
     stream.in_supply -= position.in_balance;
     STREAMS.save(deps.storage, stream_id, &stream)?;
@@ -679,10 +695,11 @@ pub fn execute_exit_stream(
     let attributes = vec![
         attr("action", "exit_stream"),
         attr("stream_id", stream_id.to_string()),
-        attr("purchased", position.purchased),
+        attr("purchased", position.purchased - fee),
+        attr("fee", fee),
     ];
     Ok(Response::new()
-        .add_message(send_msg)
+        .add_messages(vec![send_msg, fee_msg])
         .add_attributes(attributes))
 }
 #[cfg_attr(not(feature = "library"), entry_point)]

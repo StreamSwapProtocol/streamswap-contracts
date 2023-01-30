@@ -12,7 +12,7 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::StdError::{self};
     use cosmwasm_std::{
-        Addr, BankMsg, Coin, CosmosMsg, Decimal, Decimal256, Response, Timestamp, Uint128, Uint64,
+        Addr, BankMsg, Coin, CosmosMsg, Decimal, Decimal256, Response, Timestamp, Uint128, Uint64, SubMsg
     };
     use cw_utils::PaymentError;
     use std::ops::Sub;
@@ -62,6 +62,7 @@ mod tests {
             min_seconds_until_start_time: Uint64::new(1000),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -374,6 +375,7 @@ mod tests {
             min_seconds_until_start_time: Uint64::new(1000),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -505,6 +507,7 @@ mod tests {
             min_seconds_until_start_time: Uint64::new(1),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -836,6 +839,7 @@ mod tests {
             min_seconds_until_start_time: Uint64::new(1000),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -943,6 +947,7 @@ mod tests {
             min_seconds_until_start_time: Uint64::new(1000),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -1094,6 +1099,7 @@ mod tests {
             min_seconds_until_start_time: Uint64::new(0),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -1199,6 +1205,7 @@ mod tests {
             min_seconds_until_start_time: Uint64::new(0),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -1301,6 +1308,7 @@ mod tests {
             min_seconds_until_start_time: Uint64::new(0),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -1374,13 +1382,19 @@ mod tests {
         let info = mock_info("creator1", &[]);
         let res = execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap();
 
-        let send_msg = res.messages.get(0).unwrap();
+        let expected_fee = 20000000000u128;
         assert_eq!(
-            send_msg.msg,
-            CosmosMsg::Bank(BankMsg::Send {
-                to_address: "creator1".to_string(),
-                amount: vec![Coin::new(out_supply.into(), "out_denom")]
-            })
+            res.messages,
+            vec![
+                SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
+                    to_address: "creator1".to_string(),
+                    amount: vec![Coin::new(out_supply.u128(), "out_denom")]
+                })),
+                SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
+                    to_address: "collector".to_string(),
+                    amount: vec![Coin::new(expected_fee, "in")]
+                }))
+            ]
         );
 
         // position deleted
@@ -1408,6 +1422,7 @@ mod tests {
             min_seconds_until_start_time: Uint64::new(0),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -1498,6 +1513,7 @@ mod tests {
             min_seconds_until_start_time: Uint64::new(0),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -1637,6 +1653,7 @@ mod tests {
                 min_seconds_until_start_time: Uint64::new(0),
                 stream_creation_denom: "fee".to_string(),
                 stream_creation_fee: Uint128::new(100),
+                exit_fee_percent: Decimal::percent(1),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
@@ -1757,6 +1774,7 @@ mod tests {
                 min_seconds_until_start_time: Uint64::new(0),
                 stream_creation_denom: "fee".to_string(),
                 stream_creation_fee: Uint128::new(100),
+                exit_fee_percent: Decimal::percent(1),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
@@ -1870,6 +1888,7 @@ mod tests {
                 min_seconds_until_start_time: Uint64::new(0),
                 stream_creation_denom: "fee".to_string(),
                 stream_creation_fee: Uint128::new(100),
+                exit_fee_percent: Decimal::percent(1),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
@@ -1938,6 +1957,7 @@ mod tests {
                 min_seconds_until_start_time: Uint64::new(0),
                 stream_creation_denom: "fee".to_string(),
                 stream_creation_fee: Uint128::new(100),
+                exit_fee_percent: Decimal::percent(1),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
@@ -1989,6 +2009,7 @@ mod tests {
                 min_seconds_until_start_time: Uint64::new(0),
                 stream_creation_denom: "fee".to_string(),
                 stream_creation_fee: Uint128::new(100),
+                exit_fee_percent: Decimal::percent(1),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
@@ -2059,6 +2080,7 @@ mod tests {
                 min_seconds_until_start_time: Uint64::new(1000),
                 stream_creation_denom: "fee".to_string(),
                 stream_creation_fee: Uint128::new(100),
+                exit_fee_percent: Decimal::percent(1),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
@@ -2142,6 +2164,7 @@ mod tests {
                 min_seconds_until_start_time: Uint64::new(0),
                 stream_creation_denom: "fee".to_string(),
                 stream_creation_fee: Uint128::new(100),
+                exit_fee_percent: Decimal::percent(1),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
