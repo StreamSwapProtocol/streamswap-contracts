@@ -1807,7 +1807,15 @@ mod tests {
             env.block.time = start.plus_seconds(0);
             let funds = Coin::new(2_000_000_000_000, "in");
             let info = mock_info("creator1", &[funds.clone()]);
-            execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
+            execute_subscribe(
+                deps.as_mut(),
+                env,
+                info,
+                1,
+                Some("operator".to_string()),
+                None,
+            )
+            .unwrap();
 
             // withdraw with cap
             let mut env = mock_env();
@@ -1840,12 +1848,42 @@ mod tests {
             let mut env = mock_env();
             env.block.time = start.plus_seconds(6500);
             let stream1_old = query_stream(deps.as_ref(), env, 1).unwrap();
+            //Unauthorized check
+            let info = mock_info("random", &[]);
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(7000);
+            let res = execute_withdraw_paused(
+                deps.as_mut(),
+                env,
+                info,
+                1,
+                None,
+                Some("creator1".to_string()),
+            )
+            .unwrap_err();
 
+            assert_eq!(res, ContractError::Unauthorized {});
             // withdraw after pause
             let mut env = mock_env();
             env.block.time = start.plus_seconds(7000);
             let info = mock_info("creator1", &[]);
-            execute_withdraw_paused(deps.as_mut(), env, info, 1, None, None).unwrap();
+            let res = execute_withdraw_paused(deps.as_mut(), env, info, 1, None, None).unwrap();
+            assert_eq!(
+                res.messages,
+                vec![SubMsg {
+                    id: 0,
+                    msg: BankMsg::Send {
+                        to_address: "creator1".to_string(),
+                        amount: vec![Coin {
+                            denom: "in".to_string(),
+                            amount: Uint128::new(1_996_975_006_258),
+                        }],
+                    }
+                    .into(),
+                    gas_limit: None,
+                    reply_on: ReplyOn::Never,
+                }]
+            );
 
             // stream not updated
             let mut env = mock_env();
