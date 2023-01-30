@@ -436,13 +436,11 @@ mod tests {
         let res = execute_subscribe(deps.as_mut(), env.clone(), info, 1, None, None).unwrap_err();
         assert_eq!(
             res,
-            PaymentError::MissingDenom {
-                0: "in".to_string()
-            }
+            PaymentError::MissingDenom("in".to_string())
             .into()
         );
 
-        let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
+        let stream = query_stream(deps.as_ref(), env, 1).unwrap();
         assert_eq!(stream.status, Status::Waiting);
 
         // first subscribe
@@ -468,7 +466,7 @@ mod tests {
         let info = mock_info("random", &[Coin::new(1_000_000, "in")]);
         let res = execute_subscribe(
             deps.as_mut(),
-            env.clone(),
+            env,
             info,
             1,
             None,
@@ -639,7 +637,7 @@ mod tests {
             Some("operator1".to_string()),
         )
         .unwrap();
-        let position = query_position(deps.as_ref(), env.clone(), stream_id, owner).unwrap();
+        let position = query_position(deps.as_ref(), env, stream_id, owner).unwrap();
         assert_eq!(position.operator.unwrap().as_str(), "operator1".to_string());
 
         //operator can increase subscription on behalf of owner
@@ -671,7 +669,7 @@ mod tests {
         env.block.time = start.plus_seconds(100);
         let res = execute_update_operator(
             deps.as_mut(),
-            env.clone(),
+            env,
             info,
             1,
             Some("operator1".to_string()),
@@ -685,7 +683,7 @@ mod tests {
         env.block.time = start.plus_seconds(100);
         let res = execute_update_operator(
             deps.as_mut(),
-            env.clone(),
+            env,
             info,
             1,
             Some("operator2".to_string()),
@@ -884,7 +882,7 @@ mod tests {
         let info = mock_info("random", &[]);
         let err = execute_update_position(
             deps.as_mut(),
-            env.clone(),
+            env,
             info,
             1,
             Some("creator1".to_string()),
@@ -1242,7 +1240,7 @@ mod tests {
         let mut env = mock_env();
         env.block.time = start.plus_seconds(1_000_000);
         let funds = Coin::new(2_000_000_000_000, "in");
-        let info = mock_info("creator1", &[funds.clone()]);
+        let info = mock_info("creator1", &[funds]);
         execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
 
         // only treasury can finalize
@@ -1345,7 +1343,7 @@ mod tests {
         let mut env = mock_env();
         env.block.time = start.plus_seconds(1_000_000);
         let funds = Coin::new(2_000_000_000_000, "in");
-        let info = mock_info("creator1", &[funds.clone()]);
+        let info = mock_info("creator1", &[funds]);
         execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
 
         // can't exit before stream ends
@@ -1365,7 +1363,7 @@ mod tests {
         // update dist
         let mut env = mock_env();
         env.block.time = end.plus_seconds(2_000_000);
-        execute_update_stream(deps.as_mut(), env.clone(), 1).unwrap();
+        execute_update_stream(deps.as_mut(), env, 1).unwrap();
         //failed exit from random address
         let mut env = mock_env();
         env.block.time = end.plus_seconds(3_000_000);
@@ -1373,7 +1371,7 @@ mod tests {
         let res = execute_exit_stream(
             deps.as_mut(),
             env.clone(),
-            info.clone(),
+            info,
             1,
             Some("creator1".to_string()),
         )
@@ -1454,27 +1452,27 @@ mod tests {
         let mut env = mock_env();
         env.block.time = start.plus_seconds(1_000_000);
         let funds = Coin::new(2_000_000_000_000, "in");
-        let info = mock_info("creator1", &[funds.clone()]);
+        let info = mock_info("creator1", &[funds]);
         execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
 
         // second subscription
         let mut env = mock_env();
         env.block.time = start.plus_seconds(1_000_000);
         let funds = Coin::new(1_000_000_000_000, "in");
-        let info = mock_info("creator2", &[funds.clone()]);
+        let info = mock_info("creator2", &[funds]);
         execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
 
         // first withdraw
         let info = mock_info("creator1", &[]);
         let mut env = mock_env();
         env.block.time = end.minus_seconds(1_000_000);
-        execute_withdraw(deps.as_mut(), env.clone(), info, 1, None, None).unwrap();
+        execute_withdraw(deps.as_mut(), env, info, 1, None, None).unwrap();
 
         // second withdraw
         let info = mock_info("creator2", &[]);
         let mut env = mock_env();
         env.block.time = end.minus_seconds(1_000_000);
-        execute_withdraw(deps.as_mut(), env.clone(), info, 1, None, None).unwrap();
+        execute_withdraw(deps.as_mut(), env, info, 1, None, None).unwrap();
 
         // can exit
         let mut env = mock_env();
@@ -1545,7 +1543,7 @@ mod tests {
         let mut env = mock_env();
         env.block.time = start.plus_seconds(1_000_000);
         let funds = Coin::new(3_000, "in");
-        let info = mock_info("creator1", &[funds.clone()]);
+        let info = mock_info("creator1", &[funds]);
         execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
 
         //check current streamed price before update
@@ -1568,7 +1566,7 @@ mod tests {
         let mut env = mock_env();
         env.block.time = start.plus_seconds(2_000_000);
         let funds = Coin::new(1_000, "in");
-        let info = mock_info("creator2", &[funds.clone()]);
+        let info = mock_info("creator2", &[funds]);
         execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
 
         //check current streamed price before update
@@ -1693,7 +1691,7 @@ mod tests {
             let mut env = mock_env();
             env.block.time = start.plus_seconds(1_000_000);
             let funds = Coin::new(3_000, "in");
-            let info = mock_info("position1", &[funds.clone()]);
+            let info = mock_info("position1", &[funds]);
             execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
 
             //can't pause before start time
@@ -1727,7 +1725,7 @@ mod tests {
             let mut env = mock_env();
             env.block.time = start.plus_seconds(1_000_002);
             let funds = Coin::new(3_000, "in");
-            let info = mock_info("position2", &[funds.clone()]);
+            let info = mock_info("position2", &[funds]);
             let res = execute_subscribe(deps.as_mut(), env, info, 1, None, None);
             assert_eq!(res, Err(ContractError::StreamKillswitchActive {}));
 
@@ -1735,7 +1733,7 @@ mod tests {
             let mut env = mock_env();
             env.block.time = start.plus_seconds(1_000_002);
             let funds = Coin::new(3_000, "in");
-            let info = mock_info("position1", &[funds.clone()]);
+            let info = mock_info("position1", &[funds]);
             let res = execute_subscribe(deps.as_mut(), env, info, 1, None, None);
             assert_eq!(res, Err(ContractError::StreamKillswitchActive {}));
 
@@ -1947,7 +1945,7 @@ mod tests {
             // in_balance updated
             assert_eq!(position.in_balance, Uint128::new(0));
             assert_eq!(position.spent, Uint128::new(2_999_993_742));
-            assert_eq!(position.purchased, Uint128::new(1499_999_998));
+            assert_eq!(position.purchased, Uint128::new(1_499_999_998));
             assert_eq!(position.shares, Uint128::new(0));
         }
 
@@ -2004,7 +2002,7 @@ mod tests {
             let mut env = mock_env();
             env.block.time = start.plus_seconds(1_000_000);
             let funds = Coin::new(3_000, "in");
-            let info = mock_info("position1", &[funds.clone()]);
+            let info = mock_info("position1", &[funds]);
             execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
 
             //cant resume if not paused
@@ -2219,8 +2217,8 @@ mod tests {
             //second stream
             execute_create_stream(
                 deps.as_mut(),
-                env.clone(),
-                info.clone(),
+                env,
+                info,
                 treasury.to_string(),
                 "test".to_string(),
                 "test".to_string(),
@@ -2304,7 +2302,7 @@ mod tests {
             let mut env = mock_env();
             env.block.time = start.plus_seconds(0);
             let funds = Coin::new(2_000_000_000_000, "in");
-            let info = mock_info("creator1", &[funds.clone()]);
+            let info = mock_info("creator1", &[funds]);
             execute_subscribe(
                 deps.as_mut(),
                 env,
@@ -2337,7 +2335,7 @@ mod tests {
             //cancel
             let mut env = mock_env();
             env.block.time = start.plus_seconds(2_500_000);
-            let response = sudo_cancel_stream(deps.as_mut(), env.clone(), 1).unwrap();
+            let response = sudo_cancel_stream(deps.as_mut(), env, 1).unwrap();
             //out_tokens and the creation fee are sent back to the treasury upon cancellation
             assert_eq!(
                 response.messages,

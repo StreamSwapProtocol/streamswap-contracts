@@ -412,7 +412,7 @@ pub fn execute_subscribe(
             update_stream(env.block.time, &mut stream)?;
             // new positions do not update purchase as it has no effect on distribution
             let new_position = Position::new(
-                info.sender.clone(),
+                info.sender,
                 in_amount,
                 new_shares,
                 Some(stream.dist_index),
@@ -485,7 +485,7 @@ pub fn execute_update_operator(
         .add_attribute("owner", info.sender)
         .add_attribute(
             "operator",
-            operator.clone().unwrap_or(Addr::unchecked("")).to_string(),
+            operator.unwrap_or(Addr::unchecked("")).to_string(),
         ))
 }
 
