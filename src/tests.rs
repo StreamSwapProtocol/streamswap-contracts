@@ -2007,6 +2007,12 @@ mod tests {
             let info = mock_info("position1", &[funds.clone()]);
             execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
 
+            //cant resume if not paused
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(1_000_000);
+            let res = sudo_resume_stream(deps.as_mut(), env, 1).unwrap_err();
+            assert_eq!(res, ContractError::StreamNotPaused {});
+
             // pause
             let info = mock_info("protocol_admin", &[]);
             let mut env = mock_env();
