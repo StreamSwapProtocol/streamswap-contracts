@@ -1,4 +1,8 @@
-use crate::msg::{AveragePriceResponse, ConfigResponse, ExecuteMsg, InstantiateMsg, LatestStreamedPriceResponse, MigrateMsg, PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse, SudoMsg};
+use crate::msg::{
+    AveragePriceResponse, ConfigResponse, ExecuteMsg, InstantiateMsg, LatestStreamedPriceResponse,
+    MigrateMsg, PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse,
+    SudoMsg,
+};
 use crate::state::{next_stream_id, Config, Position, Status, Stream, CONFIG, POSITIONS, STREAMS};
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
@@ -30,6 +34,7 @@ pub fn instantiate(
         min_seconds_until_start_time: msg.min_seconds_until_start_time,
         stream_creation_denom: msg.stream_creation_denom.clone(),
         stream_creation_fee: msg.stream_creation_fee,
+        exit_fee_percent: msg.exit_fee_percent,
         fee_collector: deps.api.addr_validate(&msg.fee_collector)?,
         protocol_admin: deps.api.addr_validate(&msg.protocol_admin)?,
         accepted_in_denom: msg.accepted_in_denom,
@@ -44,6 +49,7 @@ pub fn instantiate(
         ),
         attr("stream_creation_denom", msg.stream_creation_denom),
         attr("stream_creation_fee", msg.stream_creation_fee),
+        attr("exit_fee_percent", msg.exit_fee_percent.to_string()),
         attr("fee_collector", msg.fee_collector),
         attr("protocol_admin", msg.protocol_admin),
     ];
@@ -442,8 +448,8 @@ pub fn execute_subscribe(
     }
 
     // increase in supply and shares
-    stream.in_supply += in_amount;
-    stream.shares += new_shares;
+    stream.in_supply = stream.in_supply.checked_add(in_amount)?;
+    stream.shares = stream.shares.checked_add(new_shares)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let res = Response::new()
@@ -589,8 +595,15 @@ pub fn execute_finalize_stream(
         stream.status = Status::Finalized
     }
 
+    let config = CONFIG.load(deps.storage)?;
     let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or(stream.treasury.clone());
 
+    //Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
+    let swap_fee = Decimal::from_ratio(stream.spent_in, Uint128::one())
+        .checked_mul(config.exit_fee_percent)?
+        * Uint128::one();
+
+    //Creator's revenue claimed at finalize
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: treasury.to_string(),
         amount: vec![Coin {
@@ -598,13 +611,19 @@ pub fn execute_finalize_stream(
             amount: stream.spent_in,
         }],
     });
-
-    let config = CONFIG.load(deps.storage)?;
+    //Exact fee for stream creation claimed at finalize
     let fee_send_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: config.fee_collector.to_string(),
         amount: vec![Coin {
             denom: config.stream_creation_denom,
             amount: config.stream_creation_fee,
+        }],
+    });
+    let swap_fee_msg = CosmosMsg::Bank(BankMsg::Send {
+        to_address: config.fee_collector.to_string(),
+        amount: vec![Coin {
+            denom: stream.in_denom.to_string(),
+            amount: swap_fee,
         }],
     });
 
@@ -621,6 +640,7 @@ pub fn execute_finalize_stream(
     Ok(Response::new()
         .add_message(fee_send_msg)
         .add_message(send_msg)
+        .add_message(swap_fee_msg)
         .add_attributes(attributes))
 }
 
@@ -632,6 +652,7 @@ pub fn execute_exit_stream(
     position_owner: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let config = CONFIG.load(deps.storage)?;
     // check if stream is paused
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
@@ -642,10 +663,8 @@ pub fn execute_exit_stream(
     if stream.last_updated < stream.end_time {
         return Err(ContractError::UpdateDistIndex {});
     }
-
     let position_owner = maybe_addr(deps.api, position_owner)?.unwrap_or(info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;
-    // TODO: maybe callable by everyone? if then remove new recipient
     if position.owner != info.sender
         && position
             .operator
@@ -654,7 +673,6 @@ pub fn execute_exit_stream(
     {
         return Err(ContractError::Unauthorized {});
     }
-
     // update position before exit
     update_position(
         stream.dist_index,
@@ -663,6 +681,10 @@ pub fn execute_exit_stream(
         stream.in_supply,
         &mut position,
     )?;
+    //Swap fee = fixed_rate*position.spent_in
+    let swap_fee = Decimal::from_ratio(position.spent, Uint128::one())
+        .checked_mul(config.exit_fee_percent)?
+        * Uint128::one();
 
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: position_owner.to_string(),
@@ -671,15 +693,19 @@ pub fn execute_exit_stream(
             amount: position.purchased,
         }],
     });
-    stream.shares -= position.shares;
-    stream.in_supply -= position.in_balance;
+
+    stream.spent_in = stream.spent_in.checked_sub(position.spent)?;
+    stream.shares = stream.shares.checked_sub(position.shares)?;
+
     STREAMS.save(deps.storage, stream_id, &stream)?;
     POSITIONS.remove(deps.storage, (stream_id, &position.owner));
 
     let attributes = vec![
         attr("action", "exit_stream"),
         attr("stream_id", stream_id.to_string()),
+        attr("spent", position.spent.checked_sub(swap_fee)?),
         attr("purchased", position.purchased),
+        attr("swap_fee_paid", swap_fee),
     ];
     Ok(Response::new()
         .add_message(send_msg)

@@ -8,6 +8,7 @@ pub struct InstantiateMsg {
     pub min_seconds_until_start_time: Uint64,
     pub stream_creation_denom: String,
     pub stream_creation_fee: Uint128,
+    pub exit_fee_percent: Decimal,
     pub fee_collector: String,
     pub protocol_admin: String,
     pub accepted_in_denom: String,

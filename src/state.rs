@@ -16,6 +16,8 @@ pub struct Config {
     pub stream_creation_denom: String,
     // Stream creation fee amount
     pub stream_creation_fee: Uint128,
+    // in/buy token exit fee in percent
+    pub exit_fee_percent: Decimal,
     pub fee_collector: Addr,
     // protocol admin can pause streams in case of emergency.
     pub protocol_admin: Addr,
