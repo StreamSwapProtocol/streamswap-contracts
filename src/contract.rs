@@ -448,8 +448,8 @@ pub fn execute_subscribe(
     }
 
     // increase in supply and shares
-    stream.in_supply += in_amount;
-    stream.shares += new_shares;
+    stream.in_supply = stream.in_supply.checked_add(in_amount)?;
+    stream.shares = stream.shares.checked_add(new_shares)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let res = Response::new()
@@ -694,9 +694,8 @@ pub fn execute_exit_stream(
         }],
     });
 
-    stream.shares.checked_sub(position.shares)?;
-    //TODO: Check if this is necessary
-    stream.in_supply.checked_sub(position.in_balance)?;
+    stream.spent_in = stream.spent_in.checked_sub(position.spent)?;
+    stream.shares = stream.shares.checked_sub(position.shares)?;
 
     STREAMS.save(deps.storage, stream_id, &stream)?;
     POSITIONS.remove(deps.storage, (stream_id, &position.owner));

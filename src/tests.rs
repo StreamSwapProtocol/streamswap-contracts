@@ -12,7 +12,8 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::StdError::{self};
     use cosmwasm_std::{
-        Addr, BankMsg, Coin, CosmosMsg, Decimal, Decimal256, Response, Timestamp, Uint128, Uint64, SubMsg
+        Addr, BankMsg, Coin, CosmosMsg, Decimal, Decimal256, Response, SubMsg, Timestamp, Uint128,
+        Uint64,
     };
     use cw_utils::PaymentError;
     use std::ops::Sub;
@@ -1381,20 +1382,15 @@ mod tests {
         // can exit
         let info = mock_info("creator1", &[]);
         let res = execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap();
-
-        let expected_fee = 20000000000u128;
         assert_eq!(
             res.messages,
-            vec![
-                SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
-                    to_address: "creator1".to_string(),
-                    amount: vec![Coin::new(out_supply.u128(), "out_denom")]
-                })),
-                SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
-                    to_address: "collector".to_string(),
-                    amount: vec![Coin::new(expected_fee, "in")]
-                }))
-            ]
+            vec![SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
+                to_address: "creator1".to_string(),
+                amount: vec![Coin::new(
+                    Uint128::new(1_000_000_000_000).u128(),
+                    "out_denom"
+                )]
+            }))]
         );
 
         // position deleted
@@ -1631,10 +1627,10 @@ mod tests {
     #[cfg(test)]
     mod killswitch {
         use super::*;
+        use crate::contract::{list_positions, list_streams, query_config, sudo_update_config};
         use crate::killswitch::{execute_exit_cancelled, sudo_cancel_stream, sudo_pause_stream};
         use cosmwasm_std::CosmosMsg::Bank;
         use cosmwasm_std::{ReplyOn, SubMsg};
-        use crate::contract::{list_positions, list_streams, query_config, sudo_update_config};
 
         #[test]
         fn test_pause_protocol_admin() {
@@ -1819,6 +1815,7 @@ mod tests {
             let info = mock_info("creator1", &[]);
             let cap = Uint128::new(25_000_000);
             execute_withdraw(deps.as_mut(), env, info, 1, Some(cap), None).unwrap();
+
             let position =
                 query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
             assert_eq!(position.in_balance, Uint128::new(1_997_475_000_000));
@@ -1979,12 +1976,25 @@ mod tests {
             let mut env = mock_env();
             env.block.time = Timestamp::from_seconds(0);
             //update config
-            sudo_update_config(deps.as_mut(), env, Some(Uint64::new(2000)), Some(Uint64::new(2000)),Some("fee2".to_string()), Some(Uint128::new(200)), Some("collector2".to_string()), Some("new_denom".to_string())).unwrap();
+            sudo_update_config(
+                deps.as_mut(),
+                env,
+                Some(Uint64::new(2000)),
+                Some(Uint64::new(2000)),
+                Some("fee2".to_string()),
+                Some(Uint128::new(200)),
+                Some("collector2".to_string()),
+                Some("new_denom".to_string()),
+            )
+            .unwrap();
             //query config
             let config_response = query_config(deps.as_ref()).unwrap();
             //check config
             assert_eq!(config_response.min_stream_seconds, Uint64::new(2000));
-            assert_eq!(config_response.min_seconds_until_start_time, Uint64::new(2000));
+            assert_eq!(
+                config_response.min_seconds_until_start_time,
+                Uint64::new(2000)
+            );
             assert_eq!(config_response.stream_creation_denom, "fee2".to_string());
             assert_eq!(config_response.stream_creation_fee, Uint128::new(200));
             assert_eq!(config_response.fee_collector, "collector2".to_string());
@@ -2039,8 +2049,7 @@ mod tests {
                 start,
                 end,
             )
-                .unwrap();
-
+            .unwrap();
 
             let mut env = mock_env();
             env.block.time = Timestamp::from_seconds(500_000);
@@ -2055,7 +2064,13 @@ mod tests {
             let mut env = mock_env();
             env.block.time = Timestamp::from_seconds(3_000_000);
             let res = sudo_pause_stream(deps.as_mut(), env, 1).unwrap();
-            assert_eq!(res, Response::new().add_attribute("stream_id", "1").add_attribute("is_paused", "true").add_attribute("pause_date", "3000000.000000000"));
+            assert_eq!(
+                res,
+                Response::new()
+                    .add_attribute("stream_id", "1")
+                    .add_attribute("is_paused", "true")
+                    .add_attribute("pause_date", "3000000.000000000")
+            );
 
             let mut env = mock_env();
             env.block.time = Timestamp::from_seconds(4_000_000);
@@ -2111,7 +2126,7 @@ mod tests {
                 start,
                 end,
             )
-                .unwrap();
+            .unwrap();
             //second stream
             execute_create_stream(
                 deps.as_mut(),
@@ -2126,7 +2141,7 @@ mod tests {
                 start,
                 end,
             )
-                .unwrap();
+            .unwrap();
 
             let res = list_streams(deps.as_ref(), None, None).unwrap();
             assert_eq!(res.streams.len(), 2);
