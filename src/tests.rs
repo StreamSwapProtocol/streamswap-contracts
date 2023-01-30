@@ -4,7 +4,6 @@ mod test_module {
         execute_create_stream, execute_exit_stream, execute_finalize_stream, execute_subscribe,
         execute_update_operator, execute_update_position, execute_update_stream, execute_withdraw,
         instantiate, query_average_price, query_last_streamed_price, query_position, query_stream,
-        update_stream,
     };
     use crate::killswitch::{execute_pause_stream, execute_withdraw_paused, sudo_resume_stream};
     use crate::state::{Status, Stream};
