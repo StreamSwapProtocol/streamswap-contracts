@@ -295,7 +295,8 @@ pub fn execute_update_position(
     position_owner: Option<String>,
 ) -> Result<Response, ContractError> {
     // TODO: anyone can trigger?
-    let position_owner = maybe_addr(deps.api, position_owner)?.unwrap_or(info.sender.clone());
+    let position_owner =
+        maybe_addr(deps.api, position_owner)?.unwrap_or_else(|| info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;
     if info.sender != position.owner
         && position
@@ -401,7 +402,8 @@ pub fn execute_subscribe(
     let new_shares = stream.compute_shares_amount(in_amount, false);
 
     let operator = maybe_addr(deps.api, operator)?;
-    let position_owner = maybe_addr(deps.api, position_owner)?.unwrap_or(info.sender.clone());
+    let position_owner =
+        maybe_addr(deps.api, position_owner)?.unwrap_or_else(|| info.sender.clone());
     let position = POSITIONS.may_load(deps.storage, (stream_id, &position_owner))?;
     match position {
         None => {
@@ -483,10 +485,7 @@ pub fn execute_update_operator(
         .add_attribute("action", "update_operator")
         .add_attribute("stream_id", stream_id.to_string())
         .add_attribute("owner", info.sender)
-        .add_attribute(
-            "operator",
-            operator.unwrap_or(Addr::unchecked("")).to_string(),
-        ))
+        .add_attribute("operator", operator.unwrap_or_else(|| Addr::unchecked(""))))
 }
 
 pub fn execute_withdraw(
@@ -507,7 +506,8 @@ pub fn execute_withdraw(
         return Err(ContractError::StreamEnded {});
     }
 
-    let position_owner = maybe_addr(deps.api, position_owner)?.unwrap_or(info.sender.clone());
+    let position_owner =
+        maybe_addr(deps.api, position_owner)?.unwrap_or_else(|| info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;
     if position.owner != info.sender
         && position
@@ -596,7 +596,7 @@ pub fn execute_finalize_stream(
     }
 
     let config = CONFIG.load(deps.storage)?;
-    let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or(stream.treasury.clone());
+    let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or_else(|| stream.treasury.clone());
 
     //Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
     let swap_fee = Decimal::from_ratio(stream.spent_in, Uint128::one())
@@ -663,7 +663,8 @@ pub fn execute_exit_stream(
     if stream.last_updated < stream.end_time {
         return Err(ContractError::UpdateDistIndex {});
     }
-    let position_owner = maybe_addr(deps.api, position_owner)?.unwrap_or(info.sender.clone());
+    let position_owner =
+        maybe_addr(deps.api, position_owner)?.unwrap_or_else(|| info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;
     if position.owner != info.sender
         && position

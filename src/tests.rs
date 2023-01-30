@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+mod test_module {
     use crate::contract::{
         execute_create_stream, execute_exit_stream, execute_finalize_stream, execute_subscribe,
         execute_update_operator, execute_update_position, execute_update_stream, execute_withdraw,
@@ -434,11 +434,7 @@ mod tests {
         env.block.time = start.plus_seconds(100);
         let info = mock_info("creator1", &[Coin::new(100, "wrong_denom")]);
         let res = execute_subscribe(deps.as_mut(), env.clone(), info, 1, None, None).unwrap_err();
-        assert_eq!(
-            res,
-            PaymentError::MissingDenom("in".to_string())
-            .into()
-        );
+        assert_eq!(res, PaymentError::MissingDenom("in".to_string()).into());
 
         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
         assert_eq!(stream.status, Status::Waiting);
@@ -667,28 +663,18 @@ mod tests {
         let info = mock_info("random", &[]);
         let mut env = mock_env();
         env.block.time = start.plus_seconds(100);
-        let res = execute_update_operator(
-            deps.as_mut(),
-            env,
-            info,
-            1,
-            Some("operator1".to_string()),
-        )
-        .unwrap_err();
+        let res =
+            execute_update_operator(deps.as_mut(), env, info, 1, Some("operator1".to_string()))
+                .unwrap_err();
         assert!(matches!(res, ContractError::Std(StdError::NotFound { .. })));
 
         // operator can't update operator
         let info = mock_info("operator1", &[]);
         let mut env = mock_env();
         env.block.time = start.plus_seconds(100);
-        let res = execute_update_operator(
-            deps.as_mut(),
-            env,
-            info,
-            1,
-            Some("operator2".to_string()),
-        )
-        .unwrap_err();
+        let res =
+            execute_update_operator(deps.as_mut(), env, info, 1, Some("operator2".to_string()))
+                .unwrap_err();
         assert!(matches!(res, ContractError::Std(StdError::NotFound { .. })));
 
         // operator can update position
@@ -880,14 +866,9 @@ mod tests {
         let mut env = mock_env();
         env.block.time = start.plus_seconds(3_000_000);
         let info = mock_info("random", &[]);
-        let err = execute_update_position(
-            deps.as_mut(),
-            env,
-            info,
-            1,
-            Some("creator1".to_string()),
-        )
-        .unwrap_err();
+        let err =
+            execute_update_position(deps.as_mut(), env, info, 1, Some("creator1".to_string()))
+                .unwrap_err();
         assert_eq!(err, ContractError::Unauthorized {});
 
         // update position
