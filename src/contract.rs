@@ -225,7 +225,7 @@ pub fn execute_update_stream(
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let attrs = vec![
-        attr("action", "update_distribution"),
+        attr("action", "update_stream"),
         attr("stream_id", stream_id.to_string()),
         attr("new_distribution_amount", dist_amount),
         attr("dist_index", stream.dist_index.to_string()),

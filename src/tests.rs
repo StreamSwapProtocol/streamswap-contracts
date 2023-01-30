@@ -739,74 +739,90 @@ mod test_module {
     }
 
     #[test]
-    fn test_update_index() {
+    fn test_update_stream() {
         let treasury = Addr::unchecked("treasury");
-        let start = Timestamp::from_seconds(0);
-        let end = Timestamp::from_seconds(1_000_000);
+        let start = Timestamp::from_seconds(1_000_000);
+        let end = Timestamp::from_seconds(5_000_000);
         let out_supply = Uint128::new(1_000_000);
-        let _cumulative_out = Uint128::zero();
+        let out_denom = "out_denom";
 
-        let mut stream = Stream::new(
+        // instantiate
+        let mut deps = mock_dependencies();
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(100);
+        let msg = crate::msg::InstantiateMsg {
+            min_stream_seconds: Uint64::new(1000),
+            min_seconds_until_start_time: Uint64::new(1000),
+            stream_creation_denom: "fee".to_string(),
+            stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(1),
+            fee_collector: "collector".to_string(),
+            protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "in".to_string(),
+        };
+        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+        // create stream
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(1);
+        let info = mock_info(
+            "creator",
+            &[
+                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(100, "fee"),
+            ],
+        );
+        execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
             "test".to_string(),
-            treasury,
-            "test_url".to_string(),
-            "out".to_string(),
-            out_supply,
+            "test".to_string(),
             "in".to_string(),
+            out_denom.to_string(),
+            out_supply,
             start,
             end,
-            start,
+        )
+        .unwrap();
+
+        //update stream without subscription this means no new  distribution so returned index should be 0
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(100);
+        let res = execute_update_stream(deps.as_mut(), env, 1).unwrap();
+        assert_eq!(
+            res,
+            Response::default()
+                .add_attribute("action", "update_stream")
+                .add_attribute("stream_id", "1")
+                .add_attribute("new_distribution_amount", "0")
+                .add_attribute("dist_index", "0")
         );
-        let now = Timestamp::from_seconds(100);
+        //first subscription
+        //On first subscription index is not incresed because no distrubution prior to that(Execute_subscibe also includes update_stream)
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(100);
+        let info = mock_info("creator1", &[Coin::new(1_000_000, "in")]);
+        execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
 
-        update_stream(now, &mut stream).unwrap();
+        //Query stream
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(200);
+        let res = query_stream(deps.as_ref(), env, 1).unwrap();
+        assert_eq!(res.dist_index, Decimal256::zero());
 
-        // no in supply, should be initial
-        assert_eq!(stream.out_remaining, out_supply);
-        assert_eq!(stream.dist_index, Decimal256::zero());
-        assert_eq!(stream.shares, Uint128::new(0));
+        //Update stream again, this time with subscriber
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(300);
+        execute_update_stream(deps.as_mut(), env, 1).unwrap();
 
-        // out supply not changed
-        assert_eq!(stream.out_supply, out_supply);
-
-        /*
-        user1 subscribes 100_000 at %1
-        current_stage = %1
-        */
-        let now = Timestamp::from_seconds(10_000);
-        update_stream(now, &mut stream).unwrap();
-        // still no supply
-        assert_eq!(stream.out_remaining, out_supply);
-        assert_eq!(stream.dist_index, Decimal256::zero());
-        assert_eq!(stream.out_supply, out_supply);
-        let in_amount = Uint128::new(100_000);
-        stream.in_supply += in_amount;
-        stream.shares += stream.compute_shares_amount(in_amount, false);
-
-        /*
-        update_dist_index triggers at %2
-        */
-
-        // stage_diff is %1
-        // spent_in = 100_000 * %1 = 1_000
-        // in_supply = in_supply - spent_in = 100_000 - 10_000 = 99_000
-        // new_distribution =  1_000_000 * 1 / 100 = 10_000
-        // current_out = 0 + new_distribution = 100_000
-        // new_dist_index = 0 + 10_000 / 99_000 = 0.1010101...
-        let now = Timestamp::from_seconds(20_000);
-        update_stream(now, &mut stream).unwrap();
-        assert_eq!(stream.out_remaining, Uint128::new(989_899));
-        assert_eq!(stream.dist_index, Decimal256::from_str("0.10101").unwrap());
-        assert_eq!(stream.in_supply, Uint128::new(98_990));
-
-        /*
-        user2 subscribes 100_000 at %4
-        */
-        let now = Timestamp::from_seconds(40_000);
-        update_stream(now, &mut stream).unwrap();
-        // TODO: to be cont
+        //Query stream
+        let mut env = mock_env();
+        env.block.time = start.plus_seconds(300);
+        let res = query_stream(deps.as_ref(), env, 1).unwrap();
+        assert_eq!(res.dist_index, Decimal256::from_str("0.00005").unwrap())
     }
-
     #[test]
     fn test_update_position() {
         let treasury = Addr::unchecked("treasury");
