@@ -9,7 +9,7 @@ use cw_utils::maybe_addr;
 
 pub fn execute_withdraw_paused(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     stream_id: u64,
     cap: Option<Uint128>,
@@ -20,10 +20,7 @@ pub fn execute_withdraw_paused(
     if !stream.is_paused() {
         return Err(ContractError::StreamNotPaused {});
     }
-    // can't withdraw after stream ended
-    if env.block.time > stream.end_time {
-        return Err(ContractError::StreamEnded {});
-    }
+    // We are not checking if stream is ended because the paused state duration might exceed end time
 
     let position_owner = maybe_addr(deps.api, position_owner)?.unwrap_or(info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;

@@ -1696,11 +1696,32 @@ mod tests {
             let info = mock_info("position1", &[funds.clone()]);
             execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
 
+            //can't pause before start time
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.time = start.minus_seconds(500_000);
+            let res = execute_pause_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            assert_eq!(res, ContractError::StreamNotStarted {});
+
+            // can't pause after end time
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.time = end.plus_seconds(500_000);
+            let res = execute_pause_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            assert_eq!(res, ContractError::StreamEnded {});
+
             // protocol admin can pause
             let info = mock_info("protocol_admin", &[]);
             let mut env = mock_env();
             env.block.time = start.plus_seconds(1_000_001);
             execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+
+            // can't paused if already paused
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(1_000_005);
+            let res = execute_pause_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            assert_eq!(res, ContractError::StreamKillswitchActive {});
 
             // can't subscribe new
             let mut env = mock_env();
@@ -1863,6 +1884,30 @@ mod tests {
             .unwrap_err();
 
             assert_eq!(res, ContractError::Unauthorized {});
+            //Cap exceeds in balance check
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(7000);
+            let info = mock_info("creator1", &[]);
+            let res = execute_withdraw_paused(
+                deps.as_mut(),
+                env,
+                info,
+                1,
+                Some(Uint128::new(2_000_000_000_000 + 1)),
+                None,
+            )
+            .unwrap_err();
+            assert_eq!(
+                res,
+                ContractError::DecreaseAmountExceeds(Uint128::new(2_000_000_000_001))
+            );
+            //withdraw with cap
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(7000);
+            let info = mock_info("creator1", &[]);
+            let cap = Uint128::new(25_000_000);
+            execute_withdraw_paused(deps.as_mut(), env, info, 1, Some(cap), None).unwrap();
+
             // withdraw after pause
             let mut env = mock_env();
             env.block.time = start.plus_seconds(7000);
@@ -1876,7 +1921,7 @@ mod tests {
                         to_address: "creator1".to_string(),
                         amount: vec![Coin {
                             denom: "in".to_string(),
-                            amount: Uint128::new(1_996_975_006_258),
+                            amount: Uint128::new(1996950006258),
                         }],
                     }
                     .into(),
@@ -1961,6 +2006,12 @@ mod tests {
             let funds = Coin::new(3_000, "in");
             let info = mock_info("position1", &[funds.clone()]);
             execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
+
+            //cant resume if not paused
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(1_000_000);
+            let res = sudo_resume_stream(deps.as_mut(), env, 1).unwrap_err();
+            assert_eq!(res, ContractError::StreamNotPaused {});
 
             // pause
             let info = mock_info("protocol_admin", &[]);
@@ -2254,7 +2305,15 @@ mod tests {
             env.block.time = start.plus_seconds(0);
             let funds = Coin::new(2_000_000_000_000, "in");
             let info = mock_info("creator1", &[funds.clone()]);
-            execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
+            execute_subscribe(
+                deps.as_mut(),
+                env,
+                info,
+                1,
+                Some("operator1".to_string()),
+                None,
+            )
+            .unwrap();
 
             // cant cancel without pause
             let mut env = mock_env();
@@ -2268,6 +2327,14 @@ mod tests {
             let info = mock_info("protocol_admin", &[]);
             execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
 
+            //can't exit before cancel
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(2_250_000);
+            let info = mock_info("creator1", &[]);
+            let res = execute_exit_cancelled(deps.as_mut(), env, info, 1, None).unwrap_err();
+            assert_eq!(res, ContractError::StreamNotCancelled {});
+
+            //cancel
             let mut env = mock_env();
             env.block.time = start.plus_seconds(2_500_000);
             let response = sudo_cancel_stream(deps.as_mut(), env.clone(), 1).unwrap();
@@ -2301,6 +2368,15 @@ mod tests {
                     }
                 ]
             );
+
+            //random operator can't exit
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(2_250_000);
+            let info = mock_info("random", &[]);
+            let res =
+                execute_exit_cancelled(deps.as_mut(), env, info, 1, Some("creator1".to_string()))
+                    .unwrap_err();
+            assert_eq!(res, ContractError::Unauthorized {});
 
             // exit
             let mut env = mock_env();
