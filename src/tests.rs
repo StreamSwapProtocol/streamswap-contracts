@@ -1414,8 +1414,8 @@ mod test_module {
         let mut env = mock_env();
         env.block.time = end.plus_seconds(4_000_000);
         let info = mock_info("creator1", &[]);
-        let _res = execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
-        //TODO check error
+        let res = execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
+        assert!(matches!(res, ContractError::Std(StdError::NotFound { .. })));
     }
 
     #[test]

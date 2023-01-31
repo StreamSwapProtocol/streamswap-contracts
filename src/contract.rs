@@ -297,7 +297,6 @@ pub fn execute_update_position(
     stream_id: u64,
     position_owner: Option<String>,
 ) -> Result<Response, ContractError> {
-    // TODO: anyone can trigger?
     let position_owner =
         maybe_addr(deps.api, position_owner)?.unwrap_or_else(|| info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;
