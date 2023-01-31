@@ -32,6 +32,14 @@ to support their initial price.
 The latter mechanism is not democratic - big entities can control the
 price movements by placing big orders leaving smaller investors with nothing.
 
+Stream swap is a new mechanism which allows anyone to create a new sale event where the sale happens continuously over a period of time.
+You can imagine it as two flasks of liquid, mixing together over time, reaching equilibrium.
+
+The price is determined on the fly as sell/buy balance fluctuate as buy supply increases with incoming subscriptions.
+Sell side is distributed among the subscribers, by the proportion of their subscription amount to the total subscription amount.
+Buy side is spent with respect to remaining end date of the sale event.
+Example: A position subscribed at %80 percent of the sale will be fully spent at the end of the sale.
+
 ## Design
 
 ### Stream Creation
@@ -123,6 +131,8 @@ to close his position, withdraw purchased tokens to his account, and claim unspe
 Before exiting both stream and position are updated for calculating the amount of position spent/bought.
 On exit, the position data is removed to save space.
 
+An exit fee applied on bought. User gets deducted `exit_fee` amount of tokens from his purchased amount.
+
 ### Finalize Stream
 
 To withdraw earned tokens to the `stream.treasury` account anyone can send a
@@ -130,6 +140,7 @@ transaction with [`FinalizeMsg`](https://github.com/osmosis-labs/osmosis/blob/ma
 Transaction will send `stream.spent_in` tokens to `stream.treasury` account.
 This transaction will send `stream.spent_int` tokens from the contract
 to the `sale.treasury`.
+On finalize stream, exit fee on whole sale is applied to bought tokens and sent to fee collector address.
 
 ### Price
 
@@ -142,8 +153,13 @@ A creation fee is collected to prevent spams. Fee collection will be run during 
 The fee will be collected at `stream.creation_fee_address` which is the address of the multisig/distribution among parties
 involved in developing and maintaining the project.
 
-## State
+## DAO
 
+We intend to use the DAO to govern the contract. The DAO will be able to change the fee amount, fee collector address, and exit fee amount.
+Collected fees will be distributed to the DAO treasury to compansate people's effort and ensure project is funded for future development.
+Deployment of the project is done through governance. This makes the owner of the contract to be the governance.
+
+// TODO: Add message details
 ### Stream
 
 `Stream` object represents a particular token sale/stream event and describes the main
@@ -169,7 +185,7 @@ required parameters conducting the streaming process:
   a position holder is entitled to receive from the stream.
 - `last_updated`: last updated time of stream
 - `out_remaining`: total number of remaining out tokens at the time of update
-- `shares`: total number of shares in the stream 
+- `shares`: total number of shares in the stream
 
 ### Position
 

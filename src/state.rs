@@ -6,20 +6,21 @@ use std::ops::Mul;
 
 #[cw_serde]
 pub struct Config {
-    // minimum sale duration in unix seconds
+    /// Minimum sale duration in unix seconds
     pub min_stream_seconds: Uint64,
-    // min duration between start time and current time in unix seconds
+    /// Minimum duration between start time and current time in unix seconds
     pub min_seconds_until_start_time: Uint64,
-    // Accepted in_denom to buy out_tokens
+    /// Accepted in_denom to buy out_tokens
     pub accepted_in_denom: String,
-    //Accepted stream creation fee denom
+    /// Accepted stream creation fee denom
     pub stream_creation_denom: String,
-    // Stream creation fee amount
+    /// Stream creation fee amount
     pub stream_creation_fee: Uint128,
-    // in/buy token exit fee in percent
+    /// in/buy token exit fee in percent
     pub exit_fee_percent: Decimal,
+    /// Address of the fee collector
     pub fee_collector: Addr,
-    // protocol admin can pause streams in case of emergency.
+    /// protocol admin can pause streams in case of emergency.
     pub protocol_admin: Addr,
 }
 
@@ -27,42 +28,46 @@ pub const CONFIG: Item<Config> = Item::new("config");
 
 #[cw_serde]
 pub struct Stream {
-    // Name of the stream
+    /// Name of the stream.
     pub name: String,
-    // Destination for the earned token_in
+    /// Destination for the earned token_in.
     pub treasury: Addr,
-    // URL for more information about the stream
+    /// URL for more information about the stream.
     pub url: String,
-    // Proportional distribution variable to calculate the distribution of in token_out to buyers.
+    /// Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal256,
-    // last updated time of stream
+    /// last updated time of stream.
     pub last_updated: Timestamp,
-    // denom of the `token_out`
+    /// denom of the `token_out`.
     pub out_denom: String,
-    // total number of `token_out` to be sold during the continuous stream.
+    /// total number of `token_out` to be sold during the continuous stream.
     pub out_supply: Uint128,
-    // total number of remaining out tokens at the time of update
+    /// total number of remaining out tokens at the time of update.
     pub out_remaining: Uint128,
-    // denom of the `token_in`
+    /// denom of the `token_in`.
     pub in_denom: String,
-    // total number of `token_in` on the buy side at latest state
+    /// total number of `token_in` on the buy side at latest state.
     pub in_supply: Uint128,
-    // total number of `token_in` spent at latest state
+    /// total number of `token_in` spent at latest state.
     pub spent_in: Uint128,
+    /// total number of shares minted.
     pub shares: Uint128,
-    // start time when the token emission starts. in nanos
+    /// start time when the token emission starts. in nanos.
     pub start_time: Timestamp,
-    // end time when the token emission ends. Can't be bigger than start +
-    // 139years (to avoid round overflow)
+    /// end time when the token emission ends. Can't be bigger than start +
+    /// 139years (to avoid round overflow).
     pub end_time: Timestamp,
-    // price at when latest distribution is triggered
+    /// price at when latest distribution is triggered.
     pub current_streamed_price: Decimal,
+    /// Status of the stream. Can be `Waiting`, `Active`, `Finalzed`, `Paused` or `Canceled` for kill switch.
     pub status: Status,
+    /// Date when the stream was paused.
     pub pause_date: Option<Timestamp>,
 }
 
 #[cw_serde]
 pub enum Status {
+    /// Waiting for start date
     Waiting,
     Active,
     Finalized,
@@ -140,9 +145,9 @@ pub fn next_stream_id(store: &mut dyn Storage) -> Result<u64, ContractError> {
 
 #[cw_serde]
 pub struct Position {
-    // creator of the position
+    /// creator of the position.
     pub owner: Addr,
-    // current amount of tokens in buy pool
+    /// current amount of tokens in buy pool
     pub in_balance: Uint128,
     pub shares: Uint128,
     // index is used to calculate the distribution a position has

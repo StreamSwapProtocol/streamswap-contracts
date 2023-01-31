@@ -79,23 +79,23 @@ pub fn execute(
         ),
         ExecuteMsg::UpdateOperator {
             stream_id,
-            operator,
+            new_operator: operator,
         } => execute_update_operator(deps, env, info, stream_id, operator),
 
         ExecuteMsg::UpdatePosition {
             stream_id,
-            position_owner,
+            operator_target: position_owner,
         } => execute_update_position(deps, env, info, stream_id, position_owner),
         ExecuteMsg::UpdateStream { stream_id } => execute_update_stream(deps, env, stream_id),
         ExecuteMsg::Subscribe {
             stream_id,
-            position_owner,
+            operator_target: position_owner,
             operator,
         } => execute_subscribe(deps, env, info, stream_id, operator, position_owner),
         ExecuteMsg::Withdraw {
             stream_id,
             cap,
-            position_owner,
+            operator_target: position_owner,
         } => execute_withdraw(deps, env, info, stream_id, cap, position_owner),
         ExecuteMsg::FinalizeStream {
             stream_id,
@@ -103,7 +103,7 @@ pub fn execute(
         } => execute_finalize_stream(deps, env, info, stream_id, new_treasury),
         ExecuteMsg::ExitStream {
             stream_id,
-            position_owner,
+            operator_target: position_owner,
         } => execute_exit_stream(deps, env, info, stream_id, position_owner),
 
         ExecuteMsg::PauseStream { stream_id } => {
@@ -112,11 +112,11 @@ pub fn execute(
         ExecuteMsg::WithdrawPaused {
             stream_id,
             cap,
-            position_owner,
+            operator_target: position_owner,
         } => killswitch::execute_withdraw_paused(deps, env, info, stream_id, cap, position_owner),
         ExecuteMsg::ExitCancelled {
             stream_id,
-            position_owner,
+            operator_target: position_owner,
         } => killswitch::execute_exit_cancelled(deps, env, info, stream_id, position_owner),
     }
 }
@@ -818,6 +818,7 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
         min_seconds_until_start_time: cfg.min_seconds_until_start_time,
         stream_creation_denom: cfg.stream_creation_denom,
         stream_creation_fee: cfg.stream_creation_fee,
+        exit_fee_percent: cfg.exit_fee_percent,
         fee_collector: cfg.fee_collector.to_string(),
         protocol_admin: cfg.protocol_admin.to_string(),
         accepted_in_denom: cfg.accepted_in_denom,
@@ -834,7 +835,7 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
         out_supply: stream.out_supply,
         start_time: stream.start_time,
         end_time: stream.end_time,
-        in_spent: stream.spent_in,
+        spent_in: stream.spent_in,
         dist_index: stream.dist_index,
         out_remaining: stream.out_remaining,
         in_supply: stream.in_supply,
@@ -842,6 +843,7 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
         last_updated: stream.last_updated,
         status: stream.status,
         pause_date: stream.pause_date,
+        url: stream.url,
     };
     Ok(stream)
 }
@@ -870,7 +872,7 @@ pub fn list_streams(
                 out_supply: stream.out_supply,
                 start_time: stream.start_time,
                 end_time: stream.end_time,
-                in_spent: stream.spent_in,
+                spent_in: stream.spent_in,
                 last_updated: stream.last_updated,
                 dist_index: stream.dist_index,
                 out_remaining: stream.out_remaining,
@@ -878,6 +880,7 @@ pub fn list_streams(
                 shares: stream.shares,
                 status: stream.status,
                 pause_date: stream.pause_date,
+                url: stream.url,
             };
             Ok(stream)
         })

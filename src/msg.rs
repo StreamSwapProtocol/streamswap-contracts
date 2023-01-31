@@ -16,140 +16,169 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    // CreateStream creates new token stream. Anyone can create a new stream.
-    // Creation Fee send along msg prevents spams.
+    /// CreateStream creates new token stream. Anyone can create a new stream.
+    /// Creation Fee send along msg prevents spams.
     CreateStream {
-        // Address where the stream earnings will go
+        /// Address where the stream earnings will be sent.
         treasury: String,
-        // Name of the stream
+        /// Name of the stream.
         name: String,
-        // An external resource describing a stream. Can be IPFS link or a
+        /// An external resource describing a stream. Can be IPFS link or a.
         url: String,
-        // Payment denom - used to buy `token_out`.
-        // Also known as quote currency.
+        /// Payment denom - used to buy `token_out`.
+        /// Also known as quote currency.
         in_denom: String,
-        // Denom to stream (distributed to the investors).
-        // Also known as a base currency.
+        /// Denom to stream (distributed to the investors).
+        /// Also known as a base currency.
         out_denom: String,
+        /// Total number of `token_out` to be sold during the continuous stream.
         out_supply: Uint128,
-        // Unix timestamp when the stream starts. Calculations in nano sec precision
+        /// Unix timestamp when the stream starts. Calculations in nano sec precision.
         start_time: Timestamp,
-        // Unix timestamp when the stream ends. Calculations in nano sec precision
+        /// Unix timestamp when the stream ends. Calculations in nano sec precision.
         end_time: Timestamp,
     },
-    // Update stream and calculates distribution state
+    /// Update stream and calculates distribution state.
     UpdateStream {
         stream_id: u64,
     },
     UpdateOperator {
         stream_id: u64,
-        operator: Option<String>,
+        new_operator: Option<String>,
     },
-    // Subscribe to a token stream. Any use at any time before the stream end can join
-    // the stream by sending `token_in` to the Stream through the Subscribe msg.
-    // During the stream, user `token_in` will be automatically charged every
-    // epoch to purchase `token_out`.
+    /// Subscribe to a token stream. Any use at any time before the stream end can join
+    /// the stream by sending `token_in` to the Stream through the Subscribe msg.
+    /// During the stream, user `token_in` will be automatically charged every
+    /// epoch to purchase `token_out`.
     Subscribe {
         stream_id: u64,
-        // operator can load
-        position_owner: Option<String>,
-        // operator can subscribe/withdraw/update position
+        /// operator_target is the address of operator targets to execute on behalf of the user.
+        operator_target: Option<String>,
+        /// operator can subscribe/withdraw/update position.
         operator: Option<String>,
     },
-    // Withdraws unspent in balance
+    /// Withdraw unspent tokens in balance.
     Withdraw {
         stream_id: u64,
         cap: Option<Uint128>,
-        position_owner: Option<String>,
+        /// operator_target is the address of operator targets to execute on behalf of the user.
+        operator_target: Option<String>,
     },
+    /// UpdatePosition updates the position of the user.
+    /// syncs position index to the current state of the stream.
     UpdatePosition {
         stream_id: u64,
-        position_owner: Option<String>,
+        /// operator_target is the address of operator targets to execute on behalf of the user.
+        operator_target: Option<String>,
     },
-    // FinalizeStream clean ups the stream and sends income (earned tokens_in) to the
-    // Stream recipient. Returns error if called before the Stream end. Anyone can
-    // call this method.
+    /// FinalizeStream clean ups the stream and sends income (earned tokens_in) to the
+    /// Stream recipient. Returns error if called before the Stream end. Anyone can
+    /// call this method.
     FinalizeStream {
         stream_id: u64,
         new_treasury: Option<String>,
     },
-    // ExitStream withdraws (by a user who subscribed to the stream) purchased
-    // tokens_out from the pool and remained tokens_in. Must be called before
-    // the stream end.
+    /// ExitStream withdraws (by a user who subscribed to the stream) purchased
+    /// tokens_out from the pool and remained tokens_in. Must be called before
+    /// the stream end.
     ExitStream {
         stream_id: u64,
-        position_owner: Option<String>,
+        /// operator_target is the address of operator targets to execute on behalf of the user.
+        operator_target: Option<String>,
     },
     //
     // Killswitch features
     //
-    // PauseStream pauses the stream. Only protocol admin and governance can pause the stream.
+    /// PauseStream pauses the stream. Only protocol admin and governance can pause the stream.
     PauseStream {
         stream_id: u64,
     },
-    // WithdrawPaused is used to withdraw unspent position funds during pause.
+    /// WithdrawPaused is used to withdraw unspent position funds during pause.
     WithdrawPaused {
         stream_id: u64,
         cap: Option<Uint128>,
-        position_owner: Option<String>,
+        // operator_target is the address of operator targets to execute on behalf of the user.
+        operator_target: Option<String>,
     },
-    // ExitCancelled returns the whole balance user put in the stream, both spent and unspent.
+    /// ExitCancelled returns the whole balance user put in the stream, both spent and unspent.
     ExitCancelled {
         stream_id: u64,
-        position_owner: Option<String>,
+        /// operator_target is the address of operator targets to execute on behalf of the user.
+        operator_target: Option<String>,
     },
 }
 
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
+    /// Returns current configuration.
     #[returns(ConfigResponse)]
     Config {},
+    /// Returns a stream's current state.
     #[returns(StreamResponse)]
     Stream { stream_id: u64 },
+    /// Returns list of streams paginated by `start_after` and `limit`.
     #[returns(StreamsResponse)]
     ListStreams {
         start_after: Option<u64>,
         limit: Option<u32>,
     },
+    /// Returns current state of a position.
     #[returns(PositionResponse)]
     Position { stream_id: u64, owner: String },
+    /// Returns list of positions paginated by `start_after` and `limit`.
     #[returns(PositionsResponse)]
     ListPositions {
         stream_id: u64,
         start_after: Option<String>,
         limit: Option<u32>,
     },
+    /// Returns average price of a stream sale.
     #[returns(AveragePriceResponse)]
     AveragePrice { stream_id: u64 },
+    /// Returns currently streaming price of a sale.
     #[returns(LatestStreamedPriceResponse)]
     LastStreamedPrice { stream_id: u64 },
 }
 
 #[cw_serde]
 pub struct ConfigResponse {
+    /// Minimum time in seconds for a stream to last.
     pub min_stream_seconds: Uint64,
+    /// Minimum time in seconds until the start time of a stream.
     pub min_seconds_until_start_time: Uint64,
-    pub stream_creation_denom: String,
-    pub stream_creation_fee: Uint128,
-    pub fee_collector: String,
-    pub protocol_admin: String,
+    /// Denom accepted for subscription.
     pub accepted_in_denom: String,
+    /// Denom used as fee for creating a stream.
+    pub stream_creation_denom: String,
+    /// Creation fee amount.
+    pub stream_creation_fee: Uint128,
+    pub exit_fee_percent: Decimal,
+    /// Address of the fee collector.
+    pub fee_collector: String,
+    /// Address of the protocol admin.
+    pub protocol_admin: String,
 }
 
 #[cw_serde]
 pub struct StreamResponse {
     pub id: u64,
+    /// address of the treasury where the stream earnings will be sent.
     pub treasury: String,
+    /// URL of the stream.
+    pub url: String,
+    /// Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal256,
-    pub shares: Uint128,
+    /// last updated time of stream.
     pub last_updated: Timestamp,
+    /// TODO: finish this
+    pub shares: Uint128,
     pub out_denom: String,
     pub out_supply: Uint128,
     pub out_remaining: Uint128,
     pub in_denom: String,
     pub in_supply: Uint128,
-    pub in_spent: Uint128,
+    pub spent_in: Uint128,
     pub start_time: Timestamp,
     pub end_time: Timestamp,
     pub status: Status,
