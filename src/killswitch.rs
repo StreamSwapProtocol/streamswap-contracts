@@ -34,7 +34,7 @@ pub fn execute_withdraw_paused(
         return Err(ContractError::Unauthorized {});
     }
 
-    // on withdraw paused stream we don't update_stream
+    // on withdraw_paused we don't update_stream
     update_position(
         stream.dist_index,
         stream.shares,

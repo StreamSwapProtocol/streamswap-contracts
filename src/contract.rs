@@ -29,7 +29,7 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     // exit fee percent can not be higher than 1 and must be greater than 0
-    if msg.exit_fee_percent > Decimal::one() || msg.exit_fee_percent < Decimal::zero() {
+    if msg.exit_fee_percent >= Decimal::one() || msg.exit_fee_percent < Decimal::zero() {
         return Err(ContractError::InvalidExitFeePercent {});
     }
     let config = Config {
@@ -649,12 +649,12 @@ pub fn execute_finalize_stream(
     let swap_fee_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: config.fee_collector.to_string(),
         amount: vec![Coin {
-            denom: stream.in_denom.to_string(),
+            denom: stream.in_denom,
             amount: swap_fee,
         }],
     });
     let mut messages = vec![revenue_msg, creation_fee_msg, swap_fee_msg];
-    // In case the stream is ended without any shares in it. We need to refund the remaining out tokens although thats is unlikely to happen
+    // In case the stream is ended without any shares in it. We need to refund the remaining out tokens although that is unlikely to happen
     if stream.out_remaining > Uint128::zero() {
         let remaining_out = stream.out_remaining;
         let remaining_msg = CosmosMsg::Bank(BankMsg::Send {
