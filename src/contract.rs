@@ -242,22 +242,34 @@ pub fn update_stream(
 
     let mut new_distribution_balance = Uint128::zero();
 
+    // if no in balance in the contract, no need to update
+    // if diff not changed this means either stream not started or no in balance so far
     if !stream.shares.is_zero() && !diff.is_zero() {
+        // new distribution balance is the amount of in tokens that has been distributed since last update
+        // distribution is linear for now.
         new_distribution_balance = stream
             .out_remaining
             .multiply_ratio(diff.numerator(), diff.denominator());
+        // spent in tokens is the amount of in tokens that has been spent since last update
+        // spending is linear and goes to zero at the end of the stream
         let spent_in = stream
             .in_supply
             .multiply_ratio(diff.numerator(), diff.denominator());
 
+        // increase total spent_in of the stream
         stream.spent_in = stream.spent_in.checked_add(spent_in)?;
+        // decrease in_supply of the steam
         stream.in_supply = stream.in_supply.checked_sub(spent_in)?;
+        // decrease amount to be distributed of the stream
         stream.out_remaining = stream.out_remaining.checked_sub(new_distribution_balance)?;
+        // update distribution index. A positions share of the distribution is calculated by
+        // multiplying the share by the distribution index
         stream.dist_index = stream.dist_index.checked_add(Decimal256::from_ratio(
             new_distribution_balance,
             stream.shares,
         ))?;
 
+        // if no new distribution balance, no need to update the price
         if !new_distribution_balance.is_zero() {
             stream.current_streamed_price = Decimal::from_ratio(spent_in, new_distribution_balance)
         }
@@ -312,9 +324,12 @@ pub fn execute_update_position(
         return Err(ContractError::StreamPaused {});
     }
 
+    // sync stream
     update_stream(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
+    // updates position to latest distribution. Returns the amount of out tokens that has been purchased
+    // and spent.
     let (purchased, spent) = update_position(
         stream.dist_index,
         stream.shares,
@@ -341,6 +356,7 @@ pub fn update_position(
     stream_in_supply: Uint128,
     position: &mut Position,
 ) -> Result<(Uint128, Uint128), ContractError> {
+    // index difference represents the amount of distribution that has been received since last update
     let index_diff = stream_dist_index.checked_sub(position.index)?;
 
     let mut spent = Uint128::zero();
@@ -348,15 +364,20 @@ pub fn update_position(
 
     // if no shares available, means no distribution and no spent
     if !stream_shares.is_zero() {
+        // purchased is index_diff * position.shares
         let purchased = Decimal256::from_ratio(position.shares, Uint256::one())
             .checked_mul(index_diff)?
             .checked_add(position.pending_purchase)?;
+        // decimals is the amount of decimals that the out token has to be added to next distribution so that
+        // the data do not get lost due to rounding
         let decimals = get_decimals(purchased)?;
 
+        // calculates the remaining user balance using position.shares
         let in_remaining = stream_in_supply
             .checked_mul(position.shares)?
             .checked_div(stream_shares)?;
 
+        // calculates the amount of spent tokens
         spent = position.in_balance.checked_sub(in_remaining)?;
         position.spent = position.spent.checked_add(spent)?;
         position.in_balance = in_remaining;
