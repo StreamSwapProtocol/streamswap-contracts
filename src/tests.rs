@@ -11,8 +11,8 @@ mod test_module {
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::StdError::{self};
     use cosmwasm_std::{
-        Addr, BankMsg, Coin, CosmosMsg, Decimal, Decimal256, Response, SubMsg, Timestamp, Uint128,
-        Uint64,
+        attr, Addr, BankMsg, Coin, CosmosMsg, Decimal, Decimal256, Response, SubMsg, Timestamp,
+        Uint128, Uint64,
     };
     use cw_utils::PaymentError;
     use std::ops::Sub;
@@ -1267,22 +1267,45 @@ mod test_module {
         execute_update_stream(deps.as_mut(), env.clone(), 1).unwrap();
 
         let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap();
-        let fee_msg = res.messages.get(0).unwrap();
         assert_eq!(
-            fee_msg.msg,
-            CosmosMsg::Bank(BankMsg::Send {
-                to_address: "collector".to_string(),
-                amount: vec![Coin::new(100, "fee")]
-            })
+            res.attributes,
+            vec![
+                attr("action", "finalize_stream"),
+                attr("stream_id", "1"),
+                attr("treasury", "treasury"),
+                attr("fee_collector", "collector"),
+                attr("creators_revenue", "1980000000000"),
+                attr("refunded_out_remaining", "0"),
+                attr("total_sold", "1000000000000"),
+                attr("swap_fee", "20000000000"),
+                attr("creation_fee", "100"),
+            ]
         );
-
-        let send_msg = res.messages.get(1).unwrap();
         assert_eq!(
-            send_msg.msg,
-            CosmosMsg::Bank(BankMsg::Send {
-                to_address: treasury.to_string(),
-                amount: vec![Coin::new(2_000_000_000_000, "in")]
-            })
+            res.messages,
+            vec![
+                SubMsg::new(BankMsg::Send {
+                    to_address: "treasury".to_string(),
+                    amount: vec![Coin {
+                        denom: "in".to_string(),
+                        amount: Uint128::new(1_980_000_000_000),
+                    }],
+                }),
+                SubMsg::new(BankMsg::Send {
+                    to_address: "collector".to_string(),
+                    amount: vec![Coin {
+                        denom: "fee".to_string(),
+                        amount: Uint128::new(100),
+                    }],
+                }),
+                SubMsg::new(BankMsg::Send {
+                    to_address: "collector".to_string(),
+                    amount: vec![Coin {
+                        denom: "in".to_string(),
+                        amount: Uint128::new(20_000_000_000),
+                    }],
+                }),
+            ],
         );
     }
 
@@ -1391,7 +1414,8 @@ mod test_module {
         let mut env = mock_env();
         env.block.time = end.plus_seconds(4_000_000);
         let info = mock_info("creator1", &[]);
-        let _res = execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
+        let res = execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
+        assert!(matches!(res, ContractError::Std(StdError::NotFound { .. })));
     }
 
     #[test]
