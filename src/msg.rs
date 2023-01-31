@@ -4,13 +4,21 @@ use cosmwasm_std::{Addr, Decimal, Decimal256, Timestamp, Uint128, Uint64};
 
 #[cw_serde]
 pub struct InstantiateMsg {
+    /// Minimum sale duration in unix seconds
     pub min_stream_seconds: Uint64,
+    /// Minimum duration between start time and current time in unix seconds
     pub min_seconds_until_start_time: Uint64,
+    /// Accepted stream creation fee denom
     pub stream_creation_denom: String,
+    /// Stream creation fee amount
     pub stream_creation_fee: Uint128,
+    /// in/buy token exit fee in percent
     pub exit_fee_percent: Decimal,
+    /// Address of the fee collector
     pub fee_collector: String,
+    /// protocol admin can pause streams in case of emergency.
     pub protocol_admin: String,
+    /// Accepted in_denom to buy out_tokens
     pub accepted_in_denom: String,
 }
 
