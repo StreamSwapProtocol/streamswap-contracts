@@ -577,7 +577,7 @@ pub fn execute_finalize_stream(
     new_treasury: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    // check if stream is paused
+    // check if killswitch is active
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
     }
@@ -603,22 +603,25 @@ pub fn execute_finalize_stream(
         .checked_mul(config.exit_fee_percent)?
         * Uint128::one();
 
+    let creator_revenue = stream.spent_in.checked_sub(swap_fee)?;
+
     //Creator's revenue claimed at finalize
-    let send_msg = CosmosMsg::Bank(BankMsg::Send {
+    let revenue_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: treasury.to_string(),
         amount: vec![Coin {
             denom: stream.in_denom.clone(),
-            amount: stream.spent_in,
+            amount: creator_revenue,
         }],
     });
-    //Exact fee for stream creation claimed at finalize
-    let fee_send_msg = CosmosMsg::Bank(BankMsg::Send {
+    //Exact fee for stream creation charged at creation but claimed at finalize
+    let creation_fee_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: config.fee_collector.to_string(),
         amount: vec![Coin {
             denom: config.stream_creation_denom,
             amount: config.stream_creation_fee,
         }],
     });
+
     let swap_fee_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: config.fee_collector.to_string(),
         amount: vec![Coin {
@@ -626,22 +629,37 @@ pub fn execute_finalize_stream(
             amount: swap_fee,
         }],
     });
+    let mut messages = vec![revenue_msg, creation_fee_msg, swap_fee_msg];
+    // In case the stream is ended without any shares in it. We need to refund the remaining out tokens although thats is unlikely to happen
+    if stream.out_remaining > Uint128::zero() {
+        let remaining_out = stream.out_remaining;
+        let remaining_msg = CosmosMsg::Bank(BankMsg::Send {
+            to_address: treasury.to_string(),
+            amount: vec![Coin {
+                denom: stream.out_denom,
+                amount: remaining_out,
+            }],
+        });
+        messages.push(remaining_msg);
+    }
 
-    // update stream status
-    STREAMS.save(deps.storage, stream_id, &stream)?;
-
-    let attributes = vec![
+    return Ok(Response::new().add_messages(messages).add_attributes(vec![
         attr("action", "finalize_stream"),
         attr("stream_id", stream_id.to_string()),
         attr("treasury", treasury.as_str()),
-        attr("spent_in", stream.spent_in),
-    ];
-
-    Ok(Response::new()
-        .add_message(fee_send_msg)
-        .add_message(send_msg)
-        .add_message(swap_fee_msg)
-        .add_attributes(attributes))
+        attr("fee_collector", config.fee_collector.to_string()),
+        attr("creators_revenue", creator_revenue),
+        attr("refunded_out_remaining", stream.out_remaining.to_string()),
+        attr(
+            "total_sold",
+            stream
+                .out_supply
+                .checked_sub(stream.out_remaining)?
+                .to_string(),
+        ),
+        attr("swap_fee", swap_fee),
+        attr("creation_fee", config.stream_creation_fee.to_string()),
+    ]));
 }
 
 pub fn execute_exit_stream(
@@ -695,7 +713,6 @@ pub fn execute_exit_stream(
         }],
     });
 
-    stream.spent_in = stream.spent_in.checked_sub(position.spent)?;
     stream.shares = stream.shares.checked_sub(position.shares)?;
 
     STREAMS.save(deps.storage, stream_id, &stream)?;
