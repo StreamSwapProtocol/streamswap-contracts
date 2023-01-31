@@ -32,6 +32,9 @@ pub enum ContractError {
     #[error("Unauthorized")]
     Unauthorized {},
 
+    #[error("Exit fee must be between 0 and 1")]
+    InvalidExitFeePercent {},
+
     #[error("Do not send native funds")]
     NoFundsSent {},
 
