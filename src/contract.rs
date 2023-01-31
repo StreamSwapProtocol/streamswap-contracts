@@ -79,32 +79,32 @@ pub fn execute(
         ),
         ExecuteMsg::UpdateOperator {
             stream_id,
-            new_operator: operator,
-        } => execute_update_operator(deps, env, info, stream_id, operator),
+            new_operator
+        } => execute_update_operator(deps, env, info, stream_id, new_operator),
 
         ExecuteMsg::UpdatePosition {
             stream_id,
-            operator_target: position_owner,
-        } => execute_update_position(deps, env, info, stream_id, position_owner),
+            operator_target
+        } => execute_update_position(deps, env, info, stream_id, operator_target),
         ExecuteMsg::UpdateStream { stream_id } => execute_update_stream(deps, env, stream_id),
         ExecuteMsg::Subscribe {
             stream_id,
-            operator_target: position_owner,
+            operator_target,
             operator,
-        } => execute_subscribe(deps, env, info, stream_id, operator, position_owner),
+        } => execute_subscribe(deps, env, info, stream_id, operator, operator_target),
         ExecuteMsg::Withdraw {
             stream_id,
             cap,
-            operator_target: position_owner,
-        } => execute_withdraw(deps, env, info, stream_id, cap, position_owner),
+            operator_target
+        } => execute_withdraw(deps, env, info, stream_id, cap, operator_target),
         ExecuteMsg::FinalizeStream {
             stream_id,
             new_treasury,
         } => execute_finalize_stream(deps, env, info, stream_id, new_treasury),
         ExecuteMsg::ExitStream {
             stream_id,
-            operator_target: position_owner,
-        } => execute_exit_stream(deps, env, info, stream_id, position_owner),
+            operator_target
+        } => execute_exit_stream(deps, env, info, stream_id, operator_target),
 
         ExecuteMsg::PauseStream { stream_id } => {
             killswitch::execute_pause_stream(deps, env, info, stream_id)
@@ -112,12 +112,12 @@ pub fn execute(
         ExecuteMsg::WithdrawPaused {
             stream_id,
             cap,
-            operator_target: position_owner,
-        } => killswitch::execute_withdraw_paused(deps, env, info, stream_id, cap, position_owner),
+            operator_target
+        } => killswitch::execute_withdraw_paused(deps, env, info, stream_id, cap, operator_target),
         ExecuteMsg::ExitCancelled {
             stream_id,
-            operator_target: position_owner,
-        } => killswitch::execute_exit_cancelled(deps, env, info, stream_id, position_owner),
+            operator_target
+        } => killswitch::execute_exit_cancelled(deps, env, info, stream_id, operator_target),
     }
 }
 
@@ -292,12 +292,12 @@ pub fn execute_update_position(
     env: Env,
     info: MessageInfo,
     stream_id: u64,
-    position_owner: Option<String>,
+    operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     // TODO: anyone can trigger?
-    let position_owner =
-        maybe_addr(deps.api, position_owner)?.unwrap_or_else(|| info.sender.clone());
-    let mut position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;
+    let operator_target =
+        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
+    let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
     if info.sender != position.owner
         && position
             .operator
@@ -328,7 +328,7 @@ pub fn execute_update_position(
     Ok(Response::new()
         .add_attribute("action", "update_position")
         .add_attribute("stream_id", stream_id.to_string())
-        .add_attribute("position_owner", position_owner)
+        .add_attribute("operator_target", operator_target)
         .add_attribute("purchased", purchased)
         .add_attribute("spent", spent))
 }
@@ -380,7 +380,7 @@ pub fn execute_subscribe(
     info: MessageInfo,
     stream_id: u64,
     operator: Option<String>,
-    position_owner: Option<String>,
+    operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
@@ -402,13 +402,13 @@ pub fn execute_subscribe(
     let new_shares = stream.compute_shares_amount(in_amount, false);
 
     let operator = maybe_addr(deps.api, operator)?;
-    let position_owner =
-        maybe_addr(deps.api, position_owner)?.unwrap_or_else(|| info.sender.clone());
-    let position = POSITIONS.may_load(deps.storage, (stream_id, &position_owner))?;
+    let operator_target =
+        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
+    let position = POSITIONS.may_load(deps.storage, (stream_id, &operator_target))?;
     match position {
         None => {
             // operator cannot create a position in behalf of anyone
-            if position_owner != info.sender {
+            if operator_target != info.sender {
                 return Err(ContractError::Unauthorized {});
             }
             update_stream(env.block.time, &mut stream)?;
@@ -421,7 +421,7 @@ pub fn execute_subscribe(
                 env.block.time,
                 operator,
             );
-            POSITIONS.save(deps.storage, (stream_id, &position_owner), &new_position)?;
+            POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
         }
         Some(mut position) => {
             if position.owner != info.sender
@@ -445,7 +445,7 @@ pub fn execute_subscribe(
 
             position.in_balance = position.in_balance.checked_add(in_amount)?;
             position.shares = position.shares.checked_add(new_shares)?;
-            POSITIONS.save(deps.storage, (stream_id, &position_owner), &position)?;
+            POSITIONS.save(deps.storage, (stream_id, &operator_target), &position)?;
         }
     }
 
@@ -457,7 +457,7 @@ pub fn execute_subscribe(
     let res = Response::new()
         .add_attribute("action", "subscribe")
         .add_attribute("stream_id", stream_id.to_string())
-        .add_attribute("owner", position_owner)
+        .add_attribute("owner", operator_target)
         .add_attribute("in_supply", stream.in_supply)
         .add_attribute("in_amount", in_amount);
 
@@ -494,7 +494,7 @@ pub fn execute_withdraw(
     info: MessageInfo,
     stream_id: u64,
     cap: Option<Uint128>,
-    position_owner: Option<String>,
+    operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
@@ -506,9 +506,9 @@ pub fn execute_withdraw(
         return Err(ContractError::StreamEnded {});
     }
 
-    let position_owner =
-        maybe_addr(deps.api, position_owner)?.unwrap_or_else(|| info.sender.clone());
-    let mut position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;
+    let operator_target =
+        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
+    let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
     if position.owner != info.sender
         && position
             .operator
@@ -551,14 +551,14 @@ pub fn execute_withdraw(
     let attributes = vec![
         attr("action", "withdraw"),
         attr("stream_id", stream_id.to_string()),
-        attr("position_owner", position_owner.clone()),
+        attr("operator_target", operator_target.clone()),
         attr("withdraw_amount", withdraw_amount),
     ];
 
     // send funds to withdraw address or to the sender
     let res = Response::new()
         .add_message(CosmosMsg::Bank(BankMsg::Send {
-            to_address: position_owner.to_string(),
+            to_address: operator_target.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
                 amount: withdraw_amount,
@@ -649,7 +649,7 @@ pub fn execute_exit_stream(
     env: Env,
     info: MessageInfo,
     stream_id: u64,
-    position_owner: Option<String>,
+    operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     let config = CONFIG.load(deps.storage)?;
@@ -663,9 +663,9 @@ pub fn execute_exit_stream(
     if stream.last_updated < stream.end_time {
         return Err(ContractError::UpdateDistIndex {});
     }
-    let position_owner =
-        maybe_addr(deps.api, position_owner)?.unwrap_or_else(|| info.sender.clone());
-    let mut position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;
+    let operator_target =
+        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
+    let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
     if position.owner != info.sender
         && position
             .operator
@@ -688,7 +688,7 @@ pub fn execute_exit_stream(
         * Uint128::one();
 
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
-        to_address: position_owner.to_string(),
+        to_address: operator_target.to_string(),
         amount: vec![Coin {
             denom: stream.out_denom.to_string(),
             amount: position.purchased,

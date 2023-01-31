@@ -13,7 +13,7 @@ pub fn execute_withdraw_paused(
     info: MessageInfo,
     stream_id: u64,
     cap: Option<Uint128>,
-    position_owner: Option<String>,
+    operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
@@ -22,9 +22,9 @@ pub fn execute_withdraw_paused(
     }
     // We are not checking if stream is ended because the paused state duration might exceed end time
 
-    let position_owner =
-        maybe_addr(deps.api, position_owner)?.unwrap_or_else(|| info.sender.clone());
-    let mut position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;
+    let operator_target =
+        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
+    let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
     if position.owner != info.sender
         && position
             .operator
@@ -67,14 +67,14 @@ pub fn execute_withdraw_paused(
     let attributes = vec![
         attr("action", "withdraw_paused"),
         attr("stream_id", stream_id.to_string()),
-        attr("position_owner", position_owner.clone()),
+        attr("operator_target", operator_target.clone()),
         attr("withdraw_amount", withdraw_amount),
     ];
 
     // send funds to withdraw address or to the sender
     let res = Response::new()
         .add_message(CosmosMsg::Bank(BankMsg::Send {
-            to_address: position_owner.to_string(),
+            to_address: operator_target.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
                 amount: withdraw_amount,
@@ -90,7 +90,7 @@ pub fn execute_exit_cancelled(
     _env: Env,
     info: MessageInfo,
     stream_id: u64,
-    position_owner: Option<String>,
+    operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     let stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is cancelled
@@ -98,9 +98,9 @@ pub fn execute_exit_cancelled(
         return Err(ContractError::StreamNotCancelled {});
     }
 
-    let position_owner =
-        maybe_addr(deps.api, position_owner)?.unwrap_or_else(|| info.sender.clone());
-    let position = POSITIONS.load(deps.storage, (stream_id, &position_owner))?;
+    let operator_target =
+        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
+    let position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
     if position.owner != info.sender
         && position
             .operator
@@ -117,14 +117,14 @@ pub fn execute_exit_cancelled(
     let attributes = vec![
         attr("action", "withdraw_cancelled"),
         attr("stream_id", stream_id.to_string()),
-        attr("position_owner", position_owner.clone()),
+        attr("operator_target", operator_target.clone()),
         attr("total_balance", total_balance),
     ];
 
     // send funds to withdraw address or to the sender
     let res = Response::new()
         .add_message(CosmosMsg::Bank(BankMsg::Send {
-            to_address: position_owner.to_string(),
+            to_address: operator_target.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
                 amount: total_balance,
