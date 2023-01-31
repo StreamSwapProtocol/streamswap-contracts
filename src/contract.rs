@@ -329,7 +329,7 @@ pub fn execute_update_position(
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     // updates position to latest distribution. Returns the amount of out tokens that has been purchased
-    // and spent.
+    // and in tokens that has been spent.
     let (purchased, spent) = update_position(
         stream.dist_index,
         stream.shares,
@@ -492,6 +492,7 @@ pub fn execute_update_operator(
     operator: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut position = POSITIONS.load(deps.storage, (stream_id, &info.sender))?;
+
     if position.owner != info.sender {
         return Err(ContractError::Unauthorized {});
     }
