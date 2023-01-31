@@ -79,12 +79,12 @@ pub fn execute(
         ),
         ExecuteMsg::UpdateOperator {
             stream_id,
-            new_operator
+            new_operator,
         } => execute_update_operator(deps, env, info, stream_id, new_operator),
 
         ExecuteMsg::UpdatePosition {
             stream_id,
-            operator_target
+            operator_target,
         } => execute_update_position(deps, env, info, stream_id, operator_target),
         ExecuteMsg::UpdateStream { stream_id } => execute_update_stream(deps, env, stream_id),
         ExecuteMsg::Subscribe {
@@ -95,7 +95,7 @@ pub fn execute(
         ExecuteMsg::Withdraw {
             stream_id,
             cap,
-            operator_target
+            operator_target,
         } => execute_withdraw(deps, env, info, stream_id, cap, operator_target),
         ExecuteMsg::FinalizeStream {
             stream_id,
@@ -103,7 +103,7 @@ pub fn execute(
         } => execute_finalize_stream(deps, env, info, stream_id, new_treasury),
         ExecuteMsg::ExitStream {
             stream_id,
-            operator_target
+            operator_target,
         } => execute_exit_stream(deps, env, info, stream_id, operator_target),
 
         ExecuteMsg::PauseStream { stream_id } => {
@@ -112,11 +112,11 @@ pub fn execute(
         ExecuteMsg::WithdrawPaused {
             stream_id,
             cap,
-            operator_target
+            operator_target,
         } => killswitch::execute_withdraw_paused(deps, env, info, stream_id, cap, operator_target),
         ExecuteMsg::ExitCancelled {
             stream_id,
-            operator_target
+            operator_target,
         } => killswitch::execute_exit_cancelled(deps, env, info, stream_id, operator_target),
     }
 }
@@ -843,6 +843,7 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
         status: stream.status,
         pause_date: stream.pause_date,
         url: stream.url,
+        current_streamed_price: stream.current_streamed_price,
     };
     Ok(stream)
 }
@@ -880,6 +881,7 @@ pub fn list_streams(
                 status: stream.status,
                 pause_date: stream.pause_date,
                 url: stream.url,
+                current_streamed_price: stream.current_streamed_price,
             };
             Ok(stream)
         })

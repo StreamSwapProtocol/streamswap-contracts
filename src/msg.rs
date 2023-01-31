@@ -39,9 +39,7 @@ pub enum ExecuteMsg {
         end_time: Timestamp,
     },
     /// Update stream and calculates distribution state.
-    UpdateStream {
-        stream_id: u64,
-    },
+    UpdateStream { stream_id: u64 },
     UpdateOperator {
         stream_id: u64,
         new_operator: Option<String>,
@@ -90,9 +88,7 @@ pub enum ExecuteMsg {
     // Killswitch features
     //
     /// PauseStream pauses the stream. Only protocol admin and governance can pause the stream.
-    PauseStream {
-        stream_id: u64,
-    },
+    PauseStream { stream_id: u64 },
     /// WithdrawPaused is used to withdraw unspent position funds during pause.
     WithdrawPaused {
         stream_id: u64,
@@ -171,17 +167,29 @@ pub struct StreamResponse {
     pub dist_index: Decimal256,
     /// last updated time of stream.
     pub last_updated: Timestamp,
-    /// TODO: finish this
-    pub shares: Uint128,
+    /// denom of the `token_out`.
     pub out_denom: String,
+    /// total number of `token_out` to be sold during the continuous stream.
     pub out_supply: Uint128,
+    /// total number of remaining out tokens at the time of update.
     pub out_remaining: Uint128,
+    /// denom of the `token_in`.
     pub in_denom: String,
+    /// total number of `token_in` on the buy side at latest state.
     pub in_supply: Uint128,
+    /// total number of `token_in` spent at latest state.
     pub spent_in: Uint128,
+    /// total number of shares minted.
+    pub shares: Uint128,
+    /// start time when the token emission starts. in nanos.
     pub start_time: Timestamp,
+    /// end time when the token emission ends.
     pub end_time: Timestamp,
+    /// price at when latest distribution is triggered.
+    pub current_streamed_price: Decimal,
+    /// Status of the stream. Can be `Waiting`, `Active`, `Finalzed`, `Paused` or `Canceled` for kill switch.
     pub status: Status,
+    /// Date when the stream was paused.
     pub pause_date: Option<Timestamp>,
 }
 
@@ -193,14 +201,21 @@ pub struct StreamsResponse {
 #[cw_serde]
 pub struct PositionResponse {
     pub stream_id: u64,
+    /// creator of the position.
     pub owner: String,
+    /// current amount of tokens in buy pool
     pub in_balance: Uint128,
     pub shares: Uint128,
+    // index is used to calculate the distribution a position has
     pub index: Decimal256,
     pub last_updated: Timestamp,
+    // total amount of `token_out` purchased in tokens at latest calculation
     pub purchased: Uint128,
+    // pending purchased accumulates purchases after decimal truncation
     pub pending_purchase: Decimal256,
+    // total amount of `token_in` spent tokens at latest calculation
     pub spent: Uint128,
+    // operator can update position
     pub operator: Option<Addr>,
 }
 
