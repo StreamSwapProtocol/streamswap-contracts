@@ -1392,7 +1392,6 @@ mod test_module {
         env.block.time = end.plus_seconds(4_000_000);
         let info = mock_info("creator1", &[]);
         let _res = execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
-        //TODO check error
     }
 
     #[test]
