@@ -589,7 +589,7 @@ mod test_module {
             Response::new()
                 .add_attribute("action", "update_position")
                 .add_attribute("stream_id", "1")
-                .add_attribute("position_owner", "creator1")
+                .add_attribute("operator_target", "creator1")
                 .add_attribute("purchased", "0")
                 .add_attribute("spent", "0")
         );
@@ -688,7 +688,7 @@ mod test_module {
             Response::new()
                 .add_attribute("action", "update_position")
                 .add_attribute("stream_id", "1")
-                .add_attribute("position_owner", "creator1")
+                .add_attribute("operator_target", "creator1")
                 .add_attribute("purchased", "0")
                 .add_attribute("spent", "0")
         );
