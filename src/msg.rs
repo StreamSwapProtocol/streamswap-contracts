@@ -48,6 +48,7 @@ pub enum ExecuteMsg {
     },
     /// Update stream and calculates distribution state.
     UpdateStream { stream_id: u64 },
+    /// UpdateOperator updates the operator of the position.
     UpdateOperator {
         stream_id: u64,
         new_operator: Option<String>,
@@ -85,8 +86,8 @@ pub enum ExecuteMsg {
         new_treasury: Option<String>,
     },
     /// ExitStream withdraws (by a user who subscribed to the stream) purchased
-    /// tokens_out from the pool and remained tokens_in. Must be called before
-    /// the stream end.
+    /// tokens_out from the pool and remained tokens_in. Must be called after
+    /// the stream ends.
     ExitStream {
         stream_id: u64,
         /// operator_target is the address of operator targets to execute on behalf of the user.
@@ -157,6 +158,7 @@ pub struct ConfigResponse {
     pub stream_creation_denom: String,
     /// Creation fee amount.
     pub stream_creation_fee: Uint128,
+    /// This percentage represents the fee that will be collected from the investors.
     pub exit_fee_percent: Decimal,
     /// Address of the fee collector.
     pub fee_collector: String,
