@@ -589,7 +589,7 @@ mod test_module {
             Response::new()
                 .add_attribute("action", "update_position")
                 .add_attribute("stream_id", "1")
-                .add_attribute("position_owner", "creator1")
+                .add_attribute("operator_target", "creator1")
                 .add_attribute("purchased", "0")
                 .add_attribute("spent", "0")
         );
@@ -688,7 +688,7 @@ mod test_module {
             Response::new()
                 .add_attribute("action", "update_position")
                 .add_attribute("stream_id", "1")
-                .add_attribute("position_owner", "creator1")
+                .add_attribute("operator_target", "creator1")
                 .add_attribute("purchased", "0")
                 .add_attribute("spent", "0")
         );
@@ -1392,7 +1392,6 @@ mod test_module {
         env.block.time = end.plus_seconds(4_000_000);
         let info = mock_info("creator1", &[]);
         let _res = execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
-        //TODO check error
     }
 
     #[test]
