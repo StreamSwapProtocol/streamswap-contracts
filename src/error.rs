@@ -44,6 +44,9 @@ pub enum ContractError {
     #[error("Supply out funds required")]
     StreamOutSupplyFundsRequired {},
 
+    #[error("Invalid funds")]
+    InvalidFunds {},
+
     #[error("Decrease amount exceeds user balance: {0}")]
     DecreaseAmountExceeds(Uint128),
 
