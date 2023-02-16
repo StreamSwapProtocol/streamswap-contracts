@@ -44,8 +44,11 @@ pub enum ContractError {
     #[error("Supply out funds required")]
     StreamOutSupplyFundsRequired {},
 
-    #[error("Decrease amount exceeds user balance: {0}")]
-    DecreaseAmountExceeds(Uint128),
+    #[error("Withdraw amount exceeds user balance: {0}")]
+    WithdrawAmountExceedsBalance(Uint128),
+
+    #[error("Withdraw amount cannot be zero")]
+    InvalidWithdrawAmount {},
 
     #[error("Wait for the unbonding")]
     WaitUnbonding {},

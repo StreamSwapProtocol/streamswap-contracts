@@ -550,7 +550,11 @@ pub fn execute_withdraw(
     let withdraw_amount = cap.unwrap_or(position.in_balance);
     // if amount to withdraw more then deduced buy balance throw error
     if withdraw_amount > position.in_balance {
-        return Err(ContractError::DecreaseAmountExceeds(withdraw_amount));
+        return Err(ContractError::WithdrawAmountExceedsBalance(withdraw_amount));
+    }
+
+    if withdraw_amount.is_zero() {
+        return Err(ContractError::InvalidWithdrawAmount {});
     }
 
     // decrease in supply and shares
