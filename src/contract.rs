@@ -11,8 +11,9 @@ use cosmwasm_std::{
     Uint256, Uint64,
 };
 use cw2::{get_contract_version, set_contract_version};
+use semver::Version;
 
-use crate::helpers::get_decimals;
+use crate::helpers::{from_semver, get_decimals};
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay};
 
@@ -821,14 +822,15 @@ pub fn sudo_update_config(
 pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     let contract_info = get_contract_version(deps.storage)?;
     let storage_contract_name: String = contract_info.contract;
-    let storage_version: Version = contract_info.version.parse()?;
+    let storage_version: Version = contract_info.version.parse().map_err(from_semver)?;
+    let version: Version = CONTRACT_VERSION.parse().map_err(from_semver)?;
 
     if storage_contract_name != CONTRACT_NAME {
         return Err(ContractError::CannotMigrate {
             previous_contract: storage_contract_name,
         });
     }
-    if storage_version < CONTRACT_VERSION.parse()? {
+    if storage_version < version {
         set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
         // Code to facilitate state change goes here
     }
