@@ -263,17 +263,17 @@ pub fn update_stream(
         stream.spent_in = stream.spent_in.checked_add(spent_in)?;
         // decrease in_supply of the steam
         stream.in_supply = stream.in_supply.checked_sub(spent_in)?;
-        // decrease amount to be distributed of the stream
-        stream.out_remaining = stream.out_remaining.checked_sub(new_distribution_balance)?;
-        // update distribution index. A positions share of the distribution is calculated by
-        // multiplying the share by the distribution index
-        stream.dist_index = stream.dist_index.checked_add(Decimal256::from_ratio(
-            new_distribution_balance,
-            stream.shares,
-        ))?;
 
-        // if no new distribution balance, no need to update the price
+        // if no new distribution balance, no need to update the price, out_remaining and dist_index
         if !new_distribution_balance.is_zero() {
+            // decrease amount to be distributed of the stream
+            stream.out_remaining = stream.out_remaining.checked_sub(new_distribution_balance)?;
+            // update distribution index. A positions share of the distribution is calculated by
+            // multiplying the share by the distribution index
+            stream.dist_index = stream.dist_index.checked_add(Decimal256::from_ratio(
+                new_distribution_balance,
+                stream.shares,
+            ))?;
             stream.current_streamed_price = Decimal::from_ratio(spent_in, new_distribution_balance)
         }
     }
