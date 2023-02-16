@@ -257,7 +257,6 @@ pub fn sudo_cancel_stream(
     stream.status = Status::Cancelled;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
-    stream.status = Status::Cancelled;
     let config = CONFIG.load(deps.storage)?;
 
     //Refund all out tokens to stream creator(treasury)
