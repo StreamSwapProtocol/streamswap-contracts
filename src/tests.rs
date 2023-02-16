@@ -2173,6 +2173,7 @@ mod test_module {
             assert_eq!(
                 res,
                 Response::new()
+                    .add_attribute("action", "sudo_pause_stream")
                     .add_attribute("stream_id", "1")
                     .add_attribute("is_paused", "true")
                     .add_attribute("pause_date", "3000000.000000000")
