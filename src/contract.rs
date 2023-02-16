@@ -292,7 +292,7 @@ fn calculate_diff(
     let now = if now > end_time { end_time } else { now };
     let numerator = now.minus_nanos(last_updated.nanos());
     let denominator = end_time.minus_nanos(last_updated.nanos());
-    if denominator.nanos() == 0 {
+    if denominator.nanos() == 0 || numerator.nanos() == 0 {
         (Decimal::zero(), now)
     } else {
         (
