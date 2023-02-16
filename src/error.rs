@@ -103,4 +103,7 @@ pub enum ContractError {
 
     #[error("Killswitch is active")]
     StreamKillswitchActive {},
+
+    #[error("Stream is already finalized")]
+    StreamAlreadyFinalized {},
 }
