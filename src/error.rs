@@ -35,13 +35,13 @@ pub enum ContractError {
     #[error("Exit fee must be between 0 and 1")]
     InvalidExitFeePercent {},
 
-    #[error("Do not send native funds")]
+    #[error("Required denom not found in funds")]
     NoFundsSent {},
 
     #[error("In_denom does not match config")]
     InDenomIsNotAccepted {},
 
-    #[error("Supply out funds required")]
+    #[error("Supplied funds do not match out_supply")]
     StreamOutSupplyFundsRequired {},
 
     #[error("Decrease amount exceeds user balance: {0}")]
@@ -74,7 +74,7 @@ pub enum ContractError {
     #[error("Invalid end time")]
     StreamInvalidEndTime {},
 
-    #[error("Creation fee required")]
+    #[error("Creation fee amount do not match the supplied funds")]
     StreamCreationFeeRequired {},
 
     #[error("Stream Ended")]
@@ -101,6 +101,6 @@ pub enum ContractError {
     #[error("Stream is cancelled")]
     StreamIsCancelled {},
 
-    #[error("Killswitch is active")]
+    #[error("Stream is either paused or cancelled")]
     StreamKillswitchActive {},
 }
