@@ -496,10 +496,6 @@ pub fn execute_update_operator(
 ) -> Result<Response, ContractError> {
     let mut position = POSITIONS.load(deps.storage, (stream_id, &info.sender))?;
 
-    if position.owner != info.sender {
-        return Err(ContractError::Unauthorized {});
-    }
-
     let operator = maybe_addr(deps.api, operator)?;
     position.operator = operator.clone();
 

@@ -59,7 +59,7 @@ pub struct Stream {
     pub end_time: Timestamp,
     /// price at when latest distribution is triggered.
     pub current_streamed_price: Decimal,
-    /// Status of the stream. Can be `Waiting`, `Active`, `Finalzed`, `Paused` or `Canceled` for kill switch.
+    /// Status of the stream. Can be `Waiting`, `Active`, `Finalized`, `Paused` or `Canceled` for kill switch.
     pub status: Status,
     /// Date when the stream was paused.
     pub pause_date: Option<Timestamp>,
