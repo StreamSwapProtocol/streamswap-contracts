@@ -41,8 +41,14 @@ pub enum ContractError {
     #[error("In_denom does not match config")]
     InDenomIsNotAccepted {},
 
+    #[error("Out_denom can not be the same as in_denom")]
+    SameDenomOnEachSide {},
+
     #[error("Supply out funds required")]
     StreamOutSupplyFundsRequired {},
+
+    #[error("Out supply must be greater than zero")]
+    ZeroOutSupply {},
 
     #[error("Decrease amount exceeds user balance: {0}")]
     DecreaseAmountExceeds(Uint128),
@@ -64,6 +70,9 @@ pub enum ContractError {
 
     #[error("Stream duration is too short")]
     StreamDurationTooShort {},
+
+    #[error("Stream duration is too long")]
+    StreamDurationTooLong {},
 
     #[error("Stream starts too soon")]
     StreamStartsTooSoon {},

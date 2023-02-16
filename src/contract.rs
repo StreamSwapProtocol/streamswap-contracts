@@ -148,12 +148,24 @@ pub fn execute_create_stream(
         return Err(ContractError::StreamDurationTooShort {});
     }
 
+    if end_time.nanos() - start_time.nanos() > u64::MAX as u64 {
+        return Err(ContractError::StreamDurationTooLong {});
+    }
+
     if start_time.seconds() - env.block.time.seconds() < config.min_seconds_until_start_time.u64() {
         return Err(ContractError::StreamStartsTooSoon {});
     }
 
     if in_denom != config.accepted_in_denom {
         return Err(ContractError::InDenomIsNotAccepted {});
+    }
+
+    if in_denom == out_denom {
+        return Err(ContractError::SameDenomOnEachSide {});
+    }
+
+    if out_supply < Uint128::from(1u128) {
+        return Err(ContractError::ZeroOutSupply {});
     }
 
     if out_denom == config.stream_creation_denom {
