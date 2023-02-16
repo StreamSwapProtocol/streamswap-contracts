@@ -820,10 +820,17 @@ pub fn sudo_update_config(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     let contract_info = get_contract_version(deps.storage)?;
-    if contract_info.contract != CONTRACT_NAME {
+    let storage_contract_name: String = contract_info.contract;
+    let storage_version: Version = contract_info.version.parse()?;
+
+    if storage_contract_name != CONTRACT_NAME {
         return Err(ContractError::CannotMigrate {
-            previous_contract: contract_info.contract,
+            previous_contract: storage_contract_name,
         });
+    }
+    if storage_version < CONTRACT_VERSION.parse()? {
+        set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+        // Code to facilitate state change goes here
     }
     Ok(Response::default())
 }
