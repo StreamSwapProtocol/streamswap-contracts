@@ -31,8 +31,8 @@ pub enum ExecuteMsg {
         treasury: String,
         /// Name of the stream.
         name: String,
-        /// An external resource describing a stream. Can be IPFS link or a.
-        url: String,
+        /// An external resource describing a stream.
+        url: Option<String>,
         /// Payment denom - used to buy `token_out`.
         /// Also known as quote currency.
         in_denom: String,
@@ -172,7 +172,7 @@ pub struct StreamResponse {
     /// address of the treasury where the stream earnings will be sent.
     pub treasury: String,
     /// URL of the stream.
-    pub url: String,
+    pub url: Option<String>,
     /// Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal256,
     /// last updated time of stream.
