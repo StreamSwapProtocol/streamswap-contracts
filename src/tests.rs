@@ -1801,7 +1801,6 @@ mod test_module {
         use crate::killswitch::{execute_exit_cancelled, sudo_cancel_stream, sudo_pause_stream};
         use cosmwasm_std::CosmosMsg::Bank;
         use cosmwasm_std::{ReplyOn, SubMsg};
-        use schemars::_serde_json::de;
 
         #[test]
         fn test_pause_protocol_admin() {
@@ -2282,7 +2281,7 @@ mod test_module {
                 info,
                 treasury.to_string(),
                 "test".to_string(),
-                "test".to_string(),
+                Some("https://sample.url".to_string()),
                 "new_denom".to_string(),
                 out_denom.to_string(),
                 out_supply,
@@ -2323,8 +2322,8 @@ mod test_module {
             // update stream
             let mut env = mock_env();
             env.block.time = Timestamp::from_seconds(5_000_000);
-            let info = mock_info("creator1", &[]);
-            let res = execute_update_stream(deps.as_mut(), env, 1).unwrap();
+            let _info = mock_info("creator1", &[]);
+            let _res = execute_update_stream(deps.as_mut(), env, 1).unwrap();
 
             let mut env = mock_env();
             env.block.time = Timestamp::from_seconds(5_000_000);
