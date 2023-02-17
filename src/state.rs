@@ -54,8 +54,7 @@ pub struct Stream {
     pub shares: Uint128,
     /// start time when the token emission starts. in nanos.
     pub start_time: Timestamp,
-    /// end time when the token emission ends. Can't be bigger than start +
-    /// 139years (to avoid round overflow).
+    /// end time when the token emission ends.
     pub end_time: Timestamp,
     /// price at when latest distribution is triggered.
     pub current_streamed_price: Decimal,
