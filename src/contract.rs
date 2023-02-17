@@ -205,6 +205,8 @@ pub fn execute_create_stream(
         start_time,
         end_time,
         env.block.time,
+        config.stream_creation_denom,
+        config.stream_creation_fee,
     );
     let id = next_stream_id(deps.storage)?;
     STREAMS.save(deps.storage, id, &stream)?;
@@ -672,8 +674,8 @@ pub fn execute_finalize_stream(
     let creation_fee_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: config.fee_collector.to_string(),
         amount: vec![Coin {
-            denom: config.stream_creation_denom,
-            amount: config.stream_creation_fee,
+            denom: stream.stream_creation_denom,
+            amount: stream.stream_creation_fee,
         }],
     });
 
