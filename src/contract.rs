@@ -11,14 +11,25 @@ use cosmwasm_std::{
     Uint256, Uint64,
 };
 use cw2::{get_contract_version, set_contract_version};
+use semver::Version;
 
-use crate::helpers::get_decimals;
+use crate::helpers::{from_semver, get_decimals};
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay};
 
 // Version and contract info for migration
 const CONTRACT_NAME: &str = "crates.io:cw-streamswap";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Stream validation related constants
+const MIN_NAME_LENGTH: usize = 2;
+const MAX_NAME_LENGTH: usize = 64;
+const MIN_URL_LENGTH: usize = 12;
+const MAX_URL_LENGTH: usize = 128;
+
+/// Special characters that are allowed in stream names and urls
+const SAFE_TEXT_CHARS: &str = "<>$!&?#()*+'-./\"";
+const SAFE_URL_CHARS: &str = "-_:/?#@!$&()*+,;=.~[]'%";
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -32,6 +43,14 @@ pub fn instantiate(
     if msg.exit_fee_percent >= Decimal::one() || msg.exit_fee_percent < Decimal::zero() {
         return Err(ContractError::InvalidExitFeePercent {});
     }
+
+    if msg.stream_creation_fee.is_zero() {
+        return Err(ContractError::InvalidStreamCreationFee {});
+    }
+    if msg.exit_fee_percent > Decimal::one() {
+        return Err(ContractError::InvalidStreamExitFee {});
+    }
+
     let config = Config {
         min_stream_seconds: msg.min_stream_seconds,
         min_seconds_until_start_time: msg.min_seconds_until_start_time,
@@ -45,6 +64,7 @@ pub fn instantiate(
     CONFIG.save(deps.storage, &config)?;
 
     let attrs = vec![
+        attr("action", "instantiate"),
         attr("min_stream_seconds", msg.min_stream_seconds),
         attr(
             "min_seconds_until_start_time",
@@ -84,7 +104,6 @@ pub fn execute(
             stream_id,
             new_operator,
         } => execute_update_operator(deps, env, info, stream_id, new_operator),
-
         ExecuteMsg::UpdatePosition {
             stream_id,
             operator_target,
@@ -124,6 +143,9 @@ pub fn execute(
         ExecuteMsg::UpdateFeeCollector { fee_collector } => {
             execute_update_fee_collector(deps, env, info, fee_collector)
         }
+        ExecuteMsg::UpdateProtocolAdmin {
+            new_protocol_admin: new_admin,
+        } => execute_update_protocol_admin(deps, env, info, new_admin),
     }
 }
 
@@ -133,7 +155,7 @@ pub fn execute_create_stream(
     info: MessageInfo,
     treasury: String,
     name: String,
-    url: String,
+    url: Option<String>,
     in_denom: String,
     out_denom: String,
     out_supply: Uint128,
@@ -165,8 +187,13 @@ pub fn execute_create_stream(
             .iter()
             .find(|p| p.denom == config.stream_creation_denom)
             .ok_or(ContractError::NoFundsSent {})?;
+
         if total_funds.amount != config.stream_creation_fee + out_supply {
             return Err(ContractError::StreamOutSupplyFundsRequired {});
+        }
+        // check for extra funds sent in msg
+        if info.funds.iter().any(|p| p.denom != out_denom) {
+            return Err(ContractError::InvalidFunds {});
         }
     } else {
         let funds = info
@@ -174,6 +201,7 @@ pub fn execute_create_stream(
             .iter()
             .find(|p| p.denom == out_denom)
             .ok_or(ContractError::NoFundsSent {})?;
+
         if funds.amount != out_supply {
             return Err(ContractError::StreamOutSupplyFundsRequired {});
         }
@@ -185,6 +213,41 @@ pub fn execute_create_stream(
             .ok_or(ContractError::NoFundsSent {})?;
         if creation_fee.amount != config.stream_creation_fee {
             return Err(ContractError::StreamCreationFeeRequired {});
+        }
+
+        if info
+            .funds
+            .iter()
+            .any(|p| p.denom != out_denom && p.denom != config.stream_creation_denom)
+        {
+            return Err(ContractError::InvalidFunds {});
+        }
+    }
+
+    if name.len() < MIN_NAME_LENGTH {
+        return Err(ContractError::StreamNameTooShort {});
+    }
+    if name.len() > MAX_NAME_LENGTH {
+        return Err(ContractError::StreamNameTooLong {});
+    }
+    if !name.chars().all(|c| {
+        c.is_ascii_alphanumeric() || c.is_ascii_whitespace() || SAFE_TEXT_CHARS.contains(c)
+    }) {
+        return Err(ContractError::InvalidStreamName {});
+    }
+
+    if let Some(url) = url.clone() {
+        if url.len() < MIN_URL_LENGTH {
+            return Err(ContractError::StreamUrlTooShort {});
+        }
+        if url.len() > MAX_URL_LENGTH {
+            return Err(ContractError::StreamUrlTooLong {});
+        }
+        if !url
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || SAFE_URL_CHARS.contains(c))
+        {
+            return Err(ContractError::InvalidStreamUrl {});
         }
     }
 
@@ -198,6 +261,8 @@ pub fn execute_create_stream(
         start_time,
         end_time,
         env.block.time,
+        config.stream_creation_denom,
+        config.stream_creation_fee,
     );
     let id = next_stream_id(deps.storage)?;
     STREAMS.save(deps.storage, id, &stream)?;
@@ -207,7 +272,7 @@ pub fn execute_create_stream(
         attr("id", id.to_string()),
         attr("treasury", treasury),
         attr("name", name),
-        attr("url", url),
+        attr("url", url.unwrap_or_default()),
         attr("in_denom", in_denom),
         attr("out_denom", out_denom),
         attr("out_supply", out_supply),
@@ -215,6 +280,27 @@ pub fn execute_create_stream(
         attr("end_time", end_time.to_string()),
     ];
     Ok(Response::default().add_attributes(attr))
+}
+
+pub fn execute_update_protocol_admin(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    new_admin: String,
+) -> Result<Response, ContractError> {
+    let mut config = CONFIG.load(deps.storage)?;
+    if info.sender != config.protocol_admin {
+        return Err(ContractError::Unauthorized {});
+    }
+    config.protocol_admin = deps.api.addr_validate(&new_admin)?;
+    CONFIG.save(deps.storage, &config)?;
+
+    let attrs = vec![
+        attr("action", "update_protocol_admin"),
+        attr("new_admin", new_admin),
+    ];
+
+    Ok(Response::default().add_attributes(attrs))
 }
 
 /// Updates stream to calculate released distribution and spent amount
@@ -312,17 +398,9 @@ pub fn execute_update_position(
     stream_id: u64,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
-    let operator_target =
-        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
+    let operator_target = maybe_addr(deps.api, operator_target)?.unwrap_or(info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
-    if info.sender != position.owner
-        && position
-            .operator
-            .as_ref()
-            .map_or(true, |o| o != &info.sender)
-    {
-        return Err(ContractError::Unauthorized {});
-    }
+    check_access(&info, &position.owner, &position.operator)?;
 
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
@@ -428,8 +506,7 @@ pub fn execute_subscribe(
     let new_shares = stream.compute_shares_amount(in_amount, false);
 
     let operator = maybe_addr(deps.api, operator)?;
-    let operator_target =
-        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
+    let operator_target = maybe_addr(deps.api, operator_target)?.unwrap_or(info.sender.clone());
     let position = POSITIONS.may_load(deps.storage, (stream_id, &operator_target))?;
     match position {
         None => {
@@ -450,14 +527,7 @@ pub fn execute_subscribe(
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
         }
         Some(mut position) => {
-            if position.owner != info.sender
-                && position
-                    .operator
-                    .as_ref()
-                    .map_or(true, |o| o != &info.sender)
-            {
-                return Err(ContractError::Unauthorized {});
-            }
+            check_access(&info, &position.owner, &position.operator)?;
 
             // incoming tokens should not participate in prev distribution
             update_stream(env.block.time, &mut stream)?;
@@ -536,14 +606,7 @@ pub fn execute_withdraw(
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
-    if position.owner != info.sender
-        && position
-            .operator
-            .as_ref()
-            .map_or(true, |o| o != &info.sender)
-    {
-        return Err(ContractError::Unauthorized {});
-    }
+    check_access(&info, &position.owner, &position.operator)?;
 
     update_stream(env.block.time, &mut stream)?;
     update_position(
@@ -604,6 +667,10 @@ pub fn execute_finalize_stream(
     new_treasury: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    // check if the stream is already finalized
+    if stream.status == Status::Finalized {
+        return Err(ContractError::StreamAlreadyFinalized {});
+    }
     // check if killswitch is active
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
@@ -621,6 +688,7 @@ pub fn execute_finalize_stream(
     if stream.status == Status::Active {
         stream.status = Status::Finalized
     }
+    STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let config = CONFIG.load(deps.storage)?;
     let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or_else(|| stream.treasury.clone());
@@ -644,8 +712,8 @@ pub fn execute_finalize_stream(
     let creation_fee_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: config.fee_collector.to_string(),
         amount: vec![Coin {
-            denom: config.stream_creation_denom,
-            amount: config.stream_creation_fee,
+            denom: stream.stream_creation_denom,
+            amount: stream.stream_creation_fee,
         }],
     });
 
@@ -708,17 +776,10 @@ pub fn execute_exit_stream(
     if stream.last_updated < stream.end_time {
         return Err(ContractError::UpdateDistIndex {});
     }
-    let operator_target =
-        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
+    let operator_target = maybe_addr(deps.api, operator_target)?.unwrap_or(info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
-    if position.owner != info.sender
-        && position
-            .operator
-            .as_ref()
-            .map_or(true, |o| o != &info.sender)
-    {
-        return Err(ContractError::Unauthorized {});
-    }
+    check_access(&info, &position.owner, &position.operator)?;
+
     // update position before exit
     update_position(
         stream.dist_index,
@@ -774,6 +835,22 @@ pub fn execute_update_fee_collector(
         attr("fee_collector", fee_collector),
     ]))
 }
+
+fn check_access(
+    info: &MessageInfo,
+    position_owner: &Addr,
+    position_operator: &Option<Addr>,
+) -> Result<(), ContractError> {
+    if position_owner.as_ref() != info.sender
+        && position_operator
+            .as_ref()
+            .map_or(true, |o| o != &info.sender)
+    {
+        return Err(ContractError::Unauthorized {});
+    }
+    Ok(())
+}
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractError> {
     match msg {
@@ -841,10 +918,18 @@ pub fn sudo_update_config(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     let contract_info = get_contract_version(deps.storage)?;
-    if contract_info.contract != CONTRACT_NAME {
+    let storage_contract_name: String = contract_info.contract;
+    let storage_version: Version = contract_info.version.parse().map_err(from_semver)?;
+    let version: Version = CONTRACT_VERSION.parse().map_err(from_semver)?;
+
+    if storage_contract_name != CONTRACT_NAME {
         return Err(ContractError::CannotMigrate {
-            previous_contract: contract_info.contract,
+            previous_contract: storage_contract_name,
         });
+    }
+    if storage_version < version {
+        set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+        // Code to facilitate state change goes here
     }
     Ok(Response::default())
 }
