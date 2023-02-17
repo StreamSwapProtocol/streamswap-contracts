@@ -33,7 +33,7 @@ pub struct Stream {
     /// Destination for the earned token_in.
     pub treasury: Addr,
     /// URL for more information about the stream.
-    pub url: String,
+    pub url: Option<String>,
     /// Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal256,
     /// last updated time of stream.
@@ -63,6 +63,10 @@ pub struct Stream {
     pub status: Status,
     /// Date when the stream was paused.
     pub pause_date: Option<Timestamp>,
+    /// Stream creation fee denom. Saved under here to avoid any changes in config to efect existing streams.
+    pub stream_creation_denom: String,
+    /// Stream creation fee amount. Saved under here to avoid any changes in config to efect existing streams.
+    pub stream_creation_fee: Uint128,
 }
 
 #[cw_serde]
@@ -79,13 +83,15 @@ impl Stream {
     pub fn new(
         name: String,
         treasury: Addr,
-        url: String,
+        url: Option<String>,
         out_denom: String,
         out_supply: Uint128,
         in_denom: String,
         start_time: Timestamp,
         end_time: Timestamp,
         last_updated: Timestamp,
+        stream_creation_denom: String,
+        stream_creation_fee: Uint128,
     ) -> Self {
         Stream {
             name,
@@ -105,6 +111,8 @@ impl Stream {
             current_streamed_price: Decimal::zero(),
             status: Status::Waiting,
             pause_date: None,
+            stream_creation_denom,
+            stream_creation_fee,
         }
     }
 

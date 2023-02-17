@@ -169,6 +169,7 @@ pub fn execute_pause_stream(
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     Ok(Response::default()
+        .add_attribute("action", "pause_stream")
         .add_attribute("stream_id", stream_id.to_string())
         .add_attribute("is_paused", "true")
         .add_attribute("pause_date", env.block.time.to_string()))
@@ -203,6 +204,7 @@ pub fn sudo_pause_stream(
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     Ok(Response::default()
+        .add_attribute("action", "sudo_pause_stream")
         .add_attribute("stream_id", stream_id.to_string())
         .add_attribute("is_paused", "true")
         .add_attribute("pause_date", env.block.time.to_string()))
@@ -237,6 +239,7 @@ pub fn sudo_resume_stream(
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     Ok(Response::default()
+        .add_attribute("action", "resume_stream")
         .add_attribute("stream_id", stream_id.to_string())
         .add_attribute("new_end_date", stream.end_time.to_string())
         .add_attribute("status", "active"))
@@ -279,6 +282,7 @@ pub fn sudo_cancel_stream(
     ];
 
     Ok(Response::new()
+        .add_attribute("action", "cancel_stream")
         .add_messages(messages)
         .add_attribute("stream_id", stream_id.to_string())
         .add_attribute("status", "cancelled"))
