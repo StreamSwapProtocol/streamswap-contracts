@@ -1,5 +1,5 @@
 use crate::ContractError;
-use cosmwasm_std::Decimal256;
+use cosmwasm_std::{Decimal256, StdError};
 use std::str::FromStr;
 
 // calculate the reward with decimal
@@ -14,4 +14,8 @@ pub fn get_decimals(value: Decimal256) -> Result<Decimal256, ContractError> {
         }
         _ => Err(ContractError::InvalidDecimals {}),
     }
+}
+
+pub fn from_semver(err: semver::Error) -> ContractError {
+    ContractError::from(StdError::generic_err(format!("Semver: {}", err)))
 }
