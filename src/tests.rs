@@ -25,7 +25,7 @@ mod test_module {
         let mut stream = Stream::new(
             "test".to_string(),
             Addr::unchecked("treasury"),
-            "url".to_string(),
+            Some("url".to_string()),
             "out_denom".to_string(),
             Uint128::from(100u128),
             "in_denom".to_string(),
@@ -76,7 +76,7 @@ mod test_module {
         // invalid in_denom
         let treasury = "treasury";
         let name = "name";
-        let url = "url";
+        let url = "https://sample.url";
         let start_time = Timestamp::from_seconds(3000);
         let end_time = Timestamp::from_seconds(100000);
         let out_supply = Uint128::new(50_000_000);
@@ -92,7 +92,7 @@ mod test_module {
             info,
             treasury.to_string(),
             name.to_string(),
-            url.to_string(),
+            Some(url.to_string()),
             in_denom.to_string(),
             out_denom.to_string(),
             out_supply,
@@ -103,7 +103,7 @@ mod test_module {
         // end < start case
         let treasury = "treasury";
         let name = "name";
-        let url = "url";
+        let url = "https://sample.url";
         let start_time = Timestamp::from_seconds(1000);
         let end_time = Timestamp::from_seconds(10);
         let out_supply = Uint128::new(50_000_000);
@@ -118,7 +118,7 @@ mod test_module {
             info,
             treasury.to_string(),
             name.to_string(),
-            url.to_string(),
+            Some(url.to_string()),
             in_denom.to_string(),
             out_denom.to_string(),
             out_supply,
@@ -139,7 +139,7 @@ mod test_module {
             info,
             treasury.to_string(),
             name.to_string(),
-            url.to_string(),
+            Some(url.to_string()),
             in_denom.to_string(),
             out_denom.to_string(),
             out_supply,
@@ -160,7 +160,7 @@ mod test_module {
             info,
             treasury.to_string(),
             name.to_string(),
-            url.to_string(),
+            Some(url.to_string()),
             in_denom.to_string(),
             out_denom.to_string(),
             out_supply,
@@ -181,7 +181,7 @@ mod test_module {
             info,
             treasury.to_string(),
             name.to_string(),
-            url.to_string(),
+            Some(url.to_string()),
             in_denom.to_string(),
             out_denom.to_string(),
             out_supply,
@@ -202,7 +202,7 @@ mod test_module {
             info,
             treasury.to_string(),
             name.to_string(),
-            url.to_string(),
+            Some(url.to_string()),
             in_denom.to_string(),
             out_denom.to_string(),
             out_supply,
@@ -221,7 +221,7 @@ mod test_module {
             info,
             treasury.to_string(),
             name.to_string(),
-            url.to_string(),
+            Some(url.to_string()),
             in_denom.to_string(),
             out_denom.to_string(),
             out_supply,
@@ -246,7 +246,7 @@ mod test_module {
             info,
             treasury.to_string(),
             name.to_string(),
-            url.to_string(),
+            Some(url.to_string()),
             in_denom.to_string(),
             out_denom.to_string(),
             out_supply,
@@ -265,7 +265,7 @@ mod test_module {
             info,
             treasury.to_string(),
             name.to_string(),
-            url.to_string(),
+            Some(url.to_string()),
             in_denom.to_string(),
             out_denom.to_string(),
             out_supply,
@@ -284,7 +284,7 @@ mod test_module {
             info,
             treasury.to_string(),
             name.to_string(),
-            url.to_string(),
+            Some(url.to_string()),
             in_denom.to_string(),
             out_denom.to_string(),
             out_supply,
@@ -303,7 +303,7 @@ mod test_module {
             info,
             treasury.to_string(),
             name.to_string(),
-            url.to_string(),
+            Some(url.to_string()),
             in_denom.to_string(),
             "fee".to_string(),
             out_supply,
@@ -322,7 +322,7 @@ mod test_module {
             info,
             treasury.to_string(),
             name.to_string(),
-            url.to_string(),
+            Some(url.to_string()),
             in_denom.to_string(),
             "fee".to_string(),
             out_supply,
@@ -330,6 +330,122 @@ mod test_module {
             end_time,
         )
         .unwrap();
+
+        // failed name checks
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(1);
+        let info = mock_info(
+            "creator1",
+            &[
+                Coin::new(out_supply.u128(), "out_denom"),
+                Coin::new(100, "fee"),
+            ],
+        );
+        let res = execute_create_stream(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            treasury.to_string(),
+            "n".to_string(),
+            Some(url.to_string()),
+            in_denom.to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start_time,
+            end_time,
+        )
+        .unwrap_err();
+        assert_eq!(res, ContractError::StreamNameTooShort {});
+
+        let res = execute_create_stream(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            treasury.to_string(),
+            "12345678901234567890123456789012345678901234567890123456789012345".to_string(),
+            Some(url.to_string()),
+            in_denom.to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start_time,
+            end_time,
+        )
+        .unwrap_err();
+        assert_eq!(res, ContractError::StreamNameTooLong {});
+
+        let res = execute_create_stream(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            treasury.to_string(),
+            "abc~ß".to_string(),
+            Some(url.to_string()),
+            in_denom.to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start_time,
+            end_time,
+        )
+        .unwrap_err();
+        assert_eq!(res, ContractError::InvalidStreamName {});
+
+        //failed url checks
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(1);
+        let info = mock_info(
+            "creator1",
+            &[
+                Coin::new(out_supply.u128(), "out_denom"),
+                Coin::new(100, "fee"),
+            ],
+        );
+        let res = execute_create_stream(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            treasury.to_string(),
+            "name".to_string(),
+            Some("https://a.b".to_string()),
+            in_denom.to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start_time,
+            end_time,
+        )
+        .unwrap_err();
+        assert_eq!(res, ContractError::StreamUrlTooShort {});
+
+        let res = execute_create_stream(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            treasury.to_string(),
+            "name".to_string(),
+            Some("https://abcdefghijklmnopqrstuvw.xyz/abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz/abcdefghijklmnopqrstuvwxyzabcdefghijklmn".to_string()),
+            in_denom.to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start_time,
+            end_time,
+        )
+            .unwrap_err();
+        assert_eq!(res, ContractError::StreamUrlTooLong {});
+
+        let res = execute_create_stream(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            treasury.to_string(),
+            "name".to_string(),
+            Some("https://abc defghijklmnopqrstuvw.xyz/".to_string()),
+            in_denom.to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start_time,
+            end_time,
+        )
+        .unwrap_err();
+        assert_eq!(res, ContractError::InvalidStreamUrl {});
 
         // happy path
         let mut env = mock_env();
@@ -347,7 +463,7 @@ mod test_module {
             info,
             treasury.to_string(),
             name.to_string(),
-            url.to_string(),
+            Some(url.to_string()),
             in_denom.to_string(),
             out_denom.to_string(),
             out_supply,
@@ -402,7 +518,7 @@ mod test_module {
             info,
             treasury.to_string(),
             "test".to_string(),
-            "test".to_string(),
+            Some("https://sample.url".to_string()),
             "in".to_string(),
             out_denom.to_string(),
             out_supply,
@@ -527,7 +643,7 @@ mod test_module {
             info,
             treasury.to_string(),
             "test".to_string(),
-            "test".to_string(),
+            Some("https://sample.url".to_string()),
             "in".to_string(),
             out_denom.to_string(),
             out_supply,
@@ -781,7 +897,7 @@ mod test_module {
             info,
             treasury.to_string(),
             "test".to_string(),
-            "test".to_string(),
+            Some("https://sample.url".to_string()),
             "in".to_string(),
             out_denom.to_string(),
             out_supply,
@@ -866,7 +982,7 @@ mod test_module {
             info,
             treasury.to_string(),
             "test".to_string(),
-            "test".to_string(),
+            Some("https://sample.url".to_string()),
             "in".to_string(),
             out_denom.to_string(),
             out_supply,
@@ -969,7 +1085,7 @@ mod test_module {
             info,
             treasury.to_string(),
             "test".to_string(),
-            "test".to_string(),
+            Some("https://sample.url".to_string()),
             "in".to_string(),
             out_denom.to_string(),
             out_supply,
@@ -1121,7 +1237,7 @@ mod test_module {
             info,
             treasury.to_string(),
             "test".to_string(),
-            "test".to_string(),
+            Some("https://sample.url".to_string()),
             "in".to_string(),
             out_denom.to_string(),
             out_supply,
@@ -1227,7 +1343,7 @@ mod test_module {
             info,
             treasury.to_string(),
             "test".to_string(),
-            "test".to_string(),
+            Some("https://sample.url".to_string()),
             "in".to_string(),
             out_denom.to_string(),
             out_supply,
@@ -1353,7 +1469,7 @@ mod test_module {
             info,
             treasury.to_string(),
             "test".to_string(),
-            "test".to_string(),
+            Some("https://sample.url".to_string()),
             "in".to_string(),
             out_denom.to_string(),
             out_supply,
@@ -1462,7 +1578,7 @@ mod test_module {
             info,
             treasury.to_string(),
             "test".to_string(),
-            "test".to_string(),
+            Some("https://sample.url".to_string()),
             "in".to_string(),
             out_denom.to_string(),
             out_supply,
@@ -1553,7 +1669,7 @@ mod test_module {
             info,
             treasury.to_string(),
             "test".to_string(),
-            "test".to_string(),
+            Some("https://sample.url".to_string()),
             "in".to_string(),
             out_denom.to_string(),
             out_supply,
@@ -1685,7 +1801,6 @@ mod test_module {
         use crate::killswitch::{execute_exit_cancelled, sudo_cancel_stream, sudo_pause_stream};
         use cosmwasm_std::CosmosMsg::Bank;
         use cosmwasm_std::{ReplyOn, SubMsg};
-        use schemars::_serde_json::de;
 
         #[test]
         fn test_pause_protocol_admin() {
@@ -1727,7 +1842,7 @@ mod test_module {
                 info,
                 treasury.to_string(),
                 "test".to_string(),
-                "test".to_string(),
+                Some("https://sample.url".to_string()),
                 "in".to_string(),
                 out_denom.to_string(),
                 out_supply,
@@ -1869,7 +1984,7 @@ mod test_module {
                 info,
                 treasury.to_string(),
                 "test".to_string(),
-                "test".to_string(),
+                Some("https://sample.url".to_string()),
                 "in".to_string(),
                 out_denom.to_string(),
                 out_supply,
@@ -2046,7 +2161,7 @@ mod test_module {
                 info,
                 treasury.to_string(),
                 "test".to_string(),
-                "test".to_string(),
+                Some("https://sample.url".to_string()),
                 "in".to_string(),
                 out_denom.to_string(),
                 out_supply,
@@ -2166,7 +2281,7 @@ mod test_module {
                 info,
                 treasury.to_string(),
                 "test".to_string(),
-                "test".to_string(),
+                Some("https://sample.url".to_string()),
                 "new_denom".to_string(),
                 out_denom.to_string(),
                 out_supply,
@@ -2207,8 +2322,8 @@ mod test_module {
             // update stream
             let mut env = mock_env();
             env.block.time = Timestamp::from_seconds(5_000_000);
-            let info = mock_info("creator1", &[]);
-            let res = execute_update_stream(deps.as_mut(), env, 1).unwrap();
+            let _info = mock_info("creator1", &[]);
+            let _res = execute_update_stream(deps.as_mut(), env, 1).unwrap();
 
             let mut env = mock_env();
             env.block.time = Timestamp::from_seconds(5_000_000);
@@ -2277,7 +2392,7 @@ mod test_module {
                 info,
                 treasury.to_string(),
                 "test".to_string(),
-                "test".to_string(),
+                Some("https://sample.url".to_string()),
                 "in".to_string(),
                 out_denom.to_string(),
                 out_supply,
@@ -2354,7 +2469,7 @@ mod test_module {
                 info.clone(),
                 treasury.to_string(),
                 "test".to_string(),
-                "test".to_string(),
+                Some("https://sample.url".to_string()),
                 "in".to_string(),
                 out_denom.to_string(),
                 out_supply,
@@ -2369,7 +2484,7 @@ mod test_module {
                 info,
                 treasury.to_string(),
                 "test".to_string(),
-                "test".to_string(),
+                Some("https://sample.url".to_string()),
                 "in".to_string(),
                 out_denom.to_string(),
                 out_supply,
@@ -2437,7 +2552,7 @@ mod test_module {
                 info,
                 treasury.to_string(),
                 "test".to_string(),
-                "test".to_string(),
+                Some("https://sample.url".to_string()),
                 "in".to_string(),
                 out_denom.to_string(),
                 out_supply,

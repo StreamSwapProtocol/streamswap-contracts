@@ -104,6 +104,24 @@ pub enum ContractError {
     #[error("Killswitch is active")]
     StreamKillswitchActive {},
 
+    #[error("Stream Name too short")]
+    StreamNameTooShort {},
+
+    #[error("Stream Name too long")]
+    StreamNameTooLong {},
+
+    #[error("Stream name is not in alphanumeric format")]
+    InvalidStreamName {},
+
+    #[error("Stream URL too short")]
+    StreamUrlTooShort {},
+
+    #[error("Stream URL too long")]
+    StreamUrlTooLong {},
+
+    #[error("Stream URL is not properly formatted or contains unsafe characters")]
+    InvalidStreamUrl {},
+
     #[error("Invalid stream creation fee")]
     InvalidStreamCreationFee {},
 

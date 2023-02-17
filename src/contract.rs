@@ -20,6 +20,16 @@ use cw_utils::{maybe_addr, must_pay};
 const CONTRACT_NAME: &str = "crates.io:cw-streamswap";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// Stream validation related constants
+const MIN_NAME_LENGTH: usize = 2;
+const MAX_NAME_LENGTH: usize = 64;
+const MIN_URL_LENGTH: usize = 12;
+const MAX_URL_LENGTH: usize = 128;
+
+/// Special characters that are allowed in stream names and urls
+const SAFE_TEXT_CHARS: &str = "<>$!&?#()*+'-./\"";
+const SAFE_URL_CHARS: &str = "-_:/?#@!$&()*+,;=.~[]'%";
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
@@ -140,7 +150,7 @@ pub fn execute_create_stream(
     info: MessageInfo,
     treasury: String,
     name: String,
-    url: String,
+    url: Option<String>,
     in_denom: String,
     out_denom: String,
     out_supply: Uint128,
@@ -195,6 +205,33 @@ pub fn execute_create_stream(
         }
     }
 
+    if name.len() < MIN_NAME_LENGTH {
+        return Err(ContractError::StreamNameTooShort {});
+    }
+    if name.len() > MAX_NAME_LENGTH {
+        return Err(ContractError::StreamNameTooLong {});
+    }
+    if !name.chars().all(|c| {
+        c.is_ascii_alphanumeric() || c.is_ascii_whitespace() || SAFE_TEXT_CHARS.contains(c)
+    }) {
+        return Err(ContractError::InvalidStreamName {});
+    }
+
+    if let Some(url) = url.clone() {
+        if url.len() < MIN_URL_LENGTH {
+            return Err(ContractError::StreamUrlTooShort {});
+        }
+        if url.len() > MAX_URL_LENGTH {
+            return Err(ContractError::StreamUrlTooLong {});
+        }
+        if !url
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || SAFE_URL_CHARS.contains(c))
+        {
+            return Err(ContractError::InvalidStreamUrl {});
+        }
+    }
+
     let stream = Stream::new(
         name.clone(),
         deps.api.addr_validate(&treasury)?,
@@ -216,7 +253,7 @@ pub fn execute_create_stream(
         attr("id", id.to_string()),
         attr("treasury", treasury),
         attr("name", name),
-        attr("url", url),
+        attr("url", url.unwrap_or_default()),
         attr("in_denom", in_denom),
         attr("out_denom", out_denom),
         attr("out_supply", out_supply),
