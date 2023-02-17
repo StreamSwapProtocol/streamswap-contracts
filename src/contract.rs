@@ -167,7 +167,7 @@ pub fn execute_create_stream(
             return Err(ContractError::StreamOutSupplyFundsRequired {});
         }
         // check for extra funds sent in msg
-        if info.funds.iter().find(|p| p.denom != out_denom).is_some() {
+        if info.funds.iter().any(|p| p.denom != out_denom) {
             return Err(ContractError::InvalidFunds {});
         }
     } else {
@@ -193,8 +193,7 @@ pub fn execute_create_stream(
         if info
             .funds
             .iter()
-            .find(|p| p.denom != out_denom && p.denom != config.stream_creation_denom)
-            .is_some()
+            .any(|p| p.denom != out_denom && p.denom != config.stream_creation_denom)
         {
             return Err(ContractError::InvalidFunds {});
         }
