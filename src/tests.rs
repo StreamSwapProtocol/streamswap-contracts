@@ -351,10 +351,7 @@ mod test_module {
             end_time,
         )
         .unwrap_err();
-        assert_eq!(
-            res,
-            ContractError::from(StdError::generic_err("Stream name too short!"))
-        );
+        assert_eq!(res, ContractError::StreamNameTooShort {});
 
         let res = execute_create_stream(
             deps.as_mut(),
@@ -370,10 +367,7 @@ mod test_module {
             end_time,
         )
         .unwrap_err();
-        assert_eq!(
-            res,
-            ContractError::from(StdError::generic_err("Stream name too long!"))
-        );
+        assert_eq!(res, ContractError::StreamNameTooLong {});
 
         let res = execute_create_stream(
             deps.as_mut(),
@@ -389,12 +383,7 @@ mod test_module {
             end_time,
         )
         .unwrap_err();
-        assert_eq!(
-            res,
-            ContractError::from(StdError::generic_err(
-                "Stream name is not in alphanumeric format!"
-            ))
-        );
+        assert_eq!(res, ContractError::InvalidStreamName {});
 
         //failed url checks
         let mut env = mock_env();
@@ -420,10 +409,7 @@ mod test_module {
             end_time,
         )
         .unwrap_err();
-        assert_eq!(
-            res,
-            ContractError::from(StdError::generic_err("Stream URL too short!"))
-        );
+        assert_eq!(res, ContractError::StreamUrlTooShort {});
 
         let res = execute_create_stream(
             deps.as_mut(),
@@ -439,10 +425,7 @@ mod test_module {
             end_time,
         )
             .unwrap_err();
-        assert_eq!(
-            res,
-            ContractError::from(StdError::generic_err("Stream URL too long!"))
-        );
+        assert_eq!(res, ContractError::StreamUrlTooLong {});
 
         let res = execute_create_stream(
             deps.as_mut(),
@@ -458,12 +441,7 @@ mod test_module {
             end_time,
         )
         .unwrap_err();
-        assert_eq!(
-            res,
-            ContractError::from(StdError::generic_err(
-                "Stream URL is not properly formatted or contains unsafe characters!"
-            ))
-        );
+        assert_eq!(res, ContractError::InvalidStreamUrl {});
 
         // happy path
         let mut env = mock_env();

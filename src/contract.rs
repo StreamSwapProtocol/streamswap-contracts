@@ -7,8 +7,8 @@ use crate::state::{next_stream_id, Config, Position, Status, Stream, CONFIG, POS
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
     attr, entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
-    Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdError, StdResult, Timestamp,
-    Uint128, Uint256, Uint64,
+    Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdResult, Timestamp, Uint128,
+    Uint256, Uint64,
 };
 use cw2::{get_contract_version, set_contract_version};
 
@@ -196,41 +196,29 @@ pub fn execute_create_stream(
     }
 
     if name.len() < MIN_NAME_LENGTH {
-        return Err(ContractError::from(StdError::generic_err(
-            "Stream name too short!",
-        )));
+        return Err(ContractError::StreamNameTooShort {});
     }
     if name.len() > MAX_NAME_LENGTH {
-        return Err(ContractError::from(StdError::generic_err(
-            "Stream name too long!",
-        )));
+        return Err(ContractError::StreamNameTooLong {});
     }
     if !name.chars().all(|c| {
         c.is_ascii_alphanumeric() || c.is_ascii_whitespace() || SAFE_TEXT_CHARS.contains(c)
     }) {
-        return Err(ContractError::from(StdError::generic_err(
-            "Stream name is not in alphanumeric format!",
-        )));
+        return Err(ContractError::InvalidStreamName {});
     }
 
     if let Some(url) = url.clone() {
         if url.len() < MIN_URL_LENGTH {
-            return Err(ContractError::from(StdError::generic_err(
-                "Stream URL too short!",
-            )));
+            return Err(ContractError::StreamUrlTooShort {});
         }
         if url.len() > MAX_URL_LENGTH {
-            return Err(ContractError::from(StdError::generic_err(
-                "Stream URL too long!",
-            )));
+            return Err(ContractError::StreamUrlTooLong {});
         }
         if !url
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || SAFE_URL_CHARS.contains(c))
         {
-            return Err(ContractError::from(StdError::generic_err(
-                "Stream URL is not properly formatted or contains unsafe characters!",
-            )));
+            return Err(ContractError::InvalidStreamUrl {});
         }
     }
 
