@@ -44,9 +44,6 @@ pub enum ContractError {
     #[error("Out_denom can not be the same as in_denom")]
     SameDenomOnEachSide {},
 
-    #[error("Supply out funds required")]
-    StreamOutSupplyFundsRequired {},
-
     #[error("Out supply must be greater than zero")]
     ZeroOutSupply {},
 
