@@ -352,17 +352,17 @@ pub fn update_stream(
         stream.spent_in = stream.spent_in.checked_add(spent_in)?;
         // decrease in_supply of the steam
         stream.in_supply = stream.in_supply.checked_sub(spent_in)?;
-        // decrease amount to be distributed of the stream
-        stream.out_remaining = stream.out_remaining.checked_sub(new_distribution_balance)?;
-        // update distribution index. A positions share of the distribution is calculated by
-        // multiplying the share by the distribution index
-        stream.dist_index = stream.dist_index.checked_add(Decimal256::from_ratio(
-            new_distribution_balance,
-            stream.shares,
-        ))?;
 
-        // if no new distribution balance, no need to update the price
+        // if no new distribution balance, no need to update the price, out_remaining and dist_index
         if !new_distribution_balance.is_zero() {
+            // decrease amount to be distributed of the stream
+            stream.out_remaining = stream.out_remaining.checked_sub(new_distribution_balance)?;
+            // update distribution index. A positions share of the distribution is calculated by
+            // multiplying the share by the distribution index
+            stream.dist_index = stream.dist_index.checked_add(Decimal256::from_ratio(
+                new_distribution_balance,
+                stream.shares,
+            ))?;
             stream.current_streamed_price = Decimal::from_ratio(spent_in, new_distribution_balance)
         }
     }
@@ -381,7 +381,7 @@ fn calculate_diff(
     let now = if now > end_time { end_time } else { now };
     let numerator = now.minus_nanos(last_updated.nanos());
     let denominator = end_time.minus_nanos(last_updated.nanos());
-    if denominator.nanos() == 0 {
+    if denominator.nanos() == 0 || numerator.nanos() == 0 {
         (Decimal::zero(), now)
     } else {
         (
@@ -571,10 +571,6 @@ pub fn execute_update_operator(
 ) -> Result<Response, ContractError> {
     let mut position = POSITIONS.load(deps.storage, (stream_id, &info.sender))?;
 
-    if position.owner != info.sender {
-        return Err(ContractError::Unauthorized {});
-    }
-
     let operator = maybe_addr(deps.api, operator)?;
     position.operator = operator.clone();
 
@@ -622,7 +618,11 @@ pub fn execute_withdraw(
     let withdraw_amount = cap.unwrap_or(position.in_balance);
     // if amount to withdraw more then deduced buy balance throw error
     if withdraw_amount > position.in_balance {
-        return Err(ContractError::DecreaseAmountExceeds(withdraw_amount));
+        return Err(ContractError::WithdrawAmountExceedsBalance(withdraw_amount));
+    }
+
+    if withdraw_amount.is_zero() {
+        return Err(ContractError::InvalidWithdrawAmount {});
     }
 
     // decrease in supply and shares

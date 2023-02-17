@@ -1309,13 +1309,18 @@ mod test_module {
         let mut env = mock_env();
         env.block.time = start.plus_seconds(5000);
         let info = mock_info("creator1", &[]);
-        //withdraw amount too high
+        // withdraw amount zero
+        let cap = Uint128::zero();
+        let res = execute_withdraw(deps.as_mut(), env.clone(), info.clone(), 1, Some(cap), None)
+            .unwrap_err();
+        assert_eq!(res, ContractError::InvalidWithdrawAmount {});
+        // withdraw amount too high
         let cap = Uint128::new(2_250_000_000_000);
         let res = execute_withdraw(deps.as_mut(), env.clone(), info.clone(), 1, Some(cap), None)
             .unwrap_err();
         assert_eq!(
             res,
-            ContractError::DecreaseAmountExceeds(Uint128::new(2250000000000))
+            ContractError::WithdrawAmountExceedsBalance(Uint128::new(2250000000000))
         );
         //withdraw with valid cap
         let cap = Uint128::new(25_000_000);
@@ -2250,8 +2255,17 @@ mod test_module {
             .unwrap_err();
             assert_eq!(
                 res,
-                ContractError::DecreaseAmountExceeds(Uint128::new(2_000_000_000_001))
+                ContractError::WithdrawAmountExceedsBalance(Uint128::new(2_000_000_000_001))
             );
+            // Withdraw cap is zero
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(7000);
+            let info = mock_info("creator1", &[]);
+            let res =
+                execute_withdraw_paused(deps.as_mut(), env, info, 1, Some(Uint128::zero()), None)
+                    .unwrap_err();
+            assert_eq!(res, ContractError::InvalidWithdrawAmount {});
+
             //withdraw with cap
             let mut env = mock_env();
             env.block.time = start.plus_seconds(7000);

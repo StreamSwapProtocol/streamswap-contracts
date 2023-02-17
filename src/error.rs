@@ -44,6 +44,12 @@ pub enum ContractError {
     #[error("Supplied funds do not match out_supply")]
     StreamOutSupplyFundsRequired {},
 
+    #[error("Withdraw amount exceeds user balance: {0}")]
+    WithdrawAmountExceedsBalance(Uint128),
+
+    #[error("Withdraw amount cannot be zero")]
+    InvalidWithdrawAmount {},
+
     #[error("Invalid funds")]
     InvalidFunds {},
 
