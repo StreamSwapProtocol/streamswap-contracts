@@ -119,6 +119,14 @@ pub enum ExecuteMsg {
         /// operator_target is the address of operator targets to execute on behalf of the user.
         operator_target: Option<String>,
     },
+
+    /// Update fee collector address
+    /// Only protocol admin can update fee collector address
+    /// Fee collector address is used to collect exit fees
+    /// Fee collector address can also be updated by governance
+    UpdateFeeCollector {
+        fee_collector: String,
+    },
 }
 
 #[cw_serde]
