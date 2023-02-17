@@ -395,17 +395,9 @@ pub fn execute_update_position(
     stream_id: u64,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
-    let operator_target =
-        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
+    let operator_target = maybe_addr(deps.api, operator_target)?.unwrap_or(info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
-    if info.sender != position.owner
-        && position
-            .operator
-            .as_ref()
-            .map_or(true, |o| o != &info.sender)
-    {
-        return Err(ContractError::Unauthorized {});
-    }
+    check_access(&info, &position.owner, &position.operator)?;
 
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
@@ -511,8 +503,7 @@ pub fn execute_subscribe(
     let new_shares = stream.compute_shares_amount(in_amount, false);
 
     let operator = maybe_addr(deps.api, operator)?;
-    let operator_target =
-        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
+    let operator_target = maybe_addr(deps.api, operator_target)?.unwrap_or(info.sender.clone());
     let position = POSITIONS.may_load(deps.storage, (stream_id, &operator_target))?;
     match position {
         None => {
@@ -533,14 +524,7 @@ pub fn execute_subscribe(
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
         }
         Some(mut position) => {
-            if position.owner != info.sender
-                && position
-                    .operator
-                    .as_ref()
-                    .map_or(true, |o| o != &info.sender)
-            {
-                return Err(ContractError::Unauthorized {});
-            }
+            check_access(&info, &position.owner, &position.operator)?;
 
             // incoming tokens should not participate in prev distribution
             update_stream(env.block.time, &mut stream)?;
@@ -619,14 +603,7 @@ pub fn execute_withdraw(
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
-    if position.owner != info.sender
-        && position
-            .operator
-            .as_ref()
-            .map_or(true, |o| o != &info.sender)
-    {
-        return Err(ContractError::Unauthorized {});
-    }
+    check_access(&info, &position.owner, &position.operator)?;
 
     update_stream(env.block.time, &mut stream)?;
     update_position(
@@ -796,17 +773,10 @@ pub fn execute_exit_stream(
     if stream.last_updated < stream.end_time {
         return Err(ContractError::UpdateDistIndex {});
     }
-    let operator_target =
-        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
+    let operator_target = maybe_addr(deps.api, operator_target)?.unwrap_or(info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
-    if position.owner != info.sender
-        && position
-            .operator
-            .as_ref()
-            .map_or(true, |o| o != &info.sender)
-    {
-        return Err(ContractError::Unauthorized {});
-    }
+    check_access(&info, &position.owner, &position.operator)?;
+
     // update position before exit
     update_position(
         stream.dist_index,
@@ -844,6 +814,22 @@ pub fn execute_exit_stream(
         .add_message(send_msg)
         .add_attributes(attributes))
 }
+
+fn check_access(
+    info: &MessageInfo,
+    position_owner: &Addr,
+    position_operator: &Option<Addr>,
+) -> Result<(), ContractError> {
+    if position_owner.as_ref() != info.sender
+        && position_operator
+            .as_ref()
+            .map_or(true, |o| o != &info.sender)
+    {
+        return Err(ContractError::Unauthorized {});
+    }
+    Ok(())
+}
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractError> {
     match msg {
