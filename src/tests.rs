@@ -350,6 +350,29 @@ mod test_module {
         .unwrap_err();
         assert_eq!(err, ContractError::InvalidFunds {});
 
+        // different tokens extra funds sent
+        let info = mock_info(
+            "creator1",
+            &[coin(out_supply.u128(), "different_denom"), coin(Uint128::new(100).u128(), "fee"), coin(15, "random")],
+        );
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(1);
+        let err = execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            name.to_string(),
+            url.to_string(),
+            in_denom.to_string(),
+            "different_denom".to_string(),
+            out_supply,
+            start_time,
+            end_time,
+        )
+            .unwrap_err();
+        assert_eq!(err, ContractError::InvalidFunds {});
+
         // happy path
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(1);
