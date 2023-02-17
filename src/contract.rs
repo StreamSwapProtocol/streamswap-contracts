@@ -816,9 +816,25 @@ pub fn execute_exit_stream(
         attr("purchased", position.purchased),
         attr("swap_fee_paid", swap_fee),
     ];
-    Ok(Response::new()
-        .add_message(send_msg)
-        .add_attributes(attributes))
+    if !position.in_balance.is_zero() {
+        let unspent = position.in_balance;
+        let unspent_msg = CosmosMsg::Bank(BankMsg::Send {
+            to_address: operator_target.to_string(),
+            amount: vec![Coin {
+                denom: stream.in_denom.to_string(),
+                amount: unspent,
+            }],
+        });
+
+        Ok(Response::new()
+            .add_message(send_msg)
+            .add_message(unspent_msg)
+            .add_attributes(attributes))
+    } else {
+        Ok(Response::new()
+            .add_message(send_msg)
+            .add_attributes(attributes))
+    }
 }
 
 pub fn execute_update_fee_collector(
