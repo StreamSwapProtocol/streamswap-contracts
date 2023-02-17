@@ -107,6 +107,9 @@ pub enum ContractError {
     #[error("Stream is either paused or cancelled")]
     StreamKillswitchActive {},
 
+    #[error("Stream is already finalized")]
+    StreamAlreadyFinalized {},
+
     #[error("Stream Name too short")]
     StreamNameTooShort {},
 

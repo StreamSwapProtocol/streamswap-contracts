@@ -686,6 +686,10 @@ pub fn execute_finalize_stream(
     new_treasury: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    // check if the stream is already finalized
+    if stream.status == Status::Finalized {
+        return Err(ContractError::StreamAlreadyFinalized {});
+    }
     // check if killswitch is active
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
@@ -703,6 +707,7 @@ pub fn execute_finalize_stream(
     if stream.status == Status::Active {
         stream.status = Status::Finalized
     }
+    STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let config = CONFIG.load(deps.storage)?;
     let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or_else(|| stream.treasury.clone());
