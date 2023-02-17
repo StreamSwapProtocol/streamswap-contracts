@@ -42,6 +42,14 @@ pub fn instantiate(
     if msg.exit_fee_percent >= Decimal::one() || msg.exit_fee_percent < Decimal::zero() {
         return Err(ContractError::InvalidExitFeePercent {});
     }
+
+    if msg.stream_creation_fee.is_zero() {
+        return Err(ContractError::InvalidStreamCreationFee {});
+    }
+    if msg.exit_fee_percent > Decimal::one() {
+        return Err(ContractError::InvalidStreamExitFee {});
+    }
+
     let config = Config {
         min_stream_seconds: msg.min_stream_seconds,
         min_seconds_until_start_time: msg.min_seconds_until_start_time,
@@ -94,7 +102,6 @@ pub fn execute(
             stream_id,
             new_operator,
         } => execute_update_operator(deps, env, info, stream_id, new_operator),
-
         ExecuteMsg::UpdatePosition {
             stream_id,
             operator_target,
@@ -131,6 +138,9 @@ pub fn execute(
             stream_id,
             operator_target,
         } => killswitch::execute_exit_cancelled(deps, env, info, stream_id, operator_target),
+        ExecuteMsg::UpdateProtocolAdmin {
+            new_protocol_admin: new_admin,
+        } => execute_update_protocol_admin(deps, env, info, new_admin),
     }
 }
 
@@ -232,6 +242,8 @@ pub fn execute_create_stream(
         start_time,
         end_time,
         env.block.time,
+        config.stream_creation_denom,
+        config.stream_creation_fee,
     );
     let id = next_stream_id(deps.storage)?;
     STREAMS.save(deps.storage, id, &stream)?;
@@ -249,6 +261,27 @@ pub fn execute_create_stream(
         attr("end_time", end_time.to_string()),
     ];
     Ok(Response::default().add_attributes(attr))
+}
+
+pub fn execute_update_protocol_admin(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    new_admin: String,
+) -> Result<Response, ContractError> {
+    let mut config = CONFIG.load(deps.storage)?;
+    if info.sender != config.protocol_admin {
+        return Err(ContractError::Unauthorized {});
+    }
+    config.protocol_admin = deps.api.addr_validate(&new_admin)?;
+    CONFIG.save(deps.storage, &config)?;
+
+    let attrs = vec![
+        attr("action", "update_protocol_admin"),
+        attr("new_admin", new_admin),
+    ];
+
+    Ok(Response::default().add_attributes(attrs))
 }
 
 /// Updates stream to calculate released distribution and spent amount
@@ -678,8 +711,8 @@ pub fn execute_finalize_stream(
     let creation_fee_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: config.fee_collector.to_string(),
         amount: vec![Coin {
-            denom: config.stream_creation_denom,
-            amount: config.stream_creation_fee,
+            denom: stream.stream_creation_denom,
+            amount: stream.stream_creation_fee,
         }],
     });
 

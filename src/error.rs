@@ -121,4 +121,10 @@ pub enum ContractError {
 
     #[error("Stream URL is not properly formatted or contains unsafe characters")]
     InvalidStreamUrl {},
+
+    #[error("Invalid stream creation fee")]
+    InvalidStreamCreationFee {},
+
+    #[error("Invalid exit fee")]
+    InvalidStreamExitFee {},
 }

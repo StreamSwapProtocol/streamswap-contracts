@@ -47,7 +47,13 @@ pub enum ExecuteMsg {
         end_time: Timestamp,
     },
     /// Update stream and calculates distribution state.
-    UpdateStream { stream_id: u64 },
+    UpdateStream {
+        stream_id: u64,
+    },
+    // Update protocol admin, only authorized admin can update.
+    UpdateProtocolAdmin {
+        new_protocol_admin: String,
+    },
     /// UpdateOperator updates the operator of the position.
     UpdateOperator {
         stream_id: u64,
@@ -97,7 +103,9 @@ pub enum ExecuteMsg {
     // Killswitch features
     //
     /// PauseStream pauses the stream. Only protocol admin and governance can pause the stream.
-    PauseStream { stream_id: u64 },
+    PauseStream {
+        stream_id: u64,
+    },
     /// WithdrawPaused is used to withdraw unspent position funds during pause.
     WithdrawPaused {
         stream_id: u64,
