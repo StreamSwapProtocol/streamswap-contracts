@@ -31,8 +31,8 @@ pub enum ExecuteMsg {
         treasury: String,
         /// Name of the stream.
         name: String,
-        /// An external resource describing a stream. Can be IPFS link or a.
-        url: String,
+        /// An external resource describing a stream.
+        url: Option<String>,
         /// Payment denom - used to buy `token_out`.
         /// Also known as quote currency.
         in_denom: String,
@@ -47,7 +47,13 @@ pub enum ExecuteMsg {
         end_time: Timestamp,
     },
     /// Update stream and calculates distribution state.
-    UpdateStream { stream_id: u64 },
+    UpdateStream {
+        stream_id: u64,
+    },
+    // Update protocol admin, only authorized admin can update.
+    UpdateProtocolAdmin {
+        new_protocol_admin: String,
+    },
     /// UpdateOperator updates the operator of the position.
     UpdateOperator {
         stream_id: u64,
@@ -97,7 +103,9 @@ pub enum ExecuteMsg {
     // Killswitch features
     //
     /// PauseStream pauses the stream. Only protocol admin and governance can pause the stream.
-    PauseStream { stream_id: u64 },
+    PauseStream {
+        stream_id: u64,
+    },
     /// WithdrawPaused is used to withdraw unspent position funds during pause.
     WithdrawPaused {
         stream_id: u64,
@@ -110,6 +118,14 @@ pub enum ExecuteMsg {
         stream_id: u64,
         /// operator_target is the address of operator targets to execute on behalf of the user.
         operator_target: Option<String>,
+    },
+
+    /// Update fee collector address
+    /// Only protocol admin can update fee collector address
+    /// Fee collector address is used to collect exit fees
+    /// Fee collector address can also be updated by governance
+    UpdateFeeCollector {
+        fee_collector: String,
     },
 }
 
@@ -172,7 +188,7 @@ pub struct StreamResponse {
     /// address of the treasury where the stream earnings will be sent.
     pub treasury: String,
     /// URL of the stream.
-    pub url: String,
+    pub url: Option<String>,
     /// Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal256,
     /// last updated time of stream.

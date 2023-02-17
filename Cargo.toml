@@ -3,12 +3,14 @@ name = "cw-streamswap"
 version = "0.1.0"
 authors = ["Orkun Külçe <orkunkl@users.noreply.github.com>"]
 edition = "2021"
-
 exclude = [
   # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
   "contract.wasm",
   "hash.txt",
 ]
+
+[profile.release]
+overflow-checks = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -38,6 +40,7 @@ cw2 = "1.0.1 "
 schemars = "0.8.11"
 serde = { version = "1.0.152", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.38" }
+semver = "1.0.16"
 
 [dev-dependencies]
 cw-multi-test = "0.16.2"
