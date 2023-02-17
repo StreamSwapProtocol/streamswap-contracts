@@ -344,7 +344,7 @@ mod test_module {
             info,
             treasury.to_string(),
             name.to_string(),
-            url.to_string(),
+            Some(url.to_string()),
             in_denom.to_string(),
             "fee".to_string(),
             out_supply,
@@ -353,7 +353,7 @@ mod test_module {
         )
         .unwrap_err();
         assert_eq!(err, ContractError::InvalidFunds {});
-        
+
         // different tokens extra funds sent
         let info = mock_info(
             "creator1",
@@ -371,7 +371,7 @@ mod test_module {
             info,
             treasury.to_string(),
             name.to_string(),
-            url.to_string(),
+            Some(url.to_string()),
             in_denom.to_string(),
             "different_denom".to_string(),
             out_supply,
@@ -380,7 +380,7 @@ mod test_module {
         )
         .unwrap_err();
         assert_eq!(err, ContractError::InvalidFunds {});
-        
+
         // failed name checks
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(1);
@@ -494,8 +494,8 @@ mod test_module {
             start_time,
             end_time,
         )
-            .unwrap_err();
-           
+        .unwrap_err();
+
         assert_eq!(res, ContractError::InvalidStreamUrl {});
 
         // happy path
