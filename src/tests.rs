@@ -1,11 +1,13 @@
 #[cfg(test)]
 mod test_module {
     use crate::contract::{
-        execute_create_stream, execute_exit_stream, execute_finalize_stream, execute_subscribe,
-        execute_update_operator, execute_update_position, execute_update_stream, execute_withdraw,
-        instantiate, query_average_price, query_last_streamed_price, query_position, query_stream,
+        execute, execute_create_stream, execute_exit_stream, execute_finalize_stream,
+        execute_subscribe, execute_update_operator, execute_update_position, execute_update_stream,
+        execute_withdraw, instantiate, query_average_price, query_config,
+        query_last_streamed_price, query_position, query_stream,
     };
     use crate::killswitch::{execute_pause_stream, execute_withdraw_paused, sudo_resume_stream};
+    use crate::msg::ExecuteMsg::UpdateProtocolAdmin;
     use crate::state::{Status, Stream};
     use crate::ContractError;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
@@ -1639,6 +1641,39 @@ mod test_module {
             res.current_streamed_price,
             Decimal::from_str("0.001500006000024000").unwrap()
         );
+    }
+    #[test]
+    fn test_update_protocol_admin() {
+        // instantiate
+        let mut deps = mock_dependencies();
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(0);
+        let msg = crate::msg::InstantiateMsg {
+            min_stream_seconds: Uint64::new(1000),
+            min_seconds_until_start_time: Uint64::new(0),
+            stream_creation_denom: "fee".to_string(),
+            stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(1),
+            fee_collector: "collector".to_string(),
+            protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "in".to_string(),
+        };
+        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+        // random cannot update
+        let env = mock_env();
+        let msg = UpdateProtocolAdmin {
+            new_protocol_admin: "new_protocol_admin".to_string(),
+        };
+        let info = mock_info("random", &[]);
+        let err = execute(deps.as_mut(), env.clone(), info, msg.clone()).unwrap_err();
+        assert_eq!(err, ContractError::Unauthorized {});
+
+        // protocol admin can update
+        let info = mock_info("protocol_admin", &[]);
+        execute(deps.as_mut(), env, info, msg).unwrap();
+        let query = query_config(deps.as_ref()).unwrap();
+        assert_eq!(query.protocol_admin, "new_protocol_admin".to_string());
     }
 
     #[cfg(test)]

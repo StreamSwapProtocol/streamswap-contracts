@@ -103,4 +103,10 @@ pub enum ContractError {
 
     #[error("Killswitch is active")]
     StreamKillswitchActive {},
+
+    #[error("Invalid stream creation fee")]
+    InvalidStreamCreationFee {},
+
+    #[error("Invalid exit fee")]
+    InvalidStreamExitFee {},
 }
