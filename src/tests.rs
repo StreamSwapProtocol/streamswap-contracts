@@ -2,10 +2,12 @@
 mod test_module {
     use crate::contract::{
         execute_create_stream, execute_exit_stream, execute_finalize_stream, execute_subscribe,
-        execute_update_operator, execute_update_position, execute_update_stream, execute_withdraw,
-        instantiate, query_average_price, query_last_streamed_price, query_position, query_stream,
+        execute_update_fee_collector, execute_update_operator, execute_update_position,
+        execute_update_stream, execute_withdraw, instantiate, query_average_price,
+        query_last_streamed_price, query_position, query_stream,
     };
     use crate::killswitch::{execute_pause_stream, execute_withdraw_paused, sudo_resume_stream};
+    use crate::msg::ExecuteMsg;
     use crate::state::{Status, Stream};
     use crate::ContractError;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
@@ -1640,7 +1642,47 @@ mod test_module {
             Decimal::from_str("0.001500006000024000").unwrap()
         );
     }
+    #[test]
+    fn test_update_fee_collector() {
+        let treasury = Addr::unchecked("treasury");
+        let start = Timestamp::from_seconds(2000);
+        let end = Timestamp::from_seconds(1_000_000);
+        let out_supply = Uint128::new(1_000_000);
+        let out_denom = "out_denom";
 
+        // instantiate
+        let mut deps = mock_dependencies();
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(100);
+        let msg = crate::msg::InstantiateMsg {
+            min_stream_seconds: Uint64::new(1000),
+            min_seconds_until_start_time: Uint64::new(1000),
+            stream_creation_denom: "fee".to_string(),
+            stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(1),
+            fee_collector: "collector".to_string(),
+            protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "in".to_string(),
+        };
+        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+        // Random user can't update fee collector
+        let env = mock_env();
+        let info = mock_info("random", &[]);
+        let res =
+            execute_update_fee_collector(deps.as_mut(), env, info, "new_collector".to_string())
+                .unwrap_err();
+        assert_eq!(res, ContractError::Unauthorized {});
+
+        // Protocol admin can update fee collector
+        let env = mock_env();
+        let info = mock_info("protocol_admin", &[]);
+        let res =
+            execute_update_fee_collector(deps.as_mut(), env, info, "new_collector".to_string())
+                .unwrap();
+        assert_eq!(res.attributes[0], attr("action", "update_fee_collector"),);
+        assert_eq!(res.attributes[1], attr("fee_collector", "new_collector"));
+    }
     #[cfg(test)]
     mod killswitch {
         use super::*;

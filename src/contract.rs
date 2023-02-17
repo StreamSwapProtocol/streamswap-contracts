@@ -121,6 +121,9 @@ pub fn execute(
             stream_id,
             operator_target,
         } => killswitch::execute_exit_cancelled(deps, env, info, stream_id, operator_target),
+        ExecuteMsg::UpdateFeeCollector { fee_collector } => {
+            execute_update_fee_collector(deps, env, info, fee_collector)
+        }
     }
 }
 
@@ -752,6 +755,24 @@ pub fn execute_exit_stream(
     Ok(Response::new()
         .add_message(send_msg)
         .add_attributes(attributes))
+}
+
+pub fn execute_update_fee_collector(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    fee_collector: String,
+) -> Result<Response, ContractError> {
+    let mut config = CONFIG.load(deps.storage)?;
+    if info.sender != config.protocol_admin {
+        return Err(ContractError::Unauthorized {});
+    }
+    config.fee_collector = deps.api.addr_validate(&fee_collector)?;
+    CONFIG.save(deps.storage, &config)?;
+    Ok(Response::new().add_attributes(vec![
+        attr("action", "update_fee_collector"),
+        attr("fee_collector", fee_collector),
+    ]))
 }
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractError> {
