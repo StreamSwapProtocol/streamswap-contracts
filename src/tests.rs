@@ -353,7 +353,11 @@ mod test_module {
         // different tokens extra funds sent
         let info = mock_info(
             "creator1",
-            &[coin(out_supply.u128(), "different_denom"), coin(Uint128::new(100).u128(), "fee"), coin(15, "random")],
+            &[
+                coin(out_supply.u128(), "different_denom"),
+                coin(Uint128::new(100).u128(), "fee"),
+                coin(15, "random"),
+            ],
         );
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(1);
@@ -370,7 +374,7 @@ mod test_module {
             start_time,
             end_time,
         )
-            .unwrap_err();
+        .unwrap_err();
         assert_eq!(err, ContractError::InvalidFunds {});
 
         // happy path
