@@ -141,7 +141,7 @@ pub fn execute(
             operator_target,
         } => killswitch::execute_exit_cancelled(deps, env, info, stream_id, operator_target),
         ExecuteMsg::UpdateFeeCollector { fee_collector } => {
-            execute_update_fee_collector(deps, env, info, fee_collector)
+            execute_update_fee_collector(deps, info, fee_collector)
         }
         ExecuteMsg::UpdateProtocolAdmin {
             new_protocol_admin: new_admin,
@@ -398,7 +398,8 @@ pub fn execute_update_position(
     stream_id: u64,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
-    let operator_target = maybe_addr(deps.api, operator_target)?.unwrap_or(info.sender.clone());
+    let operator_target =
+        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
     check_access(&info, &position.owner, &position.operator)?;
 
@@ -506,7 +507,8 @@ pub fn execute_subscribe(
     let new_shares = stream.compute_shares_amount(in_amount, false);
 
     let operator = maybe_addr(deps.api, operator)?;
-    let operator_target = maybe_addr(deps.api, operator_target)?.unwrap_or(info.sender.clone());
+    let operator_target =
+        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
     let position = POSITIONS.may_load(deps.storage, (stream_id, &operator_target))?;
     match position {
         None => {
@@ -776,7 +778,8 @@ pub fn execute_exit_stream(
     if stream.last_updated < stream.end_time {
         return Err(ContractError::UpdateDistIndex {});
     }
-    let operator_target = maybe_addr(deps.api, operator_target)?.unwrap_or(info.sender.clone());
+    let operator_target =
+        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
     check_access(&info, &position.owner, &position.operator)?;
 
@@ -820,7 +823,6 @@ pub fn execute_exit_stream(
 
 pub fn execute_update_fee_collector(
     deps: DepsMut,
-    env: Env,
     info: MessageInfo,
     fee_collector: String,
 ) -> Result<Response, ContractError> {

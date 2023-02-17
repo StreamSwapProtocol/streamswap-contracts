@@ -124,7 +124,9 @@ pub enum ExecuteMsg {
     /// Only protocol admin can update fee collector address
     /// Fee collector address is used to collect exit fees
     /// Fee collector address can also be updated by governance
-    UpdateFeeCollector { fee_collector: String },
+    UpdateFeeCollector {
+        fee_collector: String,
+    },
 }
 
 #[cw_serde]
