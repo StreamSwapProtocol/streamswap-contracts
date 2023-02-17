@@ -63,6 +63,7 @@ pub fn instantiate(
     CONFIG.save(deps.storage, &config)?;
 
     let attrs = vec![
+        attr("action", "instantiate"),
         attr("min_stream_seconds", msg.min_stream_seconds),
         attr(
             "min_seconds_until_start_time",
