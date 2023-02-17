@@ -1519,7 +1519,7 @@ mod test_module {
             info,
             malicious_treasury.to_string(),
             "test".to_string(),
-            "test".to_string(),
+            Some("https://sample.url".to_string()),
             in_denom.to_string(),
             out_denom.to_string(),
             out_supply,
