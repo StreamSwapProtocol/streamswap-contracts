@@ -141,7 +141,30 @@ pub fn execute(
             stream_id,
             cap,
             operator_target,
-        } => execute_withdraw(deps, env, info, stream_id, cap, operator_target),
+        } => {
+            let stream = STREAMS.load(deps.storage, stream_id)?;
+            if stream.start_time > env.block.time {
+                Ok(execute_withdraw_pending(
+                    deps.branch(),
+                    env.clone(),
+                    info.clone(),
+                    stream_id,
+                    stream,
+                    cap,
+                    operator_target,
+                )?)
+            } else {
+                Ok(execute_withdraw(
+                    deps,
+                    env,
+                    info,
+                    stream_id,
+                    stream,
+                    cap,
+                    operator_target,
+                )?)
+            }
+        }
         ExecuteMsg::FinalizeStream {
             stream_id,
             new_treasury,
@@ -365,7 +388,8 @@ pub fn update_stream(
     now: Timestamp,
     stream: &mut Stream,
 ) -> Result<(Decimal, Uint128), ContractError> {
-    let (diff, last_updated) = calculate_diff(stream.end_time, stream.last_updated, now);
+    let (diff) = calculate_diff(stream.end_time, stream.last_updated, now);
+    println!("diff: {:?}", diff);
 
     let mut new_distribution_balance = Uint128::zero();
 
@@ -401,28 +425,28 @@ pub fn update_stream(
             stream.current_streamed_price = Decimal::from_ratio(spent_in, new_distribution_balance)
         }
     }
-
-    stream.last_updated = last_updated;
+    stream.last_updated = if now < stream.start_time {
+        stream.start_time
+    } else {
+        now
+    };
 
     Ok((diff, new_distribution_balance))
 }
 
-fn calculate_diff(
-    end_time: Timestamp,
-    last_updated: Timestamp,
-    now: Timestamp,
-) -> (Decimal, Timestamp) {
+fn calculate_diff(end_time: Timestamp, last_updated: Timestamp, now: Timestamp) -> Decimal {
     // diff = (now - last_updated) / (end_time - last_updated)
     let now = if now > end_time { end_time } else { now };
-    let numerator = now.minus_nanos(last_updated.nanos());
-    let denominator = end_time.minus_nanos(last_updated.nanos());
-    if denominator.nanos() == 0 || numerator.nanos() == 0 {
-        (Decimal::zero(), now)
+    let numerator = now.nanos().checked_sub(last_updated.nanos()).unwrap_or(0);
+    let denominator = end_time
+        .nanos()
+        .checked_sub(last_updated.nanos())
+        .unwrap_or(0);
+
+    if denominator == 0 || numerator == 0 {
+        Decimal::zero()
     } else {
-        (
-            Decimal::from_ratio(numerator.nanos(), denominator.nanos()),
-            now,
-        )
+        Decimal::from_ratio(numerator, denominator)
     }
 }
 
@@ -679,10 +703,10 @@ pub fn execute_withdraw(
     env: Env,
     info: MessageInfo,
     stream_id: u64,
+    mut stream: Stream,
     cap: Option<Uint128>,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
@@ -754,34 +778,19 @@ pub fn execute_withdraw(
 
 pub fn execute_withdraw_pending(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
-    stream: Stream,
+    stream_id: u64,
+    mut stream: Stream,
     cap: Option<Uint128>,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     // check if stream is paused
-    if stream.is_killswitch_active() {
-        return Err(ContractError::StreamKillswitchActive {});
-    }
-    // can't withdraw after stream ended
-    if env.block.time > stream.end_time {
-        return Err(ContractError::StreamEnded {});
-    }
 
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
     check_access(&info, &position.owner, &position.operator)?;
-
-    update_stream(env.block.time, &mut stream)?;
-    update_position(
-        stream.dist_index,
-        stream.shares,
-        stream.last_updated,
-        stream.in_supply,
-        &mut position,
-    )?;
 
     let withdraw_amount = cap.unwrap_or(position.in_balance);
     // if amount to withdraw more then deduced buy balance throw error
@@ -809,7 +818,7 @@ pub fn execute_withdraw_pending(
     POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
 
     let attributes = vec![
-        attr("action", "withdraw"),
+        attr("action", "withdraw_pending"),
         attr("stream_id", stream_id.to_string()),
         attr("operator_target", operator_target.clone()),
         attr("withdraw_amount", withdraw_amount),
