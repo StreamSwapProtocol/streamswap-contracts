@@ -272,7 +272,7 @@ pub fn execute_create_stream(
         in_denom.clone(),
         start_time,
         end_time,
-        env.block.time,
+        start_time,
         config.stream_creation_denom,
         config.stream_creation_fee,
     );
