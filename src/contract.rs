@@ -81,7 +81,7 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -113,7 +113,30 @@ pub fn execute(
             stream_id,
             operator_target,
             operator,
-        } => execute_subscribe(deps, env, info, stream_id, operator, operator_target),
+        } => {
+            let stream = STREAMS.load(deps.storage, stream_id)?;
+            if stream.start_time > env.block.time {
+                Ok(execute_subscribe_pending(
+                    deps.branch(),
+                    env.clone(),
+                    info.clone(),
+                    stream_id,
+                    operator.clone(),
+                    operator_target.clone(),
+                    stream.clone(),
+                )?)
+            } else {
+                Ok(execute_subscribe(
+                    deps,
+                    env,
+                    info,
+                    stream_id,
+                    operator,
+                    operator_target,
+                    stream,
+                )?)
+            }
+        }
         ExecuteMsg::Withdraw {
             stream_id,
             cap,
@@ -498,8 +521,8 @@ pub fn execute_subscribe(
     stream_id: u64,
     operator: Option<String>,
     operator_target: Option<String>,
+    mut stream: Stream,
 ) -> Result<Response, ContractError> {
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is paused
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
@@ -574,6 +597,62 @@ pub fn execute_subscribe(
     Ok(res)
 }
 
+pub fn execute_subscribe_pending(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    stream_id: u64,
+    operator: Option<String>,
+    operator_target: Option<String>,
+    mut stream: Stream,
+) -> Result<Response, ContractError> {
+    // check if stream is paused
+    if stream.is_killswitch_active() {
+        return Err(ContractError::StreamKillswitchActive {});
+    }
+    let in_amount = must_pay(&info, &stream.in_denom)?;
+    let new_shares = stream.compute_shares_amount(in_amount, false);
+
+    let operator = maybe_addr(deps.api, operator)?;
+    let operator_target =
+        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
+    let position = POSITIONS.may_load(deps.storage, (stream_id, &operator_target))?;
+    match position {
+        None => {
+            // operator cannot create a position in behalf of anyone
+            if operator_target != info.sender {
+                return Err(ContractError::Unauthorized {});
+            }
+            let new_position = Position::new(
+                info.sender,
+                in_amount,
+                new_shares,
+                Some(stream.dist_index),
+                env.block.time,
+                operator,
+            );
+            POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
+        }
+        Some(mut position) => {
+            check_access(&info, &position.owner, &position.operator)?;
+            // if subscibed already, we wont update its position but just increase its in_balance and shares
+            position.in_balance = position.in_balance.checked_add(in_amount)?;
+            position.shares = position.shares.checked_add(new_shares)?;
+            POSITIONS.save(deps.storage, (stream_id, &operator_target), &position)?;
+        }
+    }
+    stream.in_supply = stream.in_supply.checked_add(in_amount)?;
+    stream.shares = stream.shares.checked_add(new_shares)?;
+    STREAMS.save(deps.storage, stream_id, &stream)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "subscribe_pending")
+        .add_attribute("stream_id", stream_id.to_string())
+        .add_attribute("owner", operator_target)
+        .add_attribute("in_supply", stream.in_supply)
+        .add_attribute("in_amount", in_amount))
+}
+
 pub fn execute_update_operator(
     deps: DepsMut,
     _env: Env,
@@ -604,6 +683,83 @@ pub fn execute_withdraw(
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    // check if stream is paused
+    if stream.is_killswitch_active() {
+        return Err(ContractError::StreamKillswitchActive {});
+    }
+    // can't withdraw after stream ended
+    if env.block.time > stream.end_time {
+        return Err(ContractError::StreamEnded {});
+    }
+
+    let operator_target =
+        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
+    let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
+    check_access(&info, &position.owner, &position.operator)?;
+
+    update_stream(env.block.time, &mut stream)?;
+    update_position(
+        stream.dist_index,
+        stream.shares,
+        stream.last_updated,
+        stream.in_supply,
+        &mut position,
+    )?;
+
+    let withdraw_amount = cap.unwrap_or(position.in_balance);
+    // if amount to withdraw more then deduced buy balance throw error
+    if withdraw_amount > position.in_balance {
+        return Err(ContractError::WithdrawAmountExceedsBalance(withdraw_amount));
+    }
+
+    if withdraw_amount.is_zero() {
+        return Err(ContractError::InvalidWithdrawAmount {});
+    }
+
+    // decrease in supply and shares
+    let shares_amount = if withdraw_amount == position.in_balance {
+        position.shares
+    } else {
+        stream.compute_shares_amount(withdraw_amount, true)
+    };
+
+    stream.in_supply = stream.in_supply.checked_sub(withdraw_amount)?;
+    stream.shares = stream.shares.checked_sub(shares_amount)?;
+    position.in_balance = position.in_balance.checked_sub(withdraw_amount)?;
+    position.shares = position.shares.checked_sub(shares_amount)?;
+
+    STREAMS.save(deps.storage, stream_id, &stream)?;
+    POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
+
+    let attributes = vec![
+        attr("action", "withdraw"),
+        attr("stream_id", stream_id.to_string()),
+        attr("operator_target", operator_target.clone()),
+        attr("withdraw_amount", withdraw_amount),
+    ];
+
+    // send funds to withdraw address or to the sender
+    let res = Response::new()
+        .add_message(CosmosMsg::Bank(BankMsg::Send {
+            to_address: operator_target.to_string(),
+            amount: vec![Coin {
+                denom: stream.in_denom,
+                amount: withdraw_amount,
+            }],
+        }))
+        .add_attributes(attributes);
+
+    Ok(res)
+}
+
+pub fn execute_withdraw_pending(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    stream: Stream,
+    cap: Option<Uint128>,
+    operator_target: Option<String>,
+) -> Result<Response, ContractError> {
     // check if stream is paused
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
