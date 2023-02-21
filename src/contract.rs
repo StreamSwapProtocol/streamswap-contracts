@@ -226,7 +226,7 @@ pub fn execute_create_stream(
         }
     }
 
-    check_name_and_url(name.clone(), url.clone())?;
+    check_name_and_url(&name, &url)?;
 
     let stream = Stream::new(
         name.clone(),
