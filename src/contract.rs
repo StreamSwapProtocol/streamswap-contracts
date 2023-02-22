@@ -307,7 +307,7 @@ pub fn update_stream(
     now: Timestamp,
     stream: &mut Stream,
 ) -> Result<(Decimal, Uint128), ContractError> {
-    let (diff, last_updated) = calculate_diff(stream.end_time, stream.last_updated, now);
+    let diff = calculate_diff(stream.end_time, stream.last_updated, now);
 
     let mut new_distribution_balance = Uint128::zero();
 
@@ -344,27 +344,28 @@ pub fn update_stream(
         }
     }
 
-    stream.last_updated = last_updated;
+    stream.last_updated = if now < stream.start_time {
+        stream.start_time
+    } else {
+        now
+    };
 
     Ok((diff, new_distribution_balance))
 }
 
-fn calculate_diff(
-    end_time: Timestamp,
-    last_updated: Timestamp,
-    now: Timestamp,
-) -> (Decimal, Timestamp) {
+fn calculate_diff(end_time: Timestamp, last_updated: Timestamp, now: Timestamp) -> Decimal {
     // diff = (now - last_updated) / (end_time - last_updated)
     let now = if now > end_time { end_time } else { now };
-    let numerator = now.minus_nanos(last_updated.nanos());
-    let denominator = end_time.minus_nanos(last_updated.nanos());
-    if denominator.nanos() == 0 || numerator.nanos() == 0 {
-        (Decimal::zero(), now)
+    let numerator = now.nanos().checked_sub(last_updated.nanos()).unwrap_or(0);
+    let denominator = end_time
+        .nanos()
+        .checked_sub(last_updated.nanos())
+        .unwrap_or(0);
+
+    if denominator == 0 || numerator == 0 {
+        Decimal::zero()
     } else {
-        (
-            Decimal::from_ratio(numerator.nanos(), denominator.nanos()),
-            now,
-        )
+        Decimal::from_ratio(numerator, denominator)
     }
 }
 
