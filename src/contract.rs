@@ -481,7 +481,7 @@ pub fn execute_subscribe(
     }
 
     let in_amount = must_pay(&info, &stream.in_denom)?;
-    let new_shares = stream.compute_shares_amount(in_amount, false);
+    let new_shares;
 
     let operator = maybe_addr(deps.api, operator)?;
     let operator_target =
@@ -494,6 +494,7 @@ pub fn execute_subscribe(
                 return Err(ContractError::Unauthorized {});
             }
             update_stream(env.block.time, &mut stream)?;
+            new_shares = stream.compute_shares_amount(in_amount, false);
             // new positions do not update purchase as it has no effect on distribution
             let new_position = Position::new(
                 info.sender,
@@ -510,6 +511,7 @@ pub fn execute_subscribe(
 
             // incoming tokens should not participate in prev distribution
             update_stream(env.block.time, &mut stream)?;
+            new_shares = stream.compute_shares_amount(in_amount, false);
             update_position(
                 stream.dist_index,
                 stream.shares,
