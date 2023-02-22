@@ -1192,13 +1192,23 @@ mod test_module {
         let mut env = mock_env();
         env.block.time = start.plus_seconds(100);
         let info = mock_info("creator1", &[Coin::new(1_000_000_000, "in")]);
-        execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
+        let msg = crate::msg::ExecuteMsg::Subscribe {
+            stream_id: 1,
+            operator_target: None,
+            operator: None,
+        };
+        execute(deps.as_mut(), env, info, msg).unwrap();
 
         // second subscription
         let mut env = mock_env();
         env.block.time = start.plus_seconds(100_000);
         let info = mock_info("creator2", &[Coin::new(3_000_000_000, "in")]);
-        execute_subscribe(deps.as_mut(), env, info, 1, None, None).unwrap();
+        let msg = crate::msg::ExecuteMsg::Subscribe {
+            stream_id: 1,
+            operator_target: None,
+            operator: None,
+        };
+        execute(deps.as_mut(), env, info, msg).unwrap();
 
         // update position creator1
         let mut env = mock_env();
@@ -1210,15 +1220,15 @@ mod test_module {
             query_position(deps.as_ref(), env.clone(), 1, "creator1".to_string()).unwrap();
         assert_eq!(
             position.index,
-            Decimal256::from_str("206.230155753250000000").unwrap()
+            Decimal256::from_str("202.813614449380587585").unwrap()
         );
-        assert_eq!(position.purchased, Uint128::new(206_230_155_753));
-        assert_eq!(position.spent, Uint128::new(745_190_745));
-        assert_eq!(position.in_balance, Uint128::new(254_809_255));
+        assert_eq!(position.purchased, Uint128::new(202_813_614_449));
+        assert_eq!(position.spent, Uint128::new(749_993_750));
+        assert_eq!(position.in_balance, Uint128::new(250_006_250));
         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
         assert_eq!(
             stream.dist_index,
-            Decimal256::from_str("206.230155753250000000").unwrap()
+            Decimal256::from_str("202.813614449380587585").unwrap()
         );
 
         // update position creator2
@@ -1231,15 +1241,15 @@ mod test_module {
             query_position(deps.as_ref(), env.clone(), 1, "creator2".to_string()).unwrap();
         assert_eq!(
             position.index,
-            Decimal256::from_str("242.168554213250000000").unwrap()
+            Decimal256::from_str("238.074595237060799266").unwrap()
         );
-        assert_eq!(position.purchased, Uint128::new(651_578_789_469));
-        assert_eq!(position.spent, Uint128::new(2_675_118_200));
-        assert_eq!(position.in_balance, Uint128::new(324_881_800));
+        assert_eq!(position.purchased, Uint128::new(655672748445));
+        assert_eq!(position.spent, Uint128::new(2673076923));
+        assert_eq!(position.in_balance, Uint128::new(326923077));
         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
         assert_eq!(
             stream.dist_index,
-            Decimal256::from_str("242.168554213250000000").unwrap()
+            Decimal256::from_str("238.074595237060799266").unwrap()
         );
 
         // update position after stream ends
@@ -1250,13 +1260,13 @@ mod test_module {
         let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
         assert_eq!(
             stream.dist_index,
-            Decimal256::from_str("268.731718292500000000").unwrap()
+            Decimal256::from_str("264.137059297637397644").unwrap()
         );
         assert_eq!(stream.in_supply, Uint128::zero());
         let position1 = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
         assert_eq!(
             position1.index,
-            Decimal256::from_str("268.731718292500000000").unwrap()
+            Decimal256::from_str("264.137059297637397644").unwrap()
         );
         assert_eq!(position1.spent, Uint128::new(1_000_000_000));
         assert_eq!(position1.in_balance, Uint128::zero());
@@ -1269,13 +1279,13 @@ mod test_module {
         let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
         assert_eq!(
             stream.dist_index,
-            Decimal256::from_str("268.731718292500000000").unwrap()
+            Decimal256::from_str("264.137059297637397644").unwrap()
         );
         assert_eq!(stream.in_supply, Uint128::zero());
         let position2 = query_position(deps.as_ref(), env, 1, "creator2".to_string()).unwrap();
         assert_eq!(
             position2.index,
-            Decimal256::from_str("268.731718292500000000").unwrap()
+            Decimal256::from_str("264.137059297637397644").unwrap()
         );
         assert_eq!(position2.spent, Uint128::new(3_000_000_000));
         assert_eq!(position2.in_balance, Uint128::zero());
