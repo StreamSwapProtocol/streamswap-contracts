@@ -971,7 +971,7 @@ mod test_module {
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(400);
         let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
-        // StreamResponse { id: 1, treasury: "treasury", url: Some("https://sample.url"), dist_index: Decimal256(Uint256(0)), last_updated: Timestamp(Uint64(2000000000000)), out_denom: "out_denom", out_supply: Uint128(1000000), out_remaining: Uint128(1000000), in_denom: "in", in_supply: Uint128(1000000), spent_in: Uint128(0), shares: Uint128(1000000), start_time: Timestamp(Uint64(2000000000000)), end_time: Timestamp(Uint64(1000000000000000)), current_streamed_price: Decimal(Uint128(0)), status: Waiting, pause_date: None }
+
         assert_eq!(stream.id, 1);
         assert_eq!(stream.dist_index, Decimal256::zero());
         assert_eq!(stream.last_updated, Timestamp::from_seconds(2000));
