@@ -108,12 +108,12 @@ pub fn execute(
             if stream.start_time > env.block.time {
                 Ok(execute_subscribe_pending(
                     deps.branch(),
-                    env.clone(),
-                    info.clone(),
+                    env,
+                    info,
                     stream_id,
-                    operator.clone(),
-                    operator_target.clone(),
-                    stream.clone(),
+                    operator,
+                    operator_target,
+                    stream,
                 )?)
             } else {
                 Ok(execute_subscribe(
@@ -136,8 +136,8 @@ pub fn execute(
             if stream.start_time > env.block.time {
                 Ok(execute_withdraw_pending(
                     deps.branch(),
-                    env.clone(),
-                    info.clone(),
+                    env,
+                    info,
                     stream_id,
                     stream,
                     cap,
@@ -207,10 +207,6 @@ pub fn execute_create_stream(
     }
     if end_time.seconds() - start_time.seconds() < config.min_stream_seconds.u64() {
         return Err(ContractError::StreamDurationTooShort {});
-    }
-
-    if end_time.nanos() - start_time.nanos() > u64::MAX {
-        return Err(ContractError::StreamDurationTooLong {});
     }
 
     if start_time.seconds() - env.block.time.seconds() < config.min_seconds_until_start_time.u64() {
@@ -353,8 +349,7 @@ pub fn update_stream(
     now: Timestamp,
     stream: &mut Stream,
 ) -> Result<(Decimal, Uint128), ContractError> {
-    let (diff) = calculate_diff(stream.end_time, stream.last_updated, now);
-
+    let diff = calculate_diff(stream.end_time, stream.last_updated, now);
 
     let mut new_distribution_balance = Uint128::zero();
 
@@ -390,7 +385,7 @@ pub fn update_stream(
             stream.current_streamed_price = Decimal::from_ratio(spent_in, new_distribution_balance)
         }
     }
-    
+
     stream.last_updated = if now < stream.start_time {
         stream.start_time
     } else {
@@ -403,11 +398,9 @@ pub fn update_stream(
 fn calculate_diff(end_time: Timestamp, last_updated: Timestamp, now: Timestamp) -> Decimal {
     // diff = (now - last_updated) / (end_time - last_updated)
     let now = if now > end_time { end_time } else { now };
-    let numerator = now.nanos().checked_sub(last_updated.nanos()).unwrap_or(0);
+    let numerator = now.nanos().saturating_sub(last_updated.nanos());
     let denominator = end_time
-        .nanos()
-        .checked_sub(last_updated.nanos())
-        .unwrap_or(0);
+        .nanos().saturating_sub(last_updated.nanos());
 
     if denominator == 0 || numerator == 0 {
         Decimal::zero()
