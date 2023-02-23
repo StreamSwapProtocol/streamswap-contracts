@@ -2,13 +2,13 @@
 mod test_module {
     use crate::contract::execute;
     use crate::contract::{
-        execute_create_stream, execute_exit_stream, execute_finalize_stream, execute_subscribe,
+        execute_create_stream, execute_exit_stream, execute_finalize_stream,
         execute_update_fee_collector, execute_update_operator, execute_update_position,
-        execute_update_stream, execute_withdraw, instantiate, query_average_price, query_config,
+        execute_update_stream, instantiate, query_average_price, query_config,
         query_last_streamed_price, query_position, query_stream,
     };
     use crate::killswitch::{execute_pause_stream, execute_withdraw_paused, sudo_resume_stream};
-    use crate::msg::ExecuteMsg::{self, UpdateProtocolAdmin};
+    use crate::msg::ExecuteMsg::{UpdateProtocolAdmin};
     use crate::state::{Status, Stream};
     use crate::ContractError;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
@@ -468,8 +468,8 @@ mod test_module {
 
         let res = execute_create_stream(
             deps.as_mut(),
-            env.clone(),
-            info.clone(),
+            env,
+            info,
             treasury.to_string(),
             "abc~ß".to_string(),
             Some(url.to_string()),
@@ -526,8 +526,8 @@ mod test_module {
 
         let res = execute_create_stream(
             deps.as_mut(),
-            env.clone(),
-            info.clone(),
+            env,
+            info,
             treasury.to_string(),
             "name".to_string(),
             Some("https://abc defghijklmnopqrstuvw.xyz/".to_string()),
@@ -669,7 +669,7 @@ mod test_module {
             operator_target: None,
             operator: None,
         };
-        let res = execute(deps.as_mut(), env, info, msg);
+        let _res = execute(deps.as_mut(), env, info, msg);
 
         // dist index updated
         let env = mock_env();
@@ -703,7 +703,7 @@ mod test_module {
             operator_target: None,
             operator: None,
         };
-        let res = execute(deps.as_mut(), env.clone(), info, msg);
+        let _res = execute(deps.as_mut(), env.clone(), info, msg);
         // dist index updated
         let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
         assert_eq!(stream.dist_index, Decimal256::from_str("0.0001").unwrap());
@@ -779,7 +779,7 @@ mod test_module {
         // query stream
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(350);
-        let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
+        let stream = query_stream(deps.as_ref(), env, 1).unwrap();
         assert_eq!(stream.status, Status::Waiting);
         assert_eq!(stream.in_supply, Uint128::new(1000000));
         assert_eq!(stream.shares, Uint128::new(1000000));
@@ -800,7 +800,7 @@ mod test_module {
         // query stream
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(450);
-        let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
+        let stream = query_stream(deps.as_ref(), env, 1).unwrap();
         assert_eq!(stream.status, Status::Waiting);
         assert_eq!(stream.in_supply, Uint128::new(2000000));
 
@@ -845,7 +845,7 @@ mod test_module {
         // query stream
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(6000);
-        let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
+        let stream = query_stream(deps.as_ref(), env, 1).unwrap();
         assert_eq!(stream.status, Status::Active);
         assert_eq!(stream.in_supply, Uint128::new(3000000 - 400000));
         assert_eq!(stream.spent_in, Uint128::new(400000));
@@ -883,7 +883,7 @@ mod test_module {
         // query stream
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(3500);
-        let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
+        let stream = query_stream(deps.as_ref(), env, 1).unwrap();
         assert_eq!(stream.status, Status::Active);
         // in supply = 3000000 - (positions.spent summed)
         assert_eq!(stream.in_supply, Uint128::new(1625000));
@@ -948,7 +948,7 @@ mod test_module {
             operator_target: None,
             operator: None,
         };
-        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
         // update creator 1 position no distrubution is excepted
         let mut env = mock_env();
@@ -970,7 +970,7 @@ mod test_module {
         // query stream before withdraw
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(400);
-        let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
+        let stream = query_stream(deps.as_ref(), env, 1).unwrap();
 
         assert_eq!(stream.id, 1);
         assert_eq!(stream.dist_index, Decimal256::zero());
@@ -1004,7 +1004,7 @@ mod test_module {
         // query stream after withdraw
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(400);
-        let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
+        let stream = query_stream(deps.as_ref(), env, 1).unwrap();
         assert_eq!(stream.id, 1);
         assert_eq!(stream.dist_index, Decimal256::zero());
         assert_eq!(stream.last_updated, Timestamp::from_seconds(2000));
@@ -1037,7 +1037,7 @@ mod test_module {
         // query stream after withdraw
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(3000);
-        let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
+        let _stream = query_stream(deps.as_ref(), env, 1).unwrap();
     }
 
     #[test]
@@ -1121,7 +1121,7 @@ mod test_module {
             operator_target: None,
             operator: None,
         };
-        let res = execute(deps.as_mut(), env, info, msg);
+        let _res = execute(deps.as_mut(), env, info, msg);
 
         // only owner can update
         let mut env = mock_env();
@@ -1159,10 +1159,10 @@ mod test_module {
         assert_eq!(res, ContractError::Unauthorized {});
 
         // random cannot withdraw
-        let info = mock_info("random", &[]);
+        let _info = mock_info("random", &[]);
         let mut env = mock_env();
         env.block.time = start.plus_seconds(100);
-        let msg = crate::msg::ExecuteMsg::Withdraw {
+        let _msg = crate::msg::ExecuteMsg::Withdraw {
             stream_id: 1,
             cap: None,
             operator_target: Some("creator1".to_string()),
@@ -1242,10 +1242,10 @@ mod test_module {
         );
 
         // operator can withdraw
-        let info = mock_info("operator1", &[]);
+        let _info = mock_info("operator1", &[]);
         let mut env = mock_env();
         env.block.time = start.plus_seconds(100);
-        let msg = crate::msg::ExecuteMsg::Withdraw {
+        let _msg = crate::msg::ExecuteMsg::Withdraw {
             stream_id: 1,
             cap: Some(5u128.into()),
             operator_target: Some("creator1".to_string()),
@@ -1352,7 +1352,7 @@ mod test_module {
             operator_target: Some("creator1".to_string()),
             operator: None,
         };
-        let res = execute(deps.as_mut(), env, info, msg);
+        let _res = execute(deps.as_mut(), env, info, msg);
 
         //Query stream
         let mut env = mock_env();
@@ -1429,7 +1429,7 @@ mod test_module {
             operator_target: None,
             operator: None,
         };
-        let res = execute(deps.as_mut(), env, info, msg);
+        let _res = execute(deps.as_mut(), env, info, msg);
 
         // non owner operator cannot update position
         let mut env = mock_env();
@@ -1700,7 +1700,7 @@ mod test_module {
             operator_target: None,
             operator: None,
         };
-        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
         // withdraw with cap
         let mut env = mock_env();
@@ -1734,7 +1734,7 @@ mod test_module {
             cap: Some(cap),
             operator_target: None,
         };
-        let res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
         let position =
             query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
         assert_eq!(position.in_balance, Uint128::new(1_997_475_000_000));
@@ -1751,7 +1751,7 @@ mod test_module {
             cap: None,
             operator_target: None,
         };
-        let res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+        let res = execute(deps.as_mut(), env, info, msg).unwrap();
         let position =
             query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
         assert_eq!(position.in_balance, Uint128::zero());
@@ -1776,7 +1776,7 @@ mod test_module {
             cap: None,
             operator_target: None,
         };
-        let res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
+        let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
         assert_eq!(res, ContractError::StreamEnded {});
     }
 
@@ -1839,7 +1839,7 @@ mod test_module {
             operator_target: None,
             operator: None,
         };
-        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
         // only treasury can finalize
         let mut env = mock_env();
@@ -1968,7 +1968,7 @@ mod test_module {
             operator_target: None,
             operator: None,
         };
-        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
         // Update
         let mut env = mock_env();
         env.block.time = end.plus_seconds(1);
@@ -2008,7 +2008,7 @@ mod test_module {
         assert_eq!(stream.status, Status::Finalized);
         // Sequential calls, anyone could force this sequential calls
         let res =
-            execute_finalize_stream(deps.as_mut(), env.clone(), info.clone(), 1, None).unwrap_err();
+            execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
         assert_eq!(res, ContractError::StreamAlreadyFinalized {});
     }
 
@@ -2071,7 +2071,7 @@ mod test_module {
             operator_target: None,
             operator: None,
         };
-        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
         // can't exit before stream ends
         let mut env = mock_env();
@@ -2185,7 +2185,7 @@ mod test_module {
             operator_target: None,
             operator: None,
         };
-        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
         // second subscription
         let mut env = mock_env();
@@ -2197,7 +2197,7 @@ mod test_module {
             operator_target: None,
             operator: None,
         };
-        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
         // first withdraw
         let info = mock_info("creator1", &[]);
@@ -2208,7 +2208,7 @@ mod test_module {
             cap: None,
             operator_target: None,
         };
-        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
         // second withdraw
         let info = mock_info("creator2", &[]);
@@ -2219,7 +2219,7 @@ mod test_module {
             cap: None,
             operator_target: None,
         };
-        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
         // can exit
         let mut env = mock_env();
@@ -2296,7 +2296,7 @@ mod test_module {
             operator_target: None,
             operator: None,
         };
-        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
         //check current streamed price before update
         let mut env = mock_env();
@@ -2324,7 +2324,7 @@ mod test_module {
             operator_target: None,
             operator: None,
         };
-        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
         //check current streamed price before update
         let mut env = mock_env();
@@ -2365,7 +2365,7 @@ mod test_module {
             cap: None,
             operator_target: None,
         };
-        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
         let res = query_last_streamed_price(deps.as_ref(), mock_env(), 1).unwrap();
         assert_eq!(
             res.current_streamed_price,
@@ -2525,7 +2525,7 @@ mod test_module {
                 operator_target: None,
                 operator: None,
             };
-            let res = execute(deps.as_mut(), env, info, msg).unwrap();
+            let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
             //can't pause before start time
             let info = mock_info("protocol_admin", &[]);
@@ -2679,7 +2679,7 @@ mod test_module {
                 operator_target: None,
                 operator: Some("operator".to_string()),
             };
-            let res = execute(deps.as_mut(), env, info, msg).unwrap();
+            let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
             // withdraw with cap
             let mut env = mock_env();
@@ -2691,7 +2691,7 @@ mod test_module {
                 cap: Some(cap),
                 operator_target: None,
             };
-            let res = execute(deps.as_mut(), env, info, msg).unwrap();
+            let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
             let position =
                 query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
@@ -2867,7 +2867,7 @@ mod test_module {
                 operator_target: None,
                 operator: None,
             };
-            let res = execute(deps.as_mut(), env, info, msg).unwrap();
+            let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
             //cant resume if not paused
             let mut env = mock_env();
@@ -3198,7 +3198,7 @@ mod test_module {
                 operator_target: None,
                 operator: None,
             };
-            let res = execute(deps.as_mut(), env, info, msg).unwrap();
+            let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
             // second subscription to first stream
             let mut env = mock_env();
@@ -3209,7 +3209,7 @@ mod test_module {
                 operator_target: None,
                 operator: None,
             };
-            let res = execute(deps.as_mut(), env, info, msg).unwrap();
+            let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
             let res = list_positions(deps.as_ref(), 1, None, None).unwrap();
             assert_eq!(res.positions.len(), 2);
@@ -3274,7 +3274,7 @@ mod test_module {
                 operator_target: None,
                 operator: Some("operator".to_string()),
             };
-            let res = execute(deps.as_mut(), env, info, msg).unwrap();
+            let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
             // cant cancel without pause
             let mut env = mock_env();
