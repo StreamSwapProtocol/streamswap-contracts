@@ -71,6 +71,9 @@ pub enum ContractError {
     #[error("Stream not ended")]
     StreamNotEnded {},
 
+    #[error("Stream is started update stream")]
+    StreamIsStarted {},
+
     #[error("Update dist index")]
     UpdateDistIndex {},
 
