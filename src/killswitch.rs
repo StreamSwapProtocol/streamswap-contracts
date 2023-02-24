@@ -151,7 +151,7 @@ pub fn execute_pause_stream(
     }
     //check if stream is ended
     let stream = STREAMS.load(deps.storage, stream_id)?;
-    if env.block.time > stream.end_time {
+    if env.block.time >= stream.end_time {
         return Err(ContractError::StreamEnded {});
     }
     // check if stream is not started
@@ -188,7 +188,7 @@ pub fn sudo_pause_stream(
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
 
-    if env.block.time > stream.end_time {
+    if env.block.time >= stream.end_time {
         return Err(ContractError::StreamEnded {});
     }
     // check if stream is not started

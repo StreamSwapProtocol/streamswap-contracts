@@ -399,8 +399,7 @@ fn calculate_diff(end_time: Timestamp, last_updated: Timestamp, now: Timestamp) 
     // diff = (now - last_updated) / (end_time - last_updated)
     let now = if now > end_time { end_time } else { now };
     let numerator = now.nanos().saturating_sub(last_updated.nanos());
-    let denominator = end_time
-        .nanos().saturating_sub(last_updated.nanos());
+    let denominator = end_time.nanos().saturating_sub(last_updated.nanos());
 
     if denominator == 0 || numerator == 0 {
         Decimal::zero()
@@ -510,10 +509,8 @@ pub fn execute_subscribe(
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
     }
-    if env.block.time < stream.start_time {
-        return Err(ContractError::StreamNotStarted {});
-    }
-    if env.block.time > stream.end_time {
+
+    if env.block.time >= stream.end_time {
         return Err(ContractError::StreamEnded {});
     }
     //On first subscibe change status to Active
@@ -673,7 +670,7 @@ pub fn execute_withdraw(
         return Err(ContractError::StreamKillswitchActive {});
     }
     // can't withdraw after stream ended
-    if env.block.time > stream.end_time {
+    if env.block.time >= stream.end_time {
         return Err(ContractError::StreamEnded {});
     }
 
@@ -818,7 +815,7 @@ pub fn execute_finalize_stream(
     if stream.treasury != info.sender {
         return Err(ContractError::Unauthorized {});
     }
-    if env.block.time < stream.end_time {
+    if env.block.time <= stream.end_time {
         return Err(ContractError::StreamNotEnded {});
     }
     if stream.last_updated < stream.end_time {
@@ -910,7 +907,7 @@ pub fn execute_exit_stream(
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
     }
-    if env.block.time < stream.end_time {
+    if env.block.time <= stream.end_time {
         return Err(ContractError::StreamNotEnded {});
     }
     if stream.last_updated < stream.end_time {
