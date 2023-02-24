@@ -8,7 +8,7 @@ mod test_module {
         query_last_streamed_price, query_position, query_stream,
     };
     use crate::killswitch::{execute_pause_stream, execute_withdraw_paused, sudo_resume_stream};
-    use crate::msg::ExecuteMsg::{UpdateProtocolAdmin};
+    use crate::msg::ExecuteMsg::UpdateProtocolAdmin;
     use crate::state::{Status, Stream};
     use crate::ContractError;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
@@ -2007,8 +2007,7 @@ mod test_module {
         let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
         assert_eq!(stream.status, Status::Finalized);
         // Sequential calls, anyone could force this sequential calls
-        let res =
-            execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
+        let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
         assert_eq!(res, ContractError::StreamAlreadyFinalized {});
     }
 

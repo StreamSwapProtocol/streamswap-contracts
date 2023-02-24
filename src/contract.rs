@@ -399,8 +399,7 @@ fn calculate_diff(end_time: Timestamp, last_updated: Timestamp, now: Timestamp) 
     // diff = (now - last_updated) / (end_time - last_updated)
     let now = if now > end_time { end_time } else { now };
     let numerator = now.nanos().saturating_sub(last_updated.nanos());
-    let denominator = end_time
-        .nanos().saturating_sub(last_updated.nanos());
+    let denominator = end_time.nanos().saturating_sub(last_updated.nanos());
 
     if denominator == 0 || numerator == 0 {
         Decimal::zero()
