@@ -29,7 +29,7 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    // exit fee percent can not be higher than 1 and must be greater than 0
+    // exit fee percent can not be equal to or greater than 1, or smaller than 0
     if msg.exit_fee_percent >= Decimal::one() || msg.exit_fee_percent < Decimal::zero() {
         return Err(ContractError::InvalidExitFeePercent {});
     }
