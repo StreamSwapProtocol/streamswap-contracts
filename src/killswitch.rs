@@ -260,8 +260,6 @@ pub fn sudo_cancel_stream(
     stream.status = Status::Cancelled;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
-    let config = CONFIG.load(deps.storage)?;
-
     //Refund all out tokens to stream creator(treasury)
     let messages: Vec<CosmosMsg> = vec![
         CosmosMsg::Bank(BankMsg::Send {
@@ -275,8 +273,8 @@ pub fn sudo_cancel_stream(
         CosmosMsg::Bank(BankMsg::Send {
             to_address: stream.treasury.to_string(),
             amount: vec![Coin {
-                denom: config.stream_creation_denom,
-                amount: config.stream_creation_fee,
+                denom: stream.stream_creation_denom,
+                amount: stream.stream_creation_fee,
             }],
         }),
     ];
