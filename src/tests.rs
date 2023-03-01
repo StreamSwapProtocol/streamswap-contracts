@@ -1855,13 +1855,6 @@ mod test_module {
         let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
         assert_eq!(res, ContractError::StreamNotEnded {});
 
-        // can't finalize without update distribution
-        let mut env = mock_env();
-        env.block.time = end.plus_seconds(1);
-        let info = mock_info(treasury.as_str(), &[]);
-        let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
-        assert_eq!(res, ContractError::UpdateDistIndex {});
-
         // happy path
         let mut env = mock_env();
         env.block.time = end.plus_seconds(1);
@@ -2079,17 +2072,6 @@ mod test_module {
         let res = execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
         assert_eq!(res, ContractError::StreamNotEnded {});
 
-        // can't exit without update distribution
-        let mut env = mock_env();
-        env.block.time = end.plus_seconds(2_000_000);
-        let info = mock_info("creator1", &[]);
-        let res = execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
-        assert_eq!(res, ContractError::UpdateDistIndex {});
-
-        // update dist
-        let mut env = mock_env();
-        env.block.time = end.plus_seconds(2_000_000);
-        execute_update_stream(deps.as_mut(), env, 1).unwrap();
         //failed exit from random address
         let mut env = mock_env();
         env.block.time = end.plus_seconds(3_000_000);

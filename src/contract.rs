@@ -819,7 +819,7 @@ pub fn execute_finalize_stream(
         return Err(ContractError::StreamNotEnded {});
     }
     if stream.last_updated < stream.end_time {
-        return Err(ContractError::UpdateDistIndex {});
+        update_stream(env.block.time, &mut stream)?;
     }
 
     if stream.status == Status::Active {
@@ -911,7 +911,7 @@ pub fn execute_exit_stream(
         return Err(ContractError::StreamNotEnded {});
     }
     if stream.last_updated < stream.end_time {
-        return Err(ContractError::UpdateDistIndex {});
+        update_stream(env.block.time, &mut stream)?;
     }
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
