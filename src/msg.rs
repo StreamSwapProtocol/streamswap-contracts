@@ -267,6 +267,7 @@ pub enum SudoMsg {
         min_duration_until_start_time: Option<Uint64>,
         stream_creation_denom: Option<String>,
         stream_creation_fee: Option<Uint128>,
+        exit_fee_percent: Option<Decimal>,
         fee_collector: Option<String>,
         accepted_in_denom: Option<String>,
     },
