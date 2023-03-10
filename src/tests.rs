@@ -62,6 +62,36 @@ mod test_module {
     #[test]
     fn test_create_stream() {
         let mut deps = mock_dependencies();
+        // Invalid exit fee
+        let msg = crate::msg::InstantiateMsg {
+            min_stream_seconds: Uint64::new(1000),
+            min_seconds_until_start_time: Uint64::new(1000),
+            stream_creation_denom: "fee".to_string(),
+            stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(101),
+            fee_collector: "collector".to_string(),
+            protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "in".to_string(),
+        };
+        let res =
+            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap_err();
+        assert_eq!(res, ContractError::InvalidExitFeePercent {});
+
+        // Invalid stream creation fee
+        let msg = crate::msg::InstantiateMsg {
+            min_stream_seconds: Uint64::new(1000),
+            min_seconds_until_start_time: Uint64::new(1000),
+            stream_creation_denom: "fee".to_string(),
+            stream_creation_fee: Uint128::zero(),
+            exit_fee_percent: Decimal::percent(1),
+            fee_collector: "collector".to_string(),
+            protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "in".to_string(),
+        };
+        let res =
+            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap_err();
+        assert_eq!(res, ContractError::InvalidStreamCreationFee {});
+
         let msg = crate::msg::InstantiateMsg {
             min_stream_seconds: Uint64::new(1000),
             min_seconds_until_start_time: Uint64::new(1000),
@@ -2937,7 +2967,7 @@ mod test_module {
                 Some("collector2".to_string()),
                 Some("new_denom".to_string()),
             )
-                .unwrap_err();
+            .unwrap_err();
             assert_eq!(res, ContractError::InvalidStreamCreationFee {});
 
             // Invalid exit fee percentage
@@ -2952,7 +2982,7 @@ mod test_module {
                 Some("collector2".to_string()),
                 Some("new_denom".to_string()),
             )
-                .unwrap_err();
+            .unwrap_err();
 
             assert_eq!(res, ContractError::InvalidExitFeePercent {});
 
