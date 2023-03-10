@@ -2925,6 +2925,37 @@ mod test_module {
             //sudo update config
             let mut env = mock_env();
             env.block.time = Timestamp::from_seconds(0);
+            // Invalid stream creation fee
+            let res = sudo_update_config(
+                deps.as_mut(),
+                env.clone(),
+                Some(Uint64::new(2000)),
+                Some(Uint64::new(2000)),
+                Some("fee2".to_string()),
+                Some(Uint128::zero()),
+                Some(Decimal::percent(1)),
+                Some("collector2".to_string()),
+                Some("new_denom".to_string()),
+            )
+                .unwrap_err();
+            assert_eq!(res, ContractError::InvalidStreamCreationFee {});
+
+            // Invalid exit fee percentage
+            let res = sudo_update_config(
+                deps.as_mut(),
+                env.clone(),
+                Some(Uint64::new(2000)),
+                Some(Uint64::new(2000)),
+                Some("fee2".to_string()),
+                Some(Uint128::new(200)),
+                Some(Decimal::percent(101)),
+                Some("collector2".to_string()),
+                Some("new_denom".to_string()),
+            )
+                .unwrap_err();
+
+            assert_eq!(res, ContractError::InvalidExitFeePercent {});
+
             //update config
             sudo_update_config(
                 deps.as_mut(),
@@ -2933,6 +2964,7 @@ mod test_module {
                 Some(Uint64::new(2000)),
                 Some("fee2".to_string()),
                 Some(Uint128::new(200)),
+                Some(Decimal::percent(1)),
                 Some("collector2".to_string()),
                 Some("new_denom".to_string()),
             )
@@ -2991,6 +3023,7 @@ mod test_module {
                 Some(Uint64::new(2000)),
                 Some("fee3".to_string()),
                 Some(Uint128::new(200)),
+                Some(Decimal::percent(1)),
                 Some("collector3".to_string()),
                 Some("new_denom2".to_string()),
             )
