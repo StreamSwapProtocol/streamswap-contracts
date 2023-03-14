@@ -1009,7 +1009,6 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
             min_duration_until_start_time,
             stream_creation_denom,
             stream_creation_fee,
-            exit_fee_percent,
             fee_collector,
             accepted_in_denom,
         } => sudo_update_config(
@@ -1019,7 +1018,6 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
             min_duration_until_start_time,
             stream_creation_denom,
             stream_creation_fee,
-            exit_fee_percent,
             fee_collector,
             accepted_in_denom,
         ),
@@ -1036,7 +1034,6 @@ pub fn sudo_update_config(
     min_duration_until_start_time: Option<Uint64>,
     stream_creation_denom: Option<String>,
     stream_creation_fee: Option<Uint128>,
-    exit_fee_percent: Option<Decimal>,
     fee_collector: Option<String>,
     accepted_in_denom: Option<String>,
 ) -> Result<Response, ContractError> {
@@ -1048,18 +1045,11 @@ pub fn sudo_update_config(
         }
     }
 
-    if let Some(exit_fee_percent) = exit_fee_percent {
-        if exit_fee_percent >= Decimal::one() || exit_fee_percent < Decimal::zero() {
-            return Err(ContractError::InvalidExitFeePercent {});
-        }
-    }
-
     cfg.min_stream_seconds = min_stream_duration.unwrap_or(cfg.min_stream_seconds);
     cfg.min_seconds_until_start_time =
         min_duration_until_start_time.unwrap_or(cfg.min_seconds_until_start_time);
     cfg.stream_creation_denom = stream_creation_denom.unwrap_or(cfg.stream_creation_denom);
     cfg.stream_creation_fee = stream_creation_fee.unwrap_or(cfg.stream_creation_fee);
-    cfg.exit_fee_percent = exit_fee_percent.unwrap_or(cfg.exit_fee_percent);
     cfg.accepted_in_denom = accepted_in_denom.unwrap_or(cfg.accepted_in_denom);
     let collector = maybe_addr(deps.api, fee_collector)?.unwrap_or(cfg.fee_collector);
     cfg.fee_collector = collector;
