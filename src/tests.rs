@@ -62,6 +62,34 @@ mod test_module {
     #[test]
     fn test_create_stream() {
         let mut deps = mock_dependencies();
+        // Invalid stream creation denom
+        let msg = crate::msg::InstantiateMsg {
+            min_stream_seconds: Uint64::new(1000),
+            min_seconds_until_start_time: Uint64::new(1000),
+            stream_creation_denom: "Fee".to_string(),
+            stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(1),
+            fee_collector: "collector".to_string(),
+            protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "in".to_string(),
+        };
+        let res =
+            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap_err();
+        assert_eq!(res, ContractError::InvalidStreamCreationDenom {});
+        // Invalid accepted in-denom
+        let msg = crate::msg::InstantiateMsg {
+            min_stream_seconds: Uint64::new(1000),
+            min_seconds_until_start_time: Uint64::new(1000),
+            stream_creation_denom: "fee".to_string(),
+            stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(1),
+            fee_collector: "collector".to_string(),
+            protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "iN".to_string(),
+        };
+        let res =
+            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap_err();
+        assert_eq!(res, ContractError::InvalidAcceptedInDenom {});
         // Invalid exit fee
         let msg = crate::msg::InstantiateMsg {
             min_stream_seconds: Uint64::new(1000),
@@ -2968,6 +2996,34 @@ mod test_module {
             )
             .unwrap_err();
             assert_eq!(res, ContractError::InvalidStreamCreationFee {});
+
+            // Invalid stream creation denom
+            let res = sudo_update_config(
+                deps.as_mut(),
+                env.clone(),
+                Some(Uint64::new(2000)),
+                Some(Uint64::new(2000)),
+                Some("fEe2".to_string()),
+                Some(Uint128::new(200)),
+                Some("collector2".to_string()),
+                Some("new_denom".to_string()),
+            )
+            .unwrap_err();
+            assert_eq!(res, ContractError::InvalidStreamCreationDenom {});
+
+            // Invalid accepted in-denom
+            let res = sudo_update_config(
+                deps.as_mut(),
+                env.clone(),
+                Some(Uint64::new(2000)),
+                Some(Uint64::new(2000)),
+                Some("fee2".to_string()),
+                Some(Uint128::new(200)),
+                Some("collector2".to_string()),
+                Some("new_Denom".to_string()),
+            )
+            .unwrap_err();
+            assert_eq!(res, ContractError::InvalidAcceptedInDenom {});
 
             //update config
             sudo_update_config(
