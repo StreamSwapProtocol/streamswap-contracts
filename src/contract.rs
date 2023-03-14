@@ -37,8 +37,13 @@ pub fn instantiate(
     if msg.stream_creation_fee.is_zero() {
         return Err(ContractError::InvalidStreamCreationFee {});
     }
-    if msg.exit_fee_percent > Decimal::one() {
-        return Err(ContractError::InvalidStreamExitFee {});
+
+    if msg.stream_creation_denom.chars().any(|c| c.is_uppercase()) {
+        return Err(ContractError::InvalidStreamCreationDenom {});
+    }
+
+    if msg.accepted_in_denom.chars().any(|c| c.is_uppercase()) {
+        return Err(ContractError::InvalidAcceptedInDenom {});
     }
 
     let config = Config {
@@ -1041,6 +1046,24 @@ pub fn sudo_update_config(
     accepted_in_denom: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut cfg = CONFIG.load(deps.storage)?;
+
+    if let Some(stream_creation_fee) = stream_creation_fee {
+        if stream_creation_fee.is_zero() {
+            return Err(ContractError::InvalidStreamCreationFee {});
+        }
+    }
+
+    if let Some(stream_creation_denom) = stream_creation_denom.as_ref() {
+        if stream_creation_denom.chars().any(|c| c.is_uppercase()) {
+            return Err(ContractError::InvalidStreamCreationDenom {});
+        }
+    }
+
+    if let Some(accepted_in_denom) = accepted_in_denom.as_ref() {
+        if accepted_in_denom.chars().any(|c| c.is_uppercase()) {
+            return Err(ContractError::InvalidAcceptedInDenom {});
+        }
+    }
 
     cfg.min_stream_seconds = min_stream_duration.unwrap_or(cfg.min_stream_seconds);
     cfg.min_seconds_until_start_time =
