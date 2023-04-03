@@ -148,10 +148,4 @@ pub enum ContractError {
 
     #[error("Invalid exit fee")]
     InvalidStreamExitFee {},
-
-    #[error("Stream creation denom cannot contain uppercase characters")]
-    InvalidStreamCreationDenom {},
-
-    #[error("Accepted in-denom cannot contain uppercase characters")]
-    InvalidAcceptedInDenom {},
 }
