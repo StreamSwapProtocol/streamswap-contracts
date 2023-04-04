@@ -858,7 +858,13 @@ pub fn execute_finalize_stream(
             amount: swap_fee,
         }],
     });
-    let mut messages = vec![revenue_msg, creation_fee_msg, swap_fee_msg];
+
+    let mut messages = if stream.spent_in != Uint128::zero() {
+        vec![revenue_msg, creation_fee_msg, swap_fee_msg]
+    } else {
+        vec![creation_fee_msg]
+    };
+
     // In case the stream is ended without any shares in it. We need to refund the remaining out tokens although that is unlikely to happen
     if stream.out_remaining > Uint128::zero() {
         let remaining_out = stream.out_remaining;

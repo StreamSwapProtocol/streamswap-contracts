@@ -3046,25 +3046,12 @@ mod test_module {
             env.block.time = Timestamp::from_seconds(5_000_000);
             let info = mock_info("treasury", &[]);
             let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap();
+
             assert_eq!(
                 res.messages[0],
                 SubMsg::new(BankMsg::Send {
-                    to_address: "treasury".to_string(),
-                    amount: vec![Coin::new(0, "new_denom")]
-                })
-            );
-            assert_eq!(
-                res.messages[1],
-                SubMsg::new(BankMsg::Send {
                     to_address: "collector3".to_string(),
                     amount: vec![Coin::new(200, "fee2")]
-                })
-            );
-            assert_eq!(
-                res.messages[2],
-                SubMsg::new(BankMsg::Send {
-                    to_address: "collector3".to_string(),
-                    amount: vec![Coin::new(0, "new_denom")]
                 })
             );
         }
