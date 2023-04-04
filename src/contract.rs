@@ -38,14 +38,6 @@ pub fn instantiate(
         return Err(ContractError::InvalidStreamCreationFee {});
     }
 
-    if msg.stream_creation_denom.chars().any(|c| c.is_uppercase()) {
-        return Err(ContractError::InvalidStreamCreationDenom {});
-    }
-
-    if msg.accepted_in_denom.chars().any(|c| c.is_uppercase()) {
-        return Err(ContractError::InvalidAcceptedInDenom {});
-    }
-
     let config = Config {
         min_stream_seconds: msg.min_stream_seconds,
         min_seconds_until_start_time: msg.min_seconds_until_start_time,
@@ -824,7 +816,7 @@ pub fn execute_finalize_stream(
         return Err(ContractError::StreamNotEnded {});
     }
     if stream.last_updated < stream.end_time {
-        return Err(ContractError::UpdateDistIndex {});
+        update_stream(env.block.time, &mut stream)?;
     }
 
     if stream.status == Status::Active {
@@ -866,7 +858,13 @@ pub fn execute_finalize_stream(
             amount: swap_fee,
         }],
     });
-    let mut messages = vec![revenue_msg, creation_fee_msg, swap_fee_msg];
+
+    let mut messages = if stream.spent_in != Uint128::zero() {
+        vec![revenue_msg, creation_fee_msg, swap_fee_msg]
+    } else {
+        vec![creation_fee_msg]
+    };
+
     // In case the stream is ended without any shares in it. We need to refund the remaining out tokens although that is unlikely to happen
     if stream.out_remaining > Uint128::zero() {
         let remaining_out = stream.out_remaining;
@@ -916,7 +914,7 @@ pub fn execute_exit_stream(
         return Err(ContractError::StreamNotEnded {});
     }
     if stream.last_updated < stream.end_time {
-        return Err(ContractError::UpdateDistIndex {});
+        update_stream(env.block.time, &mut stream)?;
     }
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
@@ -1050,18 +1048,6 @@ pub fn sudo_update_config(
     if let Some(stream_creation_fee) = stream_creation_fee {
         if stream_creation_fee.is_zero() {
             return Err(ContractError::InvalidStreamCreationFee {});
-        }
-    }
-
-    if let Some(stream_creation_denom) = stream_creation_denom.as_ref() {
-        if stream_creation_denom.chars().any(|c| c.is_uppercase()) {
-            return Err(ContractError::InvalidStreamCreationDenom {});
-        }
-    }
-
-    if let Some(accepted_in_denom) = accepted_in_denom.as_ref() {
-        if accepted_in_denom.chars().any(|c| c.is_uppercase()) {
-            return Err(ContractError::InvalidAcceptedInDenom {});
         }
     }
 

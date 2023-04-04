@@ -74,9 +74,6 @@ pub enum ContractError {
     #[error("Stream is started update stream")]
     StreamIsStarted {},
 
-    #[error("Update dist index")]
-    UpdateDistIndex {},
-
     #[error("Update position")]
     UpdatePosition {},
 
@@ -151,10 +148,4 @@ pub enum ContractError {
 
     #[error("Invalid exit fee")]
     InvalidStreamExitFee {},
-
-    #[error("Stream creation denom cannot contain uppercase characters")]
-    InvalidStreamCreationDenom {},
-
-    #[error("Accepted in-denom cannot contain uppercase characters")]
-    InvalidAcceptedInDenom {},
 }
