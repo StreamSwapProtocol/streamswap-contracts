@@ -222,3 +222,10 @@ when a user subscribes to a stream.
 
 - Providing incentives for sales with `OSMO` or `ATOM` used as a base currency.
 - Basic DAO for distributing collected fees to maintainers of the project and deciding on the fee distribution percentage.
+
+## URLs
+
+- [App URL](http://beta.StreamSwap.io) 
+- [Twitter](https://twitter.com/StreamSwap_io) 
+- [Telegram](https://t.me/StreamSwap_io)
+- [Audit Report by Oak Security](https://github.com/oak-security/audit-reports/blob/master/Streamswap/2023-03-16%20Audit%20Report%20-%20Streamswap%20v1.1.pdf)
