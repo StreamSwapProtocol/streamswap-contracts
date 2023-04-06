@@ -1159,6 +1159,7 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
         pause_date: stream.pause_date,
         url: stream.url,
         current_streamed_price: stream.current_streamed_price,
+        exit_fee_percent: stream.stream_exit_fee_percent,
     };
     Ok(stream)
 }
@@ -1197,6 +1198,7 @@ pub fn list_streams(
                 pause_date: stream.pause_date,
                 url: stream.url,
                 current_streamed_price: stream.current_streamed_price,
+                exit_fee_percent: stream.stream_exit_fee_percent,
             };
             Ok(stream)
         })

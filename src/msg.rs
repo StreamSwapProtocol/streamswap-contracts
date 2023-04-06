@@ -217,6 +217,8 @@ pub struct StreamResponse {
     pub status: Status,
     /// Date when the stream was paused.
     pub pause_date: Option<Timestamp>,
+    /// Exit fee percent.
+    pub exit_fee_percent: Decimal,
 }
 
 #[cw_serde]
