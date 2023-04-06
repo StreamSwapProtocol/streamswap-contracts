@@ -269,6 +269,7 @@ pub enum SudoMsg {
         stream_creation_fee: Option<Uint128>,
         fee_collector: Option<String>,
         accepted_in_denom: Option<String>,
+        exit_fee_percent: Option<Decimal>,
     },
     PauseStream {
         stream_id: u64,
