@@ -181,7 +181,7 @@ pub fn execute(
         } => execute_update_protocol_admin(deps, env, info, new_admin),
     }
 }
-
+#[allow(clippy::too_many_arguments)]
 pub fn execute_create_stream(
     deps: DepsMut,
     env: Env,
@@ -279,6 +279,7 @@ pub fn execute_create_stream(
         start_time,
         config.stream_creation_denom,
         config.stream_creation_fee,
+        config.exit_fee_percent,
     );
     let id = next_stream_id(deps.storage)?;
     STREAMS.save(deps.storage, id, &stream)?;
@@ -829,7 +830,7 @@ pub fn execute_finalize_stream(
 
     //Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
     let swap_fee = Decimal::from_ratio(stream.spent_in, Uint128::one())
-        .checked_mul(config.exit_fee_percent)?
+        .checked_mul(stream.stream_exit_fee_percent)?
         * Uint128::one();
 
     let creator_revenue = stream.spent_in.checked_sub(swap_fee)?;
@@ -878,7 +879,7 @@ pub fn execute_finalize_stream(
         messages.push(remaining_msg);
     }
 
-    return Ok(Response::new().add_messages(messages).add_attributes(vec![
+    Ok(Response::new().add_messages(messages).add_attributes(vec![
         attr("action", "finalize_stream"),
         attr("stream_id", stream_id.to_string()),
         attr("treasury", treasury.as_str()),
@@ -894,7 +895,7 @@ pub fn execute_finalize_stream(
         ),
         attr("swap_fee", swap_fee),
         attr("creation_fee", config.stream_creation_fee.to_string()),
-    ]));
+    ]))
 }
 
 pub fn execute_exit_stream(
@@ -905,7 +906,7 @@ pub fn execute_exit_stream(
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    let config = CONFIG.load(deps.storage)?;
+    let _config = CONFIG.load(deps.storage)?;
     // check if stream is paused
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
@@ -929,9 +930,9 @@ pub fn execute_exit_stream(
         stream.in_supply,
         &mut position,
     )?;
-    //Swap fee = fixed_rate*position.spent_in
+    // Swap fee = fixed_rate*position.spent_in this calculation is only for execution reply attributes
     let swap_fee = Decimal::from_ratio(position.spent, Uint128::one())
-        .checked_mul(config.exit_fee_percent)?
+        .checked_mul(stream.stream_exit_fee_percent)?
         * Uint128::one();
 
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
@@ -1017,6 +1018,7 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
             stream_creation_fee,
             fee_collector,
             accepted_in_denom,
+            exit_fee_percent,
         } => sudo_update_config(
             deps,
             env,
@@ -1026,13 +1028,14 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
             stream_creation_fee,
             fee_collector,
             accepted_in_denom,
+            exit_fee_percent,
         ),
         SudoMsg::PauseStream { stream_id } => killswitch::sudo_pause_stream(deps, env, stream_id),
         SudoMsg::CancelStream { stream_id } => killswitch::sudo_cancel_stream(deps, env, stream_id),
         SudoMsg::ResumeStream { stream_id } => killswitch::sudo_resume_stream(deps, env, stream_id),
     }
 }
-
+#[allow(clippy::too_many_arguments)]
 pub fn sudo_update_config(
     deps: DepsMut,
     _env: Env,
@@ -1042,6 +1045,7 @@ pub fn sudo_update_config(
     stream_creation_fee: Option<Uint128>,
     fee_collector: Option<String>,
     accepted_in_denom: Option<String>,
+    exit_fee_percent: Option<Decimal>,
 ) -> Result<Response, ContractError> {
     let mut cfg = CONFIG.load(deps.storage)?;
 
@@ -1059,6 +1063,7 @@ pub fn sudo_update_config(
     cfg.accepted_in_denom = accepted_in_denom.unwrap_or(cfg.accepted_in_denom);
     let collector = maybe_addr(deps.api, fee_collector)?.unwrap_or(cfg.fee_collector);
     cfg.fee_collector = collector;
+    cfg.exit_fee_percent = exit_fee_percent.unwrap_or(cfg.exit_fee_percent);
 
     CONFIG.save(deps.storage, &cfg)?;
 
@@ -1154,6 +1159,7 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
         pause_date: stream.pause_date,
         url: stream.url,
         current_streamed_price: stream.current_streamed_price,
+        exit_fee_percent: stream.stream_exit_fee_percent,
     };
     Ok(stream)
 }
@@ -1192,6 +1198,7 @@ pub fn list_streams(
                 pause_date: stream.pause_date,
                 url: stream.url,
                 current_streamed_price: stream.current_streamed_price,
+                exit_fee_percent: stream.stream_exit_fee_percent,
             };
             Ok(stream)
         })

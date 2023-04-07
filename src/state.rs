@@ -66,6 +66,8 @@ pub struct Stream {
     pub stream_creation_denom: String,
     /// Stream creation fee amount. Saved under here to avoid any changes in config to efect existing streams.
     pub stream_creation_fee: Uint128,
+    /// Stream swap fee in percent. Saved under here to avoid any changes in config to efect existing streams.
+    pub stream_exit_fee_percent: Decimal,
 }
 
 #[cw_serde]
@@ -77,7 +79,7 @@ pub enum Status {
     Paused,
     Cancelled,
 }
-
+#[allow(clippy::too_many_arguments)]
 impl Stream {
     pub fn new(
         name: String,
@@ -91,6 +93,7 @@ impl Stream {
         last_updated: Timestamp,
         stream_creation_denom: String,
         stream_creation_fee: Uint128,
+        stream_exit_fee_percent: Decimal,
     ) -> Self {
         Stream {
             name,
@@ -112,6 +115,7 @@ impl Stream {
             pause_date: None,
             stream_creation_denom,
             stream_creation_fee,
+            stream_exit_fee_percent,
         }
     }
 

@@ -35,6 +35,7 @@ mod test_module {
             Timestamp::from_seconds(0),
             "fee".to_string(),
             Uint128::from(100u128),
+            Decimal::percent(10),
         );
 
         // add new shares
@@ -2947,6 +2948,7 @@ mod test_module {
                 Some(Uint128::zero()),
                 Some("collector2".to_string()),
                 Some("new_denom".to_string()),
+                Some(Decimal::percent(2)),
             )
             .unwrap_err();
             assert_eq!(res, ContractError::InvalidStreamCreationFee {});
@@ -2961,6 +2963,7 @@ mod test_module {
                 Some(Uint128::new(200)),
                 Some("collector2".to_string()),
                 Some("new_denom".to_string()),
+                Some(Decimal::percent(2)),
             )
             .unwrap();
             //query config
@@ -2976,6 +2979,7 @@ mod test_module {
             assert_eq!(config_response.fee_collector, "collector2".to_string());
             assert_eq!(config_response.protocol_admin, "protocol_admin".to_string());
             assert_eq!(config_response.accepted_in_denom, "new_denom".to_string());
+            assert_eq!(config_response.exit_fee_percent, Decimal::percent(2));
 
             // create stream
             let out_supply = Uint128::new(1000);
@@ -3019,6 +3023,7 @@ mod test_module {
                 Some(Uint128::new(200)),
                 Some("collector3".to_string()),
                 Some("new_denom2".to_string()),
+                Some(Decimal::percent(2)),
             )
             .unwrap();
 
@@ -3035,6 +3040,7 @@ mod test_module {
             assert_eq!(config_response.fee_collector, "collector3".to_string());
             assert_eq!(config_response.protocol_admin, "protocol_admin".to_string());
             assert_eq!(config_response.accepted_in_denom, "new_denom2".to_string());
+            assert_eq!(config_response.exit_fee_percent, Decimal::percent(2));
 
             // update stream
             let mut env = mock_env();

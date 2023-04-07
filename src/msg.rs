@@ -217,6 +217,8 @@ pub struct StreamResponse {
     pub status: Status,
     /// Date when the stream was paused.
     pub pause_date: Option<Timestamp>,
+    /// Exit fee percent.
+    pub exit_fee_percent: Decimal,
 }
 
 #[cw_serde]
@@ -269,6 +271,7 @@ pub enum SudoMsg {
         stream_creation_fee: Option<Uint128>,
         fee_collector: Option<String>,
         accepted_in_denom: Option<String>,
+        exit_fee_percent: Option<Decimal>,
     },
     PauseStream {
         stream_id: u64,
