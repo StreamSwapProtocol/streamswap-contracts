@@ -120,12 +120,20 @@ pub enum ExecuteMsg {
         operator_target: Option<String>,
     },
 
-    /// Update fee collector address
-    /// Only protocol admin can update fee collector address
-    /// Fee collector address is used to collect exit fees
-    /// Fee collector address can also be updated by governance
-    UpdateFeeCollector {
-        fee_collector: String,
+    UpdateConfig {
+        min_stream_duration: Option<Uint64>,
+        min_duration_until_start_time: Option<Uint64>,
+        stream_creation_denom: Option<String>,
+        stream_creation_fee: Option<Uint128>,
+        fee_collector: Option<String>,
+        accepted_in_denom: Option<String>,
+        exit_fee_percent: Option<Decimal>,
+    },
+    ResumeStream {
+        stream_id: u64,
+    },
+    CancelStream {
+        stream_id: u64,
     },
 }
 
@@ -219,6 +227,8 @@ pub struct StreamResponse {
     pub pause_date: Option<Timestamp>,
     /// Exit fee percent.
     pub exit_fee_percent: Decimal,
+    /// Creation fee amount.
+    pub stream_creation_fee: Uint128,
 }
 
 #[cw_serde]
@@ -264,24 +274,9 @@ pub struct LatestStreamedPriceResponse {
 
 #[cw_serde]
 pub enum SudoMsg {
-    UpdateConfig {
-        min_stream_duration: Option<Uint64>,
-        min_duration_until_start_time: Option<Uint64>,
-        stream_creation_denom: Option<String>,
-        stream_creation_fee: Option<Uint128>,
-        fee_collector: Option<String>,
-        accepted_in_denom: Option<String>,
-        exit_fee_percent: Option<Decimal>,
-    },
-    PauseStream {
-        stream_id: u64,
-    },
-    CancelStream {
-        stream_id: u64,
-    },
-    ResumeStream {
-        stream_id: u64,
-    },
+    PauseStream { stream_id: u64 },
+    CancelStream { stream_id: u64 },
+    ResumeStream { stream_id: u64 },
 }
 
 #[cw_serde]

@@ -164,6 +164,8 @@ pub fn execute(
         ExecuteMsg::PauseStream { stream_id } => {
             killswitch::execute_pause_stream(deps, env, info, stream_id)
         }
+        ExecuteMsg::ResumeStream { stream_id } => execute_resume_stream(deps, env, info, stream_id),
+        ExecuteMsg::CancelStream { stream_id } => execute_cancel_stream(deps, env, info, stream_id),
         ExecuteMsg::WithdrawPaused {
             stream_id,
             cap,
@@ -173,12 +175,29 @@ pub fn execute(
             stream_id,
             operator_target,
         } => killswitch::execute_exit_cancelled(deps, env, info, stream_id, operator_target),
-        ExecuteMsg::UpdateFeeCollector { fee_collector } => {
-            execute_update_fee_collector(deps, info, fee_collector)
-        }
         ExecuteMsg::UpdateProtocolAdmin {
             new_protocol_admin: new_admin,
         } => execute_update_protocol_admin(deps, env, info, new_admin),
+        ExecuteMsg::UpdateConfig {
+            min_stream_duration,
+            min_duration_until_start_time,
+            stream_creation_denom,
+            stream_creation_fee,
+            fee_collector,
+            accepted_in_denom,
+            exit_fee_percent,
+        } => execute_update_config(
+            deps,
+            env,
+            info,
+            min_stream_duration,
+            min_duration_until_start_time,
+            stream_creation_denom,
+            stream_creation_fee,
+            fee_collector,
+            accepted_in_denom,
+            exit_fee_percent,
+        ),
     }
 }
 #[allow(clippy::too_many_arguments)]
@@ -742,7 +761,6 @@ pub fn execute_withdraw_pending(
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     // check if stream is paused
-
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
@@ -976,69 +994,11 @@ pub fn execute_exit_stream(
     }
 }
 
-pub fn execute_update_fee_collector(
-    deps: DepsMut,
-    info: MessageInfo,
-    fee_collector: String,
-) -> Result<Response, ContractError> {
-    let mut config = CONFIG.load(deps.storage)?;
-    if info.sender != config.protocol_admin {
-        return Err(ContractError::Unauthorized {});
-    }
-    config.fee_collector = deps.api.addr_validate(&fee_collector)?;
-    CONFIG.save(deps.storage, &config)?;
-    Ok(Response::new().add_attributes(vec![
-        attr("action", "update_fee_collector"),
-        attr("fee_collector", fee_collector),
-    ]))
-}
-
-fn check_access(
-    info: &MessageInfo,
-    position_owner: &Addr,
-    position_operator: &Option<Addr>,
-) -> Result<(), ContractError> {
-    if position_owner.as_ref() != info.sender
-        && position_operator
-            .as_ref()
-            .map_or(true, |o| o != &info.sender)
-    {
-        return Err(ContractError::Unauthorized {});
-    }
-    Ok(())
-}
-
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractError> {
-    match msg {
-        SudoMsg::UpdateConfig {
-            min_stream_duration,
-            min_duration_until_start_time,
-            stream_creation_denom,
-            stream_creation_fee,
-            fee_collector,
-            accepted_in_denom,
-            exit_fee_percent,
-        } => sudo_update_config(
-            deps,
-            env,
-            min_stream_duration,
-            min_duration_until_start_time,
-            stream_creation_denom,
-            stream_creation_fee,
-            fee_collector,
-            accepted_in_denom,
-            exit_fee_percent,
-        ),
-        SudoMsg::PauseStream { stream_id } => killswitch::sudo_pause_stream(deps, env, stream_id),
-        SudoMsg::CancelStream { stream_id } => killswitch::sudo_cancel_stream(deps, env, stream_id),
-        SudoMsg::ResumeStream { stream_id } => killswitch::sudo_resume_stream(deps, env, stream_id),
-    }
-}
 #[allow(clippy::too_many_arguments)]
-pub fn sudo_update_config(
+pub fn execute_update_config(
     deps: DepsMut,
     _env: Env,
+    info: MessageInfo,
     min_stream_duration: Option<Uint64>,
     min_duration_until_start_time: Option<Uint64>,
     stream_creation_denom: Option<String>,
@@ -1049,9 +1009,19 @@ pub fn sudo_update_config(
 ) -> Result<Response, ContractError> {
     let mut cfg = CONFIG.load(deps.storage)?;
 
+    if info.sender != cfg.protocol_admin {
+        return Err(ContractError::Unauthorized {});
+    }
+
     if let Some(stream_creation_fee) = stream_creation_fee {
         if stream_creation_fee.is_zero() {
             return Err(ContractError::InvalidStreamCreationFee {});
+        }
+    }
+    // exit fee percent can not be equal to or greater than 1, or smaller than 0
+    if let Some(exit_fee_percent) = exit_fee_percent {
+        if exit_fee_percent >= Decimal::one() || exit_fee_percent < Decimal::zero() {
+            return Err(ContractError::InvalidExitFeePercent {});
         }
     }
 
@@ -1080,6 +1050,84 @@ pub fn sudo_update_config(
     ];
 
     Ok(Response::default().add_attributes(attributes))
+}
+
+pub fn execute_resume_stream(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    stream_id: u64,
+) -> Result<Response, ContractError> {
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let cfg = CONFIG.load(deps.storage)?;
+    if stream.status != Status::Paused {
+        return Err(ContractError::StreamNotPaused {});
+    }
+    if cfg.protocol_admin != info.sender {
+        return Err(ContractError::Unauthorized {});
+    }
+    if stream.start_time > env.block.time {
+        return Err(ContractError::StreamNotStarted {});
+    }
+    stream.status = Status::Active;
+    STREAMS.save(deps.storage, stream_id, &stream)?;
+
+    let attributes = vec![
+        attr("action", "resume_stream"),
+        attr("stream_id", stream_id.to_string()),
+    ];
+    Ok(Response::default().add_attributes(attributes))
+}
+
+pub fn execute_cancel_stream(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    stream_id: u64,
+) -> Result<Response, ContractError> {
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let cfg = CONFIG.load(deps.storage)?;
+    if stream.status == Status::Cancelled {
+        return Err(ContractError::StreamIsCancelled {});
+    }
+    if cfg.protocol_admin != info.sender {
+        return Err(ContractError::Unauthorized {});
+    }
+    if stream.start_time > env.block.time {
+        return Err(ContractError::StreamNotStarted {});
+    }
+    stream.status = Status::Cancelled;
+    STREAMS.save(deps.storage, stream_id, &stream)?;
+
+    let attributes = vec![
+        attr("action", "cancel_stream"),
+        attr("stream_id", stream_id.to_string()),
+    ];
+    Ok(Response::default().add_attributes(attributes))
+}
+
+fn check_access(
+    info: &MessageInfo,
+    position_owner: &Addr,
+    position_operator: &Option<Addr>,
+) -> Result<(), ContractError> {
+    if position_owner.as_ref() != info.sender
+        && position_operator
+            .as_ref()
+            .map_or(true, |o| o != &info.sender)
+    {
+        return Err(ContractError::Unauthorized {});
+    }
+    Ok(())
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractError> {
+    match msg {
+        SudoMsg::PauseStream { stream_id } => killswitch::sudo_pause_stream(deps, env, stream_id),
+        SudoMsg::CancelStream { stream_id } => killswitch::sudo_cancel_stream(deps, env, stream_id),
+        SudoMsg::ResumeStream { stream_id } => killswitch::sudo_resume_stream(deps, env, stream_id),
+    }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -1160,6 +1208,7 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
         url: stream.url,
         current_streamed_price: stream.current_streamed_price,
         exit_fee_percent: stream.stream_exit_fee_percent,
+        stream_creation_fee: stream.stream_creation_fee,
     };
     Ok(stream)
 }
@@ -1199,6 +1248,7 @@ pub fn list_streams(
                 url: stream.url,
                 current_streamed_price: stream.current_streamed_price,
                 exit_fee_percent: stream.stream_exit_fee_percent,
+                stream_creation_fee: stream.stream_creation_fee,
             };
             Ok(stream)
         })
