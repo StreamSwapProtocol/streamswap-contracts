@@ -1066,9 +1066,19 @@ pub fn execute_resume_stream(
     if cfg.protocol_admin != info.sender {
         return Err(ContractError::Unauthorized {});
     }
-    if stream.start_time > env.block.time {
-        return Err(ContractError::StreamNotStarted {});
+    //Cancelled can't be resumed
+    if stream.is_cancelled() {
+        return Err(ContractError::StreamIsCancelled {});
     }
+    let pause_date = stream.pause_date.unwrap();
+    //postpone stream times with respect to pause duration
+    stream.end_time = stream
+        .end_time
+        .plus_nanos(env.block.time.nanos() - pause_date.nanos());
+    stream.last_updated = stream
+        .last_updated
+        .plus_nanos(env.block.time.nanos() - pause_date.nanos());
+
     stream.status = Status::Active;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
