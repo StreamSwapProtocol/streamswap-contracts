@@ -2606,7 +2606,7 @@ mod test_module {
     mod killswitch {
         use super::*;
         use crate::contract::{list_positions, list_streams, query_config};
-        use crate::killswitch::{execute_exit_cancelled, execute_resume_stream, sudo_cancel_stream, sudo_pause_stream};
+        use crate::killswitch::{execute_cancel_stream, execute_exit_cancelled, execute_resume_stream, sudo_cancel_stream, sudo_pause_stream};
         use cosmwasm_std::CosmosMsg::Bank;
         use cosmwasm_std::{ReplyOn, SubMsg};
 
@@ -2893,6 +2893,25 @@ mod test_module {
             assert_eq!(res.attributes[3].value, "6000");
             assert_eq!(res.attributes[4].key, "in_amount");
             assert_eq!(res.attributes[4].value, "3000");
+
+            // protocol admin can pause
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(1_000_005);
+            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+
+            // cancel the stream
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(1_000_006);
+            execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap();
+
+            // can't resume if cancelled
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(1_000_007);
+            let res = execute_resume_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            assert_eq!(res, ContractError::StreamIsCancelled {});
         }
 
         #[test]
