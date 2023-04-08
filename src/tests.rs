@@ -2605,8 +2605,11 @@ mod test_module {
     #[cfg(test)]
     mod killswitch {
         use super::*;
-        use crate::contract::{list_positions, list_streams, query_config};
-        use crate::killswitch::{execute_cancel_stream, execute_exit_cancelled, execute_resume_stream, sudo_cancel_stream, sudo_pause_stream};
+        use crate::contract::{list_positions, list_streams};
+        use crate::killswitch::{
+            execute_cancel_stream, execute_exit_cancelled, execute_resume_stream,
+            sudo_cancel_stream, sudo_pause_stream,
+        };
         use cosmwasm_std::CosmosMsg::Bank;
         use cosmwasm_std::{ReplyOn, SubMsg};
 
@@ -2819,7 +2822,7 @@ mod test_module {
                 start,
                 end,
             )
-                .unwrap();
+            .unwrap();
 
             // first subscription
             let mut env = mock_env();
@@ -2837,7 +2840,7 @@ mod test_module {
             let info = mock_info("protocol_admin", &[]);
             let mut env = mock_env();
             env.block.time = start.plus_seconds(1_000_003);
-            let res= execute_resume_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            let res = execute_resume_stream(deps.as_mut(), env, info, 1).unwrap_err();
             assert_eq!(res, ContractError::StreamNotPaused {});
 
             // protocol admin can pause
@@ -2912,6 +2915,131 @@ mod test_module {
             env.block.time = start.plus_seconds(1_000_007);
             let res = execute_resume_stream(deps.as_mut(), env, info, 1).unwrap_err();
             assert_eq!(res, ContractError::StreamIsCancelled {});
+        }
+
+        #[test]
+        fn test_cancel_protocol_admin() {
+            let treasury = Addr::unchecked("treasury");
+            let start = Timestamp::from_seconds(1_000_000);
+            let end = Timestamp::from_seconds(5_000_000);
+            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_denom = "out_denom";
+
+            // instantiate
+            let mut deps = mock_dependencies();
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(0);
+            let msg = crate::msg::InstantiateMsg {
+                min_stream_seconds: Uint64::new(1000),
+                min_seconds_until_start_time: Uint64::new(0),
+                stream_creation_denom: "fee".to_string(),
+                stream_creation_fee: Uint128::new(100),
+                exit_fee_percent: Decimal::percent(1),
+                fee_collector: "collector".to_string(),
+                protocol_admin: "protocol_admin".to_string(),
+                accepted_in_denom: "in".to_string(),
+            };
+            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+            // create stream
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(0);
+            let info = mock_info(
+                "creator1",
+                &[
+                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(100, "fee"),
+                ],
+            );
+            execute_create_stream(
+                deps.as_mut(),
+                env,
+                info,
+                treasury.to_string(),
+                "test".to_string(),
+                Some("https://sample.url".to_string()),
+                "in".to_string(),
+                out_denom.to_string(),
+                out_supply,
+                start,
+                end,
+            )
+            .unwrap();
+
+            // subscription
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(0);
+            let funds = Coin::new(2_000_000_000_000, "in");
+            let info = mock_info("creator1", &[funds]);
+            let msg = crate::msg::ExecuteMsg::Subscribe {
+                stream_id: 1,
+                operator_target: None,
+                operator: Some("operator".to_string()),
+            };
+            let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+
+            // non protocol admin can't cancel
+            let info = mock_info("non_protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(1_000_000);
+            let err = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            assert_eq!(err, ContractError::Unauthorized {});
+
+            // cant cancel without pause
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(1_000_000);
+            let err = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            assert_eq!(err, ContractError::StreamNotPaused {});
+
+            // pause
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(2_000_000);
+            let info = mock_info("protocol_admin", &[]);
+            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+
+            //cancel
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(2_500_000);
+            let response = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap();
+            //out_tokens and the creation fee are sent back to the treasury upon cancellation
+            assert_eq!(
+                response.messages,
+                [
+                    SubMsg {
+                        id: 0,
+                        msg: Bank(BankMsg::Send {
+                            to_address: "treasury".to_string(),
+                            amount: Vec::from([Coin {
+                                denom: "out_denom".to_string(),
+                                amount: Uint128::new(1000000000000)
+                            }])
+                        }),
+                        gas_limit: None,
+                        reply_on: ReplyOn::Never
+                    },
+                    SubMsg {
+                        id: 0,
+                        msg: Bank(BankMsg::Send {
+                            to_address: "treasury".to_string(),
+                            amount: Vec::from([Coin {
+                                denom: "fee".to_string(),
+                                amount: Uint128::new(100)
+                            }])
+                        }),
+                        gas_limit: None,
+                        reply_on: ReplyOn::Never
+                    }
+                ]
+            );
+
+            // can't cancel cancelled stream
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(2_500_000);
+            let response = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            assert_eq!(response, ContractError::StreamIsCancelled {});
         }
 
         #[test]
