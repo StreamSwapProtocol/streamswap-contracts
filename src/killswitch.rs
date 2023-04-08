@@ -230,11 +230,11 @@ pub fn execute_cancel_stream(
         return Err(ContractError::Unauthorized {});
     }
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    if !stream.is_paused() {
-        return Err(ContractError::StreamNotPaused {});
-    }
     if stream.is_cancelled() {
         return Err(ContractError::StreamIsCancelled {});
+    }
+    if !stream.is_paused() {
+        return Err(ContractError::StreamNotPaused {});
     }
     stream.status = Status::Cancelled;
     STREAMS.save(deps.storage, stream_id, &stream)?;
@@ -335,11 +335,11 @@ pub fn sudo_cancel_stream(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    if !stream.is_paused() {
-        return Err(ContractError::StreamNotPaused {});
-    }
     if stream.is_cancelled() {
         return Err(ContractError::StreamIsCancelled {});
+    }
+    if !stream.is_paused() {
+        return Err(ContractError::StreamNotPaused {});
     }
     stream.status = Status::Cancelled;
     STREAMS.save(deps.storage, stream_id, &stream)?;
