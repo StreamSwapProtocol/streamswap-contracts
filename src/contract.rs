@@ -164,8 +164,8 @@ pub fn execute(
         ExecuteMsg::PauseStream { stream_id } => {
             killswitch::execute_pause_stream(deps, env, info, stream_id)
         }
-        ExecuteMsg::ResumeStream { stream_id } => execute_resume_stream(deps, env, info, stream_id),
-        ExecuteMsg::CancelStream { stream_id } => execute_cancel_stream(deps, env, info, stream_id),
+        ExecuteMsg::ResumeStream { stream_id } => killswitch::execute_resume_stream(deps, env, info, stream_id),
+        ExecuteMsg::CancelStream { stream_id } => killswitch::execute_cancel_stream(deps, env, info, stream_id),
         ExecuteMsg::WithdrawPaused {
             stream_id,
             cap,
@@ -1049,70 +1049,6 @@ pub fn execute_update_config(
         attr("fee_collector", cfg.fee_collector),
     ];
 
-    Ok(Response::default().add_attributes(attributes))
-}
-
-pub fn execute_resume_stream(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    stream_id: u64,
-) -> Result<Response, ContractError> {
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    let cfg = CONFIG.load(deps.storage)?;
-    if stream.status != Status::Paused {
-        return Err(ContractError::StreamNotPaused {});
-    }
-    if cfg.protocol_admin != info.sender {
-        return Err(ContractError::Unauthorized {});
-    }
-    //Cancelled can't be resumed
-    if stream.is_cancelled() {
-        return Err(ContractError::StreamIsCancelled {});
-    }
-    let pause_date = stream.pause_date.unwrap();
-    //postpone stream times with respect to pause duration
-    stream.end_time = stream
-        .end_time
-        .plus_nanos(env.block.time.nanos() - pause_date.nanos());
-    stream.last_updated = stream
-        .last_updated
-        .plus_nanos(env.block.time.nanos() - pause_date.nanos());
-
-    stream.status = Status::Active;
-    STREAMS.save(deps.storage, stream_id, &stream)?;
-
-    let attributes = vec![
-        attr("action", "resume_stream"),
-        attr("stream_id", stream_id.to_string()),
-    ];
-    Ok(Response::default().add_attributes(attributes))
-}
-
-pub fn execute_cancel_stream(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    stream_id: u64,
-) -> Result<Response, ContractError> {
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    let cfg = CONFIG.load(deps.storage)?;
-    if stream.status == Status::Cancelled {
-        return Err(ContractError::StreamIsCancelled {});
-    }
-    if cfg.protocol_admin != info.sender {
-        return Err(ContractError::Unauthorized {});
-    }
-    if stream.start_time > env.block.time {
-        return Err(ContractError::StreamNotStarted {});
-    }
-    stream.status = Status::Cancelled;
-    STREAMS.save(deps.storage, stream_id, &stream)?;
-
-    let attributes = vec![
-        attr("action", "cancel_stream"),
-        attr("stream_id", stream_id.to_string()),
-    ];
     Ok(Response::default().add_attributes(attributes))
 }
 
