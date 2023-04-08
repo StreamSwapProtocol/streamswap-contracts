@@ -181,6 +181,90 @@ pub fn pause_stream(now: Timestamp, stream: &mut Stream) -> StdResult<()> {
     Ok(())
 }
 
+pub fn execute_resume_stream(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    stream_id: u64,
+) -> Result<Response, ContractError> {
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let cfg = CONFIG.load(deps.storage)?;
+    //Cancelled can't be resumed
+    if stream.is_cancelled() {
+        return Err(ContractError::StreamIsCancelled {});
+    }
+    if stream.status != Status::Paused {
+        return Err(ContractError::StreamNotPaused {});
+    }
+    if cfg.protocol_admin != info.sender {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    let pause_date = stream.pause_date.unwrap();
+    //postpone stream times with respect to pause duration
+    stream.end_time = stream
+        .end_time
+        .plus_nanos(env.block.time.nanos() - pause_date.nanos());
+    stream.last_updated = stream
+        .last_updated
+        .plus_nanos(env.block.time.nanos() - pause_date.nanos());
+
+    stream.status = Status::Active;
+    STREAMS.save(deps.storage, stream_id, &stream)?;
+
+    let attributes = vec![
+        attr("action", "resume_stream"),
+        attr("stream_id", stream_id.to_string()),
+    ];
+    Ok(Response::default().add_attributes(attributes))
+}
+
+pub fn execute_cancel_stream(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    stream_id: u64,
+) -> Result<Response, ContractError> {
+    let cfg = CONFIG.load(deps.storage)?;
+    if cfg.protocol_admin != info.sender {
+        return Err(ContractError::Unauthorized {});
+    }
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    if stream.is_cancelled() {
+        return Err(ContractError::StreamIsCancelled {});
+    }
+    if !stream.is_paused() {
+        return Err(ContractError::StreamNotPaused {});
+    }
+    stream.status = Status::Cancelled;
+    STREAMS.save(deps.storage, stream_id, &stream)?;
+
+    //Refund all out tokens to stream creator(treasury)
+    let messages: Vec<CosmosMsg> = vec![
+        CosmosMsg::Bank(BankMsg::Send {
+            to_address: stream.treasury.to_string(),
+            amount: vec![Coin {
+                denom: stream.out_denom,
+                amount: stream.out_supply,
+            }],
+        }),
+        //Refund stream creation fee to stream creator
+        CosmosMsg::Bank(BankMsg::Send {
+            to_address: stream.treasury.to_string(),
+            amount: vec![Coin {
+                denom: stream.stream_creation_denom,
+                amount: stream.stream_creation_fee,
+            }],
+        }),
+    ];
+
+    Ok(Response::new()
+        .add_attribute("action", "cancel_stream")
+        .add_messages(messages)
+        .add_attribute("stream_id", stream_id.to_string())
+        .add_attribute("status", "cancelled"))
+}
+
 pub fn sudo_pause_stream(
     deps: DepsMut,
     env: Env,
@@ -216,13 +300,13 @@ pub fn sudo_resume_stream(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    //Cancelled can't be resumed
+    if stream.is_cancelled() {
+        return Err(ContractError::StreamIsCancelled {});
+    }
     //Only paused can be resumed
     if !stream.is_paused() {
         return Err(ContractError::StreamNotPaused {});
-    }
-    //Canceled can't be resumed
-    if stream.is_cancelled() {
-        return Err(ContractError::StreamIsCancelled {});
     }
     // ok to use unwrap here
     let pause_date = stream.pause_date.unwrap();
@@ -251,11 +335,11 @@ pub fn sudo_cancel_stream(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    if !stream.is_paused() {
-        return Err(ContractError::StreamNotPaused {});
-    }
     if stream.is_cancelled() {
         return Err(ContractError::StreamIsCancelled {});
+    }
+    if !stream.is_paused() {
+        return Err(ContractError::StreamNotPaused {});
     }
     stream.status = Status::Cancelled;
     STREAMS.save(deps.storage, stream_id, &stream)?;
