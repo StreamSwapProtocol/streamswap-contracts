@@ -189,16 +189,17 @@ pub fn execute_resume_stream(
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     let cfg = CONFIG.load(deps.storage)?;
+    //Cancelled can't be resumed
+    if stream.is_cancelled() {
+        return Err(ContractError::StreamIsCancelled {});
+    }
     if stream.status != Status::Paused {
         return Err(ContractError::StreamNotPaused {});
     }
     if cfg.protocol_admin != info.sender {
         return Err(ContractError::Unauthorized {});
     }
-    //Cancelled can't be resumed
-    if stream.is_cancelled() {
-        return Err(ContractError::StreamIsCancelled {});
-    }
+
     let pause_date = stream.pause_date.unwrap();
     //postpone stream times with respect to pause duration
     stream.end_time = stream
@@ -299,13 +300,13 @@ pub fn sudo_resume_stream(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    //Cancelled can't be resumed
+    if stream.is_cancelled() {
+        return Err(ContractError::StreamIsCancelled {});
+    }
     //Only paused can be resumed
     if !stream.is_paused() {
         return Err(ContractError::StreamNotPaused {});
-    }
-    //Canceled can't be resumed
-    if stream.is_cancelled() {
-        return Err(ContractError::StreamIsCancelled {});
     }
     // ok to use unwrap here
     let pause_date = stream.pause_date.unwrap();
