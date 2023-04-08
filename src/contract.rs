@@ -164,8 +164,12 @@ pub fn execute(
         ExecuteMsg::PauseStream { stream_id } => {
             killswitch::execute_pause_stream(deps, env, info, stream_id)
         }
-        ExecuteMsg::ResumeStream { stream_id } => killswitch::execute_resume_stream(deps, env, info, stream_id),
-        ExecuteMsg::CancelStream { stream_id } => killswitch::execute_cancel_stream(deps, env, info, stream_id),
+        ExecuteMsg::ResumeStream { stream_id } => {
+            killswitch::execute_resume_stream(deps, env, info, stream_id)
+        }
+        ExecuteMsg::CancelStream { stream_id } => {
+            killswitch::execute_cancel_stream(deps, env, info, stream_id)
+        }
         ExecuteMsg::WithdrawPaused {
             stream_id,
             cap,
