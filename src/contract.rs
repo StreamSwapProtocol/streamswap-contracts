@@ -299,7 +299,8 @@ pub fn execute_create_stream(
         in_denom.clone(),
         start_time,
         end_time,
-        start_time,
+        env.block.time,
+        env.block.height,
         config.stream_creation_denom,
         config.stream_creation_fee,
         config.exit_fee_percent,
@@ -322,27 +323,6 @@ pub fn execute_create_stream(
     Ok(Response::default().add_attributes(attr))
 }
 
-pub fn execute_update_protocol_admin(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    new_admin: String,
-) -> Result<Response, ContractError> {
-    let mut config = CONFIG.load(deps.storage)?;
-    if info.sender != config.protocol_admin {
-        return Err(ContractError::Unauthorized {});
-    }
-    config.protocol_admin = deps.api.addr_validate(&new_admin)?;
-    CONFIG.save(deps.storage, &config)?;
-
-    let attrs = vec![
-        attr("action", "update_protocol_admin"),
-        attr("new_admin", new_admin),
-    ];
-
-    Ok(Response::default().add_attributes(attrs))
-}
-
 /// Updates stream to calculate released distribution and spent amount
 pub fn execute_update_stream(
     deps: DepsMut,
@@ -350,6 +330,7 @@ pub fn execute_update_stream(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+
     if stream.is_paused() {
         return Err(ContractError::StreamPaused {});
     }
@@ -370,7 +351,7 @@ pub fn update_stream(
     now: Timestamp,
     stream: &mut Stream,
 ) -> Result<(Decimal, Uint128), ContractError> {
-    let diff = calculate_diff(stream.end_time, stream.last_updated, now);
+    let diff = calculate_diff(stream.end_time, stream.last_updated_time, now);
 
     let mut new_distribution_balance = Uint128::zero();
 
@@ -407,7 +388,7 @@ pub fn update_stream(
         }
     }
 
-    stream.last_updated = if now < stream.start_time {
+    stream.last_updated_time = if now < stream.start_time {
         stream.start_time
     } else {
         now
@@ -456,7 +437,7 @@ pub fn execute_update_position(
     let (purchased, spent) = update_position(
         stream.dist_index,
         stream.shares,
-        stream.last_updated,
+        stream.last_updated_time,
         stream.in_supply,
         &mut position,
     )?;
@@ -552,7 +533,9 @@ pub fn execute_subscribe(
             if operator_target != info.sender {
                 return Err(ContractError::Unauthorized {});
             }
-            update_stream(env.block.time, &mut stream)?;
+            if stream.start_time < env.block.time {
+                update_stream(env.block.time, &mut stream)?;
+            }
             new_shares = stream.compute_shares_amount(in_amount, false);
             // new positions do not update purchase as it has no effect on distribution
             let new_position = Position::new(
@@ -569,16 +552,18 @@ pub fn execute_subscribe(
             check_access(&info, &position.owner, &position.operator)?;
 
             // incoming tokens should not participate in prev distribution
-            update_stream(env.block.time, &mut stream)?;
-            new_shares = stream.compute_shares_amount(in_amount, false);
-            update_position(
-                stream.dist_index,
-                stream.shares,
-                stream.last_updated,
-                stream.in_supply,
-                &mut position,
-            )?;
+            if stream.start_time < env.block.time {
+                update_stream(env.block.time, &mut stream)?;
+                update_position(
+                    stream.dist_index,
+                    stream.shares,
+                    stream.last_updated_time,
+                    stream.in_supply,
+                    &mut position,
+                )?;
+            }
 
+            new_shares = stream.compute_shares_amount(in_amount, false);
             position.in_balance = position.in_balance.checked_add(in_amount)?;
             position.shares = position.shares.checked_add(new_shares)?;
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &position)?;
@@ -704,7 +689,7 @@ pub fn execute_withdraw(
     update_position(
         stream.dist_index,
         stream.shares,
-        stream.last_updated,
+        stream.last_updated_time,
         stream.in_supply,
         &mut position,
     )?;
@@ -838,7 +823,7 @@ pub fn execute_finalize_stream(
     if env.block.time <= stream.end_time {
         return Err(ContractError::StreamNotEnded {});
     }
-    if stream.last_updated < stream.end_time {
+    if stream.last_updated_time < stream.end_time {
         update_stream(env.block.time, &mut stream)?;
     }
 
@@ -936,7 +921,7 @@ pub fn execute_exit_stream(
     if env.block.time <= stream.end_time {
         return Err(ContractError::StreamNotEnded {});
     }
-    if stream.last_updated < stream.end_time {
+    if stream.last_updated_time < stream.end_time {
         update_stream(env.block.time, &mut stream)?;
     }
     let operator_target =
@@ -948,7 +933,7 @@ pub fn execute_exit_stream(
     update_position(
         stream.dist_index,
         stream.shares,
-        stream.last_updated,
+        stream.last_updated_time,
         stream.in_supply,
         &mut position,
     )?;
@@ -996,6 +981,26 @@ pub fn execute_exit_stream(
             .add_message(send_msg)
             .add_attributes(attributes))
     }
+}
+pub fn execute_update_protocol_admin(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    new_admin: String,
+) -> Result<Response, ContractError> {
+    let mut config = CONFIG.load(deps.storage)?;
+    if info.sender != config.protocol_admin {
+        return Err(ContractError::Unauthorized {});
+    }
+    config.protocol_admin = deps.api.addr_validate(&new_admin)?;
+    CONFIG.save(deps.storage, &config)?;
+
+    let attrs = vec![
+        attr("action", "update_protocol_admin"),
+        attr("new_admin", new_admin),
+    ];
+
+    Ok(Response::default().add_attributes(attrs))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1152,7 +1157,7 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
         out_remaining: stream.out_remaining,
         in_supply: stream.in_supply,
         shares: stream.shares,
-        last_updated: stream.last_updated,
+        last_updated: stream.last_updated_time,
         status: stream.status,
         pause_date: stream.pause_date,
         url: stream.url,
@@ -1188,7 +1193,7 @@ pub fn list_streams(
                 start_time: stream.start_time,
                 end_time: stream.end_time,
                 spent_in: stream.spent_in,
-                last_updated: stream.last_updated,
+                last_updated: stream.last_updated_time,
                 dist_index: stream.dist_index,
                 out_remaining: stream.out_remaining,
                 in_supply: stream.in_supply,

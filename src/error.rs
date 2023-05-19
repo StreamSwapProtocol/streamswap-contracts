@@ -148,4 +148,7 @@ pub enum ContractError {
 
     #[error("Invalid exit fee")]
     InvalidStreamExitFee {},
+
+    #[error("Chain halt or chain upgrade is detected")]
+    ChainHaltDetected {},
 }

@@ -1,6 +1,6 @@
 use crate::ContractError;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Decimal, Decimal256, Storage, Timestamp, Uint128, Uint64};
+use cosmwasm_std::{Addr, BlockInfo, Decimal, Decimal256, Storage, Timestamp, Uint128, Uint64};
 use cw_storage_plus::{Item, Map};
 use std::ops::Mul;
 
@@ -37,7 +37,9 @@ pub struct Stream {
     /// Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal256,
     /// last updated time of stream.
-    pub last_updated: Timestamp,
+    pub last_updated_time: Timestamp,
+    /// last updated block of stream.
+    pub last_updated_block: u64,
     /// denom of the `token_out`.
     pub out_denom: String,
     /// total number of `token_out` to be sold during the continuous stream.
@@ -90,7 +92,8 @@ impl Stream {
         in_denom: String,
         start_time: Timestamp,
         end_time: Timestamp,
-        last_updated: Timestamp,
+        last_updated_time: Timestamp,
+        last_updated_block: u64,
         stream_creation_denom: String,
         stream_creation_fee: Uint128,
         stream_exit_fee_percent: Decimal,
@@ -100,7 +103,8 @@ impl Stream {
             treasury,
             url,
             dist_index: Decimal256::zero(),
-            last_updated,
+            last_updated_time: last_updated_time,
+            last_updated_block: last_updated_block,
             out_denom,
             out_supply,
             out_remaining: out_supply,
@@ -117,6 +121,24 @@ impl Stream {
             stream_creation_fee,
             stream_exit_fee_percent,
         }
+    }
+    pub fn detect_chain_halt(&self, current_block_info: BlockInfo) -> Result<bool, ContractError> {
+        // Calculate how much time is passed
+        let time_passed = current_block_info
+            .time
+            .nanos()
+            .checked_sub(self.last_updated_time.nanos());
+        // Calculate how many blocks are passed
+        let blocks_passed = current_block_info
+            .height
+            .checked_sub(self.last_updated_block);
+        // Calculate average block time
+        let average_block_time = time_passed.unwrap() / blocks_passed.unwrap();
+
+        if average_block_time > 5919000000 {
+            return Err(ContractError::ChainHaltDetected {});
+        }
+        Ok(false)
     }
 
     // compute amount of shares that should be minted for a new subscription amount

@@ -38,7 +38,7 @@ pub fn execute_withdraw_paused(
     update_position(
         stream.dist_index,
         stream.shares,
-        stream.last_updated,
+        stream.last_updated_time,
         stream.in_supply,
         &mut position,
     )?;
@@ -205,8 +205,8 @@ pub fn execute_resume_stream(
     stream.end_time = stream
         .end_time
         .plus_nanos(env.block.time.nanos() - pause_date.nanos());
-    stream.last_updated = stream
-        .last_updated
+    stream.last_updated_time = stream
+        .last_updated_time
         .plus_nanos(env.block.time.nanos() - pause_date.nanos());
 
     stream.status = Status::Active;
@@ -314,8 +314,8 @@ pub fn sudo_resume_stream(
     stream.end_time = stream
         .end_time
         .plus_nanos(env.block.time.nanos() - pause_date.nanos());
-    stream.last_updated = stream
-        .last_updated
+    stream.last_updated_time = stream
+        .last_updated_time
         .plus_nanos(env.block.time.nanos() - pause_date.nanos());
 
     stream.status = Status::Active;
