@@ -322,6 +322,10 @@ pub fn execute_update_stream(
     if stream.is_paused() {
         return Err(ContractError::StreamPaused {});
     }
+    if stream.status == Status::Waiting || env.block.time > stream.start_time {
+        stream.status = Status::Active;
+    }
+
     let (_, dist_amount) = update_stream(env.block.time, env.block.height, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
@@ -425,6 +429,9 @@ pub fn execute_update_position(
     // check if stream is paused
     if stream.is_paused() {
         return Err(ContractError::StreamPaused {});
+    }
+    if stream.status == Status::Waiting || env.block.time > stream.start_time {
+        stream.status = Status::Active;
     }
 
     // sync stream
