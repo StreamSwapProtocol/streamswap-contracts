@@ -102,27 +102,15 @@ pub fn execute(
             operator,
         } => {
             let stream = STREAMS.load(deps.storage, stream_id)?;
-            if stream.start_time > env.block.time {
-                Ok(execute_subscribe_pending(
-                    deps.branch(),
-                    env,
-                    info,
-                    stream_id,
-                    operator,
-                    operator_target,
-                    stream,
-                )?)
-            } else {
-                Ok(execute_subscribe(
-                    deps,
-                    env,
-                    info,
-                    stream_id,
-                    operator,
-                    operator_target,
-                    stream,
-                )?)
-            }
+            execute_subscribe(
+                deps,
+                env,
+                info,
+                stream_id,
+                operator,
+                operator_target,
+                stream,
+            )
         }
         ExecuteMsg::Withdraw {
             stream_id,
@@ -334,7 +322,7 @@ pub fn execute_update_stream(
     if stream.is_paused() {
         return Err(ContractError::StreamPaused {});
     }
-    let (_, dist_amount) = update_stream(env.block.time, &mut stream)?;
+    let (_, dist_amount) = update_stream(env.block.time, env.block.height, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let attrs = vec![
@@ -348,51 +336,62 @@ pub fn execute_update_stream(
 }
 
 pub fn update_stream(
-    now: Timestamp,
+    now_time: Timestamp,
+    now_block: u64,
     stream: &mut Stream,
 ) -> Result<(Decimal, Uint128), ContractError> {
-    let diff = calculate_diff(stream.end_time, stream.last_updated_time, now);
-
+    let mut diff = Decimal::zero();
     let mut new_distribution_balance = Uint128::zero();
-
-    // if no in balance in the contract, no need to update
-    // if diff not changed this means either stream not started or no in balance so far
-    if !stream.shares.is_zero() && !diff.is_zero() {
-        // new distribution balance is the amount of in tokens that has been distributed since last update
-        // distribution is linear for now.
-        new_distribution_balance = stream
-            .out_remaining
-            .multiply_ratio(diff.numerator(), diff.denominator());
-        // spent in tokens is the amount of in tokens that has been spent since last update
-        // spending is linear and goes to zero at the end of the stream
-        let spent_in = stream
-            .in_supply
-            .multiply_ratio(diff.numerator(), diff.denominator());
-
-        // increase total spent_in of the stream
-        stream.spent_in = stream.spent_in.checked_add(spent_in)?;
-        // decrease in_supply of the steam
-        stream.in_supply = stream.in_supply.checked_sub(spent_in)?;
-
-        // if no new distribution balance, no need to update the price, out_remaining and dist_index
-        if !new_distribution_balance.is_zero() {
-            // decrease amount to be distributed of the stream
-            stream.out_remaining = stream.out_remaining.checked_sub(new_distribution_balance)?;
-            // update distribution index. A positions share of the distribution is calculated by
-            // multiplying the share by the distribution index
-            stream.dist_index = stream.dist_index.checked_add(Decimal256::from_ratio(
-                new_distribution_balance,
-                stream.shares,
-            ))?;
-            stream.current_streamed_price = Decimal::from_ratio(spent_in, new_distribution_balance)
+    if stream.status == Status::Active {
+        // We should handle the case where stream last updated time is before start_time
+        // This should not happen during pending state but can happen at the start of the stream
+        if stream.last_updated_time < stream.start_time {
+            stream.last_updated_time = stream.start_time;
         }
-    }
+        diff = calculate_diff(stream.end_time, stream.last_updated_time, now_time);
 
-    stream.last_updated_time = if now < stream.start_time {
-        stream.start_time
+        new_distribution_balance = Uint128::zero();
+
+        // if no in balance in the contract, no need to update
+        // if diff not changed this means either stream not started or no in balance so far
+        if !stream.shares.is_zero() && !diff.is_zero() {
+            // new distribution balance is the amount of in tokens that has been distributed since last update
+            // distribution is linear for now.
+            new_distribution_balance = stream
+                .out_remaining
+                .multiply_ratio(diff.numerator(), diff.denominator());
+            // spent in tokens is the amount of in tokens that has been spent since last update
+            // spending is linear and goes to zero at the end of the stream
+            let spent_in = stream
+                .in_supply
+                .multiply_ratio(diff.numerator(), diff.denominator());
+
+            // increase total spent_in of the stream
+            stream.spent_in = stream.spent_in.checked_add(spent_in)?;
+            // decrease in_supply of the steam
+            stream.in_supply = stream.in_supply.checked_sub(spent_in)?;
+
+            // if no new distribution balance, no need to update the price, out_remaining and dist_index
+            if !new_distribution_balance.is_zero() {
+                // decrease amount to be distributed of the stream
+                stream.out_remaining =
+                    stream.out_remaining.checked_sub(new_distribution_balance)?;
+                // update distribution index. A positions share of the distribution is calculated by
+                // multiplying the share by the distribution index
+                stream.dist_index = stream.dist_index.checked_add(Decimal256::from_ratio(
+                    new_distribution_balance,
+                    stream.shares,
+                ))?;
+                stream.current_streamed_price =
+                    Decimal::from_ratio(spent_in, new_distribution_balance)
+            }
+        }
+    } else if (stream.status == Status::Waiting) {
+        // If stream is waiting, it means it has not started yet. So just need to update the times and blocks
+        stream.last_updated_time = now_time;
+        stream.last_updated_block = now_block;
     } else {
-        now
-    };
+    }
 
     Ok((diff, new_distribution_balance))
 }
@@ -429,7 +428,7 @@ pub fn execute_update_position(
     }
 
     // sync stream
-    update_stream(env.block.time, &mut stream)?;
+    update_stream(env.block.time, env.block.height, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     // updates position to latest distribution. Returns the amount of out tokens that has been purchased
@@ -515,9 +514,9 @@ pub fn execute_subscribe(
     if env.block.time >= stream.end_time {
         return Err(ContractError::StreamEnded {});
     }
-    //On first subscibe change status to Active
-    if stream.status == Status::Waiting {
-        stream.status = Status::Active
+
+    if env.block.time > stream.start_time || stream.status == Status::Waiting {
+        stream.status = Status::Active;
     }
 
     let in_amount = must_pay(&info, &stream.in_denom)?;
@@ -533,9 +532,7 @@ pub fn execute_subscribe(
             if operator_target != info.sender {
                 return Err(ContractError::Unauthorized {});
             }
-            if stream.start_time < env.block.time {
-                update_stream(env.block.time, &mut stream)?;
-            }
+            update_stream(env.block.time, env.block.height, &mut stream)?;
             new_shares = stream.compute_shares_amount(in_amount, false);
             // new positions do not update purchase as it has no effect on distribution
             let new_position = Position::new(
@@ -552,16 +549,14 @@ pub fn execute_subscribe(
             check_access(&info, &position.owner, &position.operator)?;
 
             // incoming tokens should not participate in prev distribution
-            if stream.start_time < env.block.time {
-                update_stream(env.block.time, &mut stream)?;
-                update_position(
-                    stream.dist_index,
-                    stream.shares,
-                    stream.last_updated_time,
-                    stream.in_supply,
-                    &mut position,
-                )?;
-            }
+            update_stream(env.block.time, env.block.height, &mut stream)?;
+            update_position(
+                stream.dist_index,
+                stream.shares,
+                stream.last_updated_time,
+                stream.in_supply,
+                &mut position,
+            )?;
 
             new_shares = stream.compute_shares_amount(in_amount, false);
             position.in_balance = position.in_balance.checked_add(in_amount)?;
@@ -583,62 +578,6 @@ pub fn execute_subscribe(
         .add_attribute("in_amount", in_amount);
 
     Ok(res)
-}
-
-pub fn execute_subscribe_pending(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    stream_id: u64,
-    operator: Option<String>,
-    operator_target: Option<String>,
-    mut stream: Stream,
-) -> Result<Response, ContractError> {
-    // check if stream is paused
-    if stream.is_killswitch_active() {
-        return Err(ContractError::StreamKillswitchActive {});
-    }
-    let in_amount = must_pay(&info, &stream.in_denom)?;
-    let new_shares = stream.compute_shares_amount(in_amount, false);
-
-    let operator = maybe_addr(deps.api, operator)?;
-    let operator_target =
-        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let position = POSITIONS.may_load(deps.storage, (stream_id, &operator_target))?;
-    match position {
-        None => {
-            // operator cannot create a position in behalf of anyone
-            if operator_target != info.sender {
-                return Err(ContractError::Unauthorized {});
-            }
-            let new_position = Position::new(
-                info.sender,
-                in_amount,
-                new_shares,
-                Some(stream.dist_index),
-                env.block.time,
-                operator,
-            );
-            POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
-        }
-        Some(mut position) => {
-            check_access(&info, &position.owner, &position.operator)?;
-            // if subscibed already, we wont update its position but just increase its in_balance and shares
-            position.in_balance = position.in_balance.checked_add(in_amount)?;
-            position.shares = position.shares.checked_add(new_shares)?;
-            POSITIONS.save(deps.storage, (stream_id, &operator_target), &position)?;
-        }
-    }
-    stream.in_supply = stream.in_supply.checked_add(in_amount)?;
-    stream.shares = stream.shares.checked_add(new_shares)?;
-    STREAMS.save(deps.storage, stream_id, &stream)?;
-
-    Ok(Response::new()
-        .add_attribute("action", "subscribe_pending")
-        .add_attribute("stream_id", stream_id.to_string())
-        .add_attribute("owner", operator_target)
-        .add_attribute("in_supply", stream.in_supply)
-        .add_attribute("in_amount", in_amount))
 }
 
 pub fn execute_update_operator(
@@ -685,7 +624,7 @@ pub fn execute_withdraw(
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
     check_access(&info, &position.owner, &position.operator)?;
 
-    update_stream(env.block.time, &mut stream)?;
+    update_stream(env.block.time, env.block.height, &mut stream)?;
     update_position(
         stream.dist_index,
         stream.shares,
@@ -824,7 +763,7 @@ pub fn execute_finalize_stream(
         return Err(ContractError::StreamNotEnded {});
     }
     if stream.last_updated_time < stream.end_time {
-        update_stream(env.block.time, &mut stream)?;
+        update_stream(env.block.time, env.block.height, &mut stream)?;
     }
 
     if stream.status == Status::Active {
@@ -922,7 +861,7 @@ pub fn execute_exit_stream(
         return Err(ContractError::StreamNotEnded {});
     }
     if stream.last_updated_time < stream.end_time {
-        update_stream(env.block.time, &mut stream)?;
+        update_stream(env.block.time, env.block.height, &mut stream)?;
     }
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
