@@ -122,8 +122,9 @@ impl Stream {
             stream_exit_fee_percent,
         }
     }
-    pub fn detect_chain_halt(&self, current_block_info: BlockInfo) -> Result<bool, ContractError> {
+    pub fn detect_chain_halt(&self, current_block_info: BlockInfo) -> Result<(), ContractError> {
         // Calculate how much time is passed
+
         let time_passed = current_block_info
             .time
             .nanos()
@@ -138,7 +139,7 @@ impl Stream {
         if average_block_time > 5919000000 {
             return Err(ContractError::ChainHaltDetected {});
         }
-        Ok(false)
+        Ok(())
     }
 
     // compute amount of shares that should be minted for a new subscription amount

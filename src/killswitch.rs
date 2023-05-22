@@ -21,7 +21,7 @@ pub fn execute_withdraw_paused(
         return Err(ContractError::StreamNotPaused {});
     }
     // We are not checking if stream is ended because the paused state duration might exceed end time
-
+    // TODO Add check access
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
@@ -101,9 +101,10 @@ pub fn execute_exit_cancelled(
     if !stream.is_cancelled() {
         return Err(ContractError::StreamNotCancelled {});
     }
-
+    // TODO Add check access
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
+
     let position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
     if position.owner != info.sender
         && position
@@ -125,7 +126,7 @@ pub fn execute_exit_cancelled(
         attr("total_balance", total_balance),
     ];
 
-    // send funds to withdraw address or to the sender
+    // send funds
     let res = Response::new()
         .add_message(CosmosMsg::Bank(BankMsg::Send {
             to_address: operator_target.to_string(),
@@ -164,7 +165,7 @@ pub fn execute_pause_stream(
     }
     // update stream before pause
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    update_stream(env.block.time, &mut stream)?;
+    update_stream(env.block.time, env.block.height, &mut stream)?;
     pause_stream(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
@@ -283,7 +284,7 @@ pub fn sudo_pause_stream(
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
     }
-    update_stream(env.block.time, &mut stream)?;
+    update_stream(env.block.time, env.block.height, &mut stream)?;
     pause_stream(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 

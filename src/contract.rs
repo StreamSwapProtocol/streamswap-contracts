@@ -389,6 +389,8 @@ pub fn update_stream(
                 stream.current_streamed_price =
                     Decimal::from_ratio(spent_in, new_distribution_balance)
             }
+            stream.last_updated_time = now_time;
+            stream.last_updated_block = now_block;
         }
     } else if (stream.status == Status::Waiting) {
         // If stream is waiting, it means it has not started yet. So just need to update the times and blocks
@@ -513,7 +515,7 @@ pub fn execute_subscribe(
     operator_target: Option<String>,
     mut stream: Stream,
 ) -> Result<Response, ContractError> {
-    // check if stream is paused
+    // check if stream is paused or cancelled
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
     }
@@ -535,7 +537,7 @@ pub fn execute_subscribe(
     let position = POSITIONS.may_load(deps.storage, (stream_id, &operator_target))?;
     match position {
         None => {
-            // operator cannot create a position in behalf of anyone
+            // operator cannot create a position on behalf of anyone
             if operator_target != info.sender {
                 return Err(ContractError::Unauthorized {});
             }
