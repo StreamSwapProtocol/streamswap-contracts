@@ -73,6 +73,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
+            average_block_time: 5910000000,
         };
         let res =
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap_err();
@@ -88,6 +89,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
+            average_block_time: 5910000000,
         };
         let res =
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap_err();
@@ -102,6 +104,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
+            average_block_time: 5910000000,
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -624,6 +627,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
+            average_block_time: 5910000000,
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -766,6 +770,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
+            average_block_time: 5910000000,
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -942,6 +947,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
+            average_block_time: 5910000000,
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1090,6 +1096,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
+            average_block_time: 5910000000,
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1284,14 +1291,20 @@ mod test_module {
         let info = mock_info("random", &[]);
         let mut env = mock_env();
         env.block.time = end.plus_seconds(100);
-        execute_update_stream(deps.as_mut(), env.clone(), 1).unwrap();
-        let res = execute_exit_stream(deps.as_mut(), env, info, 1, Some("creator1".to_string()))
-            .unwrap_err();
+        execute_update_stream(info.clone(), deps.as_mut(), env.clone(), 1).unwrap();
+        let res = execute_exit_stream(
+            deps.as_mut(),
+            env,
+            info.clone(),
+            1,
+            Some("creator1".to_string()),
+        )
+        .unwrap_err();
         assert_eq!(res, ContractError::Unauthorized {});
 
         let mut env = mock_env();
         env.block.time = end.plus_seconds(100);
-        execute_update_stream(deps.as_mut(), env, 1).unwrap();
+        execute_update_stream(info.clone(), deps.as_mut(), env, 1).unwrap();
 
         // operator can exit
         let info = mock_info("operator1", &[]);
@@ -1331,6 +1344,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
+            average_block_time: 5910000000,
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1361,8 +1375,10 @@ mod test_module {
 
         //update stream without subscription this means no new  distribution so returned index should be 0
         let mut env = mock_env();
+        let info = mock_info("creator", &[]);
         env.block.time = start.plus_seconds(100);
-        let res = execute_update_stream(deps.as_mut(), env, 1).unwrap();
+        let res = execute_update_stream(info.clone(), deps.as_mut(), env, 1).unwrap();
+
         assert_eq!(
             res,
             Response::default()
@@ -1390,9 +1406,10 @@ mod test_module {
         assert_eq!(res.dist_index, Decimal256::zero());
 
         //Update stream again, this time with subscriber
+        let info = mock_info("creator", &[]);
         let mut env = mock_env();
         env.block.time = start.plus_seconds(300);
-        execute_update_stream(deps.as_mut(), env, 1).unwrap();
+        execute_update_stream(info.clone(), deps.as_mut(), env, 1).unwrap();
 
         //Query stream
         let mut env = mock_env();
@@ -1421,6 +1438,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
+            average_block_time: 5910000000,
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1529,6 +1547,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
+            average_block_time: 5910000000,
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1691,6 +1710,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
+            average_block_time: 5910000000,
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1830,6 +1850,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
+            average_block_time: 5910000000,
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1888,7 +1909,7 @@ mod test_module {
         let mut env = mock_env();
         env.block.time = end.plus_seconds(1);
         let info = mock_info(treasury.as_str(), &[]);
-        execute_update_stream(deps.as_mut(), env.clone(), 1).unwrap();
+        execute_update_stream(info.clone(), deps.as_mut(), env.clone(), 1).unwrap();
 
         let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap();
         assert_eq!(
@@ -1954,6 +1975,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: in_denom.to_string(),
+            average_block_time: 5910000000,
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
         // Create stream
@@ -1995,7 +2017,7 @@ mod test_module {
         let mut env = mock_env();
         env.block.time = end.plus_seconds(1);
         let info = mock_info(malicious_treasury.as_str(), &[]);
-        execute_update_stream(deps.as_mut(), env.clone(), 1).unwrap();
+        execute_update_stream(info.clone(), deps.as_mut(), env.clone(), 1).unwrap();
         // First call
         let res =
             execute_finalize_stream(deps.as_mut(), env.clone(), info.clone(), 1, None).unwrap();
@@ -2054,6 +2076,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
+            average_block_time: 5910000000,
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2157,6 +2180,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
+            average_block_time: 5910000000,
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2218,7 +2242,7 @@ mod test_module {
             cap: None,
             operator_target: None,
         };
-        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+        let _res = execute(deps.as_mut(), env, info.clone(), msg).unwrap();
 
         // second withdraw
         let info = mock_info("creator2", &[]);
@@ -2229,12 +2253,12 @@ mod test_module {
             cap: None,
             operator_target: None,
         };
-        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+        let _res = execute(deps.as_mut(), env, info.clone(), msg).unwrap();
 
         // can exit
         let mut env = mock_env();
         env.block.time = end.plus_seconds(1_000_000);
-        execute_update_stream(deps.as_mut(), env, 1).unwrap();
+        execute_update_stream(info.clone(), deps.as_mut(), env, 1).unwrap();
 
         let mut env = mock_env();
         env.block.time = end.plus_seconds(1_000_001);
@@ -2268,6 +2292,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
+            average_block_time: 5910000000,
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2306,7 +2331,7 @@ mod test_module {
             operator_target: None,
             operator: None,
         };
-        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+        let _res = execute(deps.as_mut(), env, info.clone(), msg).unwrap();
 
         //check current streamed price before update
         let mut env = mock_env();
@@ -2315,9 +2340,10 @@ mod test_module {
         assert_eq!(res.current_streamed_price, Decimal::new(Uint128::new(0)));
 
         //check current streamed price after update
+        let info = mock_info("creator1", &[]);
         let mut env = mock_env();
         env.block.time = start.plus_seconds(2_000_000);
-        execute_update_stream(deps.as_mut(), env, 1).unwrap();
+        execute_update_stream(info.clone(), deps.as_mut(), env, 1).unwrap();
         let res = query_last_streamed_price(deps.as_ref(), mock_env(), 1).unwrap();
         //approx 1000/333333
         assert_eq!(
@@ -2334,7 +2360,7 @@ mod test_module {
             operator_target: None,
             operator: None,
         };
-        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+        let _res = execute(deps.as_mut(), env, info.clone(), msg).unwrap();
 
         //check current streamed price before update
         let mut env = mock_env();
@@ -2346,9 +2372,10 @@ mod test_module {
         );
 
         //check current streamed price after update
+        let info = mock_info("creator1", &[]);
         let mut env = mock_env();
         env.block.time = start.plus_seconds(3_000_000);
-        execute_update_stream(deps.as_mut(), env, 1).unwrap();
+        execute_update_stream(info.clone(), deps.as_mut(), env, 1).unwrap();
         let res = query_last_streamed_price(deps.as_ref(), mock_env(), 1).unwrap();
         //approx 2000/333333
         assert_eq!(
@@ -2375,7 +2402,7 @@ mod test_module {
             cap: None,
             operator_target: None,
         };
-        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+        let _res = execute(deps.as_mut(), env, info.clone(), msg).unwrap();
         let res = query_last_streamed_price(deps.as_ref(), mock_env(), 1).unwrap();
         assert_eq!(
             res.current_streamed_price,
@@ -2385,7 +2412,7 @@ mod test_module {
         //test price after withdraw
         let mut env = mock_env();
         env.block.time = start.plus_seconds(3_750_000);
-        execute_update_stream(deps.as_mut(), env, 1).unwrap();
+        execute_update_stream(info.clone(), deps.as_mut(), env, 1).unwrap();
         let res = query_last_streamed_price(deps.as_ref(), mock_env(), 1).unwrap();
         //approx 2500/333333
         assert_eq!(
@@ -2409,6 +2436,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
+            average_block_time: 5910000000,
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2442,6 +2470,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
+            average_block_time: 5910000000,
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2633,6 +2662,7 @@ mod test_module {
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
+                average_block_time: 5910000000,
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2743,13 +2773,13 @@ mod test_module {
                 cap: None,
                 operator_target: None,
             };
-            let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
+            let res = execute(deps.as_mut(), env, info.clone(), msg).unwrap_err();
             assert_eq!(res, ContractError::StreamKillswitchActive {});
 
             // can't update stream
             let mut env = mock_env();
             env.block.time = start.plus_seconds(1_000_002);
-            let res = execute_update_stream(deps.as_mut(), env, 1);
+            let res = execute_update_stream(info.clone(), deps.as_mut(), env, 1);
             assert_eq!(res, Err(ContractError::StreamPaused {}));
 
             // can't update position
@@ -2795,6 +2825,7 @@ mod test_module {
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
+                average_block_time: 5910000000,
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2937,6 +2968,7 @@ mod test_module {
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
+                average_block_time: 5910000000,
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -3062,6 +3094,7 @@ mod test_module {
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
+                average_block_time: 5910000000,
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -3250,6 +3283,7 @@ mod test_module {
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
+                average_block_time: 5910000000,
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -3336,6 +3370,7 @@ mod test_module {
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
+                average_block_time: 5910000000,
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -3413,6 +3448,7 @@ mod test_module {
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
+                average_block_time: 5910000000,
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -3507,6 +3543,7 @@ mod test_module {
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
+                average_block_time: 5910000000,
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 

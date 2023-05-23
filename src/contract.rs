@@ -1,7 +1,7 @@
 use crate::msg::{
-    AveragePriceResponse, ConfigResponse, ExecuteMsg, InstantiateMsg, LatestStreamedPriceResponse,
-    MigrateMsg, PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse,
-    SudoMsg,
+    AveragePriceResponse, ChainHaltResponse, ConfigResponse, ExecuteMsg, InstantiateMsg,
+    LatestStreamedPriceResponse, MigrateMsg, PositionResponse, PositionsResponse, QueryMsg,
+    StreamResponse, StreamsResponse, SudoMsg,
 };
 use crate::state::{next_stream_id, Config, Position, Status, Stream, CONFIG, POSITIONS, STREAMS};
 use crate::{killswitch, ContractError};
@@ -15,7 +15,7 @@ use semver::Version;
 
 use crate::helpers::{check_name_and_url, from_semver, get_decimals};
 use cw_storage_plus::Bound;
-use cw_utils::{maybe_addr, must_pay};
+use cw_utils::{maybe_addr, must_pay, nonpayable};
 
 // Version and contract info for migration
 const CONTRACT_NAME: &str = "crates.io:cw-streamswap";
@@ -47,6 +47,7 @@ pub fn instantiate(
         fee_collector: deps.api.addr_validate(&msg.fee_collector)?,
         protocol_admin: deps.api.addr_validate(&msg.protocol_admin)?,
         accepted_in_denom: msg.accepted_in_denom,
+        average_block_time: msg.average_block_time,
     };
     CONFIG.save(deps.storage, &config)?;
 
@@ -95,7 +96,7 @@ pub fn execute(
             stream_id,
             operator_target,
         } => execute_update_position(deps, env, info, stream_id, operator_target),
-        ExecuteMsg::UpdateStream { stream_id } => execute_update_stream(deps, env, stream_id),
+        ExecuteMsg::UpdateStream { stream_id } => execute_update_stream(info, deps, env, stream_id),
         ExecuteMsg::Subscribe {
             stream_id,
             operator_target,
@@ -294,11 +295,21 @@ pub fn execute_create_stream(
 
 /// Updates stream to calculate released distribution and spent amount
 pub fn execute_update_stream(
+    info: MessageInfo,
     deps: DepsMut,
     env: Env,
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let config = CONFIG.load(deps.storage)?;
+    nonpayable(&info)?;
+
+    let halt_details = stream.detect_chain_halt(env.clone().block, config.average_block_time);
+    if halt_details.is_some() || stream.status == Status::ChainHalted {
+        stream.status = Status::ChainHalted;
+        STREAMS.save(deps.storage, stream_id, &stream)?;
+        return Ok(halt_details.unwrap());
+    }
 
     if stream.is_paused() {
         return Err(ContractError::StreamPaused {});

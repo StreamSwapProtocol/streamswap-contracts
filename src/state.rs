@@ -1,6 +1,8 @@
-use crate::ContractError;
+use crate::{msg::ChainHaltResponse, ContractError};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, BlockInfo, Decimal, Decimal256, Storage, Timestamp, Uint128, Uint64};
+use cosmwasm_std::{
+    Addr, BlockInfo, Decimal, Decimal256, Response, Storage, Timestamp, Uint128, Uint64,
+};
 use cw_storage_plus::{Item, Map};
 use std::ops::Mul;
 
@@ -22,6 +24,8 @@ pub struct Config {
     pub fee_collector: Addr,
     /// protocol admin can pause streams in case of emergency.
     pub protocol_admin: Addr,
+    /// Avarage block time in nanoseconds for detecting any chain halt
+    pub average_block_time: u64,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");
@@ -80,6 +84,7 @@ pub enum Status {
     Finalized,
     Paused,
     Cancelled,
+    ChainHalted,
 }
 #[allow(clippy::too_many_arguments)]
 impl Stream {
@@ -122,9 +127,12 @@ impl Stream {
             stream_exit_fee_percent,
         }
     }
-    pub fn detect_chain_halt(&self, current_block_info: BlockInfo) -> Result<(), ContractError> {
+    pub fn detect_chain_halt(
+        &self,
+        current_block_info: BlockInfo,
+        average_block_time: u64,
+    ) -> Option<Response> {
         // Calculate how much time is passed
-
         let time_passed = current_block_info
             .time
             .nanos()
@@ -134,12 +142,31 @@ impl Stream {
             .height
             .checked_sub(self.last_updated_block);
         // Calculate average block time
-        let average_block_time = time_passed.unwrap() / blocks_passed.unwrap();
+        let calculated_average_block_time: u64 = time_passed
+            .unwrap()
+            .checked_div(blocks_passed.unwrap())
+            .unwrap_or(average_block_time);
 
-        if average_block_time > 5919000000 {
-            return Err(ContractError::ChainHaltDetected {});
+        // Our average block time must be +- 10% of the config average block time
+        if calculated_average_block_time > average_block_time * 110 / 100
+            || calculated_average_block_time < average_block_time * 90 / 100
+        {
+            return Some(
+                Response::new()
+                    .add_attribute("action", "update_stream")
+                    .add_attribute("status", "halted")
+                    .add_attribute(
+                        "calculated_average_block_time",
+                        calculated_average_block_time.to_string(),
+                    )
+                    .add_attribute("chain_average_block_time", average_block_time.to_string())
+                    .add_attribute("chain_block_height", current_block_info.height.to_string())
+                    .add_attribute("chain_block_time", current_block_info.time.to_string())
+                    .add_attribute("last_updated_block", self.last_updated_block.to_string())
+                    .add_attribute("last_updated_time", self.last_updated_time.to_string()),
+            );
         }
-        Ok(())
+        None
     }
 
     // compute amount of shares that should be minted for a new subscription amount

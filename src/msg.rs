@@ -20,6 +20,8 @@ pub struct InstantiateMsg {
     pub protocol_admin: String,
     /// Accepted in_denom to buy out_tokens
     pub accepted_in_denom: String,
+    /// Avarage block time in nanoseconds for detecting any chain halt
+    pub average_block_time: u64,
 }
 
 #[cw_serde]
@@ -260,6 +262,16 @@ pub struct PositionResponse {
 #[cw_serde]
 pub struct PositionsResponse {
     pub positions: Vec<PositionResponse>,
+}
+
+#[cw_serde]
+pub struct ChainHaltResponse {
+    pub AverageBlockTime: u64,
+    pub OurAverageBlockTime: u64,
+    pub LastBlockTime: Timestamp,
+    pub LastBlockHeight: u64,
+    pub CurrentBlockTime: Timestamp,
+    pub CurrentBlockHeight: u64,
 }
 
 #[cw_serde]
