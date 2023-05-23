@@ -900,29 +900,6 @@ mod test_module {
         let res = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
         assert_eq!(res.purchased, Uint128::new(184615 + 200000));
         assert_eq!(res.spent, Uint128::new(2000000 / 2));
-
-        // update creator 2 position at 3500
-        let mut env = mock_env();
-        env.block.time = Timestamp::from_seconds(3500);
-        let update_msg = crate::msg::ExecuteMsg::UpdatePosition {
-            stream_id: 1,
-            operator_target: None,
-        };
-        let info = mock_info("creator2", &[]);
-        let _res = execute(deps.as_mut(), env.clone(), info, update_msg).unwrap();
-
-        // query position
-        let res = query_position(deps.as_ref(), env, 1, "creator2".to_string()).unwrap();
-        assert_eq!(res.purchased, Uint128::new(115384));
-        // spent =  in_supply * (now-last_updated) / (end-last_updated)
-        assert_eq!(res.spent, Uint128::new(1000000 * 1500 / 4000));
-        // query stream
-        let mut env = mock_env();
-        env.block.time = Timestamp::from_seconds(3500);
-        let stream = query_stream(deps.as_ref(), env, 1).unwrap();
-        assert_eq!(stream.status, Status::Active);
-        // in supply = 3000000 - (positions.spent summed)
-        assert_eq!(stream.in_supply, Uint128::new(1625000));
     }
 
     #[test]

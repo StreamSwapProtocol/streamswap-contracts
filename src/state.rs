@@ -137,6 +137,9 @@ impl Stream {
             .time
             .nanos()
             .checked_sub(self.last_updated_time.nanos());
+        println!("current_block_info: {:?}", current_block_info);
+        println!("last_updated_time: {:?}", self.last_updated_time);
+        println!("time_passed: {:?}", time_passed);
         // Calculate how many blocks are passed
         let blocks_passed = current_block_info
             .height

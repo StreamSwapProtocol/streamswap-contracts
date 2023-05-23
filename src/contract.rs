@@ -343,10 +343,8 @@ pub fn update_stream(
         // This should not happen during pending state but can happen at the start of the stream
         if stream.last_updated_time < stream.start_time {
             stream.last_updated_time = stream.start_time;
-            println!("here")
         }
         diff = calculate_diff(stream.end_time, stream.last_updated_time, now_time);
-        println!("diff: {}", diff);
 
         new_distribution_balance = Uint128::zero();
 
@@ -358,8 +356,6 @@ pub fn update_stream(
             new_distribution_balance = stream
                 .out_remaining
                 .multiply_ratio(diff.numerator(), diff.denominator());
-            println!("new_distribution_balance: {}", new_distribution_balance);
-            println!("out_remaining: {}", stream.out_remaining);
             // spent in tokens is the amount of in tokens that has been spent since last update
             // spending is linear and goes to zero at the end of the stream
             let spent_in = stream
@@ -370,7 +366,6 @@ pub fn update_stream(
             stream.spent_in = stream.spent_in.checked_add(spent_in)?;
             // decrease in_supply of the steam
             stream.in_supply = stream.in_supply.checked_sub(spent_in)?;
-
             // if no new distribution balance, no need to update the price, out_remaining and dist_index
             if !new_distribution_balance.is_zero() {
                 // decrease amount to be distributed of the stream
@@ -418,12 +413,21 @@ pub fn execute_update_position(
     stream_id: u64,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
+    nonpayable(&info.clone())?;
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
     check_access(&info, &position.owner, &position.operator)?;
+    let config = CONFIG.load(deps.storage)?;
 
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+
+    let halt_details = stream.detect_chain_halt(env.clone().block, config.average_block_time);
+    if halt_details.is_some() || stream.status == Status::ChainHalted {
+        stream.status = Status::ChainHalted;
+        STREAMS.save(deps.storage, stream_id, &stream)?;
+        return Ok(halt_details.unwrap());
+    }
     // check if stream is paused
     if stream.is_paused() {
         return Err(ContractError::StreamPaused {});
@@ -487,11 +491,8 @@ pub fn update_position(
 
         // calculates the amount of spent tokens
         spent = position.in_balance.checked_sub(in_remaining)?;
-        println!("spent: {}", spent);
         position.spent = position.spent.checked_add(spent)?;
-        println!("position.spent: {}", position.spent);
         position.in_balance = in_remaining;
-        println!("position.in_balance: {}", position.in_balance);
         position.pending_purchase = decimals;
 
         // floors the decimal points
@@ -514,6 +515,7 @@ pub fn execute_subscribe(
     operator_target: Option<String>,
     mut stream: Stream,
 ) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
     // check if stream is paused or cancelled
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
