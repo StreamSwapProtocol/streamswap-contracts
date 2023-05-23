@@ -101,6 +101,7 @@ pub fn execute(
             operator_target,
             operator,
         } => {
+            // Consider removing them since you are also putting deps in there
             let stream = STREAMS.load(deps.storage, stream_id)?;
             execute_subscribe(
                 deps,
@@ -118,27 +119,7 @@ pub fn execute(
             operator_target,
         } => {
             let stream = STREAMS.load(deps.storage, stream_id)?;
-            if stream.start_time > env.block.time {
-                Ok(execute_withdraw_pending(
-                    deps.branch(),
-                    env,
-                    info,
-                    stream_id,
-                    stream,
-                    cap,
-                    operator_target,
-                )?)
-            } else {
-                Ok(execute_withdraw(
-                    deps,
-                    env,
-                    info,
-                    stream_id,
-                    stream,
-                    cap,
-                    operator_target,
-                )?)
-            }
+            execute_withdraw(deps, env, info, stream_id, stream, cap, operator_target)
         }
         ExecuteMsg::FinalizeStream {
             stream_id,
@@ -322,7 +303,7 @@ pub fn execute_update_stream(
     if stream.is_paused() {
         return Err(ContractError::StreamPaused {});
     }
-    if stream.status == Status::Waiting || env.block.time > stream.start_time {
+    if stream.status == Status::Waiting && env.block.time > stream.start_time {
         stream.status = Status::Active;
     }
 
@@ -351,8 +332,10 @@ pub fn update_stream(
         // This should not happen during pending state but can happen at the start of the stream
         if stream.last_updated_time < stream.start_time {
             stream.last_updated_time = stream.start_time;
+            println!("here")
         }
         diff = calculate_diff(stream.end_time, stream.last_updated_time, now_time);
+        println!("diff: {}", diff);
 
         new_distribution_balance = Uint128::zero();
 
@@ -364,6 +347,8 @@ pub fn update_stream(
             new_distribution_balance = stream
                 .out_remaining
                 .multiply_ratio(diff.numerator(), diff.denominator());
+            println!("new_distribution_balance: {}", new_distribution_balance);
+            println!("out_remaining: {}", stream.out_remaining);
             // spent in tokens is the amount of in tokens that has been spent since last update
             // spending is linear and goes to zero at the end of the stream
             let spent_in = stream
@@ -389,9 +374,9 @@ pub fn update_stream(
                 stream.current_streamed_price =
                     Decimal::from_ratio(spent_in, new_distribution_balance)
             }
-            stream.last_updated_time = now_time;
-            stream.last_updated_block = now_block;
         }
+        stream.last_updated_time = now_time;
+        stream.last_updated_block = now_block;
     } else if (stream.status == Status::Waiting) {
         // If stream is waiting, it means it has not started yet. So just need to update the times and blocks
         stream.last_updated_time = now_time;
@@ -432,7 +417,7 @@ pub fn execute_update_position(
     if stream.is_paused() {
         return Err(ContractError::StreamPaused {});
     }
-    if stream.status == Status::Waiting || env.block.time > stream.start_time {
+    if stream.status == Status::Waiting && env.block.time > stream.start_time {
         stream.status = Status::Active;
     }
 
@@ -491,8 +476,11 @@ pub fn update_position(
 
         // calculates the amount of spent tokens
         spent = position.in_balance.checked_sub(in_remaining)?;
+        println!("spent: {}", spent);
         position.spent = position.spent.checked_add(spent)?;
+        println!("position.spent: {}", position.spent);
         position.in_balance = in_remaining;
+        println!("position.in_balance: {}", position.in_balance);
         position.pending_purchase = decimals;
 
         // floors the decimal points
@@ -524,10 +512,9 @@ pub fn execute_subscribe(
         return Err(ContractError::StreamEnded {});
     }
 
-    if env.block.time > stream.start_time || stream.status == Status::Waiting {
+    if stream.status == Status::Waiting && env.block.time > stream.start_time {
         stream.status = Status::Active;
     }
-
     let in_amount = must_pay(&info, &stream.in_denom)?;
     let new_shares;
 
@@ -628,6 +615,10 @@ pub fn execute_withdraw(
         return Err(ContractError::StreamEnded {});
     }
 
+    if stream.status == Status::Waiting && env.block.time > stream.start_time {
+        stream.status = Status::Active;
+    }
+
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
@@ -669,67 +660,6 @@ pub fn execute_withdraw(
 
     let attributes = vec![
         attr("action", "withdraw"),
-        attr("stream_id", stream_id.to_string()),
-        attr("operator_target", operator_target.clone()),
-        attr("withdraw_amount", withdraw_amount),
-    ];
-
-    // send funds to withdraw address or to the sender
-    let res = Response::new()
-        .add_message(CosmosMsg::Bank(BankMsg::Send {
-            to_address: operator_target.to_string(),
-            amount: vec![Coin {
-                denom: stream.in_denom,
-                amount: withdraw_amount,
-            }],
-        }))
-        .add_attributes(attributes);
-
-    Ok(res)
-}
-
-pub fn execute_withdraw_pending(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    stream_id: u64,
-    mut stream: Stream,
-    cap: Option<Uint128>,
-    operator_target: Option<String>,
-) -> Result<Response, ContractError> {
-    // check if stream is paused
-    let operator_target =
-        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
-    check_access(&info, &position.owner, &position.operator)?;
-
-    let withdraw_amount = cap.unwrap_or(position.in_balance);
-    // if amount to withdraw more then deduced buy balance throw error
-    if withdraw_amount > position.in_balance {
-        return Err(ContractError::WithdrawAmountExceedsBalance(withdraw_amount));
-    }
-
-    if withdraw_amount.is_zero() {
-        return Err(ContractError::InvalidWithdrawAmount {});
-    }
-
-    // decrease in supply and shares
-    let shares_amount = if withdraw_amount == position.in_balance {
-        position.shares
-    } else {
-        stream.compute_shares_amount(withdraw_amount, true)
-    };
-
-    stream.in_supply = stream.in_supply.checked_sub(withdraw_amount)?;
-    stream.shares = stream.shares.checked_sub(shares_amount)?;
-    position.in_balance = position.in_balance.checked_sub(withdraw_amount)?;
-    position.shares = position.shares.checked_sub(shares_amount)?;
-
-    STREAMS.save(deps.storage, stream_id, &stream)?;
-    POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
-
-    let attributes = vec![
-        attr("action", "withdraw_pending"),
         attr("stream_id", stream_id.to_string()),
         attr("operator_target", operator_target.clone()),
         attr("withdraw_amount", withdraw_amount),

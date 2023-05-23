@@ -32,6 +32,7 @@ mod test_module {
             Timestamp::from_seconds(0),
             Timestamp::from_seconds(100),
             Timestamp::from_seconds(0),
+            0,
             "fee".to_string(),
             Uint128::from(100u128),
             Decimal::percent(10),
@@ -805,7 +806,7 @@ mod test_module {
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap();
         assert_eq!(res.attributes[0].key, "action");
-        assert_eq!(res.attributes[0].value, "subscribe_pending");
+        assert_eq!(res.attributes[0].value, "subscribe");
         // query stream
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(350);
@@ -825,7 +826,7 @@ mod test_module {
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap();
         assert_eq!(res.attributes[0].key, "action");
-        assert_eq!(res.attributes[0].value, "subscribe_pending");
+        assert_eq!(res.attributes[0].value, "subscribe");
 
         // query stream
         let mut env = mock_env();
@@ -1004,7 +1005,7 @@ mod test_module {
 
         assert_eq!(stream.id, 1);
         assert_eq!(stream.dist_index, Decimal256::zero());
-        assert_eq!(stream.last_updated, Timestamp::from_seconds(2000));
+        assert_eq!(stream.last_updated, Timestamp::from_seconds(350));
         assert_eq!(stream.in_supply, Uint128::new(1_000_000));
         assert_eq!(stream.spent_in, Uint128::zero());
         assert_eq!(stream.shares, Uint128::new(1_000_000));
@@ -1018,8 +1019,8 @@ mod test_module {
             cap: Some(Uint128::new(500_000)),
             operator_target: None,
         };
-        let res = execute(deps.as_mut(), env, info, msg).unwrap();
-        assert_eq!(res.attributes[0].value, "withdraw_pending");
+        let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+        assert_eq!(res.attributes[0].value, "withdraw");
         assert_eq!(res.attributes[1].key, "stream_id");
         assert_eq!(res.attributes[1].value, "1");
         assert_eq!(res.attributes[3].key, "withdraw_amount");
@@ -1032,12 +1033,10 @@ mod test_module {
             })
         );
         // query stream after withdraw
-        let mut env = mock_env();
-        env.block.time = Timestamp::from_seconds(400);
         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
         assert_eq!(stream.id, 1);
         assert_eq!(stream.dist_index, Decimal256::zero());
-        assert_eq!(stream.last_updated, Timestamp::from_seconds(2000));
+        assert_eq!(stream.last_updated, Timestamp::from_seconds(400));
         assert_eq!(stream.in_supply, Uint128::new(500_000));
         assert_eq!(stream.spent_in, Uint128::zero());
         assert_eq!(stream.shares, Uint128::new(500_000));
