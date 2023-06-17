@@ -1,5 +1,5 @@
 # Streamswap
-
+![alt text](https://i.imgur.com/P7hF5uG.png)
 ## Abstract
 
 Streamswap is a new and innovative way of having a token sale.
@@ -225,7 +225,7 @@ when a user subscribes to a stream.
 
 ## URLs
 
-- [App URL](http://beta.StreamSwap.io) 
+- [App URL](https://app.streamswap.io/) 
 - [Twitter](https://twitter.com/StreamSwap_io) 
 - [Telegram](https://t.me/StreamSwap_io)
 - [Audit Report by Oak Security](https://github.com/oak-security/audit-reports/blob/master/Streamswap/2023-03-16%20Audit%20Report%20-%20Streamswap%20v1.1.pdf)
