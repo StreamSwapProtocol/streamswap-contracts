@@ -39,8 +39,8 @@ pub fn instantiate(
     }
 
     let config = Config {
-        min_stream_seconds: msg.min_stream_seconds,
-        min_seconds_until_start_time: msg.min_seconds_until_start_time,
+        min_stream_blocks: msg.min_stream_blocks,
+        min_blocks_until_start: msg.min_blocks_until_start_block,
         stream_creation_denom: msg.stream_creation_denom.clone(),
         stream_creation_fee: msg.stream_creation_fee,
         exit_fee_percent: msg.exit_fee_percent,
@@ -52,10 +52,10 @@ pub fn instantiate(
 
     let attrs = vec![
         attr("action", "instantiate"),
-        attr("min_stream_seconds", msg.min_stream_seconds),
+        attr("min_stream_blocks", msg.min_stream_blocks.to_string()),
         attr(
-            "min_seconds_until_start_time",
-            msg.min_seconds_until_start_time,
+            "min_blocks_until_start_block",
+            msg.min_blocks_until_start_block.to_string(),
         ),
         attr("stream_creation_denom", msg.stream_creation_denom),
         attr("stream_creation_fee", msg.stream_creation_fee),
