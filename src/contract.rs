@@ -228,7 +228,7 @@ pub fn execute_create_stream(
     end_block: u64,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    if end_time < start_time {
+    if end_block <= start_block {
         return Err(ContractError::StreamInvalidEndTime {});
     }
     if env.block.time > start_time {
