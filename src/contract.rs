@@ -229,16 +229,16 @@ pub fn execute_create_stream(
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     if end_block <= start_block {
-        return Err(ContractError::StreamInvalidEndTime {});
+        return Err(ContractError::StreamInvalidEndBlock {});
     }
-    if env.block.time > start_time {
-        return Err(ContractError::StreamInvalidStartTime {});
+    if env.block.height > start_block {
+        return Err(ContractError::StreamInvalidStartBlock {});
     }
-    if end_time.seconds() - start_time.seconds() < config.min_stream_seconds.u64() {
+    if end_block - start_block < config.min_stream_blocks {
         return Err(ContractError::StreamDurationTooShort {});
     }
 
-    if start_time.seconds() - env.block.time.seconds() < config.min_seconds_until_start_time.u64() {
+    if start_block - env.block.height > config.min_blocks_until_start {
         return Err(ContractError::StreamStartsTooSoon {});
     }
 
@@ -306,9 +306,9 @@ pub fn execute_create_stream(
         out_denom.clone(),
         out_supply,
         in_denom.clone(),
-        start_time,
-        end_time,
-        start_time,
+        start_block,
+        end_block,
+        start_block,
         config.stream_creation_denom,
         config.stream_creation_fee,
         config.exit_fee_percent,
@@ -325,8 +325,8 @@ pub fn execute_create_stream(
         attr("in_denom", in_denom),
         attr("out_denom", out_denom),
         attr("out_supply", out_supply),
-        attr("start_time", start_time.to_string()),
-        attr("end_time", end_time.to_string()),
+        attr("start_time", start_block.to_string()),
+        attr("end_time", end_block.to_string()),
     ];
     Ok(Response::default().add_attributes(attr))
 }

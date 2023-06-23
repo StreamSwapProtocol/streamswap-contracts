@@ -1,6 +1,6 @@
 use crate::ContractError;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Decimal, Decimal256, Storage, Timestamp, Uint128};
+use cosmwasm_std::{Addr, Decimal, Decimal256, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
 use std::ops::Mul;
 
@@ -52,10 +52,10 @@ pub struct Stream {
     pub spent_in: Uint128,
     /// total number of shares minted.
     pub shares: Uint128,
-    /// start time when the token emission starts. in nanos.
-    pub start_time: Timestamp,
-    /// end time when the token emission ends.
-    pub end_time: Timestamp,
+    /// start block when the token emission starts. in nanos.
+    pub start_block: u64,
+    /// end block when the token emission ends.
+    pub end_block: u64,
     /// price at when latest distribution is triggered.
     pub current_streamed_price: Decimal,
     /// Status of the stream. Can be `Waiting`, `Active`, `Finalized`, `Paused` or `Canceled` for kill switch.
@@ -88,8 +88,8 @@ impl Stream {
         out_denom: String,
         out_supply: Uint128,
         in_denom: String,
-        start_time: Timestamp,
-        end_time: Timestamp,
+        start_block: u64,
+        end_block: u64,
         last_updated_block: u64,
         stream_creation_denom: String,
         stream_creation_fee: Uint128,
@@ -108,8 +108,8 @@ impl Stream {
             in_supply: Uint128::zero(),
             spent_in: Uint128::zero(),
             shares: Uint128::zero(),
-            start_time,
-            end_time,
+            start_block,
+            end_block,
             current_streamed_price: Decimal::zero(),
             status: Status::Waiting,
             pause_block: None,
