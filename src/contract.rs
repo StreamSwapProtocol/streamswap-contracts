@@ -462,7 +462,7 @@ pub fn execute_update_position(
     }
 
     // sync stream
-    update_stream(env.block.time, &mut stream)?;
+    update_stream(env.block.height, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     // updates position to latest distribution. Returns the amount of out tokens that has been purchased
@@ -470,7 +470,7 @@ pub fn execute_update_position(
     let (purchased, spent) = update_position(
         stream.dist_index,
         stream.shares,
-        stream.last_updated,
+        stream.last_updated_block,
         stream.in_supply,
         &mut position,
     )?;
@@ -489,7 +489,7 @@ pub fn execute_update_position(
 pub fn update_position(
     stream_dist_index: Decimal256,
     stream_shares: Uint128,
-    stream_last_updated: Timestamp,
+    stream_last_updated_block: u64,
     stream_in_supply: Uint128,
     position: &mut Position,
 ) -> Result<(Uint128, Uint128), ContractError> {
@@ -526,7 +526,7 @@ pub fn update_position(
     }
 
     position.index = stream_dist_index;
-    position.last_updated = stream_last_updated;
+    position.last_updated_block = stream_last_updated_block;
 
     Ok((purchased_uint128, spent))
 }
