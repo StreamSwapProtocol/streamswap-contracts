@@ -705,7 +705,7 @@ pub fn execute_withdraw(
         return Err(ContractError::StreamKillswitchActive {});
     }
     // can't withdraw after stream ended
-    if env.block.time >= stream.end_time {
+    if env.block.height >= stream.end_block {
         return Err(ContractError::StreamEnded {});
     }
 
@@ -714,11 +714,11 @@ pub fn execute_withdraw(
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
     check_access(&info, &position.owner, &position.operator)?;
 
-    update_stream(env.block.time, &mut stream)?;
+    update_stream(env.block.height, &mut stream)?;
     update_position(
         stream.dist_index,
         stream.shares,
-        stream.last_updated,
+        stream.last_updated_block,
         stream.in_supply,
         &mut position,
     )?;
