@@ -359,10 +359,11 @@ pub fn execute_update_stream(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+
     if stream.is_paused() {
         return Err(ContractError::StreamPaused {});
     }
-    let (_, dist_amount) = update_stream(env.block.time, &mut stream)?;
+    let (_, dist_amount) = update_stream(env.block.height, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let attrs = vec![
@@ -376,10 +377,10 @@ pub fn execute_update_stream(
 }
 
 pub fn update_stream(
-    now: Timestamp,
+    now_block: u64,
     stream: &mut Stream,
 ) -> Result<(Decimal, Uint128), ContractError> {
-    let diff = calculate_diff(stream.end_time, stream.last_updated, now);
+    let diff = calculate_diff(stream.end_block, stream.last_updated_block, now_block);
 
     let mut new_distribution_balance = Uint128::zero();
 
@@ -416,20 +417,24 @@ pub fn update_stream(
         }
     }
 
-    stream.last_updated = if now < stream.start_time {
-        stream.start_time
+    stream.last_updated_block = if now_block < stream.start_block {
+        stream.start_block
     } else {
-        now
+        now_block
     };
 
     Ok((diff, new_distribution_balance))
 }
 
-fn calculate_diff(end_time: Timestamp, last_updated: Timestamp, now: Timestamp) -> Decimal {
+fn calculate_diff(end_block: u64, last_updated_block: u64, now_block: u64) -> Decimal {
     // diff = (now - last_updated) / (end_time - last_updated)
-    let now = if now > end_time { end_time } else { now };
-    let numerator = now.nanos().saturating_sub(last_updated.nanos());
-    let denominator = end_time.nanos().saturating_sub(last_updated.nanos());
+    let now_block = if now_block > end_block {
+        end_block
+    } else {
+        now_block
+    };
+    let numerator = now_block.saturating_sub(last_updated_block);
+    let denominator = end_block.saturating_sub(last_updated_block);
 
     if denominator == 0 || numerator == 0 {
         Decimal::zero()
