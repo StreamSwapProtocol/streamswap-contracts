@@ -545,10 +545,10 @@ pub fn execute_subscribe(
         return Err(ContractError::StreamKillswitchActive {});
     }
 
-    if env.block.time >= stream.end_time {
+    if env.block.height >= stream.end_block {
         return Err(ContractError::StreamEnded {});
     }
-    //On first subscibe change status to Active
+    // On first subscibe change status to Active
     if stream.status == Status::Waiting {
         stream.status = Status::Active
     }
@@ -566,7 +566,7 @@ pub fn execute_subscribe(
             if operator_target != info.sender {
                 return Err(ContractError::Unauthorized {});
             }
-            update_stream(env.block.time, &mut stream)?;
+            update_stream(env.block.height, &mut stream)?;
             new_shares = stream.compute_shares_amount(in_amount, false);
             // new positions do not update purchase as it has no effect on distribution
             let new_position = Position::new(
@@ -574,7 +574,7 @@ pub fn execute_subscribe(
                 in_amount,
                 new_shares,
                 Some(stream.dist_index),
-                env.block.time,
+                env.block.height,
                 operator,
             );
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
@@ -583,12 +583,12 @@ pub fn execute_subscribe(
             check_access(&info, &position.owner, &position.operator)?;
 
             // incoming tokens should not participate in prev distribution
-            update_stream(env.block.time, &mut stream)?;
+            update_stream(env.block.height, &mut stream)?;
             new_shares = stream.compute_shares_amount(in_amount, false);
             update_position(
                 stream.dist_index,
                 stream.shares,
-                stream.last_updated,
+                stream.last_updated_block,
                 stream.in_supply,
                 &mut position,
             )?;
@@ -645,7 +645,7 @@ pub fn execute_subscribe_pending(
                 in_amount,
                 new_shares,
                 Some(stream.dist_index),
-                env.block.time,
+                env.block.height,
                 operator,
             );
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
