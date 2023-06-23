@@ -849,11 +849,11 @@ pub fn execute_finalize_stream(
     if stream.treasury != info.sender {
         return Err(ContractError::Unauthorized {});
     }
-    if env.block.time <= stream.end_time {
+    if env.block.height <= stream.end_block {
         return Err(ContractError::StreamNotEnded {});
     }
-    if stream.last_updated < stream.end_time {
-        update_stream(env.block.time, &mut stream)?;
+    if stream.last_updated_block < stream.end_block {
+        update_stream(env.block.height, &mut stream)?;
     }
 
     if stream.status == Status::Active {
