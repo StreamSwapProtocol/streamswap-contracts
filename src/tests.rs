@@ -919,158 +919,158 @@ mod test_module {
         // in supply = 3000000 - (positions.spent summed)
         assert_eq!(stream.in_supply, Uint128::new(1625000));
     }
+
+    #[test]
+    pub fn test_withdraw_pending() {
+        // // instantiate
+        let treasury = Addr::unchecked("treasury");
+        let start = 2000;
+        let end = 1_000_000;
+        let out_supply = Uint128::new(1_000_000);
+        let out_denom = "out_denom";
+
+        // instantiate
+        let mut deps = mock_dependencies();
+        let mut env = mock_env();
+        env.block.height = 100;
+        let msg = crate::msg::InstantiateMsg {
+            min_stream_blocks: 1000,
+            min_blocks_until_start_block: 1000,
+            stream_creation_denom: "fee".to_string(),
+            stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(1),
+            fee_collector: "collector".to_string(),
+            protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "in".to_string(),
+        };
+        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+        // create stream
+        let mut env = mock_env();
+        env.block.height = 200;
+        let info = mock_info(
+            "creator1",
+            &[
+                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(100, "fee"),
+            ],
+        );
+        execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            "test".to_string(),
+            Some("https://sample.url".to_string()),
+            "in".to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start,
+            end,
+        )
+        .unwrap();
+
+        // first subscribe before start height
+        let mut env = mock_env();
+        env.block.height = 300;
+        let info = mock_info("creator1", &[Coin::new(1_000_000, "in")]);
+        let msg = crate::msg::ExecuteMsg::Subscribe {
+            stream_id: 1,
+            operator_target: None,
+            operator: None,
+        };
+        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+
+        // update creator 1 position, no distribution is expected
+        let mut env = mock_env();
+        env.block.height = 350;
+        let update_msg = crate::msg::ExecuteMsg::UpdatePosition {
+            stream_id: 1,
+            operator_target: None,
+        };
+        let info = mock_info("creator1", &[]);
+        let res = execute(deps.as_mut(), env, info, update_msg).unwrap();
+
+        assert_eq!(res.attributes[1].key, "stream_id");
+        assert_eq!(res.attributes[1].value, "1");
+        assert_eq!(res.attributes[3].key, "purchased");
+        assert_eq!(res.attributes[3].value, "0");
+        assert_eq!(res.attributes[4].key, "spent");
+        assert_eq!(res.attributes[4].value, "0");
+
+        // query stream before withdraw
+        let mut env = mock_env();
+        env.block.height = 400;
+        let stream = query_stream(deps.as_ref(), env, 1).unwrap();
+
+        assert_eq!(stream.id, 1);
+        assert_eq!(stream.dist_index, Decimal256::zero());
+        assert_eq!(stream.last_updated_block, 2000);
+        assert_eq!(stream.in_supply, Uint128::new(1_000_000));
+        assert_eq!(stream.spent_in, Uint128::zero());
+        assert_eq!(stream.shares, Uint128::new(1_000_000));
+
+        // withdraw before start height
+        let mut env = mock_env();
+        env.block.height = 400;
+        let info = mock_info("creator1", &[]);
+        let msg = crate::msg::ExecuteMsg::Withdraw {
+            stream_id: 1,
+            cap: Some(Uint128::new(500_000)),
+            operator_target: None,
+        };
+        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+        assert_eq!(res.attributes[0].value, "withdraw_pending");
+        assert_eq!(res.attributes[1].key, "stream_id");
+        assert_eq!(res.attributes[1].value, "1");
+        assert_eq!(res.attributes[3].key, "withdraw_amount");
+        assert_eq!(res.attributes[3].value, "500000");
+        assert_eq!(
+            res.messages[0].msg,
+            CosmosMsg::Bank(BankMsg::Send {
+                to_address: "creator1".to_string(),
+                amount: vec![Coin::new(500000, "in")]
+            })
+        );
+        // query stream after withdraw
+        let mut env = mock_env();
+        env.block.height = 400;
+        let stream = query_stream(deps.as_ref(), env, 1).unwrap();
+        assert_eq!(stream.id, 1);
+        assert_eq!(stream.dist_index, Decimal256::zero());
+        assert_eq!(stream.last_updated_block, 2000);
+        assert_eq!(stream.in_supply, Uint128::new(500_000));
+        assert_eq!(stream.spent_in, Uint128::zero());
+        assert_eq!(stream.shares, Uint128::new(500_000));
+
+        // withdraw after start height
+        let mut env = mock_env();
+        env.block.height = 3000;
+        let info = mock_info("creator1", &[]);
+        let msg = crate::msg::ExecuteMsg::Withdraw {
+            stream_id: 1,
+            cap: Some(Uint128::new(400_000)),
+            operator_target: None,
+        };
+        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+        assert_eq!(res.attributes[0].value, "withdraw");
+        assert_eq!(res.attributes[1].key, "stream_id");
+        assert_eq!(res.attributes[1].value, "1");
+        assert_eq!(res.attributes[3].key, "withdraw_amount");
+        assert_eq!(res.attributes[3].value, "400000");
+        assert_eq!(
+            res.messages[0].msg,
+            CosmosMsg::Bank(BankMsg::Send {
+                to_address: "creator1".to_string(),
+                amount: vec![Coin::new(400000, "in")]
+            })
+        );
+        // query stream after withdraw
+        let mut env = mock_env();
+        env.block.height = 3000;
+        let _stream = query_stream(deps.as_ref(), env, 1).unwrap();
+    }
 }
-
-//     #[test]
-//     pub fn test_withdraw_pending() {
-//         // // instantiate
-//         let treasury = Addr::unchecked("treasury");
-//         let start = Timestamp::from_seconds(2000);
-//         let end = Timestamp::from_seconds(1_000_000);
-//         let out_supply = Uint128::new(1_000_000);
-//         let out_denom = "out_denom";
-
-//         // instantiate
-//         let mut deps = mock_dependencies();
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(100);
-//         let msg = crate::msg::InstantiateMsg {
-//             min_stream_seconds: Uint64::new(1000),
-//             min_seconds_until_start_time: Uint64::new(1000),
-//             stream_creation_denom: "fee".to_string(),
-//             stream_creation_fee: Uint128::new(100),
-//             exit_fee_percent: Decimal::percent(1),
-//             fee_collector: "collector".to_string(),
-//             protocol_admin: "protocol_admin".to_string(),
-//             accepted_in_denom: "in".to_string(),
-//         };
-//         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
-
-//         // create stream
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(200);
-//         let info = mock_info(
-//             "creator1",
-//             &[
-//                 Coin::new(out_supply.u128(), out_denom),
-//                 Coin::new(100, "fee"),
-//             ],
-//         );
-//         execute_create_stream(
-//             deps.as_mut(),
-//             env,
-//             info,
-//             treasury.to_string(),
-//             "test".to_string(),
-//             Some("https://sample.url".to_string()),
-//             "in".to_string(),
-//             out_denom.to_string(),
-//             out_supply,
-//             start,
-//             end,
-//         )
-//         .unwrap();
-
-//         // first subscribe before start time
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(300);
-//         let info = mock_info("creator1", &[Coin::new(1_000_000, "in")]);
-//         let msg = crate::msg::ExecuteMsg::Subscribe {
-//             stream_id: 1,
-//             operator_target: None,
-//             operator: None,
-//         };
-//         let _res = execute(deps.as_mut(), env, info, msg).unwrap();
-
-//         // update creator 1 position no distrubution is excepted
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(350);
-//         let update_msg = crate::msg::ExecuteMsg::UpdatePosition {
-//             stream_id: 1,
-//             operator_target: None,
-//         };
-//         let info = mock_info("creator1", &[]);
-//         let res = execute(deps.as_mut(), env, info, update_msg).unwrap();
-
-//         assert_eq!(res.attributes[1].key, "stream_id");
-//         assert_eq!(res.attributes[1].value, "1");
-//         assert_eq!(res.attributes[3].key, "purchased");
-//         assert_eq!(res.attributes[3].value, "0");
-//         assert_eq!(res.attributes[4].key, "spent");
-//         assert_eq!(res.attributes[4].value, "0");
-
-//         // query stream before withdraw
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(400);
-//         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
-
-//         assert_eq!(stream.id, 1);
-//         assert_eq!(stream.dist_index, Decimal256::zero());
-//         assert_eq!(stream.last_updated, Timestamp::from_seconds(2000));
-//         assert_eq!(stream.in_supply, Uint128::new(1_000_000));
-//         assert_eq!(stream.spent_in, Uint128::zero());
-//         assert_eq!(stream.shares, Uint128::new(1_000_000));
-
-//         // withdraw before start time
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(400);
-//         let info = mock_info("creator1", &[]);
-//         let msg = crate::msg::ExecuteMsg::Withdraw {
-//             stream_id: 1,
-//             cap: Some(Uint128::new(500_000)),
-//             operator_target: None,
-//         };
-//         let res = execute(deps.as_mut(), env, info, msg).unwrap();
-//         assert_eq!(res.attributes[0].value, "withdraw_pending");
-//         assert_eq!(res.attributes[1].key, "stream_id");
-//         assert_eq!(res.attributes[1].value, "1");
-//         assert_eq!(res.attributes[3].key, "withdraw_amount");
-//         assert_eq!(res.attributes[3].value, "500000");
-//         assert_eq!(
-//             res.messages[0].msg,
-//             CosmosMsg::Bank(BankMsg::Send {
-//                 to_address: "creator1".to_string(),
-//                 amount: vec![Coin::new(500000, "in")]
-//             })
-//         );
-//         // query stream after withdraw
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(400);
-//         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
-//         assert_eq!(stream.id, 1);
-//         assert_eq!(stream.dist_index, Decimal256::zero());
-//         assert_eq!(stream.last_updated, Timestamp::from_seconds(2000));
-//         assert_eq!(stream.in_supply, Uint128::new(500_000));
-//         assert_eq!(stream.spent_in, Uint128::zero());
-//         assert_eq!(stream.shares, Uint128::new(500_000));
-
-//         // withdraw after start time
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(3000);
-//         let info = mock_info("creator1", &[]);
-//         let msg = crate::msg::ExecuteMsg::Withdraw {
-//             stream_id: 1,
-//             cap: Some(Uint128::new(400_000)),
-//             operator_target: None,
-//         };
-//         let res = execute(deps.as_mut(), env, info, msg).unwrap();
-//         assert_eq!(res.attributes[0].value, "withdraw");
-//         assert_eq!(res.attributes[1].key, "stream_id");
-//         assert_eq!(res.attributes[1].value, "1");
-//         assert_eq!(res.attributes[3].key, "withdraw_amount");
-//         assert_eq!(res.attributes[3].value, "400000");
-//         assert_eq!(
-//             res.messages[0].msg,
-//             CosmosMsg::Bank(BankMsg::Send {
-//                 to_address: "creator1".to_string(),
-//                 amount: vec![Coin::new(400000, "in")]
-//             })
-//         );
-//         // query stream after withdraw
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(3000);
-//         let _stream = query_stream(deps.as_ref(), env, 1).unwrap();
-//     }
 
 //     #[test]
 //     fn test_operator() {
