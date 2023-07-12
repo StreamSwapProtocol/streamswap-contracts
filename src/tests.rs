@@ -1814,229 +1814,230 @@ mod test_module {
         assert_eq!(res, ContractError::StreamEnded {});
     }
 
-    //     #[test]
-    //     fn test_finalize_stream() {
-    //         let treasury = Addr::unchecked("treasury");
-    //         let start = Timestamp::from_seconds(1_000_000);
-    //         let end = Timestamp::from_seconds(5_000_000);
-    //         let out_supply = Uint128::new(1_000_000_000_000);
-    //         let out_denom = "out_denom";
+    #[test]
+    #[test]
+    fn test_finalize_stream() {
+        let treasury = Addr::unchecked("treasury");
+        let start = 1_000_000;
+        let end = 5_000_000;
+        let out_supply = Uint128::new(1_000_000_000_000);
+        let out_denom = "out_denom";
 
-    //         // instantiate
-    //         let mut deps = mock_dependencies();
-    //         let mut env = mock_env();
-    //         env.block.time = Timestamp::from_seconds(0);
-    //         let msg = crate::msg::InstantiateMsg {
-    //             min_stream_seconds: Uint64::new(1000),
-    //             min_seconds_until_start_time: Uint64::new(0),
-    //             stream_creation_denom: "fee".to_string(),
-    //             stream_creation_fee: Uint128::new(100),
-    //             exit_fee_percent: Decimal::percent(1),
-    //             fee_collector: "collector".to_string(),
-    //             protocol_admin: "protocol_admin".to_string(),
-    //             accepted_in_denom: "in".to_string(),
-    //         };
-    //         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+        // instantiate
+        let mut deps = mock_dependencies();
+        let mut env = mock_env();
+        env.block.height = 0;
+        let msg = crate::msg::InstantiateMsg {
+            min_stream_blocks: 1000,
+            min_blocks_until_start_block: 1000,
+            stream_creation_denom: "fee".to_string(),
+            stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(1),
+            fee_collector: "collector".to_string(),
+            protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "in".to_string(),
+        };
+        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
-    //         // create stream
-    //         let mut env = mock_env();
-    //         env.block.time = Timestamp::from_seconds(0);
-    //         let info = mock_info(
-    //             "creator1",
-    //             &[
-    //                 Coin::new(out_supply.u128(), out_denom),
-    //                 Coin::new(100, "fee"),
-    //             ],
-    //         );
-    //         execute_create_stream(
-    //             deps.as_mut(),
-    //             env,
-    //             info,
-    //             treasury.to_string(),
-    //             "test".to_string(),
-    //             Some("https://sample.url".to_string()),
-    //             "in".to_string(),
-    //             out_denom.to_string(),
-    //             out_supply,
-    //             start,
-    //             end,
-    //         )
-    //         .unwrap();
+        // create stream
+        let mut env = mock_env();
+        env.block.height = 0;
+        let info = mock_info(
+            "creator1",
+            &[
+                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(100, "fee"),
+            ],
+        );
+        execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            "test".to_string(),
+            Some("https://sample.url".to_string()),
+            "in".to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start,
+            end,
+        )
+        .unwrap();
 
-    //         // first subscription
-    //         let mut env = mock_env();
-    //         env.block.time = start.plus_seconds(1_000_000);
-    //         let funds = Coin::new(2_000_000_000_000, "in");
-    //         let info = mock_info("creator1", &[funds]);
-    //         let msg = crate::msg::ExecuteMsg::Subscribe {
-    //             stream_id: 1,
-    //             operator_target: None,
-    //             operator: None,
-    //         };
-    //         let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+        // first subscription
+        let mut env = mock_env();
+        env.block.height = start + 1_000_000;
+        let funds = Coin::new(2_000_000_000_000, "in");
+        let info = mock_info("creator1", &[funds]);
+        let msg = crate::msg::ExecuteMsg::Subscribe {
+            stream_id: 1,
+            operator_target: None,
+            operator: None,
+        };
+        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
-    //         // only treasury can finalize
-    //         let mut env = mock_env();
-    //         env.block.time = end.plus_seconds(1);
-    //         let info = mock_info("random", &[]);
-    //         let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
-    //         assert_eq!(res, ContractError::Unauthorized {});
+        // only treasury can finalize
+        let mut env = mock_env();
+        env.block.height = end + 1;
+        let info = mock_info("random", &[]);
+        let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
+        assert_eq!(res, ContractError::Unauthorized {});
 
-    //         // can't finalize before stream ends
-    //         let mut env = mock_env();
-    //         env.block.time = start.plus_seconds(1);
-    //         let info = mock_info(treasury.as_str(), &[]);
-    //         let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
-    //         assert_eq!(res, ContractError::StreamNotEnded {});
+        // can't finalize before stream ends
+        let mut env = mock_env();
+        env.block.height = start + 1;
+        let info = mock_info(treasury.as_str(), &[]);
+        let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
+        assert_eq!(res, ContractError::StreamNotEnded {});
 
-    //         // happy path
-    //         let mut env = mock_env();
-    //         env.block.time = end.plus_seconds(1);
-    //         let info = mock_info(treasury.as_str(), &[]);
-    //         execute_update_stream(deps.as_mut(), env.clone(), 1).unwrap();
+        // happy path
+        let mut env = mock_env();
+        env.block.height = end + 1;
+        let info = mock_info(treasury.as_str(), &[]);
+        execute_update_stream(deps.as_mut(), env.clone(), 1).unwrap();
 
-    //         let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap();
-    //         assert_eq!(
-    //             res.attributes,
-    //             vec![
-    //                 attr("action", "finalize_stream"),
-    //                 attr("stream_id", "1"),
-    //                 attr("treasury", "treasury"),
-    //                 attr("fee_collector", "collector"),
-    //                 attr("creators_revenue", "1980000000000"),
-    //                 attr("refunded_out_remaining", "0"),
-    //                 attr("total_sold", "1000000000000"),
-    //                 attr("swap_fee", "20000000000"),
-    //                 attr("creation_fee", "100"),
-    //             ]
-    //         );
-    //         assert_eq!(
-    //             res.messages,
-    //             vec![
-    //                 SubMsg::new(BankMsg::Send {
-    //                     to_address: "treasury".to_string(),
-    //                     amount: vec![Coin {
-    //                         denom: "in".to_string(),
-    //                         amount: Uint128::new(1_980_000_000_000),
-    //                     }],
-    //                 }),
-    //                 SubMsg::new(BankMsg::Send {
-    //                     to_address: "collector".to_string(),
-    //                     amount: vec![Coin {
-    //                         denom: "fee".to_string(),
-    //                         amount: Uint128::new(100),
-    //                     }],
-    //                 }),
-    //                 SubMsg::new(BankMsg::Send {
-    //                     to_address: "collector".to_string(),
-    //                     amount: vec![Coin {
-    //                         denom: "in".to_string(),
-    //                         amount: Uint128::new(20_000_000_000),
-    //                     }],
-    //                 }),
-    //             ],
-    //         );
-    //     }
+        let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap();
+        assert_eq!(
+            res.attributes,
+            vec![
+                attr("action", "finalize_stream"),
+                attr("stream_id", "1"),
+                attr("treasury", "treasury"),
+                attr("fee_collector", "collector"),
+                attr("creators_revenue", "1980000000000"),
+                attr("refunded_out_remaining", "0"),
+                attr("total_sold", "1000000000000"),
+                attr("swap_fee", "20000000000"),
+                attr("creation_fee", "100"),
+            ]
+        );
+        assert_eq!(
+            res.messages,
+            vec![
+                SubMsg::new(BankMsg::Send {
+                    to_address: "treasury".to_string(),
+                    amount: vec![Coin {
+                        denom: "in".to_string(),
+                        amount: Uint128::new(1_980_000_000_000),
+                    }],
+                }),
+                SubMsg::new(BankMsg::Send {
+                    to_address: "collector".to_string(),
+                    amount: vec![Coin {
+                        denom: "fee".to_string(),
+                        amount: Uint128::new(100),
+                    }],
+                }),
+                SubMsg::new(BankMsg::Send {
+                    to_address: "collector".to_string(),
+                    amount: vec![Coin {
+                        denom: "in".to_string(),
+                        amount: Uint128::new(20_000_000_000),
+                    }],
+                }),
+            ],
+        );
+    }
 
-    //     #[test]
-    //     fn test_recurring_finalize_stream_calls() {
-    //         let malicious_treasury = Addr::unchecked("treasury");
-    //         let start = Timestamp::from_seconds(10);
-    //         let end = Timestamp::from_seconds(110);
-    //         let out_supply = Uint128::new(1000);
-    //         let out_denom = "myToken";
-    //         let in_denom = "uosmo";
-    //         // instantiate
-    //         let mut deps = mock_dependencies();
-    //         let mut env = mock_env();
-    //         env.block.time = Timestamp::from_seconds(0);
-    //         let msg = crate::msg::InstantiateMsg {
-    //             min_stream_seconds: Uint64::new(100),
-    //             min_seconds_until_start_time: Uint64::new(0),
-    //             stream_creation_denom: "fee".to_string(),
-    //             stream_creation_fee: Uint128::new(100),
-    //             exit_fee_percent: Decimal::percent(1),
-    //             fee_collector: "collector".to_string(),
-    //             protocol_admin: "protocol_admin".to_string(),
-    //             accepted_in_denom: in_denom.to_string(),
-    //         };
-    //         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
-    //         // Create stream
-    //         let mut env = mock_env();
-    //         env.block.time = Timestamp::from_seconds(0);
-    //         let info = mock_info(
-    //             malicious_treasury.as_str(),
-    //             &[
-    //                 Coin::new(out_supply.u128(), out_denom),
-    //                 Coin::new(100, "fee"),
-    //             ],
-    //         );
-    //         execute_create_stream(
-    //             deps.as_mut(),
-    //             env,
-    //             info,
-    //             malicious_treasury.to_string(),
-    //             "test".to_string(),
-    //             Some("https://sample.url".to_string()),
-    //             in_denom.to_string(),
-    //             out_denom.to_string(),
-    //             out_supply,
-    //             start,
-    //             end,
-    //         )
-    //         .unwrap();
-    //         // First subscription
-    //         let mut env = mock_env();
-    //         env.block.time = start.plus_seconds(1);
-    //         let funds = Coin::new(200, in_denom.to_string());
-    //         let info = mock_info("user1", &[funds]);
-    //         let msg = crate::msg::ExecuteMsg::Subscribe {
-    //             stream_id: 1,
-    //             operator_target: None,
-    //             operator: None,
-    //         };
-    //         let _res = execute(deps.as_mut(), env, info, msg).unwrap();
-    //         // Update
-    //         let mut env = mock_env();
-    //         env.block.time = end.plus_seconds(1);
-    //         let info = mock_info(malicious_treasury.as_str(), &[]);
-    //         execute_update_stream(deps.as_mut(), env.clone(), 1).unwrap();
-    //         // First call
-    //         let res =
-    //             execute_finalize_stream(deps.as_mut(), env.clone(), info.clone(), 1, None).unwrap();
-    //         assert_eq!(
-    //             res.messages,
-    //             vec![
-    //                 SubMsg::new(BankMsg::Send {
-    //                     to_address: malicious_treasury.to_string(),
-    //                     amount: vec![Coin {
-    //                         denom: in_denom.to_string(),
-    //                         amount: Uint128::new(198),
-    //                     }],
-    //                 }),
-    //                 SubMsg::new(BankMsg::Send {
-    //                     to_address: "collector".to_string(),
-    //                     amount: vec![Coin {
-    //                         denom: "fee".to_string(),
-    //                         amount: Uint128::new(100),
-    //                     }],
-    //                 }),
-    //                 SubMsg::new(BankMsg::Send {
-    //                     to_address: "collector".to_string(),
-    //                     amount: vec![Coin {
-    //                         denom: in_denom.to_string(),
-    //                         amount: Uint128::new(2),
-    //                     }],
-    //                 }),
-    //             ],
-    //         );
-    //         // Check stream status
-    //         let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
-    //         assert_eq!(stream.status, Status::Finalized);
-    //         // Sequential calls, anyone could force this sequential calls
-    //         let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
-    //         assert_eq!(res, ContractError::StreamAlreadyFinalized {});
-    //     }
+    #[test]
+    fn test_recurring_finalize_stream_calls() {
+        let malicious_treasury = Addr::unchecked("treasury");
+        let start = 10_000;
+        let end = 1_000_000;
+        let out_supply = Uint128::new(1000);
+        let out_denom = " out_denom";
+        let in_denom = " in_denom";
+        // instantiate
+        let mut deps = mock_dependencies();
+        let mut env = mock_env();
+        env.block.height = 0;
+        let msg = crate::msg::InstantiateMsg {
+            min_stream_blocks: 1000,
+            min_blocks_until_start_block: 1000,
+            stream_creation_denom: "fee".to_string(),
+            stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(1),
+            fee_collector: "collector".to_string(),
+            protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: in_denom.to_string(),
+        };
+        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+        // Create stream
+        let mut env = mock_env();
+        env.block.height = 1;
+        let info = mock_info(
+            malicious_treasury.as_str(),
+            &[
+                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(100, "fee"),
+            ],
+        );
+        execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            malicious_treasury.to_string(),
+            "test".to_string(),
+            Some("https://sample.url".to_string()),
+            in_denom.to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start,
+            end,
+        )
+        .unwrap();
+        // First subscription
+        let mut env = mock_env();
+        env.block.height = start + 1;
+        let funds = Coin::new(200, in_denom.to_string());
+        let info = mock_info("user1", &[funds]);
+        let msg = crate::msg::ExecuteMsg::Subscribe {
+            stream_id: 1,
+            operator_target: None,
+            operator: None,
+        };
+        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+        // Update
+        let mut env = mock_env();
+        env.block.height = end + 1;
+        let info = mock_info(malicious_treasury.as_str(), &[]);
+        execute_update_stream(deps.as_mut(), env.clone(), 1).unwrap();
+        // First call
+        let res =
+            execute_finalize_stream(deps.as_mut(), env.clone(), info.clone(), 1, None).unwrap();
+        assert_eq!(
+            res.messages,
+            vec![
+                SubMsg::new(BankMsg::Send {
+                    to_address: malicious_treasury.to_string(),
+                    amount: vec![Coin {
+                        denom: in_denom.to_string(),
+                        amount: Uint128::new(198),
+                    }],
+                }),
+                SubMsg::new(BankMsg::Send {
+                    to_address: "collector".to_string(),
+                    amount: vec![Coin {
+                        denom: "fee".to_string(),
+                        amount: Uint128::new(100),
+                    }],
+                }),
+                SubMsg::new(BankMsg::Send {
+                    to_address: "collector".to_string(),
+                    amount: vec![Coin {
+                        denom: in_denom.to_string(),
+                        amount: Uint128::new(2),
+                    }],
+                }),
+            ],
+        );
+        // Check stream status
+        let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
+        assert_eq!(stream.status, Status::Finalized);
+        // Sequential calls, anyone could force this sequential calls
+        let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
+        assert_eq!(res, ContractError::StreamAlreadyFinalized {});
+    }
 
     //     #[test]
     //     fn test_exit_stream() {
