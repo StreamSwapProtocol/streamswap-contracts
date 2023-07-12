@@ -1510,170 +1510,171 @@ mod test_module {
         assert_eq!(stream.out_supply, Uint128::new(1_000_000));
         assert_eq!(position.purchased, stream.out_supply);
     }
+
+    // this is for testing the leftover amount with bigger values
+    #[test]
+    fn test_rounding_leftover() {
+        let treasury = Addr::unchecked("treasury");
+        let start = 1_000_000;
+        let end = 5_000_000;
+        let out_supply = Uint128::new(1_000_000_000_000);
+        let out_denom = "out_denom";
+
+        // instantiate
+        let mut deps = mock_dependencies();
+        let mut env = mock_env();
+        env.block.height = 100;
+        let msg = crate::msg::InstantiateMsg {
+            min_blocks_until_start_block: 1000,
+            min_stream_blocks: 1000,
+            stream_creation_denom: "fee".to_string(),
+            stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(1),
+            fee_collector: "collector".to_string(),
+            protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "in".to_string(),
+        };
+        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+        // create stream
+        let mut env = mock_env();
+        env.block.height = 1;
+        let info = mock_info(
+            "creator",
+            &[
+                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(100, "fee"),
+            ],
+        );
+        execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            "test".to_string(),
+            Some("https://sample.url".to_string()),
+            "in".to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start,
+            end,
+        )
+        .unwrap();
+
+        // first subscription
+        let mut env = mock_env();
+        env.block.height = start + 100;
+        let info = mock_info("creator1", &[Coin::new(1_000_000_000, "in")]);
+        let msg = crate::msg::ExecuteMsg::Subscribe {
+            stream_id: 1,
+            operator_target: None,
+            operator: None,
+        };
+        execute(deps.as_mut(), env, info, msg).unwrap();
+
+        // second subscription
+        let mut env = mock_env();
+        env.block.height = start + 100_000;
+        let info = mock_info("creator2", &[Coin::new(3_000_000_000, "in")]);
+        let msg = crate::msg::ExecuteMsg::Subscribe {
+            stream_id: 1,
+            operator_target: None,
+            operator: None,
+        };
+        execute(deps.as_mut(), env, info, msg).unwrap();
+
+        // update position creator1
+        let mut env = mock_env();
+        env.block.height = start + 3_000_000;
+        let info = mock_info("creator1", &[]);
+        execute_update_position(deps.as_mut(), env.clone(), info, 1, None).unwrap();
+
+        let position =
+            query_position(deps.as_ref(), env.clone(), 1, "creator1".to_string()).unwrap();
+        assert_eq!(
+            position.index,
+            Decimal256::from_str("202.813614449380587585").unwrap()
+        );
+        assert_eq!(position.purchased, Uint128::new(202_813_614_449));
+        assert_eq!(position.spent, Uint128::new(749_993_750));
+        assert_eq!(position.in_balance, Uint128::new(250_006_250));
+        let stream = query_stream(deps.as_ref(), env, 1).unwrap();
+        assert_eq!(
+            stream.dist_index,
+            Decimal256::from_str("202.813614449380587585").unwrap()
+        );
+
+        // update position creator2
+        let mut env = mock_env();
+        env.block.height = start + 3_575_000;
+        let info = mock_info("creator2", &[]);
+        execute_update_position(deps.as_mut(), env.clone(), info, 1, None).unwrap();
+
+        let position =
+            query_position(deps.as_ref(), env.clone(), 1, "creator2".to_string()).unwrap();
+        assert_eq!(
+            position.index,
+            Decimal256::from_str("238.074595237060799266").unwrap()
+        );
+        assert_eq!(position.purchased, Uint128::new(655672748445));
+        assert_eq!(position.spent, Uint128::new(2673076923));
+        assert_eq!(position.in_balance, Uint128::new(326923077));
+        let stream = query_stream(deps.as_ref(), env, 1).unwrap();
+        assert_eq!(
+            stream.dist_index,
+            Decimal256::from_str("238.074595237060799266").unwrap()
+        );
+
+        // update position after stream ends
+        let mut env = mock_env();
+        env.block.height = end + 1;
+        let info = mock_info("creator1", &[]);
+        execute_update_position(deps.as_mut(), env.clone(), info, 1, None).unwrap();
+        let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
+        assert_eq!(
+            stream.dist_index,
+            Decimal256::from_str("264.137059297637397644").unwrap()
+        );
+        assert_eq!(stream.in_supply, Uint128::zero());
+        let position1 =
+            query_position(deps.as_ref(), env.clone(), 1, "creator1".to_string()).unwrap();
+        assert_eq!(
+            position1.index,
+            Decimal256::from_str("264.137059297637397644").unwrap()
+        );
+        assert_eq!(position1.spent, Uint128::new(1_000_000_000));
+        assert_eq!(position1.in_balance, Uint128::zero());
+
+        // update position after stream ends
+        let mut env = mock_env();
+        env.block.height = end + 1;
+        let info = mock_info("creator2", &[]);
+        execute_update_position(deps.as_mut(), env.clone(), info, 1, None).unwrap();
+        let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
+        assert_eq!(
+            stream.dist_index,
+            Decimal256::from_str("264.137059297637397644").unwrap()
+        );
+        assert_eq!(stream.in_supply, Uint128::zero());
+        let position2 = query_position(deps.as_ref(), env, 1, "creator2".to_string()).unwrap();
+        assert_eq!(
+            position2.index,
+            Decimal256::from_str("264.137059297637397644").unwrap()
+        );
+        assert_eq!(position2.spent, Uint128::new(3_000_000_000));
+        assert_eq!(position2.in_balance, Uint128::zero());
+
+        assert_eq!(stream.out_remaining, Uint128::zero());
+        assert_eq!(
+            position1
+                .purchased
+                .checked_add(position2.purchased)
+                .unwrap(),
+            // 1 difference due to rounding
+            stream.out_supply.sub(Uint128::new(1u128))
+        );
+    }
 }
-//     // this is for testing the leftover amount with bigger values
-//     #[test]
-//     fn test_rounding_leftover() {
-//         let treasury = Addr::unchecked("treasury");
-//         let start = Timestamp::from_seconds(1_000_000);
-//         let end = Timestamp::from_seconds(5_000_000);
-//         let out_supply = Uint128::new(1_000_000_000_000);
-//         let out_denom = "out_denom";
-
-//         // instantiate
-//         let mut deps = mock_dependencies();
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(100);
-//         let msg = crate::msg::InstantiateMsg {
-//             min_stream_seconds: Uint64::new(1000),
-//             min_seconds_until_start_time: Uint64::new(1000),
-//             stream_creation_denom: "fee".to_string(),
-//             stream_creation_fee: Uint128::new(100),
-//             exit_fee_percent: Decimal::percent(1),
-//             fee_collector: "collector".to_string(),
-//             protocol_admin: "protocol_admin".to_string(),
-//             accepted_in_denom: "in".to_string(),
-//         };
-//         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
-
-//         // create stream
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(1);
-//         let info = mock_info(
-//             "creator",
-//             &[
-//                 Coin::new(out_supply.u128(), out_denom),
-//                 Coin::new(100, "fee"),
-//             ],
-//         );
-//         execute_create_stream(
-//             deps.as_mut(),
-//             env,
-//             info,
-//             treasury.to_string(),
-//             "test".to_string(),
-//             Some("https://sample.url".to_string()),
-//             "in".to_string(),
-//             out_denom.to_string(),
-//             out_supply,
-//             start,
-//             end,
-//         )
-//         .unwrap();
-
-//         // first subscription
-//         let mut env = mock_env();
-//         env.block.time = start.plus_seconds(100);
-//         let info = mock_info("creator1", &[Coin::new(1_000_000_000, "in")]);
-//         let msg = crate::msg::ExecuteMsg::Subscribe {
-//             stream_id: 1,
-//             operator_target: None,
-//             operator: None,
-//         };
-//         execute(deps.as_mut(), env, info, msg).unwrap();
-
-//         // second subscription
-//         let mut env = mock_env();
-//         env.block.time = start.plus_seconds(100_000);
-//         let info = mock_info("creator2", &[Coin::new(3_000_000_000, "in")]);
-//         let msg = crate::msg::ExecuteMsg::Subscribe {
-//             stream_id: 1,
-//             operator_target: None,
-//             operator: None,
-//         };
-//         execute(deps.as_mut(), env, info, msg).unwrap();
-
-//         // update position creator1
-//         let mut env = mock_env();
-//         env.block.time = start.plus_seconds(3_000_000);
-//         let info = mock_info("creator1", &[]);
-//         execute_update_position(deps.as_mut(), env.clone(), info, 1, None).unwrap();
-
-//         let position =
-//             query_position(deps.as_ref(), env.clone(), 1, "creator1".to_string()).unwrap();
-//         assert_eq!(
-//             position.index,
-//             Decimal256::from_str("202.813614449380587585").unwrap()
-//         );
-//         assert_eq!(position.purchased, Uint128::new(202_813_614_449));
-//         assert_eq!(position.spent, Uint128::new(749_993_750));
-//         assert_eq!(position.in_balance, Uint128::new(250_006_250));
-//         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
-//         assert_eq!(
-//             stream.dist_index,
-//             Decimal256::from_str("202.813614449380587585").unwrap()
-//         );
-
-//         // update position creator2
-//         let mut env = mock_env();
-//         env.block.time = start.plus_seconds(3_575_000);
-//         let info = mock_info("creator2", &[]);
-//         execute_update_position(deps.as_mut(), env.clone(), info, 1, None).unwrap();
-
-//         let position =
-//             query_position(deps.as_ref(), env.clone(), 1, "creator2".to_string()).unwrap();
-//         assert_eq!(
-//             position.index,
-//             Decimal256::from_str("238.074595237060799266").unwrap()
-//         );
-//         assert_eq!(position.purchased, Uint128::new(655672748445));
-//         assert_eq!(position.spent, Uint128::new(2673076923));
-//         assert_eq!(position.in_balance, Uint128::new(326923077));
-//         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
-//         assert_eq!(
-//             stream.dist_index,
-//             Decimal256::from_str("238.074595237060799266").unwrap()
-//         );
-
-//         // update position after stream ends
-//         let mut env = mock_env();
-//         env.block.time = end.plus_seconds(1);
-//         let info = mock_info("creator1", &[]);
-//         execute_update_position(deps.as_mut(), env.clone(), info, 1, None).unwrap();
-//         let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
-//         assert_eq!(
-//             stream.dist_index,
-//             Decimal256::from_str("264.137059297637397644").unwrap()
-//         );
-//         assert_eq!(stream.in_supply, Uint128::zero());
-//         let position1 = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
-//         assert_eq!(
-//             position1.index,
-//             Decimal256::from_str("264.137059297637397644").unwrap()
-//         );
-//         assert_eq!(position1.spent, Uint128::new(1_000_000_000));
-//         assert_eq!(position1.in_balance, Uint128::zero());
-
-//         // update position after stream ends
-//         let mut env = mock_env();
-//         env.block.time = end.plus_seconds(1);
-//         let info = mock_info("creator2", &[]);
-//         execute_update_position(deps.as_mut(), env.clone(), info, 1, None).unwrap();
-//         let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
-//         assert_eq!(
-//             stream.dist_index,
-//             Decimal256::from_str("264.137059297637397644").unwrap()
-//         );
-//         assert_eq!(stream.in_supply, Uint128::zero());
-//         let position2 = query_position(deps.as_ref(), env, 1, "creator2".to_string()).unwrap();
-//         assert_eq!(
-//             position2.index,
-//             Decimal256::from_str("264.137059297637397644").unwrap()
-//         );
-//         assert_eq!(position2.spent, Uint128::new(3_000_000_000));
-//         assert_eq!(position2.in_balance, Uint128::zero());
-
-//         assert_eq!(stream.out_remaining, Uint128::zero());
-//         assert_eq!(
-//             position1
-//                 .purchased
-//                 .checked_add(position2.purchased)
-//                 .unwrap(),
-//             // 1 difference due to rounding
-//             stream.out_supply.sub(Uint128::new(1u128))
-//         );
-//     }
-
 //     #[test]
 //     fn test_withdraw() {
 //         let treasury = Addr::unchecked("treasury");
