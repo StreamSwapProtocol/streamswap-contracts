@@ -122,7 +122,7 @@ pub enum ExecuteMsg {
 
     UpdateConfig {
         min_stream_blocks: Option<u64>,
-        min_blocks_until_start: Option<u64>,
+        min_blocks_until_start_block: Option<u64>,
         stream_creation_denom: Option<String>,
         stream_creation_fee: Option<Uint128>,
         fee_collector: Option<String>,
@@ -172,10 +172,10 @@ pub enum QueryMsg {
 
 #[cw_serde]
 pub struct ConfigResponse {
-    /// Minimum time in seconds for a stream to last.
+    /// Minimum blocks for a stream to last.
     pub min_stream_blocks: u64,
-    /// Minimum time in seconds until the start time of a stream.
-    pub min_blocks_until_start: u64,
+    /// Minimum blocks until the start block of a stream.
+    pub min_blocks_until_start_block: u64,
     /// Denom accepted for subscription.
     pub accepted_in_denom: String,
     /// Denom used as fee for creating a stream.

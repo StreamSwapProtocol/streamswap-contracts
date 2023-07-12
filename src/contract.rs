@@ -39,7 +39,7 @@ pub fn instantiate(
 
     let config = Config {
         min_stream_blocks: msg.min_stream_blocks,
-        min_blocks_until_start: msg.min_blocks_until_start_block,
+        min_blocks_until_start_block: msg.min_blocks_until_start_block,
         stream_creation_denom: msg.stream_creation_denom.clone(),
         stream_creation_fee: msg.stream_creation_fee,
         exit_fee_percent: msg.exit_fee_percent,
@@ -192,7 +192,7 @@ pub fn execute(
         } => execute_update_protocol_admin(deps, env, info, new_admin),
         ExecuteMsg::UpdateConfig {
             min_stream_blocks,
-            min_blocks_until_start,
+            min_blocks_until_start_block,
             stream_creation_denom,
             stream_creation_fee,
             fee_collector,
@@ -203,7 +203,7 @@ pub fn execute(
             env,
             info,
             min_stream_blocks,
-            min_blocks_until_start,
+            min_blocks_until_start_block,
             stream_creation_denom,
             stream_creation_fee,
             fee_collector,
@@ -237,7 +237,7 @@ pub fn execute_create_stream(
         return Err(ContractError::StreamDurationTooShort {});
     }
 
-    if start_block - env.block.height < config.min_blocks_until_start {
+    if start_block - env.block.height < config.min_blocks_until_start_block {
         return Err(ContractError::StreamStartsTooSoon {});
     }
 
@@ -1043,7 +1043,8 @@ pub fn execute_update_config(
     }
 
     cfg.min_stream_blocks = min_stream_blocks.unwrap_or(cfg.min_stream_blocks);
-    cfg.min_blocks_until_start = min_blocks_until_start.unwrap_or(cfg.min_blocks_until_start);
+    cfg.min_blocks_until_start_block =
+        min_blocks_until_start.unwrap_or(cfg.min_blocks_until_start_block);
     cfg.stream_creation_denom = stream_creation_denom.unwrap_or(cfg.stream_creation_denom);
     cfg.stream_creation_fee = stream_creation_fee.unwrap_or(cfg.stream_creation_fee);
     cfg.accepted_in_denom = accepted_in_denom.unwrap_or(cfg.accepted_in_denom);
@@ -1058,7 +1059,7 @@ pub fn execute_update_config(
         attr("min_stream_blocks", cfg.min_stream_blocks.to_string()),
         attr(
             "min_blocks_until_start",
-            cfg.min_blocks_until_start.to_string(),
+            cfg.min_blocks_until_start_block.to_string(),
         ),
         attr("stream_creation_denom", cfg.stream_creation_denom),
         attr("stream_creation_fee", cfg.stream_creation_fee),
@@ -1139,7 +1140,7 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let cfg = CONFIG.load(deps.storage)?;
     Ok(ConfigResponse {
         min_stream_blocks: cfg.min_stream_blocks,
-        min_blocks_until_start: cfg.min_blocks_until_start,
+        min_blocks_until_start_block: cfg.min_blocks_until_start_block,
         stream_creation_denom: cfg.stream_creation_denom,
         stream_creation_fee: cfg.stream_creation_fee,
         exit_fee_percent: cfg.exit_fee_percent,

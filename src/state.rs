@@ -9,7 +9,7 @@ pub struct Config {
     /// Minimum sale duration as blocks
     pub min_stream_blocks: u64,
     /// Minimum duration between start_block and current_block
-    pub min_blocks_until_start: u64,
+    pub min_blocks_until_start_block: u64,
     /// Accepted in_denom to buy out_tokens
     pub accepted_in_denom: String,
     /// Accepted stream creation fee denom
