@@ -237,7 +237,7 @@ pub fn execute_create_stream(
         return Err(ContractError::StreamDurationTooShort {});
     }
 
-    if start_block - env.block.height > config.min_blocks_until_start {
+    if start_block - env.block.height < config.min_blocks_until_start {
         return Err(ContractError::StreamStartsTooSoon {});
     }
 
