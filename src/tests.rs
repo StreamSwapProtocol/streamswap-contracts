@@ -1082,7 +1082,7 @@ mod test_module {
         // instantiate
         let mut deps = mock_dependencies();
         let mut env = mock_env();
-        env.block.height = 100;
+        env.block.height = 0;
         let msg = crate::msg::InstantiateMsg {
             min_stream_blocks: 1000,
             min_blocks_until_start_block: 1000,
@@ -1097,7 +1097,7 @@ mod test_module {
 
         // create stream
         let mut env = mock_env();
-        env.block.height = 0;
+        env.block.height = 1;
         let info = mock_info(
             "creator",
             &[
@@ -1415,7 +1415,7 @@ mod test_module {
         // instantiate
         let mut deps = mock_dependencies();
         let mut env = mock_env();
-        env.block.height = 100;
+        env.block.height = 0;
         let msg = crate::msg::InstantiateMsg {
             min_blocks_until_start_block: 1000,
             min_stream_blocks: 1000,
@@ -1523,7 +1523,7 @@ mod test_module {
         // instantiate
         let mut deps = mock_dependencies();
         let mut env = mock_env();
-        env.block.height = 100;
+        env.block.height = 0;
         let msg = crate::msg::InstantiateMsg {
             min_blocks_until_start_block: 1000,
             min_stream_blocks: 1000,
