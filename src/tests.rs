@@ -744,182 +744,182 @@ mod test_module {
         assert_eq!(position.index, Decimal256::from_str("0.0001").unwrap());
         assert_eq!(position.in_balance, Uint128::new(1999900));
     }
+    #[test]
+    fn test_subscribe_pending() {
+        // instantiate
+        let treasury = Addr::unchecked("treasury");
+        let start = 5000;
+        let end = 10000;
+        let out_supply = Uint128::new(1_000_000);
+        let out_denom = "out_denom";
+
+        // instantiate
+        let mut deps = mock_dependencies();
+        let mut env = mock_env();
+        env.block.height = 100;
+        let msg = crate::msg::InstantiateMsg {
+            min_stream_blocks: 500,
+            min_blocks_until_start_block: 500,
+            stream_creation_denom: "fee".to_string(),
+            stream_creation_fee: Uint128::new(100),
+            exit_fee_percent: Decimal::percent(1),
+            fee_collector: "collector".to_string(),
+            protocol_admin: "protocol_admin".to_string(),
+            accepted_in_denom: "in".to_string(),
+        };
+        instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+        // create stream
+        let mut env = mock_env();
+        env.block.height = 200;
+        let info = mock_info(
+            "creator1",
+            &[
+                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(100, "fee"),
+            ],
+        );
+        execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            "test".to_string(),
+            Some("https://sample.url".to_string()),
+            "in".to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start,
+            end,
+        )
+        .unwrap();
+
+        // first subscribe
+        let mut env = mock_env();
+        env.block.height = 300;
+
+        let info = mock_info("creator1", &[Coin::new(1_000_000, "in")]);
+        let msg = crate::msg::ExecuteMsg::Subscribe {
+            stream_id: 1,
+            operator_target: None,
+            operator: None,
+        };
+        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+        assert_eq!(res.attributes[0].key, "action");
+        assert_eq!(res.attributes[0].value, "subscribe_pending");
+        // query stream
+        let mut env = mock_env();
+        env.block.height = 350;
+        let stream = query_stream(deps.as_ref(), env, 1).unwrap();
+        assert_eq!(stream.status, Status::Waiting);
+        assert_eq!(stream.in_supply, Uint128::new(1000000));
+        assert_eq!(stream.shares, Uint128::new(1000000));
+
+        // second subscribe still waiting
+        let mut env = mock_env();
+        env.block.height = 500;
+        let info = mock_info("creator1", &[Coin::new(1_000_000, "in")]);
+        let msg = crate::msg::ExecuteMsg::Subscribe {
+            stream_id: 1,
+            operator_target: None,
+            operator: None,
+        };
+        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+        assert_eq!(res.attributes[0].key, "action");
+        assert_eq!(res.attributes[0].value, "subscribe_pending");
+
+        // query stream
+        let mut env = mock_env();
+        env.block.height = 450;
+        let stream = query_stream(deps.as_ref(), env, 1).unwrap();
+        assert_eq!(stream.status, Status::Waiting);
+        assert_eq!(stream.in_supply, Uint128::new(2000000));
+
+        // Before stream start height, 2 subscriptions have been made and the stream is pending
+        // After stream start height plus 1000 blocks, one subscription is made and the stream is active
+        // Creator 1 has 2 subscriptions and 2_000_000 in balance
+        // Creator 2 has 1 subscription and 1_000_000 in balance
+        // At 6000 blocks, the stream is active and the balance to be distributed is ~2000000
+        // At 6000 blocks, creator 1 should have spent 2000000*1000/5000= 400000
+        // At 6000 blocks, creator 1 should get all 2000000 tokens
+        // At 6000 blocks, creator 2 should get 0 tokens
+        // At 7500 blocks, the stream is active and the balance to be distributed is 300000
+        // At 7500 blocks, creator 1 should get 300000*2000000/3250000 = 184615
+        // At 7500 blocks, creator 2 should get 300000*1250000/3250000 = 115384
+
+        // subscription after start height
+        let mut env = mock_env();
+        env.block.height = 6000;
+        let info = mock_info("creator2", &[Coin::new(1_000_000, "in")]);
+        let msg = crate::msg::ExecuteMsg::Subscribe {
+            stream_id: 1,
+            operator_target: None,
+            operator: None,
+        };
+        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+        assert_eq!(res.attributes[0].key, "action");
+        // different action because the stream is active
+        assert_eq!(res.attributes[0].value, "subscribe");
+
+        // update creator 1 position
+        let mut env = mock_env();
+        env.block.height = 6000;
+        let update_msg = crate::msg::ExecuteMsg::UpdatePosition {
+            stream_id: 1,
+            operator_target: None,
+        };
+        let info = mock_info("creator1", &[]);
+        let _res = execute(deps.as_mut(), env.clone(), info, update_msg).unwrap();
+        let position = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
+        assert_eq!(position.spent, Uint128::new(400000));
+
+        // query stream
+        let mut env = mock_env();
+        env.block.height = 6000;
+        let stream = query_stream(deps.as_ref(), env, 1).unwrap();
+        assert_eq!(stream.status, Status::Active);
+        assert_eq!(stream.in_supply, Uint128::new(3000000 - 400000));
+        assert_eq!(stream.spent_in, Uint128::new(400000));
+
+        // update creator 1 position at 7500
+        let mut env = mock_env();
+        env.block.height = 7500;
+        let update_msg = crate::msg::ExecuteMsg::UpdatePosition {
+            stream_id: 1,
+            operator_target: None,
+        };
+        let info = mock_info("creator1", &[]);
+        let _res = execute(deps.as_mut(), env.clone(), info, update_msg).unwrap();
+
+        // query position
+        let res = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
+        assert_eq!(res.purchased, Uint128::new(184615 + 200000));
+        assert_eq!(res.spent, Uint128::new(2000000 / 2));
+
+        // update creator 2 position at 7500
+        let mut env = mock_env();
+        env.block.height = 7500;
+        let update_msg = crate::msg::ExecuteMsg::UpdatePosition {
+            stream_id: 1,
+            operator_target: None,
+        };
+        let info = mock_info("creator2", &[]);
+        let _res = execute(deps.as_mut(), env.clone(), info, update_msg).unwrap();
+
+        // query position
+        let res = query_position(deps.as_ref(), env, 1, "creator2".to_string()).unwrap();
+        assert_eq!(res.purchased, Uint128::new(115384));
+        // spent = in_supply * (now - last_updated) / (end - last_updated)
+        assert_eq!(res.spent, Uint128::new(1000000 * 1500 / 4000));
+        // query stream
+        let mut env = mock_env();
+        env.block.height = 3500;
+        let stream = query_stream(deps.as_ref(), env, 1).unwrap();
+        assert_eq!(stream.status, Status::Active);
+        // in supply = 3000000 - (positions.spent summed)
+        assert_eq!(stream.in_supply, Uint128::new(1625000));
+    }
 }
-//     #[test]
-//     fn test_subscribe_pending() {
-//         // instantiate
-//         let treasury = Addr::unchecked("treasury");
-//         let start = Timestamp::from_seconds(5_000);
-//         let end = Timestamp::from_seconds(10_000);
-//         let out_supply = Uint128::new(1_000_000);
-//         let out_denom = "out_denom";
-
-//         // instantiate
-//         let mut deps = mock_dependencies();
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(100);
-//         let msg = crate::msg::InstantiateMsg {
-//             min_stream_seconds: Uint64::new(1000),
-//             min_seconds_until_start_time: Uint64::new(1000),
-//             stream_creation_denom: "fee".to_string(),
-//             stream_creation_fee: Uint128::new(100),
-//             exit_fee_percent: Decimal::percent(1),
-//             fee_collector: "collector".to_string(),
-//             protocol_admin: "protocol_admin".to_string(),
-//             accepted_in_denom: "in".to_string(),
-//         };
-//         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
-
-//         // create stream
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(200);
-//         let info = mock_info(
-//             "creator1",
-//             &[
-//                 Coin::new(out_supply.u128(), out_denom),
-//                 Coin::new(100, "fee"),
-//             ],
-//         );
-//         execute_create_stream(
-//             deps.as_mut(),
-//             env,
-//             info,
-//             treasury.to_string(),
-//             "test".to_string(),
-//             Some("https://sample.url".to_string()),
-//             "in".to_string(),
-//             out_denom.to_string(),
-//             out_supply,
-//             start,
-//             end,
-//         )
-//         .unwrap();
-
-//         // first subscribe
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(300);
-
-//         let info = mock_info("creator1", &[Coin::new(1_000_000, "in")]);
-//         let msg = crate::msg::ExecuteMsg::Subscribe {
-//             stream_id: 1,
-//             operator_target: None,
-//             operator: None,
-//         };
-//         let res = execute(deps.as_mut(), env, info, msg).unwrap();
-//         assert_eq!(res.attributes[0].key, "action");
-//         assert_eq!(res.attributes[0].value, "subscribe_pending");
-//         // query stream
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(350);
-//         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
-//         assert_eq!(stream.status, Status::Waiting);
-//         assert_eq!(stream.in_supply, Uint128::new(1000000));
-//         assert_eq!(stream.shares, Uint128::new(1000000));
-
-//         // second subscribe still waiting
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(500);
-//         let info = mock_info("creator1", &[Coin::new(1_000_000, "in")]);
-//         let msg = crate::msg::ExecuteMsg::Subscribe {
-//             stream_id: 1,
-//             operator_target: None,
-//             operator: None,
-//         };
-//         let res = execute(deps.as_mut(), env, info, msg).unwrap();
-//         assert_eq!(res.attributes[0].key, "action");
-//         assert_eq!(res.attributes[0].value, "subscribe_pending");
-
-//         // query stream
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(450);
-//         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
-//         assert_eq!(stream.status, Status::Waiting);
-//         assert_eq!(stream.in_supply, Uint128::new(2000000));
-
-//         // Before stream start time 2 subscriptions have been made and the stream is pending
-//         // After stream start time plus 1000 seconds one subscription is made and the stream is active
-//         // Creator 1 has 2 subscriptions and 2_000_000 in balance
-//         // Creator 2 has 1 subscription and 1_000_000 in balance
-//         // At 6000 seconds the stream is active and the balance to be distributed is ~2000000
-//         // At 6000 seconds creator 1 shold spent 2000000*1000/5000= 400000
-//         // At 6000 seconds creator 1 should get all 2000000 tokens
-//         // At 6000 seconds creator 2 should get 0 tokens
-//         // At 7500 seconds the stream is active and the balance to be distributed is 300000
-//         // At 7500 seconds creator 1 should get 300000*2000000/3250000 = 184615
-//         // At 7500 seconds creator 2 should get 300000*1250000/3250000 = 115384
-
-//         // subscription after start time
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(6000);
-//         let info = mock_info("creator2", &[Coin::new(1_000_000, "in")]);
-//         let msg = crate::msg::ExecuteMsg::Subscribe {
-//             stream_id: 1,
-//             operator_target: None,
-//             operator: None,
-//         };
-//         let res = execute(deps.as_mut(), env, info, msg).unwrap();
-//         assert_eq!(res.attributes[0].key, "action");
-//         // diffirent action because stream is active
-//         assert_eq!(res.attributes[0].value, "subscribe");
-
-//         // update creator 1 position
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(6000);
-//         let update_msg = crate::msg::ExecuteMsg::UpdatePosition {
-//             stream_id: 1,
-//             operator_target: None,
-//         };
-//         let info = mock_info("creator1", &[]);
-//         let _res = execute(deps.as_mut(), env.clone(), info, update_msg).unwrap();
-//         let position = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
-//         assert_eq!(position.spent, Uint128::new(400000));
-
-//         // query stream
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(6000);
-//         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
-//         assert_eq!(stream.status, Status::Active);
-//         assert_eq!(stream.in_supply, Uint128::new(3000000 - 400000));
-//         assert_eq!(stream.spent_in, Uint128::new(400000));
-
-//         // update creator 1 position at 3500
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(7500);
-//         let update_msg = crate::msg::ExecuteMsg::UpdatePosition {
-//             stream_id: 1,
-//             operator_target: None,
-//         };
-//         let info = mock_info("creator1", &[]);
-//         let _res = execute(deps.as_mut(), env.clone(), info, update_msg).unwrap();
-
-//         // query position
-//         let res = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
-//         assert_eq!(res.purchased, Uint128::new(184615 + 200000));
-//         assert_eq!(res.spent, Uint128::new(2000000 / 2));
-
-//         // update creator 2 position at 3500
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(3500);
-//         let update_msg = crate::msg::ExecuteMsg::UpdatePosition {
-//             stream_id: 1,
-//             operator_target: None,
-//         };
-//         let info = mock_info("creator2", &[]);
-//         let _res = execute(deps.as_mut(), env.clone(), info, update_msg).unwrap();
-
-//         // query position
-//         let res = query_position(deps.as_ref(), env, 1, "creator2".to_string()).unwrap();
-//         assert_eq!(res.purchased, Uint128::new(115384));
-//         // spent =  in_supply * (now-last_updated) / (end-last_updated)
-//         assert_eq!(res.spent, Uint128::new(1000000 * 1500 / 4000));
-//         // query stream
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(3500);
-//         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
-//         assert_eq!(stream.status, Status::Active);
-//         // in supply = 3000000 - (positions.spent summed)
-//         assert_eq!(stream.in_supply, Uint128::new(1625000));
-//     }
 
 //     #[test]
 //     pub fn test_withdraw_pending() {
