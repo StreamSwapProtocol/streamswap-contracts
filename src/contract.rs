@@ -426,7 +426,7 @@ pub fn update_stream(
 }
 
 fn calculate_diff(end_block: u64, last_updated_block: u64, now_block: u64) -> Decimal {
-    // diff = (now - last_updated) / (end_time - last_updated)
+    // diff = (now_block - last_updated_block) / (end_block - last_updated_block)
     let now_block = if now_block > end_block {
         end_block
     } else {
