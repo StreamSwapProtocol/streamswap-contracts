@@ -36,7 +36,7 @@ pub struct Stream {
     pub url: Option<String>,
     /// Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal256,
-    /// last updated time of stream.
+    /// last updated block of stream.
     pub last_updated_block: u64,
     /// denom of the `token_out`.
     pub out_denom: String,
@@ -60,7 +60,7 @@ pub struct Stream {
     pub current_streamed_price: Decimal,
     /// Status of the stream. Can be `Waiting`, `Active`, `Finalized`, `Paused` or `Canceled` for kill switch.
     pub status: Status,
-    /// Date when the stream was paused.
+    /// Block height when the stream was paused.
     pub pause_block: Option<u64>,
     /// Stream creation fee denom. Saved under here to avoid any changes in config to efect existing streams.
     pub stream_creation_denom: String,
@@ -163,6 +163,7 @@ pub struct Position {
     pub shares: Uint128,
     // index is used to calculate the distribution a position has
     pub index: Decimal256,
+    // block height when the position was last updated.
     pub last_updated_block: u64,
     // total amount of `token_out` purchased in tokens at latest calculation
     pub purchased: Uint128,
