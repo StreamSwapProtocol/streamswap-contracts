@@ -286,7 +286,7 @@ pub fn sudo_pause_stream(
         .add_attribute("action", "sudo_pause_stream")
         .add_attribute("stream_id", stream_id.to_string())
         .add_attribute("is_paused", "true")
-        .add_attribute("pause_date", env.block.time.to_string()))
+        .add_attribute("pause_block", env.block.height.to_string()))
 }
 
 pub fn sudo_resume_stream(
