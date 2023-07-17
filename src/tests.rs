@@ -2559,1030 +2559,1013 @@ mod test_module {
         assert_eq!(config_response.protocol_admin, "protocol_admin".to_string());
         assert_eq!(config_response.accepted_in_denom, "new_denom".to_string());
     }
+
+    #[cfg(test)]
+    mod killswitch {
+        use super::*;
+        use crate::contract::{list_positions, list_streams};
+        use crate::killswitch::{
+            execute_cancel_stream, execute_exit_cancelled, execute_resume_stream,
+            sudo_cancel_stream, sudo_pause_stream,
+        };
+        use cosmwasm_std::CosmosMsg::Bank;
+        use cosmwasm_std::{ReplyOn, SubMsg};
+
+        #[test]
+        fn test_pause_protocol_admin() {
+            let treasury = Addr::unchecked("treasury");
+            let start = 1_000_000;
+            let end = 5_000_000;
+            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_denom = "out_denom";
+
+            // instantiate
+            let mut deps = mock_dependencies();
+            let mut env = mock_env();
+            env.block.height = 0;
+            let msg = crate::msg::InstantiateMsg {
+                min_blocks_until_start_block: 1000,
+                min_stream_blocks: 1000,
+                stream_creation_denom: "fee".to_string(),
+                stream_creation_fee: Uint128::new(100),
+                exit_fee_percent: Decimal::percent(1),
+                fee_collector: "collector".to_string(),
+                protocol_admin: "protocol_admin".to_string(),
+                accepted_in_denom: "in".to_string(),
+            };
+            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+            // create stream
+            let mut env = mock_env();
+            env.block.height = 1;
+            let info = mock_info(
+                "creator1",
+                &[
+                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(100, "fee"),
+                ],
+            );
+            execute_create_stream(
+                deps.as_mut(),
+                env,
+                info,
+                treasury.to_string(),
+                "test".to_string(),
+                Some("https://sample.url".to_string()),
+                "in".to_string(),
+                out_denom.to_string(),
+                out_supply,
+                start,
+                end,
+            )
+            .unwrap();
+
+            // non protocol admin can't pause
+            let info = mock_info("non_protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.height = start + 100;
+
+            let res = execute_pause_stream(deps.as_mut(), env, info, 1);
+            assert_eq!(res, Err(ContractError::Unauthorized {}));
+
+            // can't pause before start time
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.height = start - 500_000;
+            let res = execute_pause_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            assert_eq!(res, ContractError::StreamNotStarted {});
+
+            // can't pause after end time
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.height = end + 500_000;
+            let res = execute_pause_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            assert_eq!(res, ContractError::StreamEnded {});
+
+            // first subscription
+            let mut env = mock_env();
+            env.block.height = start + 1_000_000;
+            let funds = Coin::new(3_000, "in");
+            let info = mock_info("position1", &[funds]);
+            let msg = crate::msg::ExecuteMsg::Subscribe {
+                stream_id: 1,
+                operator_target: None,
+                operator: None,
+            };
+            let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+
+            // protocol admin can pause
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.height = start + 1_000_001;
+            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+
+            // can't paused if already paused
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.height = start + 1_000_005;
+            let res = execute_pause_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            assert_eq!(res, ContractError::StreamKillswitchActive {});
+
+            // can't subscribe new
+            let mut env = mock_env();
+            env.block.height = start + 1_000_002;
+            let funds = Coin::new(3_000, "in");
+            let info = mock_info("position2", &[funds]);
+            let msg = crate::msg::ExecuteMsg::Subscribe {
+                stream_id: 1,
+                operator_target: None,
+                operator: None,
+            };
+            let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
+            assert_eq!(res, ContractError::StreamKillswitchActive {});
+
+            // can't subscribe more
+            let mut env = mock_env();
+            env.block.height = start + 1_000_002;
+            let funds = Coin::new(3_000, "in");
+            let info = mock_info("position1", &[funds]);
+            let msg = crate::msg::ExecuteMsg::Subscribe {
+                stream_id: 1,
+                operator_target: None,
+                operator: None,
+            };
+            let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
+            assert_eq!(res, ContractError::StreamKillswitchActive {});
+
+            // can't withdraw
+            let mut env = mock_env();
+            env.block.height = start + 1_000_002;
+            let info = mock_info("position1", &[]);
+            let msg = crate::msg::ExecuteMsg::Withdraw {
+                stream_id: 1,
+                cap: None,
+                operator_target: None,
+            };
+            let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
+            assert_eq!(res, ContractError::StreamKillswitchActive {});
+
+            // can't update stream
+            let mut env = mock_env();
+            env.block.height = start + 1_000_002;
+            let res = execute_update_stream(deps.as_mut(), env, 1);
+            assert_eq!(res, Err(ContractError::StreamPaused {}));
+
+            // can't update position
+            let mut env = mock_env();
+            env.block.height = start + 1_000_002;
+            let info = mock_info("position1", &[]);
+            let res = execute_update_position(deps.as_mut(), env, info, 1, None);
+            assert_eq!(res, Err(ContractError::StreamPaused {}));
+
+            // can't finalize stream
+            let mut env = mock_env();
+            env.block.height = end + 1_000_002;
+            let info = mock_info("treasury", &[]);
+            let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None);
+            assert_eq!(res, Err(ContractError::StreamKillswitchActive {}));
+
+            // can't exit
+            let mut env = mock_env();
+            env.block.height = end + 1_000_002;
+            let info = mock_info("position1", &[]);
+            let res = execute_exit_stream(deps.as_mut(), env, info, 1, None);
+            assert_eq!(res, Err(ContractError::StreamKillswitchActive {}));
+        }
+
+        #[test]
+        fn test_resume_protocol_admin() {
+            let treasury = Addr::unchecked("treasury");
+            let start = 1_000_000;
+            let end = 5_000_000;
+            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_denom = "out_denom";
+
+            // instantiate
+            let mut deps = mock_dependencies();
+            let mut env = mock_env();
+            env.block.height = 0;
+            let msg = crate::msg::InstantiateMsg {
+                min_blocks_until_start_block: 1_000,
+                min_stream_blocks: 1_000,
+                stream_creation_denom: "fee".to_string(),
+                stream_creation_fee: Uint128::new(100),
+                exit_fee_percent: Decimal::percent(1),
+                fee_collector: "collector".to_string(),
+                protocol_admin: "protocol_admin".to_string(),
+                accepted_in_denom: "in".to_string(),
+            };
+            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+            // create stream
+            let mut env = mock_env();
+            env.block.height = 1;
+            let info = mock_info(
+                "creator1",
+                &[
+                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(100, "fee"),
+                ],
+            );
+            execute_create_stream(
+                deps.as_mut(),
+                env,
+                info,
+                treasury.to_string(),
+                "test".to_string(),
+                Some("https://sample.url".to_string()),
+                "in".to_string(),
+                out_denom.to_string(),
+                out_supply,
+                start,
+                end,
+            )
+            .unwrap();
+
+            // first subscription
+            let mut env = mock_env();
+            env.block.height = start + 1_000_000;
+            let funds = Coin::new(3_000, "in");
+            let info = mock_info("position1", &[funds]);
+            let msg = crate::msg::ExecuteMsg::Subscribe {
+                stream_id: 1,
+                operator_target: None,
+                operator: None,
+            };
+            let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+
+            // can't resume if not paused
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.height = start + 1_000_003;
+            let res = execute_resume_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            assert_eq!(res, ContractError::StreamNotPaused {});
+
+            // protocol admin can pause
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.height = start + 1_000_001;
+            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+
+            // can't subscribe new
+            let mut env = mock_env();
+            env.block.height = start + 1_000_002;
+            let funds = Coin::new(3_000, "in");
+            let info = mock_info("position2", &[funds]);
+            let msg = crate::msg::ExecuteMsg::Subscribe {
+                stream_id: 1,
+                operator_target: None,
+                operator: None,
+            };
+            let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
+            assert_eq!(res, ContractError::StreamKillswitchActive {});
+
+            // non protocol admin can't resume
+            let info = mock_info("non_protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.height = start + 1_000_003;
+            let res = execute_resume_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            assert_eq!(res, ContractError::Unauthorized {});
+
+            // protocol admin can resume
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.height = start + 1_000_003;
+            execute_resume_stream(deps.as_mut(), env, info, 1).unwrap();
+
+            // can subscribe new after resume
+            let mut env = mock_env();
+            env.block.height = start + 1_000_004;
+            let funds = Coin::new(3_000, "in");
+            let info = mock_info("position2", &[funds]);
+            let msg = crate::msg::ExecuteMsg::Subscribe {
+                stream_id: 1,
+                operator_target: None,
+                operator: None,
+            };
+            let res = execute(deps.as_mut(), env, info, msg).unwrap();
+            assert_eq!(res.attributes[0].key, "action");
+            assert_eq!(res.attributes[0].value, "subscribe");
+            assert_eq!(res.attributes[1].key, "stream_id");
+            assert_eq!(res.attributes[1].value, "1");
+            assert_eq!(res.attributes[2].key, "owner");
+            assert_eq!(res.attributes[2].value, "position2");
+            assert_eq!(res.attributes[3].key, "in_supply");
+            assert_eq!(res.attributes[3].value, "6000");
+            assert_eq!(res.attributes[4].key, "in_amount");
+            assert_eq!(res.attributes[4].value, "3000");
+
+            // protocol admin can pause
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.height = start + 1_000_005;
+            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+
+            // cancel the stream
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.height = start + 1_000_006;
+            execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap();
+
+            // can't resume if cancelled
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.height = start + 1_000_007;
+            let res = execute_resume_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            assert_eq!(res, ContractError::StreamIsCancelled {});
+        }
+
+        #[test]
+        fn test_cancel_protocol_admin() {
+            let treasury = Addr::unchecked("treasury");
+            let start = 1_000_000;
+            let end = 5_000_000;
+            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_denom = "out_denom";
+
+            // instantiate
+            let mut deps = mock_dependencies();
+            let mut env = mock_env();
+            env.block.height = 0;
+            let msg = crate::msg::InstantiateMsg {
+                min_stream_blocks: 1_000,
+                min_blocks_until_start_block: 1_000,
+                stream_creation_denom: "fee".to_string(),
+                stream_creation_fee: Uint128::new(100),
+                exit_fee_percent: Decimal::percent(1),
+                fee_collector: "collector".to_string(),
+                protocol_admin: "protocol_admin".to_string(),
+                accepted_in_denom: "in".to_string(),
+            };
+            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+            // create stream
+            let mut env = mock_env();
+            env.block.height = 1;
+            let info = mock_info(
+                "creator1",
+                &[
+                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(100, "fee"),
+                ],
+            );
+            execute_create_stream(
+                deps.as_mut(),
+                env,
+                info,
+                treasury.to_string(),
+                "test".to_string(),
+                Some("https://sample.url".to_string()),
+                "in".to_string(),
+                out_denom.to_string(),
+                out_supply,
+                start,
+                end,
+            )
+            .unwrap();
+
+            // subscription
+            let mut env = mock_env();
+            env.block.height = start;
+            let funds = Coin::new(2_000_000_000_000, "in");
+            let info = mock_info("creator1", &[funds]);
+            let msg = crate::msg::ExecuteMsg::Subscribe {
+                stream_id: 1,
+                operator_target: None,
+                operator: Some("operator".to_string()),
+            };
+            let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+
+            // non protocol admin can't cancel
+            let info = mock_info("non_protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.height = start + 1_000_000;
+            let err = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            assert_eq!(err, ContractError::Unauthorized {});
+
+            // cant cancel without pause
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.height = start + 1_000_000;
+            let err = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            assert_eq!(err, ContractError::StreamNotPaused {});
+
+            // pause
+            let mut env = mock_env();
+            env.block.height = start + 2_000_000;
+            let info = mock_info("protocol_admin", &[]);
+            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+
+            // cancel
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.height = start + 2_500_000;
+            let response = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap();
+            // out_tokens and the creation fee are sent back to the treasury upon cancellation
+            assert_eq!(
+                response.messages,
+                vec![
+                    SubMsg::new(BankMsg::Send {
+                        to_address: treasury.to_string(),
+                        amount: vec![Coin::new(1_000_000_000_000, out_denom)],
+                    }),
+                    SubMsg::new(BankMsg::Send {
+                        to_address: treasury.to_string(),
+                        amount: vec![Coin::new(100, "fee")],
+                    }),
+                ]
+            );
+
+            // can't cancel cancelled stream
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.height = start + 2_500_000;
+            let response = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            assert_eq!(response, ContractError::StreamIsCancelled {});
+        }
+
+        #[test]
+        fn test_withdraw_pause() {
+            let treasury = Addr::unchecked("treasury");
+            let start = 1_000_000;
+            let end = 5_000_000;
+            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_denom = "out_denom";
+
+            // instantiate
+            let mut deps = mock_dependencies();
+            let mut env = mock_env();
+            env.block.height = 0;
+            let msg = crate::msg::InstantiateMsg {
+                min_stream_blocks: 1_000,
+                min_blocks_until_start_block: 1_000,
+                stream_creation_denom: "fee".to_string(),
+                stream_creation_fee: Uint128::new(100),
+                exit_fee_percent: Decimal::percent(1),
+                fee_collector: "collector".to_string(),
+                protocol_admin: "protocol_admin".to_string(),
+                accepted_in_denom: "in".to_string(),
+            };
+            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+            // create stream
+            let mut env = mock_env();
+            env.block.height = 1;
+            let info = mock_info(
+                "creator1",
+                &[
+                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(100, "fee"),
+                ],
+            );
+            execute_create_stream(
+                deps.as_mut(),
+                env,
+                info,
+                treasury.to_string(),
+                "test".to_string(),
+                Some("https://sample.url".to_string()),
+                "in".to_string(),
+                out_denom.to_string(),
+                out_supply,
+                start,
+                end,
+            )
+            .unwrap();
+
+            // subscription
+            let mut env = mock_env();
+            env.block.height = start;
+            let funds = Coin::new(2_000_000_000_000, "in");
+            let info = mock_info("creator1", &[funds.clone()]);
+            let msg = crate::msg::ExecuteMsg::Subscribe {
+                stream_id: 1,
+                operator_target: None,
+                operator: Some("operator".to_string()),
+            };
+            let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+
+            // withdraw with cap
+            let mut env = mock_env();
+            env.block.height = start + 5_000;
+            let info = mock_info("creator1", &[]);
+            let cap = Uint128::new(25_000_000);
+            let msg = crate::msg::ExecuteMsg::Withdraw {
+                stream_id: 1,
+                cap: Some(cap),
+                operator_target: None,
+            };
+            let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+
+            let position =
+                query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
+            assert_eq!(position.in_balance, Uint128::new(1_997_475_000_000));
+            assert_eq!(position.spent, Uint128::new(2_500_000_000));
+            assert_eq!(position.purchased, Uint128::new(1_250_000_000));
+            // first fund amount should be equal to in_balance + spent + cap
+            assert_eq!(position.in_balance + position.spent + cap, funds.amount);
+
+            // can't withdraw pause
+            let mut env = mock_env();
+            env.block.height = start + 6_000;
+            let info = mock_info("creator1", &[]);
+            let err = execute_withdraw_paused(deps.as_mut(), env, info, 1, None, None).unwrap_err();
+            assert_eq!(err, ContractError::StreamNotPaused {});
+
+            // pause
+            let mut env = mock_env();
+            env.block.height = start + 6_000;
+            let info = mock_info("protocol_admin", &[]);
+            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+
+            let mut env = mock_env();
+            env.block.height = start + 6_500;
+            let stream1_old = query_stream(deps.as_ref(), env, 1).unwrap();
+            //Unauthorized check
+            let info = mock_info("random", &[]);
+            let mut env = mock_env();
+            env.block.height = start + 7_000;
+            let res = execute_withdraw_paused(
+                deps.as_mut(),
+                env,
+                info,
+                1,
+                None,
+                Some("creator1".to_string()),
+            )
+            .unwrap_err();
+
+            assert_eq!(res, ContractError::Unauthorized {});
+            //Cap exceeds in balance check
+            let mut env = mock_env();
+            env.block.height = start + 7_000;
+            let info = mock_info("creator1", &[]);
+            let res = execute_withdraw_paused(
+                deps.as_mut(),
+                env,
+                info,
+                1,
+                Some(Uint128::new(2_000_000_000_000 + 1)),
+                None,
+            )
+            .unwrap_err();
+            assert_eq!(
+                res,
+                ContractError::WithdrawAmountExceedsBalance(Uint128::new(2_000_000_000_001))
+            );
+            // Withdraw cap is zero
+            let mut env = mock_env();
+            env.block.height = start + 7_000;
+            let info = mock_info("creator1", &[]);
+            let res =
+                execute_withdraw_paused(deps.as_mut(), env, info, 1, Some(Uint128::zero()), None)
+                    .unwrap_err();
+            assert_eq!(res, ContractError::InvalidWithdrawAmount {});
+
+            //withdraw with cap
+            let mut env = mock_env();
+            env.block.height = start + 7_000;
+            let info = mock_info("creator1", &[]);
+            let cap = Uint128::new(25_000_000);
+            execute_withdraw_paused(deps.as_mut(), env, info, 1, Some(cap), None).unwrap();
+
+            // withdraw after pause
+            let mut env = mock_env();
+            env.block.height = start + 7_000;
+            let info = mock_info("creator1", &[]);
+            let res = execute_withdraw_paused(deps.as_mut(), env, info, 1, None, None).unwrap();
+            assert_eq!(
+                res.messages,
+                vec![SubMsg {
+                    id: 0,
+                    msg: BankMsg::Send {
+                        to_address: "creator1".to_string(),
+                        amount: vec![Coin {
+                            denom: "in".to_string(),
+                            amount: Uint128::new(1996950006258),
+                        }],
+                    }
+                    .into(),
+                    gas_limit: None,
+                    reply_on: ReplyOn::Never,
+                }]
+            );
+
+            // stream not updated
+            let mut env = mock_env();
+            env.block.height = start + 8_000;
+            let stream1_new = query_stream(deps.as_ref(), env, 1).unwrap();
+            // dist_index not updated
+            assert_eq!(stream1_old.dist_index, stream1_new.dist_index);
+            assert_eq!(stream1_new.in_supply, Uint128::zero());
+            assert_eq!(stream1_new.shares, Uint128::zero());
+
+            // position updated
+            let mut env = mock_env();
+            env.block.height = start + 8_001;
+            let position =
+                query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
+            // in_balance updated
+            assert_eq!(position.in_balance, Uint128::new(0));
+            assert_eq!(position.spent, Uint128::new(2_999_993_742));
+            assert_eq!(position.purchased, Uint128::new(1_499_999_998));
+            assert_eq!(position.shares, Uint128::new(0));
+        }
+
+        #[test]
+        fn test_resume() {
+            let treasury = Addr::unchecked("treasury");
+            let start = 1_000_000;
+            let end = 5_000_000;
+            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_denom = "out_denom";
+
+            // instantiate
+            let mut deps = mock_dependencies();
+            let mut env = mock_env();
+            env.block.height = 0;
+            let msg = crate::msg::InstantiateMsg {
+                min_stream_blocks: 1_000,
+                min_blocks_until_start_block: 1_000,
+                stream_creation_denom: "fee".to_string(),
+                stream_creation_fee: Uint128::new(100),
+                exit_fee_percent: Decimal::percent(1),
+                fee_collector: "collector".to_string(),
+                protocol_admin: "protocol_admin".to_string(),
+                accepted_in_denom: "in".to_string(),
+            };
+            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+            // create stream
+            let mut env = mock_env();
+            env.block.height = 1;
+            let info = mock_info(
+                "creator1",
+                &[
+                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(100, "fee"),
+                ],
+            );
+            execute_create_stream(
+                deps.as_mut(),
+                env,
+                info,
+                treasury.to_string(),
+                "test".to_string(),
+                Some("https://sample.url".to_string()),
+                "in".to_string(),
+                out_denom.to_string(),
+                out_supply,
+                start,
+                end,
+            )
+            .unwrap();
+
+            // first subscription
+            let mut env = mock_env();
+            env.block.height = start + 1_000_000;
+            let funds = Coin::new(3_000, "in");
+            let info = mock_info("position1", &[funds]);
+            let msg = crate::msg::ExecuteMsg::Subscribe {
+                stream_id: 1,
+                operator_target: None,
+                operator: None,
+            };
+            let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+
+            //cant resume if not paused
+            let mut env = mock_env();
+            env.block.height = start + 1_000_000;
+            let res = sudo_resume_stream(deps.as_mut(), env, 1).unwrap_err();
+            assert_eq!(res, ContractError::StreamNotPaused {});
+
+            // pause
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            let pause_date = start + 2_000_000;
+            env.block.height = pause_date;
+            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+
+            // resume
+            let mut env = mock_env();
+            let resume_date = start + 3_000_000;
+            env.block.height = resume_date;
+            sudo_resume_stream(deps.as_mut(), env.clone(), 1).unwrap();
+
+            // new end date is correct
+            let new_end_date = end + env.block.height - pause_date;
+            let stream = query_stream(deps.as_ref(), mock_env(), 1).unwrap();
+            assert_eq!(stream.end_block, new_end_date);
+        }
+
+        // #[test]
+        // fn test_sudo_pause_stream() {
+        //     let treasury = Addr::unchecked("treasury");
+        //     let start = Timestamp::from_seconds(1_000_000);
+        //     let end = Timestamp::from_seconds(5_000_000);
+        //     let out_supply = Uint128::new(1_000_000_000_000);
+        //     let out_denom = "out_denom";
+
+        //     // instantiate
+        //     let mut deps = mock_dependencies();
+        //     let mut env = mock_env();
+        //     env.block.time = Timestamp::from_seconds(0);
+        //     let msg = crate::msg::InstantiateMsg {
+        //         min_stream_seconds: Uint64::new(1000),
+        //         min_seconds_until_start_time: Uint64::new(0),
+        //         stream_creation_denom: "fee".to_string(),
+        //         stream_creation_fee: Uint128::new(100),
+        //         exit_fee_percent: Decimal::percent(1),
+        //         fee_collector: "collector".to_string(),
+        //         protocol_admin: "protocol_admin".to_string(),
+        //         accepted_in_denom: "in".to_string(),
+        //     };
+        //     instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+        //     // create stream
+        //     let mut env = mock_env();
+        //     env.block.time = Timestamp::from_seconds(0);
+        //     let info = mock_info(
+        //         "creator1",
+        //         &[
+        //             Coin::new(out_supply.u128(), out_denom),
+        //             Coin::new(100, "fee"),
+        //         ],
+        //     );
+        //     execute_create_stream(
+        //         deps.as_mut(),
+        //         env,
+        //         info,
+        //         treasury.to_string(),
+        //         "test".to_string(),
+        //         Some("https://sample.url".to_string()),
+        //         "in".to_string(),
+        //         out_denom.to_string(),
+        //         out_supply,
+        //         start,
+        //         end,
+        //     )
+        //     .unwrap();
+
+        //     let mut env = mock_env();
+        //     env.block.time = Timestamp::from_seconds(500_000);
+        //     let res = sudo_pause_stream(deps.as_mut(), env, 1).unwrap_err();
+        //     assert_eq!(res, ContractError::StreamNotStarted {});
+
+        //     let mut env = mock_env();
+        //     env.block.time = Timestamp::from_seconds(6_000_000);
+        //     let res = sudo_pause_stream(deps.as_mut(), env, 1).unwrap_err();
+        //     assert_eq!(res, ContractError::StreamEnded {});
+
+        //     let mut env = mock_env();
+        //     env.block.time = Timestamp::from_seconds(3_000_000);
+        //     let res = sudo_pause_stream(deps.as_mut(), env, 1).unwrap();
+        //     assert_eq!(
+        //         res,
+        //         Response::new()
+        //             .add_attribute("action", "sudo_pause_stream")
+        //             .add_attribute("stream_id", "1")
+        //             .add_attribute("is_paused", "true")
+        //             .add_attribute("pause_date", "3000000.000000000")
+        //     );
+
+        //     let mut env = mock_env();
+        //     env.block.time = Timestamp::from_seconds(4_000_000);
+        //     let res = sudo_pause_stream(deps.as_mut(), env, 1).unwrap_err();
+        //     assert_eq!(res, ContractError::StreamKillswitchActive {});
+        // }
+
+        // #[test]
+        // fn test_range_queries() {
+        //     let treasury = Addr::unchecked("treasury");
+        //     let start = Timestamp::from_seconds(2000);
+        //     let end = Timestamp::from_seconds(1_000_000);
+        //     let out_supply = Uint128::new(1_000_000);
+        //     let out_denom = "out_denom";
+
+        //     // instantiate
+        //     let mut deps = mock_dependencies();
+        //     let mut env = mock_env();
+        //     env.block.time = Timestamp::from_seconds(100);
+        //     let msg = crate::msg::InstantiateMsg {
+        //         min_stream_seconds: Uint64::new(1000),
+        //         min_seconds_until_start_time: Uint64::new(1000),
+        //         stream_creation_denom: "fee".to_string(),
+        //         stream_creation_fee: Uint128::new(100),
+        //         exit_fee_percent: Decimal::percent(1),
+        //         fee_collector: "collector".to_string(),
+        //         protocol_admin: "protocol_admin".to_string(),
+        //         accepted_in_denom: "in".to_string(),
+        //     };
+        //     instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+        //     // create stream
+        //     let mut env = mock_env();
+        //     env.block.time = Timestamp::from_seconds(1);
+        //     let info = mock_info(
+        //         "creator1",
+        //         &[
+        //             Coin::new(out_supply.u128(), out_denom),
+        //             Coin::new(100, "fee"),
+        //         ],
+        //     );
+        //     //first stream
+        //     execute_create_stream(
+        //         deps.as_mut(),
+        //         env.clone(),
+        //         info.clone(),
+        //         treasury.to_string(),
+        //         "test".to_string(),
+        //         Some("https://sample.url".to_string()),
+        //         "in".to_string(),
+        //         out_denom.to_string(),
+        //         out_supply,
+        //         start,
+        //         end,
+        //     )
+        //     .unwrap();
+        //     //second stream
+        //     execute_create_stream(
+        //         deps.as_mut(),
+        //         env,
+        //         info,
+        //         treasury.to_string(),
+        //         "test".to_string(),
+        //         Some("https://sample.url".to_string()),
+        //         "in".to_string(),
+        //         out_denom.to_string(),
+        //         out_supply,
+        //         start,
+        //         end,
+        //     )
+        //     .unwrap();
+
+        //     let res = list_streams(deps.as_ref(), None, None).unwrap();
+        //     assert_eq!(res.streams.len(), 2);
+
+        //     // first subscription to first stream
+        //     let mut env = mock_env();
+        //     env.block.time = start.plus_seconds(100);
+        //     let info = mock_info("creator1", &[Coin::new(1_000_000, "in")]);
+        //     let msg = crate::msg::ExecuteMsg::Subscribe {
+        //         stream_id: 1,
+        //         operator_target: None,
+        //         operator: None,
+        //     };
+        //     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+
+        //     // second subscription to first stream
+        //     let mut env = mock_env();
+        //     env.block.time = start.plus_seconds(100);
+        //     let info = mock_info("creator2", &[Coin::new(1_000_000, "in")]);
+        //     let msg = crate::msg::ExecuteMsg::Subscribe {
+        //         stream_id: 1,
+        //         operator_target: None,
+        //         operator: None,
+        //     };
+        //     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+
+        //     let res = list_positions(deps.as_ref(), 1, None, None).unwrap();
+        //     assert_eq!(res.positions.len(), 2);
+        // }
+
+        // #[test]
+        // fn test_exit_cancel() {
+        //     let treasury = Addr::unchecked("treasury");
+        //     let start = Timestamp::from_seconds(1_000_000);
+        //     let end = Timestamp::from_seconds(5_000_000);
+        //     let out_supply = Uint128::new(1_000_000_000_000);
+        //     let out_denom = "out_denom";
+
+        //     // instantiate
+        //     let mut deps = mock_dependencies();
+        //     let mut env = mock_env();
+        //     env.block.time = Timestamp::from_seconds(0);
+        //     let msg = crate::msg::InstantiateMsg {
+        //         min_stream_seconds: Uint64::new(1000),
+        //         min_seconds_until_start_time: Uint64::new(0),
+        //         stream_creation_denom: "fee".to_string(),
+        //         stream_creation_fee: Uint128::new(100),
+        //         exit_fee_percent: Decimal::percent(1),
+        //         fee_collector: "collector".to_string(),
+        //         protocol_admin: "protocol_admin".to_string(),
+        //         accepted_in_denom: "in".to_string(),
+        //     };
+        //     instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+        //     // create stream
+        //     let mut env = mock_env();
+        //     env.block.time = Timestamp::from_seconds(0);
+        //     let info = mock_info(
+        //         "creator1",
+        //         &[
+        //             Coin::new(out_supply.u128(), out_denom),
+        //             Coin::new(100, "fee"),
+        //         ],
+        //     );
+        //     execute_create_stream(
+        //         deps.as_mut(),
+        //         env,
+        //         info,
+        //         treasury.to_string(),
+        //         "test".to_string(),
+        //         Some("https://sample.url".to_string()),
+        //         "in".to_string(),
+        //         out_denom.to_string(),
+        //         out_supply,
+        //         start,
+        //         end,
+        //     )
+        //     .unwrap();
+
+        //     // subscription
+        //     let mut env = mock_env();
+        //     env.block.time = start.plus_seconds(0);
+        //     let funds = Coin::new(2_000_000_000_000, "in");
+        //     let info = mock_info("creator1", &[funds]);
+        //     let msg = crate::msg::ExecuteMsg::Subscribe {
+        //         stream_id: 1,
+        //         operator_target: None,
+        //         operator: Some("operator".to_string()),
+        //     };
+        //     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+
+        //     // cant cancel without pause
+        //     let mut env = mock_env();
+        //     env.block.time = start.plus_seconds(1_000_000);
+        //     let err = sudo_cancel_stream(deps.as_mut(), env, 1).unwrap_err();
+        //     assert_eq!(err, ContractError::StreamNotPaused {});
+
+        //     // pause
+        //     let mut env = mock_env();
+        //     env.block.time = start.plus_seconds(2_000_000);
+        //     let info = mock_info("protocol_admin", &[]);
+        //     execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+
+        //     //can't exit before cancel
+        //     let mut env = mock_env();
+        //     env.block.time = start.plus_seconds(2_250_000);
+        //     let info = mock_info("creator1", &[]);
+        //     let res = execute_exit_cancelled(deps.as_mut(), env, info, 1, None).unwrap_err();
+        //     assert_eq!(res, ContractError::StreamNotCancelled {});
+
+        //     //cancel
+        //     let mut env = mock_env();
+        //     env.block.time = start.plus_seconds(2_500_000);
+        //     let response = sudo_cancel_stream(deps.as_mut(), env, 1).unwrap();
+        //     //out_tokens and the creation fee are sent back to the treasury upon cancellation
+        //     assert_eq!(
+        //         response.messages,
+        //         [
+        //             SubMsg {
+        //                 id: 0,
+        //                 msg: Bank(BankMsg::Send {
+        //                     to_address: "treasury".to_string(),
+        //                     amount: Vec::from([Coin {
+        //                         denom: "out_denom".to_string(),
+        //                         amount: Uint128::new(1000000000000)
+        //                     }])
+        //                 }),
+        //                 gas_limit: None,
+        //                 reply_on: ReplyOn::Never
+        //             },
+        //             SubMsg {
+        //                 id: 0,
+        //                 msg: Bank(BankMsg::Send {
+        //                     to_address: "treasury".to_string(),
+        //                     amount: Vec::from([Coin {
+        //                         denom: "fee".to_string(),
+        //                         amount: Uint128::new(100)
+        //                     }])
+        //                 }),
+        //                 gas_limit: None,
+        //                 reply_on: ReplyOn::Never
+        //             }
+        //         ]
+        //     );
+
+        //     //random operator can't exit
+        //     let mut env = mock_env();
+        //     env.block.time = start.plus_seconds(2_250_000);
+        //     let info = mock_info("random", &[]);
+        //     let res =
+        //         execute_exit_cancelled(deps.as_mut(), env, info, 1, Some("creator1".to_string()))
+        //             .unwrap_err();
+        //     assert_eq!(res, ContractError::Unauthorized {});
+
+        //     // exit
+        //     let mut env = mock_env();
+        //     env.block.time = start.plus_seconds(3_000_000);
+        //     let info = mock_info("creator1", &[]);
+        //     let res = execute_exit_cancelled(deps.as_mut(), env, info, 1, None).unwrap();
+        //     let msg = res.messages.get(0).unwrap();
+        //     assert_eq!(
+        //         msg.msg,
+        //         Bank(BankMsg::Send {
+        //             to_address: "creator1".to_string(),
+        //             amount: vec![Coin::new(2000000000000, "in")]
+        //         })
+        //     );
+        // }
+    }
 }
-
-//     #[cfg(test)]
-//     mod killswitch {
-//         use super::*;
-//         use crate::contract::{list_positions, list_streams};
-//         use crate::killswitch::{
-//             execute_cancel_stream, execute_exit_cancelled, execute_resume_stream,
-//             sudo_cancel_stream, sudo_pause_stream,
-//         };
-//         use cosmwasm_std::CosmosMsg::Bank;
-//         use cosmwasm_std::{ReplyOn, SubMsg};
-
-//         #[test]
-//         fn test_pause_protocol_admin() {
-//             let treasury = Addr::unchecked("treasury");
-//             let start = Timestamp::from_seconds(1_000_000);
-//             let end = Timestamp::from_seconds(5_000_000);
-//             let out_supply = Uint128::new(1_000_000_000_000);
-//             let out_denom = "out_denom";
-
-//             // instantiate
-//             let mut deps = mock_dependencies();
-//             let mut env = mock_env();
-//             env.block.time = Timestamp::from_seconds(0);
-//             let msg = crate::msg::InstantiateMsg {
-//                 min_stream_seconds: Uint64::new(1000),
-//                 min_seconds_until_start_time: Uint64::new(0),
-//                 stream_creation_denom: "fee".to_string(),
-//                 stream_creation_fee: Uint128::new(100),
-//                 exit_fee_percent: Decimal::percent(1),
-//                 fee_collector: "collector".to_string(),
-//                 protocol_admin: "protocol_admin".to_string(),
-//                 accepted_in_denom: "in".to_string(),
-//             };
-//             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
-
-//             // create stream
-//             let mut env = mock_env();
-//             env.block.time = Timestamp::from_seconds(0);
-//             let info = mock_info(
-//                 "creator1",
-//                 &[
-//                     Coin::new(out_supply.u128(), out_denom),
-//                     Coin::new(100, "fee"),
-//                 ],
-//             );
-//             execute_create_stream(
-//                 deps.as_mut(),
-//                 env,
-//                 info,
-//                 treasury.to_string(),
-//                 "test".to_string(),
-//                 Some("https://sample.url".to_string()),
-//                 "in".to_string(),
-//                 out_denom.to_string(),
-//                 out_supply,
-//                 start,
-//                 end,
-//             )
-//             .unwrap();
-
-//             // non protocol admin can't pause
-//             let info = mock_info("non_protocol_admin", &[]);
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(100);
-
-//             let res = execute_pause_stream(deps.as_mut(), env, info, 1);
-//             assert_eq!(res, Err(ContractError::Unauthorized {}));
-
-//             // first subscription
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_000);
-//             let funds = Coin::new(3_000, "in");
-//             let info = mock_info("position1", &[funds]);
-//             let msg = crate::msg::ExecuteMsg::Subscribe {
-//                 stream_id: 1,
-//                 operator_target: None,
-//                 operator: None,
-//             };
-//             let _res = execute(deps.as_mut(), env, info, msg).unwrap();
-
-//             //can't pause before start time
-//             let info = mock_info("protocol_admin", &[]);
-//             let mut env = mock_env();
-//             env.block.time = start.minus_seconds(500_000);
-//             let res = execute_pause_stream(deps.as_mut(), env, info, 1).unwrap_err();
-//             assert_eq!(res, ContractError::StreamNotStarted {});
-
-//             // can't pause after end time
-//             let info = mock_info("protocol_admin", &[]);
-//             let mut env = mock_env();
-//             env.block.time = end.plus_seconds(500_000);
-//             let res = execute_pause_stream(deps.as_mut(), env, info, 1).unwrap_err();
-//             assert_eq!(res, ContractError::StreamEnded {});
-
-//             // protocol admin can pause
-//             let info = mock_info("protocol_admin", &[]);
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_001);
-//             execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
-
-//             // can't paused if already paused
-//             let info = mock_info("protocol_admin", &[]);
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_005);
-//             let res = execute_pause_stream(deps.as_mut(), env, info, 1).unwrap_err();
-//             assert_eq!(res, ContractError::StreamKillswitchActive {});
-
-//             // can't subscribe new
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_002);
-//             let funds = Coin::new(3_000, "in");
-//             let info = mock_info("position2", &[funds]);
-//             let msg = crate::msg::ExecuteMsg::Subscribe {
-//                 stream_id: 1,
-//                 operator_target: None,
-//                 operator: None,
-//             };
-//             let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
-//             assert_eq!(res, ContractError::StreamKillswitchActive {});
-
-//             // can't subscribe more
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_002);
-//             let funds = Coin::new(3_000, "in");
-//             let info = mock_info("position1", &[funds]);
-//             let msg = crate::msg::ExecuteMsg::Subscribe {
-//                 stream_id: 1,
-//                 operator_target: None,
-//                 operator: None,
-//             };
-//             let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
-//             assert_eq!(res, ContractError::StreamKillswitchActive {});
-
-//             // can't withdraw
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_002);
-//             let info = mock_info("position1", &[]);
-//             let msg = crate::msg::ExecuteMsg::Withdraw {
-//                 stream_id: 1,
-//                 cap: None,
-//                 operator_target: None,
-//             };
-//             let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
-//             assert_eq!(res, ContractError::StreamKillswitchActive {});
-
-//             // can't update stream
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_002);
-//             let res = execute_update_stream(deps.as_mut(), env, 1);
-//             assert_eq!(res, Err(ContractError::StreamPaused {}));
-
-//             // can't update position
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_002);
-//             let info = mock_info("position1", &[]);
-//             let res = execute_update_position(deps.as_mut(), env, info, 1, None);
-//             assert_eq!(res, Err(ContractError::StreamPaused {}));
-
-//             // can't finalize stream
-//             let mut env = mock_env();
-//             env.block.time = end.plus_seconds(1_000_002);
-//             let info = mock_info("treasury", &[]);
-//             let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None);
-//             assert_eq!(res, Err(ContractError::StreamKillswitchActive {}));
-
-//             // can't exit
-//             let mut env = mock_env();
-//             env.block.time = end.plus_seconds(1_000_002);
-//             let info = mock_info("position1", &[]);
-//             let res = execute_exit_stream(deps.as_mut(), env, info, 1, None);
-//             assert_eq!(res, Err(ContractError::StreamKillswitchActive {}));
-//         }
-
-//         #[test]
-//         fn test_resume_protocol_admin() {
-//             let treasury = Addr::unchecked("treasury");
-//             let start = Timestamp::from_seconds(1_000_000);
-//             let end = Timestamp::from_seconds(5_000_000);
-//             let out_supply = Uint128::new(1_000_000_000_000);
-//             let out_denom = "out_denom";
-
-//             // instantiate
-//             let mut deps = mock_dependencies();
-//             let mut env = mock_env();
-//             env.block.time = Timestamp::from_seconds(0);
-//             let msg = crate::msg::InstantiateMsg {
-//                 min_stream_seconds: Uint64::new(1000),
-//                 min_seconds_until_start_time: Uint64::new(0),
-//                 stream_creation_denom: "fee".to_string(),
-//                 stream_creation_fee: Uint128::new(100),
-//                 exit_fee_percent: Decimal::percent(1),
-//                 fee_collector: "collector".to_string(),
-//                 protocol_admin: "protocol_admin".to_string(),
-//                 accepted_in_denom: "in".to_string(),
-//             };
-//             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
-
-//             // create stream
-//             let mut env = mock_env();
-//             env.block.time = Timestamp::from_seconds(0);
-//             let info = mock_info(
-//                 "creator1",
-//                 &[
-//                     Coin::new(out_supply.u128(), out_denom),
-//                     Coin::new(100, "fee"),
-//                 ],
-//             );
-//             execute_create_stream(
-//                 deps.as_mut(),
-//                 env,
-//                 info,
-//                 treasury.to_string(),
-//                 "test".to_string(),
-//                 Some("https://sample.url".to_string()),
-//                 "in".to_string(),
-//                 out_denom.to_string(),
-//                 out_supply,
-//                 start,
-//                 end,
-//             )
-//             .unwrap();
-
-//             // first subscription
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_000);
-//             let funds = Coin::new(3_000, "in");
-//             let info = mock_info("position1", &[funds]);
-//             let msg = crate::msg::ExecuteMsg::Subscribe {
-//                 stream_id: 1,
-//                 operator_target: None,
-//                 operator: None,
-//             };
-//             let _res = execute(deps.as_mut(), env, info, msg).unwrap();
-
-//             // can't resume if not paused
-//             let info = mock_info("protocol_admin", &[]);
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_003);
-//             let res = execute_resume_stream(deps.as_mut(), env, info, 1).unwrap_err();
-//             assert_eq!(res, ContractError::StreamNotPaused {});
-
-//             // protocol admin can pause
-//             let info = mock_info("protocol_admin", &[]);
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_001);
-//             execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
-
-//             // can't subscribe new
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_002);
-//             let funds = Coin::new(3_000, "in");
-//             let info = mock_info("position2", &[funds]);
-//             let msg = crate::msg::ExecuteMsg::Subscribe {
-//                 stream_id: 1,
-//                 operator_target: None,
-//                 operator: None,
-//             };
-//             let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
-//             assert_eq!(res, ContractError::StreamKillswitchActive {});
-
-//             // non protocol admin can't resume
-//             let info = mock_info("non_protocol_admin", &[]);
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_003);
-//             let res = execute_resume_stream(deps.as_mut(), env, info, 1).unwrap_err();
-//             assert_eq!(res, ContractError::Unauthorized {});
-
-//             // protocol admin can resume
-//             let info = mock_info("protocol_admin", &[]);
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_003);
-//             execute_resume_stream(deps.as_mut(), env, info, 1).unwrap();
-
-//             // can subscribe new after resume
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_004);
-//             let funds = Coin::new(3_000, "in");
-//             let info = mock_info("position2", &[funds]);
-//             let msg = crate::msg::ExecuteMsg::Subscribe {
-//                 stream_id: 1,
-//                 operator_target: None,
-//                 operator: None,
-//             };
-//             let res = execute(deps.as_mut(), env, info, msg).unwrap();
-//             assert_eq!(res.attributes[0].key, "action");
-//             assert_eq!(res.attributes[0].value, "subscribe");
-//             assert_eq!(res.attributes[1].key, "stream_id");
-//             assert_eq!(res.attributes[1].value, "1");
-//             assert_eq!(res.attributes[2].key, "owner");
-//             assert_eq!(res.attributes[2].value, "position2");
-//             assert_eq!(res.attributes[3].key, "in_supply");
-//             assert_eq!(res.attributes[3].value, "6000");
-//             assert_eq!(res.attributes[4].key, "in_amount");
-//             assert_eq!(res.attributes[4].value, "3000");
-
-//             // protocol admin can pause
-//             let info = mock_info("protocol_admin", &[]);
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_005);
-//             execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
-
-//             // cancel the stream
-//             let info = mock_info("protocol_admin", &[]);
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_006);
-//             execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap();
-
-//             // can't resume if cancelled
-//             let info = mock_info("protocol_admin", &[]);
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_007);
-//             let res = execute_resume_stream(deps.as_mut(), env, info, 1).unwrap_err();
-//             assert_eq!(res, ContractError::StreamIsCancelled {});
-//         }
-
-//         #[test]
-//         fn test_cancel_protocol_admin() {
-//             let treasury = Addr::unchecked("treasury");
-//             let start = Timestamp::from_seconds(1_000_000);
-//             let end = Timestamp::from_seconds(5_000_000);
-//             let out_supply = Uint128::new(1_000_000_000_000);
-//             let out_denom = "out_denom";
-
-//             // instantiate
-//             let mut deps = mock_dependencies();
-//             let mut env = mock_env();
-//             env.block.time = Timestamp::from_seconds(0);
-//             let msg = crate::msg::InstantiateMsg {
-//                 min_stream_seconds: Uint64::new(1000),
-//                 min_seconds_until_start_time: Uint64::new(0),
-//                 stream_creation_denom: "fee".to_string(),
-//                 stream_creation_fee: Uint128::new(100),
-//                 exit_fee_percent: Decimal::percent(1),
-//                 fee_collector: "collector".to_string(),
-//                 protocol_admin: "protocol_admin".to_string(),
-//                 accepted_in_denom: "in".to_string(),
-//             };
-//             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
-
-//             // create stream
-//             let mut env = mock_env();
-//             env.block.time = Timestamp::from_seconds(0);
-//             let info = mock_info(
-//                 "creator1",
-//                 &[
-//                     Coin::new(out_supply.u128(), out_denom),
-//                     Coin::new(100, "fee"),
-//                 ],
-//             );
-//             execute_create_stream(
-//                 deps.as_mut(),
-//                 env,
-//                 info,
-//                 treasury.to_string(),
-//                 "test".to_string(),
-//                 Some("https://sample.url".to_string()),
-//                 "in".to_string(),
-//                 out_denom.to_string(),
-//                 out_supply,
-//                 start,
-//                 end,
-//             )
-//             .unwrap();
-
-//             // subscription
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(0);
-//             let funds = Coin::new(2_000_000_000_000, "in");
-//             let info = mock_info("creator1", &[funds]);
-//             let msg = crate::msg::ExecuteMsg::Subscribe {
-//                 stream_id: 1,
-//                 operator_target: None,
-//                 operator: Some("operator".to_string()),
-//             };
-//             let _res = execute(deps.as_mut(), env, info, msg).unwrap();
-
-//             // non protocol admin can't cancel
-//             let info = mock_info("non_protocol_admin", &[]);
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_000);
-//             let err = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap_err();
-//             assert_eq!(err, ContractError::Unauthorized {});
-
-//             // cant cancel without pause
-//             let info = mock_info("protocol_admin", &[]);
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_000);
-//             let err = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap_err();
-//             assert_eq!(err, ContractError::StreamNotPaused {});
-
-//             // pause
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(2_000_000);
-//             let info = mock_info("protocol_admin", &[]);
-//             execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
-
-//             //cancel
-//             let info = mock_info("protocol_admin", &[]);
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(2_500_000);
-//             let response = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap();
-//             //out_tokens and the creation fee are sent back to the treasury upon cancellation
-//             assert_eq!(
-//                 response.messages,
-//                 [
-//                     SubMsg {
-//                         id: 0,
-//                         msg: Bank(BankMsg::Send {
-//                             to_address: "treasury".to_string(),
-//                             amount: Vec::from([Coin {
-//                                 denom: "out_denom".to_string(),
-//                                 amount: Uint128::new(1000000000000)
-//                             }])
-//                         }),
-//                         gas_limit: None,
-//                         reply_on: ReplyOn::Never
-//                     },
-//                     SubMsg {
-//                         id: 0,
-//                         msg: Bank(BankMsg::Send {
-//                             to_address: "treasury".to_string(),
-//                             amount: Vec::from([Coin {
-//                                 denom: "fee".to_string(),
-//                                 amount: Uint128::new(100)
-//                             }])
-//                         }),
-//                         gas_limit: None,
-//                         reply_on: ReplyOn::Never
-//                     }
-//                 ]
-//             );
-
-//             // can't cancel cancelled stream
-//             let info = mock_info("protocol_admin", &[]);
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(2_500_000);
-//             let response = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap_err();
-//             assert_eq!(response, ContractError::StreamIsCancelled {});
-//         }
-
-//         #[test]
-//         fn test_withdraw_pause() {
-//             let treasury = Addr::unchecked("treasury");
-//             let start = Timestamp::from_seconds(1_000_000);
-//             let end = Timestamp::from_seconds(5_000_000);
-//             let out_supply = Uint128::new(1_000_000_000_000);
-//             let out_denom = "out_denom";
-
-//             // instantiate
-//             let mut deps = mock_dependencies();
-//             let mut env = mock_env();
-//             env.block.time = Timestamp::from_seconds(0);
-//             let msg = crate::msg::InstantiateMsg {
-//                 min_stream_seconds: Uint64::new(1000),
-//                 min_seconds_until_start_time: Uint64::new(0),
-//                 stream_creation_denom: "fee".to_string(),
-//                 stream_creation_fee: Uint128::new(100),
-//                 exit_fee_percent: Decimal::percent(1),
-//                 fee_collector: "collector".to_string(),
-//                 protocol_admin: "protocol_admin".to_string(),
-//                 accepted_in_denom: "in".to_string(),
-//             };
-//             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
-
-//             // create stream
-//             let mut env = mock_env();
-//             env.block.time = Timestamp::from_seconds(0);
-//             let info = mock_info(
-//                 "creator1",
-//                 &[
-//                     Coin::new(out_supply.u128(), out_denom),
-//                     Coin::new(100, "fee"),
-//                 ],
-//             );
-//             execute_create_stream(
-//                 deps.as_mut(),
-//                 env,
-//                 info,
-//                 treasury.to_string(),
-//                 "test".to_string(),
-//                 Some("https://sample.url".to_string()),
-//                 "in".to_string(),
-//                 out_denom.to_string(),
-//                 out_supply,
-//                 start,
-//                 end,
-//             )
-//             .unwrap();
-
-//             // subscription
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(0);
-//             let funds = Coin::new(2_000_000_000_000, "in");
-//             let info = mock_info("creator1", &[funds.clone()]);
-//             let msg = crate::msg::ExecuteMsg::Subscribe {
-//                 stream_id: 1,
-//                 operator_target: None,
-//                 operator: Some("operator".to_string()),
-//             };
-//             let _res = execute(deps.as_mut(), env, info, msg).unwrap();
-
-//             // withdraw with cap
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(5000);
-//             let info = mock_info("creator1", &[]);
-//             let cap = Uint128::new(25_000_000);
-//             let msg = crate::msg::ExecuteMsg::Withdraw {
-//                 stream_id: 1,
-//                 cap: Some(cap),
-//                 operator_target: None,
-//             };
-//             let _res = execute(deps.as_mut(), env, info, msg).unwrap();
-
-//             let position =
-//                 query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
-//             assert_eq!(position.in_balance, Uint128::new(1_997_475_000_000));
-//             assert_eq!(position.spent, Uint128::new(2_500_000_000));
-//             assert_eq!(position.purchased, Uint128::new(1_250_000_000));
-//             // first fund amount should be equal to in_balance + spent + cap
-//             assert_eq!(position.in_balance + position.spent + cap, funds.amount);
-
-//             // can't withdraw pause
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(6000);
-//             let info = mock_info("creator1", &[]);
-//             let err = execute_withdraw_paused(deps.as_mut(), env, info, 1, None, None).unwrap_err();
-//             assert_eq!(err, ContractError::StreamNotPaused {});
-
-//             // pause
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(6000);
-//             let info = mock_info("protocol_admin", &[]);
-//             execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
-
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(6500);
-//             let stream1_old = query_stream(deps.as_ref(), env, 1).unwrap();
-//             //Unauthorized check
-//             let info = mock_info("random", &[]);
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(7000);
-//             let res = execute_withdraw_paused(
-//                 deps.as_mut(),
-//                 env,
-//                 info,
-//                 1,
-//                 None,
-//                 Some("creator1".to_string()),
-//             )
-//             .unwrap_err();
-
-//             assert_eq!(res, ContractError::Unauthorized {});
-//             //Cap exceeds in balance check
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(7000);
-//             let info = mock_info("creator1", &[]);
-//             let res = execute_withdraw_paused(
-//                 deps.as_mut(),
-//                 env,
-//                 info,
-//                 1,
-//                 Some(Uint128::new(2_000_000_000_000 + 1)),
-//                 None,
-//             )
-//             .unwrap_err();
-//             assert_eq!(
-//                 res,
-//                 ContractError::WithdrawAmountExceedsBalance(Uint128::new(2_000_000_000_001))
-//             );
-//             // Withdraw cap is zero
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(7000);
-//             let info = mock_info("creator1", &[]);
-//             let res =
-//                 execute_withdraw_paused(deps.as_mut(), env, info, 1, Some(Uint128::zero()), None)
-//                     .unwrap_err();
-//             assert_eq!(res, ContractError::InvalidWithdrawAmount {});
-
-//             //withdraw with cap
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(7000);
-//             let info = mock_info("creator1", &[]);
-//             let cap = Uint128::new(25_000_000);
-//             execute_withdraw_paused(deps.as_mut(), env, info, 1, Some(cap), None).unwrap();
-
-//             // withdraw after pause
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(7000);
-//             let info = mock_info("creator1", &[]);
-//             let res = execute_withdraw_paused(deps.as_mut(), env, info, 1, None, None).unwrap();
-//             assert_eq!(
-//                 res.messages,
-//                 vec![SubMsg {
-//                     id: 0,
-//                     msg: BankMsg::Send {
-//                         to_address: "creator1".to_string(),
-//                         amount: vec![Coin {
-//                             denom: "in".to_string(),
-//                             amount: Uint128::new(1996950006258),
-//                         }],
-//                     }
-//                     .into(),
-//                     gas_limit: None,
-//                     reply_on: ReplyOn::Never,
-//                 }]
-//             );
-
-//             // stream not updated
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(8000);
-//             let stream1_new = query_stream(deps.as_ref(), env, 1).unwrap();
-//             // dist_index not updated
-//             assert_eq!(stream1_old.dist_index, stream1_new.dist_index);
-//             assert_eq!(stream1_new.in_supply, Uint128::zero());
-//             assert_eq!(stream1_new.shares, Uint128::zero());
-
-//             // position updated
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(8001);
-//             let position =
-//                 query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
-//             // in_balance updated
-//             assert_eq!(position.in_balance, Uint128::new(0));
-//             assert_eq!(position.spent, Uint128::new(2_999_993_742));
-//             assert_eq!(position.purchased, Uint128::new(1_499_999_998));
-//             assert_eq!(position.shares, Uint128::new(0));
-//         }
-
-//         #[test]
-//         fn test_resume() {
-//             let treasury = Addr::unchecked("treasury");
-//             let start = Timestamp::from_seconds(1_000_000);
-//             let end = Timestamp::from_seconds(5_000_000);
-//             let out_supply = Uint128::new(1_000_000_000_000);
-//             let out_denom = "out_denom";
-
-//             // instantiate
-//             let mut deps = mock_dependencies();
-//             let mut env = mock_env();
-//             env.block.time = Timestamp::from_seconds(0);
-//             let msg = crate::msg::InstantiateMsg {
-//                 min_stream_seconds: Uint64::new(1000),
-//                 min_seconds_until_start_time: Uint64::new(0),
-//                 stream_creation_denom: "fee".to_string(),
-//                 stream_creation_fee: Uint128::new(100),
-//                 exit_fee_percent: Decimal::percent(1),
-//                 fee_collector: "collector".to_string(),
-//                 protocol_admin: "protocol_admin".to_string(),
-//                 accepted_in_denom: "in".to_string(),
-//             };
-//             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
-
-//             // create stream
-//             let mut env = mock_env();
-//             env.block.time = Timestamp::from_seconds(0);
-//             let info = mock_info(
-//                 "creator1",
-//                 &[
-//                     Coin::new(out_supply.u128(), out_denom),
-//                     Coin::new(100, "fee"),
-//                 ],
-//             );
-//             execute_create_stream(
-//                 deps.as_mut(),
-//                 env,
-//                 info,
-//                 treasury.to_string(),
-//                 "test".to_string(),
-//                 Some("https://sample.url".to_string()),
-//                 "in".to_string(),
-//                 out_denom.to_string(),
-//                 out_supply,
-//                 start,
-//                 end,
-//             )
-//             .unwrap();
-
-//             // first subscription
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_000);
-//             let funds = Coin::new(3_000, "in");
-//             let info = mock_info("position1", &[funds]);
-//             let msg = crate::msg::ExecuteMsg::Subscribe {
-//                 stream_id: 1,
-//                 operator_target: None,
-//                 operator: None,
-//             };
-//             let _res = execute(deps.as_mut(), env, info, msg).unwrap();
-
-//             //cant resume if not paused
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_000);
-//             let res = sudo_resume_stream(deps.as_mut(), env, 1).unwrap_err();
-//             assert_eq!(res, ContractError::StreamNotPaused {});
-
-//             // pause
-//             let info = mock_info("protocol_admin", &[]);
-//             let mut env = mock_env();
-//             let pause_date = start.plus_seconds(2_000_000);
-//             env.block.time = pause_date;
-//             execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
-
-//             // resume
-//             let mut env = mock_env();
-//             let resume_date = start.plus_seconds(3_000_000);
-//             env.block.time = resume_date;
-//             sudo_resume_stream(deps.as_mut(), env, 1).unwrap();
-
-//             // new end date is correct
-//             let new_end_date = end.plus_nanos(resume_date.nanos() - pause_date.nanos());
-//             let stream = query_stream(deps.as_ref(), mock_env(), 1).unwrap();
-//             assert_eq!(stream.end_time, new_end_date);
-//         }
-
-//         #[test]
-//         fn test_sudo_pause_stream() {
-//             let treasury = Addr::unchecked("treasury");
-//             let start = Timestamp::from_seconds(1_000_000);
-//             let end = Timestamp::from_seconds(5_000_000);
-//             let out_supply = Uint128::new(1_000_000_000_000);
-//             let out_denom = "out_denom";
-
-//             // instantiate
-//             let mut deps = mock_dependencies();
-//             let mut env = mock_env();
-//             env.block.time = Timestamp::from_seconds(0);
-//             let msg = crate::msg::InstantiateMsg {
-//                 min_stream_seconds: Uint64::new(1000),
-//                 min_seconds_until_start_time: Uint64::new(0),
-//                 stream_creation_denom: "fee".to_string(),
-//                 stream_creation_fee: Uint128::new(100),
-//                 exit_fee_percent: Decimal::percent(1),
-//                 fee_collector: "collector".to_string(),
-//                 protocol_admin: "protocol_admin".to_string(),
-//                 accepted_in_denom: "in".to_string(),
-//             };
-//             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
-
-//             // create stream
-//             let mut env = mock_env();
-//             env.block.time = Timestamp::from_seconds(0);
-//             let info = mock_info(
-//                 "creator1",
-//                 &[
-//                     Coin::new(out_supply.u128(), out_denom),
-//                     Coin::new(100, "fee"),
-//                 ],
-//             );
-//             execute_create_stream(
-//                 deps.as_mut(),
-//                 env,
-//                 info,
-//                 treasury.to_string(),
-//                 "test".to_string(),
-//                 Some("https://sample.url".to_string()),
-//                 "in".to_string(),
-//                 out_denom.to_string(),
-//                 out_supply,
-//                 start,
-//                 end,
-//             )
-//             .unwrap();
-
-//             let mut env = mock_env();
-//             env.block.time = Timestamp::from_seconds(500_000);
-//             let res = sudo_pause_stream(deps.as_mut(), env, 1).unwrap_err();
-//             assert_eq!(res, ContractError::StreamNotStarted {});
-
-//             let mut env = mock_env();
-//             env.block.time = Timestamp::from_seconds(6_000_000);
-//             let res = sudo_pause_stream(deps.as_mut(), env, 1).unwrap_err();
-//             assert_eq!(res, ContractError::StreamEnded {});
-
-//             let mut env = mock_env();
-//             env.block.time = Timestamp::from_seconds(3_000_000);
-//             let res = sudo_pause_stream(deps.as_mut(), env, 1).unwrap();
-//             assert_eq!(
-//                 res,
-//                 Response::new()
-//                     .add_attribute("action", "sudo_pause_stream")
-//                     .add_attribute("stream_id", "1")
-//                     .add_attribute("is_paused", "true")
-//                     .add_attribute("pause_date", "3000000.000000000")
-//             );
-
-//             let mut env = mock_env();
-//             env.block.time = Timestamp::from_seconds(4_000_000);
-//             let res = sudo_pause_stream(deps.as_mut(), env, 1).unwrap_err();
-//             assert_eq!(res, ContractError::StreamKillswitchActive {});
-//         }
-
-//         #[test]
-//         fn test_range_queries() {
-//             let treasury = Addr::unchecked("treasury");
-//             let start = Timestamp::from_seconds(2000);
-//             let end = Timestamp::from_seconds(1_000_000);
-//             let out_supply = Uint128::new(1_000_000);
-//             let out_denom = "out_denom";
-
-//             // instantiate
-//             let mut deps = mock_dependencies();
-//             let mut env = mock_env();
-//             env.block.time = Timestamp::from_seconds(100);
-//             let msg = crate::msg::InstantiateMsg {
-//                 min_stream_seconds: Uint64::new(1000),
-//                 min_seconds_until_start_time: Uint64::new(1000),
-//                 stream_creation_denom: "fee".to_string(),
-//                 stream_creation_fee: Uint128::new(100),
-//                 exit_fee_percent: Decimal::percent(1),
-//                 fee_collector: "collector".to_string(),
-//                 protocol_admin: "protocol_admin".to_string(),
-//                 accepted_in_denom: "in".to_string(),
-//             };
-//             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
-
-//             // create stream
-//             let mut env = mock_env();
-//             env.block.time = Timestamp::from_seconds(1);
-//             let info = mock_info(
-//                 "creator1",
-//                 &[
-//                     Coin::new(out_supply.u128(), out_denom),
-//                     Coin::new(100, "fee"),
-//                 ],
-//             );
-//             //first stream
-//             execute_create_stream(
-//                 deps.as_mut(),
-//                 env.clone(),
-//                 info.clone(),
-//                 treasury.to_string(),
-//                 "test".to_string(),
-//                 Some("https://sample.url".to_string()),
-//                 "in".to_string(),
-//                 out_denom.to_string(),
-//                 out_supply,
-//                 start,
-//                 end,
-//             )
-//             .unwrap();
-//             //second stream
-//             execute_create_stream(
-//                 deps.as_mut(),
-//                 env,
-//                 info,
-//                 treasury.to_string(),
-//                 "test".to_string(),
-//                 Some("https://sample.url".to_string()),
-//                 "in".to_string(),
-//                 out_denom.to_string(),
-//                 out_supply,
-//                 start,
-//                 end,
-//             )
-//             .unwrap();
-
-//             let res = list_streams(deps.as_ref(), None, None).unwrap();
-//             assert_eq!(res.streams.len(), 2);
-
-//             // first subscription to first stream
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(100);
-//             let info = mock_info("creator1", &[Coin::new(1_000_000, "in")]);
-//             let msg = crate::msg::ExecuteMsg::Subscribe {
-//                 stream_id: 1,
-//                 operator_target: None,
-//                 operator: None,
-//             };
-//             let _res = execute(deps.as_mut(), env, info, msg).unwrap();
-
-//             // second subscription to first stream
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(100);
-//             let info = mock_info("creator2", &[Coin::new(1_000_000, "in")]);
-//             let msg = crate::msg::ExecuteMsg::Subscribe {
-//                 stream_id: 1,
-//                 operator_target: None,
-//                 operator: None,
-//             };
-//             let _res = execute(deps.as_mut(), env, info, msg).unwrap();
-
-//             let res = list_positions(deps.as_ref(), 1, None, None).unwrap();
-//             assert_eq!(res.positions.len(), 2);
-//         }
-
-//         #[test]
-//         fn test_exit_cancel() {
-//             let treasury = Addr::unchecked("treasury");
-//             let start = Timestamp::from_seconds(1_000_000);
-//             let end = Timestamp::from_seconds(5_000_000);
-//             let out_supply = Uint128::new(1_000_000_000_000);
-//             let out_denom = "out_denom";
-
-//             // instantiate
-//             let mut deps = mock_dependencies();
-//             let mut env = mock_env();
-//             env.block.time = Timestamp::from_seconds(0);
-//             let msg = crate::msg::InstantiateMsg {
-//                 min_stream_seconds: Uint64::new(1000),
-//                 min_seconds_until_start_time: Uint64::new(0),
-//                 stream_creation_denom: "fee".to_string(),
-//                 stream_creation_fee: Uint128::new(100),
-//                 exit_fee_percent: Decimal::percent(1),
-//                 fee_collector: "collector".to_string(),
-//                 protocol_admin: "protocol_admin".to_string(),
-//                 accepted_in_denom: "in".to_string(),
-//             };
-//             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
-
-//             // create stream
-//             let mut env = mock_env();
-//             env.block.time = Timestamp::from_seconds(0);
-//             let info = mock_info(
-//                 "creator1",
-//                 &[
-//                     Coin::new(out_supply.u128(), out_denom),
-//                     Coin::new(100, "fee"),
-//                 ],
-//             );
-//             execute_create_stream(
-//                 deps.as_mut(),
-//                 env,
-//                 info,
-//                 treasury.to_string(),
-//                 "test".to_string(),
-//                 Some("https://sample.url".to_string()),
-//                 "in".to_string(),
-//                 out_denom.to_string(),
-//                 out_supply,
-//                 start,
-//                 end,
-//             )
-//             .unwrap();
-
-//             // subscription
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(0);
-//             let funds = Coin::new(2_000_000_000_000, "in");
-//             let info = mock_info("creator1", &[funds]);
-//             let msg = crate::msg::ExecuteMsg::Subscribe {
-//                 stream_id: 1,
-//                 operator_target: None,
-//                 operator: Some("operator".to_string()),
-//             };
-//             let _res = execute(deps.as_mut(), env, info, msg).unwrap();
-
-//             // cant cancel without pause
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(1_000_000);
-//             let err = sudo_cancel_stream(deps.as_mut(), env, 1).unwrap_err();
-//             assert_eq!(err, ContractError::StreamNotPaused {});
-
-//             // pause
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(2_000_000);
-//             let info = mock_info("protocol_admin", &[]);
-//             execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
-
-//             //can't exit before cancel
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(2_250_000);
-//             let info = mock_info("creator1", &[]);
-//             let res = execute_exit_cancelled(deps.as_mut(), env, info, 1, None).unwrap_err();
-//             assert_eq!(res, ContractError::StreamNotCancelled {});
-
-//             //cancel
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(2_500_000);
-//             let response = sudo_cancel_stream(deps.as_mut(), env, 1).unwrap();
-//             //out_tokens and the creation fee are sent back to the treasury upon cancellation
-//             assert_eq!(
-//                 response.messages,
-//                 [
-//                     SubMsg {
-//                         id: 0,
-//                         msg: Bank(BankMsg::Send {
-//                             to_address: "treasury".to_string(),
-//                             amount: Vec::from([Coin {
-//                                 denom: "out_denom".to_string(),
-//                                 amount: Uint128::new(1000000000000)
-//                             }])
-//                         }),
-//                         gas_limit: None,
-//                         reply_on: ReplyOn::Never
-//                     },
-//                     SubMsg {
-//                         id: 0,
-//                         msg: Bank(BankMsg::Send {
-//                             to_address: "treasury".to_string(),
-//                             amount: Vec::from([Coin {
-//                                 denom: "fee".to_string(),
-//                                 amount: Uint128::new(100)
-//                             }])
-//                         }),
-//                         gas_limit: None,
-//                         reply_on: ReplyOn::Never
-//                     }
-//                 ]
-//             );
-
-//             //random operator can't exit
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(2_250_000);
-//             let info = mock_info("random", &[]);
-//             let res =
-//                 execute_exit_cancelled(deps.as_mut(), env, info, 1, Some("creator1".to_string()))
-//                     .unwrap_err();
-//             assert_eq!(res, ContractError::Unauthorized {});
-
-//             // exit
-//             let mut env = mock_env();
-//             env.block.time = start.plus_seconds(3_000_000);
-//             let info = mock_info("creator1", &[]);
-//             let res = execute_exit_cancelled(deps.as_mut(), env, info, 1, None).unwrap();
-//             let msg = res.messages.get(0).unwrap();
-//             assert_eq!(
-//                 msg.msg,
-//                 Bank(BankMsg::Send {
-//                     to_address: "creator1".to_string(),
-//                     amount: vec![Coin::new(2000000000000, "in")]
-//                 })
-//             );
-//         }
-//     }
-// }
