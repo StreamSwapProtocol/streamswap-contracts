@@ -6,7 +6,7 @@ use cosmwasm_std::{Addr, Decimal, Decimal256, Uint128};
 pub struct InstantiateMsg {
     /// Minimum sale duration in blocks
     pub min_stream_blocks: u64,
-    /// Minimum duration between start block and current block in unix seconds
+    /// Minimum duration between start block and current block
     pub min_blocks_until_start_block: u64,
     /// Accepted stream creation fee denom
     pub stream_creation_denom: String,
@@ -41,9 +41,9 @@ pub enum ExecuteMsg {
         out_denom: String,
         /// Total number of `token_out` to be sold during the continuous stream.
         out_supply: Uint128,
-        /// Unix timestamp when the stream starts. Calculations in nano sec precision.
+        /// Block height when the token emission starts.
         start_block: u64,
-        /// Unix timestamp when the stream ends. Calculations in nano sec precision.
+        /// Block height when the token emission ends.
         end_block: u64,
     },
     /// Update stream and calculates distribution state.
@@ -199,7 +199,7 @@ pub struct StreamResponse {
     pub url: Option<String>,
     /// Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal256,
-    /// last updated time of stream.
+    /// last updated block of stream.
     pub last_updated_block: u64,
     /// denom of the `token_out`.
     pub out_denom: String,
@@ -215,15 +215,15 @@ pub struct StreamResponse {
     pub spent_in: Uint128,
     /// total number of shares minted.
     pub shares: Uint128,
-    /// start time when the token emission starts. in nanos.
+    /// start block when the token emission starts.
     pub start_block: u64,
-    /// end time when the token emission ends.
+    /// end block when the token emission ends.
     pub end_block: u64,
     /// price at when latest distribution is triggered.
     pub current_streamed_price: Decimal,
     /// Status of the stream. Can be `Waiting`, `Active`, `Finalzed`, `Paused` or `Canceled` for kill switch.
     pub status: Status,
-    /// Date when the stream was paused.
+    /// Block height when the stream was paused.
     pub pause_block: Option<u64>,
     /// Exit fee percent.
     pub exit_fee_percent: Decimal,
@@ -246,6 +246,7 @@ pub struct PositionResponse {
     pub shares: Uint128,
     // index is used to calculate the distribution a position has
     pub index: Decimal256,
+    // last_updated_block is the block height when the position was last updated
     pub last_updated_block: u64,
     // total amount of `token_out` purchased in tokens at latest calculation
     pub purchased: Uint128,
