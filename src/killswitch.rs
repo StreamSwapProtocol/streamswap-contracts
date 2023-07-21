@@ -19,7 +19,6 @@ pub fn execute_withdraw_paused(
     if !stream.is_paused() {
         return Err(ContractError::StreamNotPaused {});
     }
-    // We are not checking if stream is ended because the paused state duration might exceed end time
 
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
@@ -153,10 +152,6 @@ pub fn execute_pause_stream(
     if env.block.height >= stream.end_block {
         return Err(ContractError::StreamEnded {});
     }
-    // check if stream is not started
-    if env.block.height < stream.start_block {
-        return Err(ContractError::StreamNotStarted {});
-    }
     // paused or cancelled can not be paused
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
@@ -200,11 +195,18 @@ pub fn execute_resume_stream(
     }
 
     let pause_block = stream.pause_block.unwrap();
-    //postpone stream times with respect to pause duration
-    stream.end_block = stream.end_block + (env.block.height - pause_block);
-    stream.last_updated_block = stream.last_updated_block + (env.block.height - pause_block);
-
-    stream.status = Status::Active;
+    if env.block.height < stream.start_block {
+        // If stream is paused before start block, then we need we dont need to update
+        // stream start block and last updated block
+        stream.pause_block = None;
+        stream.status = Status::Waiting;
+    } else {
+        //postpone stream times with respect to pause duration
+        stream.end_block = stream.end_block + (env.block.height - pause_block);
+        stream.last_updated_block = stream.last_updated_block + (env.block.height - pause_block);
+        stream.status = Status::Active;
+        stream.pause_block = None;
+    }
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let attributes = vec![
@@ -270,10 +272,6 @@ pub fn sudo_pause_stream(
     if env.block.height >= stream.end_block {
         return Err(ContractError::StreamEnded {});
     }
-    // check if stream is not started
-    if env.block.height < stream.start_block {
-        return Err(ContractError::StreamNotStarted {});
-    }
     // Paused or cancelled can not be paused
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
@@ -305,12 +303,18 @@ pub fn sudo_resume_stream(
     }
     // ok to use unwrap here
     let pause_block = stream.pause_block.unwrap();
-    //postpone stream times with respect to pause duration
-    stream.end_block = stream.end_block + (env.block.height - pause_block);
-    stream.last_updated_block = stream.last_updated_block + (env.block.height - pause_block);
-
-    stream.status = Status::Active;
-    stream.pause_block = None;
+    if env.block.height < stream.start_block {
+        // If stream is paused before start block, then we need we dont need to update
+        // stream start block and last updated block
+        stream.status = Status::Waiting;
+        stream.pause_block = None;
+    } else {
+        //postpone stream times with respect to pause duration
+        stream.end_block = stream.end_block + (env.block.height - pause_block);
+        stream.last_updated_block = stream.last_updated_block + (env.block.height - pause_block);
+        stream.status = Status::Active;
+        stream.pause_block = None;
+    }
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     Ok(Response::default()

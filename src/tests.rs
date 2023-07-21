@@ -2629,12 +2629,22 @@ mod test_module {
             let res = execute_pause_stream(deps.as_mut(), env, info, 1);
             assert_eq!(res, Err(ContractError::Unauthorized {}));
 
-            // can't pause before start time
+            // Lets pause the stream before it starts
             let info = mock_info("protocol_admin", &[]);
             let mut env = mock_env();
             env.block.height = start - 500_000;
-            let res = execute_pause_stream(deps.as_mut(), env, info, 1).unwrap_err();
-            assert_eq!(res, ContractError::StreamNotStarted {});
+            let res = execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+            assert_eq!(res.attributes[0], attr("action", "pause_stream"));
+
+            // Lets resume the stream before start time
+            let info = mock_info("protocol_admin", &[]);
+            let mut env = mock_env();
+            env.block.height = start - 1;
+            let res = execute_resume_stream(deps.as_mut(), env.clone(), info, 1).unwrap();
+
+            // query stream
+            let stream = query_stream(deps.as_ref(), env, 1).unwrap();
+            assert_eq!(stream.status, Status::Waiting);
 
             // can't pause after end time
             let info = mock_info("protocol_admin", &[]);
@@ -3308,11 +3318,24 @@ mod test_module {
             )
             .unwrap();
 
+            // Test sudo pause stream in pending period
             let mut env = mock_env();
             env.block.height = 500_000;
-            let res = sudo_pause_stream(deps.as_mut(), env, 1).unwrap_err();
-            assert_eq!(res, ContractError::StreamNotStarted {});
+            let res = sudo_pause_stream(deps.as_mut(), env, 1).unwrap();
+            assert_eq!(
+                res,
+                Response::new()
+                    .add_attribute("action", "sudo_pause_stream")
+                    .add_attribute("stream_id", "1")
+                    .add_attribute("is_paused", "true")
+                    .add_attribute("pause_block", "500000")
+            );
+            // Lets resume the stream and pause it again in active period
+            let mut env = mock_env();
+            env.block.height = start - 1;
+            let _res = sudo_resume_stream(deps.as_mut(), env, 1).unwrap();
 
+            // Try pause stream after end block
             let mut env = mock_env();
             env.block.height = 6_000_000;
             let res = sudo_pause_stream(deps.as_mut(), env, 1).unwrap_err();
@@ -3567,6 +3590,259 @@ mod test_module {
                     amount: vec![Coin::new(2_000_000_000_000, "in")]
                 })
             );
+        }
+        #[test]
+        pub fn test_killswich_features_pending() {
+            let treasury = Addr::unchecked("treasury");
+            let start = 1_000_000;
+            let end = 5_000_000;
+            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_denom = "out_denom";
+
+            // instantiate
+            let mut deps = mock_dependencies();
+            let mut env = mock_env();
+            env.block.height = 0;
+            let msg = crate::msg::InstantiateMsg {
+                min_stream_blocks: 1_000,
+                min_blocks_until_start_block: 1_000,
+                stream_creation_denom: "fee".to_string(),
+                stream_creation_fee: Uint128::new(100),
+                exit_fee_percent: Decimal::percent(1),
+                fee_collector: "collector".to_string(),
+                protocol_admin: "protocol_admin".to_string(),
+                accepted_in_denom: "in".to_string(),
+            };
+            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+            // create stream
+            let mut env = mock_env();
+            env.block.height = 0;
+            let info = mock_info(
+                "creator1",
+                &[
+                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(100, "fee"),
+                ],
+            );
+            execute_create_stream(
+                deps.as_mut(),
+                env,
+                info,
+                treasury.to_string(),
+                "test".to_string(),
+                Some("https://sample.url".to_string()),
+                "in".to_string(),
+                out_denom.to_string(),
+                out_supply,
+                start,
+                end,
+            )
+            .unwrap();
+
+            // subscription on pending
+            let mut env = mock_env();
+            env.block.height = 100;
+            let funds = Coin::new(2_000, "in");
+            let info = mock_info("creator1", &[funds]);
+            let msg = crate::msg::ExecuteMsg::Subscribe {
+                stream_id: 1,
+                operator_target: None,
+                operator: Some("operator".to_string()),
+            };
+            let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+
+            // pause
+            let mut env = mock_env();
+            env.block.height = 101;
+            let info = mock_info("protocol_admin", &[]);
+            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+
+            // query stream
+            let stream = query_stream(deps.as_ref(), mock_env(), 1).unwrap();
+            assert_eq!(stream.status, Status::Paused);
+            assert_eq!(stream.pause_block, Some(101));
+            assert_eq!(stream.in_supply, Uint128::new(2_000));
+            assert_eq!(stream.dist_index, Decimal256::zero());
+
+            // Try subscribe after pause
+            let mut env = mock_env();
+            env.block.height = 102;
+            let funds = Coin::new(2_000, "in");
+            let info = mock_info("creator1", &[funds]);
+            let msg = crate::msg::ExecuteMsg::Subscribe {
+                stream_id: 1,
+                operator_target: None,
+                operator: Some("operator".to_string()),
+            };
+            let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
+            assert_eq!(res, ContractError::StreamKillswitchActive {});
+
+            // Try withdraw after pause
+            let mut env = mock_env();
+            env.block.height = 102;
+            let info = mock_info("creator1", &[]);
+            let msg = crate::msg::ExecuteMsg::Withdraw {
+                stream_id: 1,
+                cap: None,
+                operator_target: None,
+            };
+            let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
+            assert_eq!(res, ContractError::StreamKillswitchActive {});
+
+            // Withdraw_paused
+            let mut env = mock_env();
+            env.block.height = 102;
+            let info = mock_info("creator1", &[]);
+            let msg = crate::msg::ExecuteMsg::WithdrawPaused {
+                stream_id: 1,
+                cap: Some(Uint128::from(1_000u128)),
+                operator_target: None,
+            };
+            let res = execute(deps.as_mut(), env, info, msg).unwrap();
+            assert_eq!(
+                res.messages,
+                vec![SubMsg {
+                    id: 0,
+                    msg: BankMsg::Send {
+                        to_address: "creator1".to_string(),
+                        amount: vec![Coin {
+                            denom: "in".to_string(),
+                            amount: Uint128::from_str("1000").unwrap(),
+                        }],
+                    }
+                    .into(),
+                    gas_limit: None,
+                    reply_on: ReplyOn::Never,
+                }]
+            );
+            // query stream
+            let stream = query_stream(deps.as_ref(), mock_env(), 1).unwrap();
+            assert_eq!(stream.status, Status::Paused);
+            assert_eq!(stream.dist_index, Decimal256::zero());
+            assert_eq!(stream.in_supply, Uint128::new(1_000));
+
+            // Try resume after pause. Should change the statuxs to Waiting
+            // Stream start_block and last updated block should not change
+            let mut env = mock_env();
+            env.block.height = 103;
+            let info = mock_info("protocol_admin", &[]);
+            let _res = execute_resume_stream(deps.as_mut(), env, info, 1).unwrap();
+
+            // query stream
+            let stream = query_stream(deps.as_ref(), mock_env(), 1).unwrap();
+            assert_eq!(stream.status, Status::Waiting);
+            assert_eq!(stream.pause_block, None);
+            assert_eq!(stream.dist_index, Decimal256::zero());
+            assert_eq!(stream.in_supply, Uint128::new(1_000));
+            assert_eq!(stream.start_block, start);
+            assert_eq!(stream.last_updated_block, start);
+
+            // Try subscribe after resume
+            let mut env = mock_env();
+            env.block.height = 104;
+            let funds = Coin::new(2_000, "in");
+            let info = mock_info("creator1", &[funds]);
+            let msg = crate::msg::ExecuteMsg::Subscribe {
+                stream_id: 1,
+                operator_target: None,
+                operator: Some("operator".to_string()),
+            };
+            let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+
+            // query stream
+            let stream = query_stream(deps.as_ref(), mock_env(), 1).unwrap();
+            assert_eq!(stream.status, Status::Waiting);
+            assert_eq!(stream.pause_block, None);
+            assert_eq!(stream.dist_index, Decimal256::zero());
+            assert_eq!(stream.in_supply, Uint128::new(3_000));
+
+            // Pause again only to cancel
+            let mut env = mock_env();
+            env.block.height = 200;
+            let info = mock_info("protocol_admin", &[]);
+            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+
+            let mut env = mock_env();
+            env.block.height = 201;
+            let info = mock_info("protocol_admin", &[]);
+            let res = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap();
+            assert_eq!(
+                res.messages[0].msg,
+                CosmosMsg::Bank(BankMsg::Send {
+                    to_address: "treasury".to_string(),
+                    amount: vec![Coin {
+                        denom: "out_denom".to_string(),
+                        amount: Uint128::new(1_000_000_000_000)
+                    }]
+                })
+            );
+            assert_eq!(
+                res.messages[1].msg,
+                CosmosMsg::Bank(BankMsg::Send {
+                    to_address: "treasury".to_string(),
+                    amount: vec![Coin {
+                        denom: "fee".to_string(),
+                        amount: Uint128::new(100)
+                    }]
+                })
+            );
+            // query stream
+            let stream = query_stream(deps.as_ref(), mock_env(), 1).unwrap();
+            assert_eq!(stream.status, Status::Cancelled);
+            assert_eq!(stream.pause_block, Some(200));
+            assert_eq!(stream.dist_index, Decimal256::zero());
+            assert_eq!(stream.in_supply, Uint128::new(3_000));
+
+            // Try subscribe after cancel
+            let mut env = mock_env();
+            env.block.height = 202;
+            let funds = Coin::new(2_000, "in");
+            let info = mock_info("creator1", &[funds]);
+            let msg = crate::msg::ExecuteMsg::Subscribe {
+                stream_id: 1,
+                operator_target: None,
+                operator: Some("operator".to_string()),
+            };
+            let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
+            assert_eq!(res, ContractError::StreamKillswitchActive {});
+
+            // Try withdraw after cancel
+            let mut env = mock_env();
+            env.block.height = 202;
+            let info = mock_info("creator1", &[]);
+            let msg = crate::msg::ExecuteMsg::Withdraw {
+                stream_id: 1,
+                cap: None,
+                operator_target: None,
+            };
+            let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
+            assert_eq!(res, ContractError::StreamKillswitchActive {});
+
+            // Exit cancelled
+            let mut env = mock_env();
+            env.block.height = 202;
+            let info = mock_info("creator1", &[]);
+            let msg = crate::msg::ExecuteMsg::ExitCancelled {
+                stream_id: 1,
+                operator_target: None,
+            };
+            let res = execute(deps.as_mut(), env, info, msg).unwrap();
+            assert_eq!(
+                res.messages[0].msg,
+                CosmosMsg::Bank(BankMsg::Send {
+                    to_address: "creator1".to_string(),
+                    amount: vec![Coin {
+                        denom: "in".to_string(),
+                        amount: Uint128::new(3_000)
+                    }]
+                })
+            );
+            // query stream
+            let stream = query_stream(deps.as_ref(), mock_env(), 1).unwrap();
+            assert_eq!(stream.status, Status::Cancelled);
+            assert_eq!(stream.pause_block, Some(200));
+            assert_eq!(stream.dist_index, Decimal256::zero());
         }
     }
 }
