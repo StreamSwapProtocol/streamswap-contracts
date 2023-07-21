@@ -110,27 +110,15 @@ pub fn execute(
             operator,
         } => {
             let stream = STREAMS.load(deps.storage, stream_id)?;
-            if stream.start_block > env.block.height {
-                Ok(execute_subscribe_pending(
-                    deps.branch(),
-                    env,
-                    info,
-                    stream_id,
-                    operator,
-                    operator_target,
-                    stream,
-                )?)
-            } else {
-                Ok(execute_subscribe(
-                    deps,
-                    env,
-                    info,
-                    stream_id,
-                    operator,
-                    operator_target,
-                    stream,
-                )?)
-            }
+            execute_subscribe(
+                deps,
+                env,
+                info,
+                stream_id,
+                operator,
+                operator_target,
+                stream,
+            )
         }
         ExecuteMsg::Withdraw {
             stream_id,
@@ -307,6 +295,7 @@ pub fn execute_create_stream(
         in_denom.clone(),
         start_block,
         end_block,
+        // Last updated block is set to start block.
         start_block,
         config.stream_creation_denom,
         config.stream_creation_fee,
@@ -415,10 +404,16 @@ pub fn update_stream(
             stream.current_streamed_price = Decimal::from_ratio(spent_in, new_distribution_balance)
         }
     }
-
+    // Last updated block is set to now_block or start_block if now_block < start_block
+    // This means stream is updated before start time.
+    // In this case Last updated block is set to start_block(This is default because at create stream last_updated_block is set to start_block)
+    // Also if now is greater than start block and status is waiting, status is set to active
     stream.last_updated_block = if now_block < stream.start_block {
         stream.start_block
     } else {
+        if stream.status == Status::Waiting {
+            stream.status = Status::Active
+        }
         now_block
     };
 
@@ -547,10 +542,6 @@ pub fn execute_subscribe(
     if env.block.height >= stream.end_block {
         return Err(ContractError::StreamEnded {});
     }
-    // On first subscibe change status to Active
-    if stream.status == Status::Waiting {
-        stream.status = Status::Active
-    }
 
     let in_amount = must_pay(&info, &stream.in_denom)?;
     let new_shares;
@@ -613,61 +604,61 @@ pub fn execute_subscribe(
     Ok(res)
 }
 
-pub fn execute_subscribe_pending(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    stream_id: u64,
-    operator: Option<String>,
-    operator_target: Option<String>,
-    mut stream: Stream,
-) -> Result<Response, ContractError> {
-    // check if stream is paused
-    if stream.is_killswitch_active() {
-        return Err(ContractError::StreamKillswitchActive {});
-    }
-    let in_amount = must_pay(&info, &stream.in_denom)?;
-    let new_shares = stream.compute_shares_amount(in_amount, false);
+// pub fn execute_subscribe_pending(
+//     deps: DepsMut,
+//     env: Env,
+//     info: MessageInfo,
+//     stream_id: u64,
+//     operator: Option<String>,
+//     operator_target: Option<String>,
+//     mut stream: Stream,
+// ) -> Result<Response, ContractError> {
+//     // check if stream is paused
+//     if stream.is_killswitch_active() {
+//         return Err(ContractError::StreamKillswitchActive {});
+//     }
+//     let in_amount = must_pay(&info, &stream.in_denom)?;
+//     let new_shares = stream.compute_shares_amount(in_amount, false);
 
-    let operator = maybe_addr(deps.api, operator)?;
-    let operator_target =
-        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let position = POSITIONS.may_load(deps.storage, (stream_id, &operator_target))?;
-    match position {
-        None => {
-            // operator cannot create a position in behalf of anyone
-            if operator_target != info.sender {
-                return Err(ContractError::Unauthorized {});
-            }
-            let new_position = Position::new(
-                info.sender,
-                in_amount,
-                new_shares,
-                Some(stream.dist_index),
-                env.block.height,
-                operator,
-            );
-            POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
-        }
-        Some(mut position) => {
-            check_access(&info, &position.owner, &position.operator)?;
-            // if subscibed already, we wont update its position but just increase its in_balance and shares
-            position.in_balance = position.in_balance.checked_add(in_amount)?;
-            position.shares = position.shares.checked_add(new_shares)?;
-            POSITIONS.save(deps.storage, (stream_id, &operator_target), &position)?;
-        }
-    }
-    stream.in_supply = stream.in_supply.checked_add(in_amount)?;
-    stream.shares = stream.shares.checked_add(new_shares)?;
-    STREAMS.save(deps.storage, stream_id, &stream)?;
+//     let operator = maybe_addr(deps.api, operator)?;
+//     let operator_target =
+//         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
+//     let position = POSITIONS.may_load(deps.storage, (stream_id, &operator_target))?;
+//     match position {
+//         None => {
+//             // operator cannot create a position in behalf of anyone
+//             if operator_target != info.sender {
+//                 return Err(ContractError::Unauthorized {});
+//             }
+//             let new_position = Position::new(
+//                 info.sender,
+//                 in_amount,
+//                 new_shares,
+//                 Some(stream.dist_index),
+//                 env.block.height,
+//                 operator,
+//             );
+//             POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
+//         }
+//         Some(mut position) => {
+//             check_access(&info, &position.owner, &position.operator)?;
+//             // if subscibed already, we wont update its position but just increase its in_balance and shares
+//             position.in_balance = position.in_balance.checked_add(in_amount)?;
+//             position.shares = position.shares.checked_add(new_shares)?;
+//             POSITIONS.save(deps.storage, (stream_id, &operator_target), &position)?;
+//         }
+//     }
+//     stream.in_supply = stream.in_supply.checked_add(in_amount)?;
+//     stream.shares = stream.shares.checked_add(new_shares)?;
+//     STREAMS.save(deps.storage, stream_id, &stream)?;
 
-    Ok(Response::new()
-        .add_attribute("action", "subscribe_pending")
-        .add_attribute("stream_id", stream_id.to_string())
-        .add_attribute("owner", operator_target)
-        .add_attribute("in_supply", stream.in_supply)
-        .add_attribute("in_amount", in_amount))
-}
+//     Ok(Response::new()
+//         .add_attribute("action", "subscribe_pending")
+//         .add_attribute("stream_id", stream_id.to_string())
+//         .add_attribute("owner", operator_target)
+//         .add_attribute("in_supply", stream.in_supply)
+//         .add_attribute("in_amount", in_amount))
+// }
 
 pub fn execute_update_operator(
     deps: DepsMut,

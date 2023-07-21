@@ -806,7 +806,7 @@ mod test_module {
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap();
         assert_eq!(res.attributes[0].key, "action");
-        assert_eq!(res.attributes[0].value, "subscribe_pending");
+        assert_eq!(res.attributes[0].value, "subscribe");
         // query stream
         let mut env = mock_env();
         env.block.height = 350;
@@ -826,7 +826,7 @@ mod test_module {
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap();
         assert_eq!(res.attributes[0].key, "action");
-        assert_eq!(res.attributes[0].value, "subscribe_pending");
+        assert_eq!(res.attributes[0].value, "subscribe");
 
         // query stream
         let mut env = mock_env();
