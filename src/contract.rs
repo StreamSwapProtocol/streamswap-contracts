@@ -126,27 +126,7 @@ pub fn execute(
             operator_target,
         } => {
             let stream = STREAMS.load(deps.storage, stream_id)?;
-            if stream.start_block > env.block.height {
-                Ok(execute_withdraw_pending(
-                    deps.branch(),
-                    env,
-                    info,
-                    stream_id,
-                    stream,
-                    cap,
-                    operator_target,
-                )?)
-            } else {
-                Ok(execute_withdraw(
-                    deps,
-                    env,
-                    info,
-                    stream_id,
-                    stream,
-                    cap,
-                    operator_target,
-                )?)
-            }
+            execute_withdraw(deps, env, info, stream_id, stream, cap, operator_target)
         }
         ExecuteMsg::FinalizeStream {
             stream_id,
@@ -759,66 +739,66 @@ pub fn execute_withdraw(
     Ok(res)
 }
 
-pub fn execute_withdraw_pending(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    stream_id: u64,
-    mut stream: Stream,
-    cap: Option<Uint128>,
-    operator_target: Option<String>,
-) -> Result<Response, ContractError> {
-    // check if stream is paused
-    let operator_target =
-        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
-    check_access(&info, &position.owner, &position.operator)?;
+// pub fn execute_withdraw_pending(
+//     deps: DepsMut,
+//     _env: Env,
+//     info: MessageInfo,
+//     stream_id: u64,
+//     mut stream: Stream,
+//     cap: Option<Uint128>,
+//     operator_target: Option<String>,
+// ) -> Result<Response, ContractError> {
+//     // check if stream is paused
+//     let operator_target =
+//         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
+//     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
+//     check_access(&info, &position.owner, &position.operator)?;
 
-    let withdraw_amount = cap.unwrap_or(position.in_balance);
-    // if amount to withdraw more then deduced buy balance throw error
-    if withdraw_amount > position.in_balance {
-        return Err(ContractError::WithdrawAmountExceedsBalance(withdraw_amount));
-    }
+//     let withdraw_amount = cap.unwrap_or(position.in_balance);
+//     // if amount to withdraw more then deduced buy balance throw error
+//     if withdraw_amount > position.in_balance {
+//         return Err(ContractError::WithdrawAmountExceedsBalance(withdraw_amount));
+//     }
 
-    if withdraw_amount.is_zero() {
-        return Err(ContractError::InvalidWithdrawAmount {});
-    }
+//     if withdraw_amount.is_zero() {
+//         return Err(ContractError::InvalidWithdrawAmount {});
+//     }
 
-    // decrease in supply and shares
-    let shares_amount = if withdraw_amount == position.in_balance {
-        position.shares
-    } else {
-        stream.compute_shares_amount(withdraw_amount, true)
-    };
+//     // decrease in supply and shares
+//     let shares_amount = if withdraw_amount == position.in_balance {
+//         position.shares
+//     } else {
+//         stream.compute_shares_amount(withdraw_amount, true)
+//     };
 
-    stream.in_supply = stream.in_supply.checked_sub(withdraw_amount)?;
-    stream.shares = stream.shares.checked_sub(shares_amount)?;
-    position.in_balance = position.in_balance.checked_sub(withdraw_amount)?;
-    position.shares = position.shares.checked_sub(shares_amount)?;
+//     stream.in_supply = stream.in_supply.checked_sub(withdraw_amount)?;
+//     stream.shares = stream.shares.checked_sub(shares_amount)?;
+//     position.in_balance = position.in_balance.checked_sub(withdraw_amount)?;
+//     position.shares = position.shares.checked_sub(shares_amount)?;
 
-    STREAMS.save(deps.storage, stream_id, &stream)?;
-    POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
+//     STREAMS.save(deps.storage, stream_id, &stream)?;
+//     POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
 
-    let attributes = vec![
-        attr("action", "withdraw_pending"),
-        attr("stream_id", stream_id.to_string()),
-        attr("operator_target", operator_target.clone()),
-        attr("withdraw_amount", withdraw_amount),
-    ];
+//     let attributes = vec![
+//         attr("action", "withdraw_pending"),
+//         attr("stream_id", stream_id.to_string()),
+//         attr("operator_target", operator_target.clone()),
+//         attr("withdraw_amount", withdraw_amount),
+//     ];
 
-    // send funds to withdraw address or to the sender
-    let res = Response::new()
-        .add_message(CosmosMsg::Bank(BankMsg::Send {
-            to_address: operator_target.to_string(),
-            amount: vec![Coin {
-                denom: stream.in_denom,
-                amount: withdraw_amount,
-            }],
-        }))
-        .add_attributes(attributes);
+//     // send funds to withdraw address or to the sender
+//     let res = Response::new()
+//         .add_message(CosmosMsg::Bank(BankMsg::Send {
+//             to_address: operator_target.to_string(),
+//             amount: vec![Coin {
+//                 denom: stream.in_denom,
+//                 amount: withdraw_amount,
+//             }],
+//         }))
+//         .add_attributes(attributes);
 
-    Ok(res)
-}
+//     Ok(res)
+// }
 
 pub fn execute_finalize_stream(
     deps: DepsMut,
