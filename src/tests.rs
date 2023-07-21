@@ -806,7 +806,7 @@ mod test_module {
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap();
         assert_eq!(res.attributes[0].key, "action");
-        assert_eq!(res.attributes[0].value, "subscribe_pending");
+        assert_eq!(res.attributes[0].value, "subscribe");
         // query stream
         let mut env = mock_env();
         env.block.height = 350;
@@ -826,7 +826,7 @@ mod test_module {
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap();
         assert_eq!(res.attributes[0].key, "action");
-        assert_eq!(res.attributes[0].value, "subscribe_pending");
+        assert_eq!(res.attributes[0].value, "subscribe");
 
         // query stream
         let mut env = mock_env();
@@ -839,9 +839,9 @@ mod test_module {
         // After stream start height plus 1000 blocks, one subscription is made and the stream is active
         // Creator 1 has 2 subscriptions and 2_000_000 in balance
         // Creator 2 has 1 subscription and 1_000_000 in balance
-        // At 6000 blocks, the stream is active and the balance to be distributed is ~2000000
+        // At 6000 blocks, the stream is active and the balance to be distributed is ~200000
         // At 6000 blocks, creator 1 should have spent 2000000*1000/5000= 400000
-        // At 6000 blocks, creator 1 should get all 2000000 tokens
+        // At 6000 blocks, creator 1 should get all 200000 tokens
         // At 6000 blocks, creator 2 should get 0 tokens
         // At 7500 blocks, the stream is active and the balance to be distributed is 300000
         // At 7500 blocks, creator 1 should get 300000*2000000/3250000 = 184615
@@ -872,6 +872,7 @@ mod test_module {
         let _res = execute(deps.as_mut(), env.clone(), info, update_msg).unwrap();
         let position = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
         assert_eq!(position.spent, Uint128::new(400000));
+        assert_eq!(position.purchased, Uint128::new(200_000));
 
         // query stream
         let mut env = mock_env();
@@ -1020,7 +1021,7 @@ mod test_module {
             operator_target: None,
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap();
-        assert_eq!(res.attributes[0].value, "withdraw_pending");
+        assert_eq!(res.attributes[0].value, "withdraw");
         assert_eq!(res.attributes[1].key, "stream_id");
         assert_eq!(res.attributes[1].value, "1");
         assert_eq!(res.attributes[3].key, "withdraw_amount");
