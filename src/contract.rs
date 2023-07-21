@@ -324,8 +324,8 @@ pub fn execute_create_stream(
         attr("in_denom", in_denom),
         attr("out_denom", out_denom),
         attr("out_supply", out_supply),
-        attr("start_time", start_block.to_string()),
-        attr("end_time", end_block.to_string()),
+        attr("start_block", start_block.to_string()),
+        attr("end_block", end_block.to_string()),
     ];
     Ok(Response::default().add_attributes(attr))
 }
