@@ -138,13 +138,13 @@ pub fn execute(
         } => execute_exit_stream(deps, env, info, stream_id, operator_target),
 
         ExecuteMsg::PauseStream { stream_id } => {
-            killswitch::execute_pause_stream(deps, env, info, stream_id)
+            killswitch::execute_pause_stream(deps, env, info, stream_id, false)
         }
         ExecuteMsg::ResumeStream { stream_id } => {
-            killswitch::execute_resume_stream(deps, env, info, stream_id)
+            killswitch::execute_resume_stream(deps, env, info, stream_id, false)
         }
         ExecuteMsg::CancelStream { stream_id } => {
-            killswitch::execute_cancel_stream(deps, env, info, stream_id)
+            killswitch::execute_cancel_stream(deps, env, info, stream_id, false)
         }
         ExecuteMsg::WithdrawPaused {
             stream_id,
@@ -1057,11 +1057,22 @@ fn check_access(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractError> {
+pub fn sudo(
+    deps: DepsMut,
+    env: Env,
+    msg: SudoMsg,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
     match msg {
-        SudoMsg::PauseStream { stream_id } => killswitch::sudo_pause_stream(deps, env, stream_id),
-        SudoMsg::CancelStream { stream_id } => killswitch::sudo_cancel_stream(deps, env, stream_id),
-        SudoMsg::ResumeStream { stream_id } => killswitch::sudo_resume_stream(deps, env, stream_id),
+        SudoMsg::PauseStream { stream_id } => {
+            killswitch::execute_pause_stream(deps, env, info, stream_id, true)
+        }
+        SudoMsg::CancelStream { stream_id } => {
+            killswitch::execute_cancel_stream(deps, env, info, stream_id, true)
+        }
+        SudoMsg::ResumeStream { stream_id } => {
+            killswitch::execute_resume_stream(deps, env, info, stream_id, true)
+        }
     }
 }
 
