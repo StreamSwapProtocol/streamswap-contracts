@@ -115,13 +115,8 @@ pub fn execute_exit_cancelled(
     // no need to update position here, we just need to return total balance
     let total_balance = position.in_balance + position.spent;
     POSITIONS.remove(deps.storage, (stream_id, &position.owner));
-    println!("stream shares before {}", stream.shares);
-
     stream.shares = stream.shares.checked_sub(position.shares)?;
-    println!("stream shares after {}", stream.shares);
-    println!("stream in supply before {}", stream.in_supply);
     stream.in_supply = stream.in_supply.checked_sub(total_balance)?;
-    println!("stream in supply after {}", stream.in_supply);
 
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
