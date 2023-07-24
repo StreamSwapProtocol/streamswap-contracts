@@ -6,7 +6,7 @@ mod test_module {
         execute_update_operator, execute_update_position, execute_update_stream, instantiate,
         query_average_price, query_config, query_last_streamed_price, query_position, query_stream,
     };
-    use crate::killswitch::{execute_pause_stream, execute_withdraw_paused, sudo_resume_stream};
+    use crate::killswitch::{execute_pause_stream, execute_withdraw_paused};
     use crate::msg::ExecuteMsg::UpdateProtocolAdmin;
     use crate::state::{Status, Stream};
     use crate::ContractError;
@@ -2573,7 +2573,6 @@ mod test_module {
         use crate::contract::{list_positions, list_streams};
         use crate::killswitch::{
             execute_cancel_stream, execute_exit_cancelled, execute_resume_stream,
-            sudo_cancel_stream, sudo_pause_stream,
         };
         use cosmwasm_std::CosmosMsg::Bank;
         use cosmwasm_std::{ReplyOn, SubMsg};
@@ -2632,21 +2631,21 @@ mod test_module {
             let mut env = mock_env();
             env.block.height = start + 100;
 
-            let res = execute_pause_stream(deps.as_mut(), env, info, 1);
+            let res = execute_pause_stream(deps.as_mut(), env, info, 1, false);
             assert_eq!(res, Err(ContractError::Unauthorized {}));
 
             // Lets pause the stream before it starts
             let info = mock_info("protocol_admin", &[]);
             let mut env = mock_env();
             env.block.height = start - 500_000;
-            let res = execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+            let res = execute_pause_stream(deps.as_mut(), env, info, 1, false).unwrap();
             assert_eq!(res.attributes[0], attr("action", "pause_stream"));
 
             // Lets resume the stream before start time
             let info = mock_info("protocol_admin", &[]);
             let mut env = mock_env();
             env.block.height = start - 1;
-            let res = execute_resume_stream(deps.as_mut(), env.clone(), info, 1).unwrap();
+            let res = execute_resume_stream(deps.as_mut(), env.clone(), info, 1, false).unwrap();
 
             // query stream
             let stream = query_stream(deps.as_ref(), env, 1).unwrap();
@@ -2656,7 +2655,7 @@ mod test_module {
             let info = mock_info("protocol_admin", &[]);
             let mut env = mock_env();
             env.block.height = end + 500_000;
-            let res = execute_pause_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            let res = execute_pause_stream(deps.as_mut(), env, info, 1, false).unwrap_err();
             assert_eq!(res, ContractError::StreamEnded {});
 
             // first subscription
@@ -2675,13 +2674,13 @@ mod test_module {
             let info = mock_info("protocol_admin", &[]);
             let mut env = mock_env();
             env.block.height = start + 1_000_001;
-            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+            execute_pause_stream(deps.as_mut(), env, info, 1, false).unwrap();
 
             // can't paused if already paused
             let info = mock_info("protocol_admin", &[]);
             let mut env = mock_env();
             env.block.height = start + 1_000_005;
-            let res = execute_pause_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            let res = execute_pause_stream(deps.as_mut(), env, info, 1, false).unwrap_err();
             assert_eq!(res, ContractError::StreamKillswitchActive {});
 
             // can't subscribe new
@@ -2815,14 +2814,14 @@ mod test_module {
             let info = mock_info("protocol_admin", &[]);
             let mut env = mock_env();
             env.block.height = start + 1_000_003;
-            let res = execute_resume_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            let res = execute_resume_stream(deps.as_mut(), env, info, 1, false).unwrap_err();
             assert_eq!(res, ContractError::StreamNotPaused {});
 
             // protocol admin can pause
             let info = mock_info("protocol_admin", &[]);
             let mut env = mock_env();
             env.block.height = start + 1_000_001;
-            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+            execute_pause_stream(deps.as_mut(), env, info, 1, false).unwrap();
 
             // can't subscribe new
             let mut env = mock_env();
@@ -2841,14 +2840,14 @@ mod test_module {
             let info = mock_info("non_protocol_admin", &[]);
             let mut env = mock_env();
             env.block.height = start + 1_000_003;
-            let res = execute_resume_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            let res = execute_resume_stream(deps.as_mut(), env, info, 1, false).unwrap_err();
             assert_eq!(res, ContractError::Unauthorized {});
 
             // protocol admin can resume
             let info = mock_info("protocol_admin", &[]);
             let mut env = mock_env();
             env.block.height = start + 1_000_003;
-            execute_resume_stream(deps.as_mut(), env, info, 1).unwrap();
+            execute_resume_stream(deps.as_mut(), env, info, 1, false).unwrap();
 
             // can subscribe new after resume
             let mut env = mock_env();
@@ -2876,19 +2875,19 @@ mod test_module {
             let info = mock_info("protocol_admin", &[]);
             let mut env = mock_env();
             env.block.height = start + 1_000_005;
-            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+            execute_pause_stream(deps.as_mut(), env, info, 1, false).unwrap();
 
             // cancel the stream
             let info = mock_info("protocol_admin", &[]);
             let mut env = mock_env();
             env.block.height = start + 1_000_006;
-            execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap();
+            execute_cancel_stream(deps.as_mut(), env, info, 1, false).unwrap();
 
             // can't resume if cancelled
             let info = mock_info("protocol_admin", &[]);
             let mut env = mock_env();
             env.block.height = start + 1_000_007;
-            let res = execute_resume_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            let res = execute_resume_stream(deps.as_mut(), env, info, 1, false).unwrap_err();
             assert_eq!(res, ContractError::StreamIsCancelled {});
         }
 
@@ -2957,27 +2956,27 @@ mod test_module {
             let info = mock_info("non_protocol_admin", &[]);
             let mut env = mock_env();
             env.block.height = start + 1_000_000;
-            let err = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            let err = execute_cancel_stream(deps.as_mut(), env, info, 1, false).unwrap_err();
             assert_eq!(err, ContractError::Unauthorized {});
 
             // cant cancel without pause
             let info = mock_info("protocol_admin", &[]);
             let mut env = mock_env();
             env.block.height = start + 1_000_000;
-            let err = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            let err = execute_cancel_stream(deps.as_mut(), env, info, 1, false).unwrap_err();
             assert_eq!(err, ContractError::StreamNotPaused {});
 
             // pause
             let mut env = mock_env();
             env.block.height = start + 2_000_000;
             let info = mock_info("protocol_admin", &[]);
-            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+            execute_pause_stream(deps.as_mut(), env, info, 1, false).unwrap();
 
             // cancel
             let info = mock_info("protocol_admin", &[]);
             let mut env = mock_env();
             env.block.height = start + 2_500_000;
-            let response = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap();
+            let response = execute_cancel_stream(deps.as_mut(), env, info, 1, false).unwrap();
             // out_tokens and the creation fee are sent back to the treasury upon cancellation
             assert_eq!(
                 response.messages,
@@ -2997,7 +2996,7 @@ mod test_module {
             let info = mock_info("protocol_admin", &[]);
             let mut env = mock_env();
             env.block.height = start + 2_500_000;
-            let response = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            let response = execute_cancel_stream(deps.as_mut(), env, info, 1, false).unwrap_err();
             assert_eq!(response, ContractError::StreamIsCancelled {});
         }
 
@@ -3093,7 +3092,7 @@ mod test_module {
             let mut env = mock_env();
             env.block.height = start + 6_000;
             let info = mock_info("protocol_admin", &[]);
-            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+            execute_pause_stream(deps.as_mut(), env, info, 1, false).unwrap();
 
             let mut env = mock_env();
             env.block.height = start + 6_500;
@@ -3253,7 +3252,8 @@ mod test_module {
             //cant resume if not paused
             let mut env = mock_env();
             env.block.height = start + 1_000_000;
-            let res = sudo_resume_stream(deps.as_mut(), env, 1).unwrap_err();
+            let info = mock_info("protocol_admin", &[]);
+            let res = execute_resume_stream(deps.as_mut(), env, info, 1, false).unwrap_err();
             assert_eq!(res, ContractError::StreamNotPaused {});
 
             // pause
@@ -3261,13 +3261,13 @@ mod test_module {
             let mut env = mock_env();
             let pause_date = start + 2_000_000;
             env.block.height = pause_date;
-            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+            execute_pause_stream(deps.as_mut(), env, info.clone(), 1, false).unwrap();
 
             // resume
             let mut env = mock_env();
             let resume_date = start + 3_000_000;
             env.block.height = resume_date;
-            sudo_resume_stream(deps.as_mut(), env.clone(), 1).unwrap();
+            execute_resume_stream(deps.as_mut(), env.clone(), info.clone(), 1, false).unwrap();
 
             // new end date is correct
             let new_end_date = end + env.block.height - pause_date;
@@ -3327,11 +3327,12 @@ mod test_module {
             // Test sudo pause stream in pending period
             let mut env = mock_env();
             env.block.height = 500_000;
-            let res = sudo_pause_stream(deps.as_mut(), env, 1).unwrap();
+            let info = mock_info("not_important", &[]);
+            let res = execute_pause_stream(deps.as_mut(), env, info.clone(), 1, true).unwrap();
             assert_eq!(
                 res,
                 Response::new()
-                    .add_attribute("action", "sudo_pause_stream")
+                    .add_attribute("action", "pause_stream")
                     .add_attribute("stream_id", "1")
                     .add_attribute("is_paused", "true")
                     .add_attribute("pause_block", "500000")
@@ -3339,21 +3340,21 @@ mod test_module {
             // Lets resume the stream and pause it again in active period
             let mut env = mock_env();
             env.block.height = start - 1;
-            let _res = sudo_resume_stream(deps.as_mut(), env, 1).unwrap();
+            let _res = execute_resume_stream(deps.as_mut(), env, info.clone(), 1, true).unwrap();
 
             // Try pause stream after end block
             let mut env = mock_env();
             env.block.height = 6_000_000;
-            let res = sudo_pause_stream(deps.as_mut(), env, 1).unwrap_err();
+            let res = execute_pause_stream(deps.as_mut(), env, info.clone(), 1, true).unwrap_err();
             assert_eq!(res, ContractError::StreamEnded {});
 
             let mut env = mock_env();
             env.block.height = 3_000_000;
-            let res = sudo_pause_stream(deps.as_mut(), env, 1).unwrap();
+            let res = execute_pause_stream(deps.as_mut(), env, info.clone(), 1, true).unwrap();
             assert_eq!(
                 res,
                 Response::new()
-                    .add_attribute("action", "sudo_pause_stream")
+                    .add_attribute("action", "pause_stream")
                     .add_attribute("stream_id", "1")
                     .add_attribute("is_paused", "true")
                     .add_attribute("pause_block", "3000000")
@@ -3361,7 +3362,7 @@ mod test_module {
 
             let mut env = mock_env();
             env.block.height = 4_000_000;
-            let res = sudo_pause_stream(deps.as_mut(), env, 1).unwrap_err();
+            let res = execute_pause_stream(deps.as_mut(), env, info.clone(), 1, true).unwrap_err();
             assert_eq!(res, ContractError::StreamKillswitchActive {});
         }
 
@@ -3535,14 +3536,15 @@ mod test_module {
             // cant cancel without pause
             let mut env = mock_env();
             env.block.height = start + 1_000_000;
-            let err = sudo_cancel_stream(deps.as_mut(), env, 1).unwrap_err();
+            let info = mock_info("protocol_admin", &[]);
+            let err = execute_cancel_stream(deps.as_mut(), env, info, 1, false).unwrap_err();
             assert_eq!(err, ContractError::StreamNotPaused {});
 
             // pause
             let mut env = mock_env();
             env.block.height = start + 2_000_000;
             let info = mock_info("protocol_admin", &[]);
-            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+            execute_pause_stream(deps.as_mut(), env, info, 1, false).unwrap();
 
             //can't exit before cancel
             let mut env = mock_env();
@@ -3555,7 +3557,7 @@ mod test_module {
             let mut env = mock_env();
             let info = mock_info("protocol_admin", &[]);
             env.block.height = start + 2_500_000;
-            let response = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap();
+            let response = execute_cancel_stream(deps.as_mut(), env, info, 1, false).unwrap();
             //out_tokens and the creation fee are sent back to the treasury upon cancellation
             assert_eq!(
                 response.messages,
@@ -3686,7 +3688,7 @@ mod test_module {
             let mut env = mock_env();
             env.block.height = 101;
             let info = mock_info("protocol_admin", &[]);
-            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+            execute_pause_stream(deps.as_mut(), env, info, 1, false).unwrap();
 
             // query stream
             let stream = query_stream(deps.as_ref(), mock_env(), 1).unwrap();
@@ -3757,7 +3759,7 @@ mod test_module {
             let mut env = mock_env();
             env.block.height = 103;
             let info = mock_info("protocol_admin", &[]);
-            let _res = execute_resume_stream(deps.as_mut(), env, info, 1).unwrap();
+            let _res = execute_resume_stream(deps.as_mut(), env, info, 1, false).unwrap();
 
             // query stream
             let stream = query_stream(deps.as_ref(), mock_env(), 1).unwrap();
@@ -3791,12 +3793,12 @@ mod test_module {
             let mut env = mock_env();
             env.block.height = 200;
             let info = mock_info("protocol_admin", &[]);
-            execute_pause_stream(deps.as_mut(), env, info, 1).unwrap();
+            execute_pause_stream(deps.as_mut(), env, info, 1, false).unwrap();
 
             let mut env = mock_env();
             env.block.height = 201;
             let info = mock_info("protocol_admin", &[]);
-            let res = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap();
+            let res = execute_cancel_stream(deps.as_mut(), env, info, 1, false).unwrap();
             assert_eq!(
                 res.messages[0].msg,
                 CosmosMsg::Bank(BankMsg::Send {
@@ -3940,21 +3942,21 @@ mod test_module {
             let mut env = mock_env();
             env.block.height = 100;
             let info = mock_info("random", &[]);
-            let res = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            let res = execute_cancel_stream(deps.as_mut(), env, info, 1, false).unwrap_err();
             assert_eq!(res, ContractError::Unauthorized {});
 
             // creator can not cancel too near to start block
             let mut env = mock_env();
             env.block.height = start - 499;
             let info = mock_info("creator", &[]);
-            let res = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            let res = execute_cancel_stream(deps.as_mut(), env, info, 1, false).unwrap_err();
             assert_eq!(res, ContractError::Unauthorized {});
 
             // creator can cancel
             let mut env = mock_env();
             env.block.height = start - 500;
             let info = mock_info("creator", &[]);
-            let res = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap();
+            let res = execute_cancel_stream(deps.as_mut(), env, info, 1, false).unwrap();
             assert_eq!(res.attributes[0].value, "cancel_stream");
 
             // check stream
@@ -3969,7 +3971,7 @@ mod test_module {
             let mut env = mock_env();
             env.block.height = start - 500;
             let info = mock_info("creator", &[]);
-            let res = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap_err();
+            let res = execute_cancel_stream(deps.as_mut(), env, info, 1, false).unwrap_err();
             assert_eq!(res, ContractError::StreamIsCancelled {});
 
             // subcriber can exit
