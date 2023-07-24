@@ -94,7 +94,7 @@ pub fn execute_exit_cancelled(
     stream_id: u64,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
-    let stream = STREAMS.load(deps.storage, stream_id)?;
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
     // check if stream is cancelled
     if !stream.is_cancelled() {
         return Err(ContractError::StreamNotCancelled {});
@@ -115,6 +115,15 @@ pub fn execute_exit_cancelled(
     // no need to update position here, we just need to return total balance
     let total_balance = position.in_balance + position.spent;
     POSITIONS.remove(deps.storage, (stream_id, &position.owner));
+    println!("stream shares before {}", stream.shares);
+
+    stream.shares = stream.shares.checked_sub(position.shares)?;
+    println!("stream shares after {}", stream.shares);
+    println!("stream in supply before {}", stream.in_supply);
+    stream.in_supply = stream.in_supply.checked_sub(total_balance)?;
+    println!("stream in supply after {}", stream.in_supply);
+
+    STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let attributes = vec![
         attr("action", "withdraw_cancelled"),
@@ -234,6 +243,9 @@ pub fn execute_cancel_stream(
         return Err(ContractError::StreamNotPaused {});
     }
     stream.status = Status::Cancelled;
+    // If stream is cancelled We can reset in supply and spent in
+    stream.in_supply = stream.in_supply.checked_add(stream.spent_in)?;
+    stream.spent_in = Uint128::zero();
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     //Refund all out tokens to stream creator(treasury)
@@ -337,6 +349,10 @@ pub fn sudo_cancel_stream(
         return Err(ContractError::StreamNotPaused {});
     }
     stream.status = Status::Cancelled;
+    // If stream is cancelled We can reset in supply and spent in
+    stream.in_supply = stream.in_supply.checked_add(stream.spent_in)?;
+    stream.spent_in = Uint128::zero();
+    STREAMS.save(deps.storage, stream_id, &stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     //Refund all out tokens to stream creator(treasury)

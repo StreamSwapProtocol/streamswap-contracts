@@ -2141,6 +2141,11 @@ mod test_module {
         let info = mock_info("creator1", &[]);
         let res = execute_exit_stream(deps.as_mut(), env, info, 1, None).unwrap_err();
         assert!(matches!(res, ContractError::Std(StdError::NotFound { .. })));
+
+        // query stream
+        let stream = query_stream(deps.as_ref(), mock_env(), 1).unwrap();
+        assert_eq!(stream.shares, Uint128::zero());
+        assert_eq!(stream.in_supply, Uint128::zero());
     }
 
     #[test]
@@ -3514,6 +3519,18 @@ mod test_module {
             };
             let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
+            // subscription 2
+            let mut env = mock_env();
+            env.block.height = start + 1_000_000;
+            let funds = Coin::new(1_000_000, "in");
+            let info = mock_info("creator2", &[funds]);
+            let msg = crate::msg::ExecuteMsg::Subscribe {
+                stream_id: 1,
+                operator_target: None,
+                operator: Some("operator".to_string()),
+            };
+            let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+
             // cant cancel without pause
             let mut env = mock_env();
             env.block.height = start + 1_000_000;
@@ -3535,8 +3552,9 @@ mod test_module {
 
             //cancel
             let mut env = mock_env();
+            let info = mock_info("protocol_admin", &[]);
             env.block.height = start + 2_500_000;
-            let response = sudo_cancel_stream(deps.as_mut(), env, 1).unwrap();
+            let response = execute_cancel_stream(deps.as_mut(), env, info, 1).unwrap();
             //out_tokens and the creation fee are sent back to the treasury upon cancellation
             assert_eq!(
                 response.messages,
@@ -3567,6 +3585,13 @@ mod test_module {
                     }
                 ]
             );
+            // check stream
+            // After cancellation, the stream in suply should be total subscription amount and spent_in should be zero
+            // As the users exit, in suply and shares will be decreased
+            let stream = query_stream(deps.as_ref(), mock_env(), 1).unwrap();
+            assert_eq!(stream.in_supply, Uint128::from(2_000_001_000_000u128));
+            assert_eq!(stream.shares, Uint128::from(2000001333333u128));
+            assert_eq!(stream.spent_in, Uint128::zero());
 
             //random operator can't exit
             let mut env = mock_env();
@@ -3581,7 +3606,7 @@ mod test_module {
             let mut env = mock_env();
             env.block.height = start + 3_000_000;
             let info = mock_info("creator1", &[]);
-            let res = execute_exit_cancelled(deps.as_mut(), env, info, 1, None).unwrap();
+            let res = execute_exit_cancelled(deps.as_mut(), env.clone(), info, 1, None).unwrap();
             let msg = res.messages.get(0).unwrap();
             assert_eq!(
                 msg.msg,
@@ -3590,6 +3615,10 @@ mod test_module {
                     amount: vec![Coin::new(2_000_000_000_000, "in")]
                 })
             );
+            // check stream
+            let stream = query_stream(deps.as_ref(), mock_env(), 1).unwrap();
+            assert_eq!(stream.in_supply, Uint128::from(1_000_000u128));
+            assert_eq!(stream.shares, Uint128::from(1333333u128));
         }
         #[test]
         pub fn test_killswich_features_pending() {
@@ -3843,6 +3872,7 @@ mod test_module {
             assert_eq!(stream.status, Status::Cancelled);
             assert_eq!(stream.pause_block, Some(200));
             assert_eq!(stream.dist_index, Decimal256::zero());
+            assert_eq!(stream.shares, Uint128::new(0));
         }
     }
 }
