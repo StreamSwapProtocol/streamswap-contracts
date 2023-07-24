@@ -229,6 +229,8 @@ pub struct StreamResponse {
     pub exit_fee_percent: Decimal,
     /// Creation fee amount.
     pub stream_creation_fee: Uint128,
+    /// Address of the stream creator.
+    pub stream_creator_address: String,
 }
 
 #[cw_serde]

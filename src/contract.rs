@@ -280,6 +280,7 @@ pub fn execute_create_stream(
         config.stream_creation_denom,
         config.stream_creation_fee,
         config.exit_fee_percent,
+        info.sender,
     );
     let id = next_stream_id(deps.storage)?;
     STREAMS.save(deps.storage, id, &stream)?;
@@ -1143,6 +1144,7 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
         current_streamed_price: stream.current_streamed_price,
         exit_fee_percent: stream.stream_exit_fee_percent,
         stream_creation_fee: stream.stream_creation_fee,
+        stream_creator_address: stream.stream_creator_addr.to_string(),
     };
     Ok(stream)
 }
@@ -1183,6 +1185,7 @@ pub fn list_streams(
                 current_streamed_price: stream.current_streamed_price,
                 exit_fee_percent: stream.stream_exit_fee_percent,
                 stream_creation_fee: stream.stream_creation_fee,
+                stream_creator_address: stream.stream_creator_addr.to_string(),
             };
             Ok(stream)
         })
