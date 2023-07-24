@@ -222,20 +222,32 @@ pub fn execute_resume_stream(
 
 pub fn execute_cancel_stream(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let cfg = CONFIG.load(deps.storage)?;
-    if cfg.protocol_admin != info.sender {
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    if cfg.protocol_admin != info.sender && stream.stream_creator_addr != info.sender {
         return Err(ContractError::Unauthorized {});
     }
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
     if stream.is_cancelled() {
         return Err(ContractError::StreamIsCancelled {});
     }
-    if !stream.is_paused() {
+    if !stream.is_paused() && stream.stream_creator_addr != info.sender {
+        // Stream creator can cancel stream even if it is not paused
         return Err(ContractError::StreamNotPaused {});
+    }
+    if stream.stream_creator_addr == info.sender {
+        // If creator is cancelling stream,
+        // then we need to check if remaining blocks are less than half of min_blocks_until_start_block
+        let remaining_blocks = stream
+            .start_block
+            .checked_sub(env.block.height)
+            .unwrap_or(0);
+        if remaining_blocks < cfg.min_blocks_until_start_block / 2 {
+            return Err(ContractError::Unauthorized {});
+        }
     }
     stream.status = Status::Cancelled;
     // If stream is cancelled We can reset in supply and spent in
