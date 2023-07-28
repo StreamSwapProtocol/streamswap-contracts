@@ -22,6 +22,8 @@ pub struct Config {
     pub fee_collector: Addr,
     /// protocol admin can pause streams in case of emergency.
     pub protocol_admin: Addr,
+    /// oracle contract address
+    pub oracle_contract: Addr,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");
