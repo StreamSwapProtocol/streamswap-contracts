@@ -20,6 +20,8 @@ pub struct InstantiateMsg {
     pub protocol_admin: String,
     /// Accepted in_denom to buy out_tokens
     pub accepted_in_denom: String,
+    /// Oracle contract address
+    pub oracle_contract: String,
 }
 
 #[cw_serde]
@@ -128,6 +130,7 @@ pub enum ExecuteMsg {
         fee_collector: Option<String>,
         accepted_in_denom: Option<String>,
         exit_fee_percent: Option<Decimal>,
+        oracle_contract: Option<String>,
     },
     ResumeStream {
         stream_id: u64,
@@ -136,6 +139,13 @@ pub enum ExecuteMsg {
         stream_id: u64,
     },
 }
+#[cw_serde]
+pub struct PriceResponse {
+    pub denom: String,
+    pub price: Decimal,
+}
+#[cw_serde]
+pub struct OracleConfig {}
 
 #[cw_serde]
 #[derive(QueryResponses)]
@@ -168,6 +178,9 @@ pub enum QueryMsg {
     /// Returns currently streaming price of a sale.
     #[returns(LatestStreamedPriceResponse)]
     LastStreamedPrice { stream_id: u64 },
+    /// Returns the price of a denom.
+    #[returns(PriceResponse)]
+    Price { denom: String },
 }
 
 #[cw_serde]
@@ -188,6 +201,8 @@ pub struct ConfigResponse {
     pub fee_collector: String,
     /// Address of the protocol admin.
     pub protocol_admin: String,
+    /// Address of the oracle contract.
+    pub oracle_contract: String,
 }
 
 #[cw_serde]

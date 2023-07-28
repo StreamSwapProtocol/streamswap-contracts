@@ -1,7 +1,7 @@
 use crate::msg::{
     AveragePriceResponse, ConfigResponse, ExecuteMsg, InstantiateMsg, LatestStreamedPriceResponse,
-    MigrateMsg, PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse,
-    SudoMsg,
+    MigrateMsg, PositionResponse, PositionsResponse, PriceResponse, QueryMsg, StreamResponse,
+    StreamsResponse, SudoMsg,
 };
 use crate::state::{next_stream_id, Config, Position, Status, Stream, CONFIG, POSITIONS, STREAMS};
 use crate::{killswitch, ContractError};
@@ -46,6 +46,7 @@ pub fn instantiate(
         fee_collector: deps.api.addr_validate(&msg.fee_collector)?,
         protocol_admin: deps.api.addr_validate(&msg.protocol_admin)?,
         accepted_in_denom: msg.accepted_in_denom,
+        oracle_contract: deps.api.addr_validate(&msg.oracle_contract)?,
     };
     CONFIG.save(deps.storage, &config)?;
 
@@ -166,6 +167,7 @@ pub fn execute(
             fee_collector,
             accepted_in_denom,
             exit_fee_percent,
+            oracle_contract,
         } => execute_update_config(
             deps,
             env,
@@ -177,7 +179,9 @@ pub fn execute(
             fee_collector,
             accepted_in_denom,
             exit_fee_percent,
+            oracle_contract,
         ),
+        // ExecuteMsg::TestOracle {} => test_oracle(deps, env),
     }
 }
 #[allow(clippy::too_many_arguments)]
@@ -834,10 +838,40 @@ pub fn execute_finalize_stream(
 
     let config = CONFIG.load(deps.storage)?;
     let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or_else(|| stream.treasury.clone());
+    // We are awaiting a price response from the oracle contract
+    // If no response is received, no discount is applied
+    let in_denom_price_response: PriceResponse = deps
+        .querier
+        .query_wasm_smart(
+            config.oracle_contract.clone(),
+            &QueryMsg::Price {
+                denom: config.accepted_in_denom.clone(),
+            },
+        )
+        .unwrap_or(PriceResponse {
+            price: Decimal::zero(),
+            denom: "".to_string(),
+        });
+    let in_denom_price = in_denom_price_response.price;
+    let total_revenue_in_usd = Decimal::from_ratio(stream.spent_in, Uint128::one())
+        .checked_mul(in_denom_price)?
+        * Uint128::one();
+    // Every 100_000 USD of total revenue collected, the swap fee percent discount is increased by 0.001 up to 0.02
+    // If say total revenue is 500_000 USD, then swap fee discount is Decimal 0.005
+    let swap_fee_discount = Decimal::from_ratio(
+        total_revenue_in_usd.checked_div(Uint128::from(100_000u128))?,
+        Uint128::one(),
+    )
+    .checked_mul(Decimal::from_ratio(1u128, 1000u128))?
+    .min(Decimal::percent(2));
 
-    //Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
+    let final_swap_fee_percent = stream
+        .stream_exit_fee_percent
+        .checked_sub(swap_fee_discount)?;
+
+    //Stream's swap fee collected at dynamic rate at finalize
     let swap_fee = Decimal::from_ratio(stream.spent_in, Uint128::one())
-        .checked_mul(stream.stream_exit_fee_percent)?
+        .checked_mul(final_swap_fee_percent)?
         * Uint128::one();
 
     let creator_revenue = stream.spent_in.checked_sub(swap_fee)?;
@@ -995,6 +1029,7 @@ pub fn execute_update_config(
     fee_collector: Option<String>,
     accepted_in_denom: Option<String>,
     exit_fee_percent: Option<Decimal>,
+    oracle_contract: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut cfg = CONFIG.load(deps.storage)?;
 
@@ -1023,6 +1058,7 @@ pub fn execute_update_config(
     let collector = maybe_addr(deps.api, fee_collector)?.unwrap_or(cfg.fee_collector);
     cfg.fee_collector = collector;
     cfg.exit_fee_percent = exit_fee_percent.unwrap_or(cfg.exit_fee_percent);
+    cfg.oracle_contract = maybe_addr(deps.api, oracle_contract)?.unwrap_or(cfg.oracle_contract);
 
     CONFIG.save(deps.storage, &cfg)?;
 
@@ -1060,8 +1096,8 @@ fn check_access(
 pub fn sudo(
     deps: DepsMut,
     env: Env,
-    msg: SudoMsg,
     info: MessageInfo,
+    msg: SudoMsg,
 ) -> Result<Response, ContractError> {
     match msg {
         SudoMsg::PauseStream { stream_id } => {
@@ -1117,6 +1153,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::LastStreamedPrice { stream_id } => {
             to_binary(&query_last_streamed_price(deps, env, stream_id)?)
         }
+        QueryMsg::Price { denom } => to_binary(&query_oracle(deps, env, denom)?),
     }
 }
 pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
@@ -1130,6 +1167,7 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
         fee_collector: cfg.fee_collector.to_string(),
         protocol_admin: cfg.protocol_admin.to_string(),
         accepted_in_denom: cfg.accepted_in_denom,
+        oracle_contract: cfg.oracle_contract.to_string(),
     })
 }
 
@@ -1203,6 +1241,16 @@ pub fn list_streams(
         .collect();
     let streams = streams?;
     Ok(StreamsResponse { streams })
+}
+pub fn query_oracle(deps: Deps, _env: Env, denom: String) -> StdResult<PriceResponse> {
+    // This query is for checking if the oracle contract is returning the price for the given denom
+    let config = CONFIG.load(deps.storage).unwrap();
+    let price_query_msg: QueryMsg = QueryMsg::Price { denom: denom };
+    let price: PriceResponse = deps
+        .querier
+        .query_wasm_smart(config.oracle_contract, &price_query_msg)
+        .unwrap();
+    Ok(price)
 }
 
 pub fn query_position(
