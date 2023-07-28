@@ -2,7 +2,7 @@ use crate::contract::{update_position, update_stream};
 use crate::state::{Status, Stream, CONFIG, POSITIONS, STREAMS};
 use crate::ContractError;
 use cosmwasm_std::{
-    attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
+    attr, Addr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
 };
 use cw_utils::maybe_addr;
 
@@ -141,19 +141,54 @@ pub fn execute_exit_cancelled(
     Ok(res)
 }
 
+pub fn pause_stream(now_block: u64, stream: &mut Stream) -> StdResult<()> {
+    stream.status = Status::Paused;
+    stream.pause_block = Some(now_block);
+    Ok(())
+}
+pub fn resume_stream(now_block: u64, stream: &mut Stream) -> StdResult<()> {
+    if now_block < stream.start_block {
+        // If stream is paused and resumed before start block, then we dont need to update
+        // stream start block and last updated block
+        stream.pause_block = None;
+        stream.status = Status::Waiting;
+    } else {
+        //postpone stream times with respect to pause duration
+        stream.end_block = stream.end_block + (now_block - stream.pause_block.unwrap());
+        stream.last_updated_block =
+            stream.last_updated_block + (now_block - stream.pause_block.unwrap());
+        stream.status = Status::Active;
+        stream.pause_block = None;
+    }
+    Ok(())
+}
+
+pub fn is_authorized(sender: Addr, admin: Addr) -> Result<(), ContractError> {
+    if sender != admin {
+        return Err(ContractError::Unauthorized {});
+    }
+    Ok(())
+}
+
+pub fn cancel_stream(stream: &mut Stream) -> StdResult<()> {
+    stream.status = Status::Cancelled;
+    // If stream is cancelled We can reset in supply and spent in
+    stream.in_supply = stream.in_supply.checked_add(stream.spent_in)?;
+    stream.spent_in = Uint128::zero();
+    Ok(())
+}
+
 pub fn execute_pause_stream(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     stream_id: u64,
-    is_sudo: bool,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    if info.sender != config.protocol_admin && !is_sudo {
-        return Err(ContractError::Unauthorized {});
-    }
+    is_authorized(info.sender, config.protocol_admin)?;
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+
     //check if stream is ended
-    let stream = STREAMS.load(deps.storage, stream_id)?;
     if env.block.height >= stream.end_block {
         return Err(ContractError::StreamEnded {});
     }
@@ -162,7 +197,6 @@ pub fn execute_pause_stream(
         return Err(ContractError::StreamKillswitchActive {});
     }
     // update stream before pause
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
     update_stream(env.block.height, &mut stream)?;
     pause_stream(env.block.height, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
@@ -174,18 +208,11 @@ pub fn execute_pause_stream(
         .add_attribute("pause_block", env.block.height.to_string()))
 }
 
-pub fn pause_stream(now_block: u64, stream: &mut Stream) -> StdResult<()> {
-    stream.status = Status::Paused;
-    stream.pause_block = Some(now_block);
-    Ok(())
-}
-
 pub fn execute_resume_stream(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     stream_id: u64,
-    is_sudo: bool,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     let cfg = CONFIG.load(deps.storage)?;
@@ -196,23 +223,8 @@ pub fn execute_resume_stream(
     if stream.status != Status::Paused {
         return Err(ContractError::StreamNotPaused {});
     }
-    if cfg.protocol_admin != info.sender && !is_sudo {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    let pause_block = stream.pause_block.unwrap();
-    if env.block.height < stream.start_block {
-        // If stream is paused before start block, then we need we dont need to update
-        // stream start block and last updated block
-        stream.pause_block = None;
-        stream.status = Status::Waiting;
-    } else {
-        //postpone stream times with respect to pause duration
-        stream.end_block = stream.end_block + (env.block.height - pause_block);
-        stream.last_updated_block = stream.last_updated_block + (env.block.height - pause_block);
-        stream.status = Status::Active;
-        stream.pause_block = None;
-    }
+    is_authorized(info.sender, cfg.protocol_admin)?;
+    resume_stream(env.block.height, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let attributes = vec![
@@ -227,35 +239,18 @@ pub fn execute_cancel_stream(
     env: Env,
     info: MessageInfo,
     stream_id: u64,
-    is_sudo: bool,
 ) -> Result<Response, ContractError> {
     let cfg = CONFIG.load(deps.storage)?;
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    if cfg.protocol_admin != info.sender && stream.stream_creator_addr != info.sender && !is_sudo {
-        return Err(ContractError::Unauthorized {});
-    }
+    is_authorized(info.sender, cfg.protocol_admin)?;
+
     if stream.is_cancelled() {
         return Err(ContractError::StreamIsCancelled {});
     }
-    if !stream.is_paused() && stream.stream_creator_addr != info.sender {
-        // Stream creator can cancel stream even if it is not paused
+    if !stream.is_paused() {
         return Err(ContractError::StreamNotPaused {});
     }
-    if stream.stream_creator_addr == info.sender {
-        // If creator is cancelling stream,
-        // then we need to check if remaining blocks are less than half of min_blocks_until_start_block
-        let remaining_blocks = stream
-            .start_block
-            .checked_sub(env.block.height)
-            .unwrap_or(0);
-        if remaining_blocks < cfg.min_blocks_until_start_block / 2 {
-            return Err(ContractError::Unauthorized {});
-        }
-    }
-    stream.status = Status::Cancelled;
-    // If stream is cancelled We can reset in supply and spent in
-    stream.in_supply = stream.in_supply.checked_add(stream.spent_in)?;
-    stream.spent_in = Uint128::zero();
+    cancel_stream(&mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     //Refund all out tokens to stream creator(treasury)
@@ -284,109 +279,134 @@ pub fn execute_cancel_stream(
         .add_attribute("status", "cancelled"))
 }
 
-// pub fn sudo_pause_stream(
-//     deps: DepsMut,
-//     env: Env,
-//     stream_id: u64,
-// ) -> Result<Response, ContractError> {
-//     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+pub fn sudo_pause_stream(
+    deps: DepsMut,
+    env: Env,
+    stream_id: u64,
+) -> Result<Response, ContractError> {
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
 
-//     if env.block.height >= stream.end_block {
-//         return Err(ContractError::StreamEnded {});
-//     }
-//     // Paused or cancelled can not be paused
-//     if stream.is_killswitch_active() {
-//         return Err(ContractError::StreamKillswitchActive {});
-//     }
-//     update_stream(env.block.height, &mut stream)?;
-//     pause_stream(env.block.height, &mut stream)?;
-//     STREAMS.save(deps.storage, stream_id, &stream)?;
+    if env.block.height >= stream.end_block {
+        return Err(ContractError::StreamEnded {});
+    }
+    // Paused or cancelled can not be paused
+    if stream.is_killswitch_active() {
+        return Err(ContractError::StreamKillswitchActive {});
+    }
+    update_stream(env.block.height, &mut stream)?;
+    pause_stream(env.block.height, &mut stream)?;
+    STREAMS.save(deps.storage, stream_id, &stream)?;
 
-//     Ok(Response::default()
-//         .add_attribute("action", "sudo_pause_stream")
-//         .add_attribute("stream_id", stream_id.to_string())
-//         .add_attribute("is_paused", "true")
-//         .add_attribute("pause_block", env.block.height.to_string()))
-// }
+    Ok(Response::default()
+        .add_attribute("action", "sudo_pause_stream")
+        .add_attribute("stream_id", stream_id.to_string())
+        .add_attribute("is_paused", "true")
+        .add_attribute("pause_block", env.block.height.to_string()))
+}
 
-// pub fn sudo_resume_stream(
-//     deps: DepsMut,
-//     env: Env,
-//     stream_id: u64,
-// ) -> Result<Response, ContractError> {
-//     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-//     //Cancelled can't be resumed
-//     if stream.is_cancelled() {
-//         return Err(ContractError::StreamIsCancelled {});
-//     }
-//     //Only paused can be resumed
-//     if !stream.is_paused() {
-//         return Err(ContractError::StreamNotPaused {});
-//     }
-//     // ok to use unwrap here
-//     let pause_block = stream.pause_block.unwrap();
-//     if env.block.height < stream.start_block {
-//         // If stream is paused before start block, then we need we dont need to update
-//         // stream start block and last updated block
-//         stream.status = Status::Waiting;
-//         stream.pause_block = None;
-//     } else {
-//         //postpone stream times with respect to pause duration
-//         stream.end_block = stream.end_block + (env.block.height - pause_block);
-//         stream.last_updated_block = stream.last_updated_block + (env.block.height - pause_block);
-//         stream.status = Status::Active;
-//         stream.pause_block = None;
-//     }
-//     STREAMS.save(deps.storage, stream_id, &stream)?;
+pub fn sudo_resume_stream(
+    deps: DepsMut,
+    env: Env,
+    stream_id: u64,
+) -> Result<Response, ContractError> {
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    //Cancelled can't be resumed
+    if stream.is_cancelled() {
+        return Err(ContractError::StreamIsCancelled {});
+    }
+    //Only paused can be resumed
+    if !stream.is_paused() {
+        return Err(ContractError::StreamNotPaused {});
+    }
+    resume_stream(env.block.height, &mut stream)?;
+    STREAMS.save(deps.storage, stream_id, &stream)?;
 
-//     Ok(Response::default()
-//         .add_attribute("action", "resume_stream")
-//         .add_attribute("stream_id", stream_id.to_string())
-//         .add_attribute("new_end_date", stream.end_block.to_string())
-//         .add_attribute("status", "active"))
-// }
+    Ok(Response::default()
+        .add_attribute("action", "resume_stream")
+        .add_attribute("stream_id", stream_id.to_string())
+        .add_attribute("new_end_date", stream.end_block.to_string())
+        .add_attribute("status", "active"))
+}
 
-// pub fn sudo_cancel_stream(
-//     deps: DepsMut,
-//     _env: Env,
-//     stream_id: u64,
-// ) -> Result<Response, ContractError> {
-//     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-//     if stream.is_cancelled() {
-//         return Err(ContractError::StreamIsCancelled {});
-//     }
-//     if !stream.is_paused() {
-//         return Err(ContractError::StreamNotPaused {});
-//     }
-//     stream.status = Status::Cancelled;
-//     // If stream is cancelled We can reset in supply and spent in
-//     stream.in_supply = stream.in_supply.checked_add(stream.spent_in)?;
-//     stream.spent_in = Uint128::zero();
-//     STREAMS.save(deps.storage, stream_id, &stream)?;
-//     STREAMS.save(deps.storage, stream_id, &stream)?;
+pub fn sudo_cancel_stream(
+    deps: DepsMut,
+    _env: Env,
+    stream_id: u64,
+) -> Result<Response, ContractError> {
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    if stream.is_cancelled() {
+        return Err(ContractError::StreamIsCancelled {});
+    }
+    if !stream.is_paused() {
+        return Err(ContractError::StreamNotPaused {});
+    }
+    cancel_stream(&mut stream)?;
+    STREAMS.save(deps.storage, stream_id, &stream)?;
 
-//     //Refund all out tokens to stream creator(treasury)
-//     let messages: Vec<CosmosMsg> = vec![
-//         CosmosMsg::Bank(BankMsg::Send {
-//             to_address: stream.treasury.to_string(),
-//             amount: vec![Coin {
-//                 denom: stream.out_denom,
-//                 amount: stream.out_supply,
-//             }],
-//         }),
-//         //Refund stream creation fee to stream creator
-//         CosmosMsg::Bank(BankMsg::Send {
-//             to_address: stream.treasury.to_string(),
-//             amount: vec![Coin {
-//                 denom: stream.stream_creation_denom,
-//                 amount: stream.stream_creation_fee,
-//             }],
-//         }),
-//     ];
+    //Refund all out tokens to stream creator(treasury)
+    let messages: Vec<CosmosMsg> = vec![
+        CosmosMsg::Bank(BankMsg::Send {
+            to_address: stream.treasury.to_string(),
+            amount: vec![Coin {
+                denom: stream.out_denom,
+                amount: stream.out_supply,
+            }],
+        }),
+        //Refund stream creation fee to stream creator
+        CosmosMsg::Bank(BankMsg::Send {
+            to_address: stream.treasury.to_string(),
+            amount: vec![Coin {
+                denom: stream.stream_creation_denom,
+                amount: stream.stream_creation_fee,
+            }],
+        }),
+    ];
 
-//     Ok(Response::new()
-//         .add_attribute("action", "cancel_stream")
-//         .add_messages(messages)
-//         .add_attribute("stream_id", stream_id.to_string())
-//         .add_attribute("status", "cancelled"))
-// }
+    Ok(Response::new()
+        .add_attribute("action", "cancel_stream")
+        .add_messages(messages)
+        .add_attribute("stream_id", stream_id.to_string())
+        .add_attribute("status", "cancelled"))
+}
+
+pub fn creator_cancel_stream(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    stream_id: u64,
+) -> Result<Response, ContractError> {
+    let mut stream = STREAMS.load(deps.storage, stream_id).unwrap();
+    let cfg = CONFIG.load(deps.storage)?;
+    if stream.stream_creator_addr != info.sender {
+        return Err(ContractError::Unauthorized {});
+    }
+    if stream.is_cancelled() {
+        return Err(ContractError::StreamIsCancelled {});
+    }
+    let remaining_blocks = stream
+        .start_block
+        .checked_sub(env.block.height)
+        .unwrap_or(0);
+    if remaining_blocks < cfg.min_blocks_until_start_block / 2 {
+        return Err(ContractError::Unauthorized {});
+    }
+    cancel_stream(&mut stream)?;
+    STREAMS.save(deps.storage, stream_id, &stream)?;
+
+    //Refund all out tokens to stream creator(treasury)
+    let message: CosmosMsg = CosmosMsg::Bank(BankMsg::Send {
+        to_address: stream.treasury.to_string(),
+        amount: vec![Coin {
+            denom: stream.out_denom,
+            amount: stream.out_supply,
+        }],
+    });
+    // We do not refund stream creation fee to stream creator if stream is cancelled by creator
+    let res = Response::new()
+        .add_message(message)
+        .add_attribute("action", "creator_cancel_stream")
+        .add_attribute("stream_id", stream_id.to_string())
+        .add_attribute("status", "cancelled");
+
+    Ok(res)
+}

@@ -4,7 +4,7 @@ use crate::msg::{
     StreamsResponse, SudoMsg,
 };
 use crate::state::{next_stream_id, Config, Position, Status, Stream, CONFIG, POSITIONS, STREAMS};
-use crate::{killswitch, ContractError};
+use crate::{killswitch, sudo, ContractError};
 use cosmwasm_std::{
     attr, entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
     Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdResult, Uint128, Uint256,
@@ -139,13 +139,13 @@ pub fn execute(
         } => execute_exit_stream(deps, env, info, stream_id, operator_target),
 
         ExecuteMsg::PauseStream { stream_id } => {
-            killswitch::execute_pause_stream(deps, env, info, stream_id, false)
+            killswitch::execute_pause_stream(deps, env, info, stream_id)
         }
         ExecuteMsg::ResumeStream { stream_id } => {
-            killswitch::execute_resume_stream(deps, env, info, stream_id, false)
+            killswitch::execute_resume_stream(deps, env, info, stream_id)
         }
         ExecuteMsg::CancelStream { stream_id } => {
-            killswitch::execute_cancel_stream(deps, env, info, stream_id, false)
+            killswitch::execute_cancel_stream(deps, env, info, stream_id)
         }
         ExecuteMsg::WithdrawPaused {
             stream_id,
@@ -1093,22 +1093,11 @@ fn check_access(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn sudo(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    msg: SudoMsg,
-) -> Result<Response, ContractError> {
+pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractError> {
     match msg {
-        SudoMsg::PauseStream { stream_id } => {
-            killswitch::execute_pause_stream(deps, env, info, stream_id, true)
-        }
-        SudoMsg::CancelStream { stream_id } => {
-            killswitch::execute_cancel_stream(deps, env, info, stream_id, true)
-        }
-        SudoMsg::ResumeStream { stream_id } => {
-            killswitch::execute_resume_stream(deps, env, info, stream_id, true)
-        }
+        SudoMsg::PauseStream { stream_id } => sudo::sudo_pause_stream(deps, env, stream_id),
+        SudoMsg::CancelStream { stream_id } => sudo::sudo_cancel_stream(deps, env, stream_id),
+        SudoMsg::ResumeStream { stream_id } => sudo::sudo_resume_stream(deps, env, stream_id),
     }
 }
 

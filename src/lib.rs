@@ -7,5 +7,6 @@ mod helpers;
 mod killswitch;
 pub mod msg;
 pub mod state;
+pub mod sudo;
 #[cfg(test)]
 mod tests;
