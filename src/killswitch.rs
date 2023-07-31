@@ -102,7 +102,7 @@ pub fn execute_exit_cancelled(
 
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
+    let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
     if position.owner != info.sender
         && position
             .operator
@@ -111,13 +111,20 @@ pub fn execute_exit_cancelled(
     {
         return Err(ContractError::Unauthorized {});
     }
-
-    // no need to update position here, we just need to return total balance
+    update_position(
+        stream.dist_index,
+        stream.shares,
+        stream.last_updated_block,
+        stream.in_supply,
+        &mut position,
+    )?;
+    let unspent = position.in_balance - position.spent;
+    let spent = position.spent;
     let total_balance = position.in_balance + position.spent;
-    POSITIONS.remove(deps.storage, (stream_id, &position.owner));
     stream.shares = stream.shares.checked_sub(position.shares)?;
-    stream.in_supply = stream.in_supply.checked_sub(total_balance)?;
-
+    stream.in_supply = stream.in_supply.checked_sub(unspent)?;
+    stream.spent_in = stream.spent_in.checked_sub(spent)?;
+    POSITIONS.remove(deps.storage, (stream_id, &position.owner));
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let attributes = vec![
@@ -172,9 +179,6 @@ pub fn is_authorized(sender: Addr, admin: Addr) -> Result<(), ContractError> {
 
 pub fn cancel_stream(stream: &mut Stream) -> StdResult<()> {
     stream.status = Status::Cancelled;
-    // If stream is cancelled We can reset in supply and spent in
-    stream.in_supply = stream.in_supply.checked_add(stream.spent_in)?;
-    stream.spent_in = Uint128::zero();
     Ok(())
 }
 
