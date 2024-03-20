@@ -45,6 +45,8 @@ pub enum ExecuteMsg {
         start_block: u64,
         /// Block height when the token emission ends.
         end_block: u64,
+        /// ratio of in_denom / out_denom as target price
+        target_price: Option<Decimal>
     },
     /// Update stream and calculates distribution state.
     UpdateStream {
