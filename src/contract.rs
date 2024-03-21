@@ -82,6 +82,7 @@ pub fn execute(
             out_supply,
             start_block,
             end_block,
+            target_price,
         } => execute_create_stream(
             deps,
             env,
@@ -94,6 +95,7 @@ pub fn execute(
             out_supply,
             start_block,
             end_block,
+            target_price
         ),
         ExecuteMsg::UpdateOperator {
             stream_id,
@@ -225,6 +227,7 @@ pub fn execute_create_stream(
     out_supply: Uint128,
     start_block: u64,
     end_block: u64,
+    target_price: Option<Decimal>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     if end_block <= start_block {
@@ -311,6 +314,7 @@ pub fn execute_create_stream(
         config.stream_creation_denom,
         config.stream_creation_fee,
         config.exit_fee_percent,
+        target_price,
     );
     let id = next_stream_id(deps.storage)?;
     STREAMS.save(deps.storage, id, &stream)?;
@@ -952,6 +956,7 @@ pub fn execute_exit_stream(
     if stream.last_updated_block < stream.end_block {
         update_stream(env.block.height, &mut stream)?;
     }
+
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
@@ -965,6 +970,8 @@ pub fn execute_exit_stream(
         stream.in_supply,
         &mut position,
     )?;
+    // TODO: check for threshold price
+
     // Swap fee = fixed_rate*position.spent_in this calculation is only for execution reply attributes
     let swap_fee = Decimal::from_ratio(position.spent, Uint128::one())
         .checked_mul(stream.stream_exit_fee_percent)?

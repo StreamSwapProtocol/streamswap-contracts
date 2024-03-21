@@ -116,6 +116,7 @@ pub enum ExecuteMsg {
         operator_target: Option<String>,
     },
     /// ExitCancelled returns the whole balance user put in the stream, both spent and unspent.
+    /// This message is also used for the case of unfulfilled threshold cancellations
     ExitCancelled {
         stream_id: u64,
         /// operator_target is the address of operator targets to execute on behalf of the user.
