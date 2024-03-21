@@ -46,7 +46,7 @@ pub enum ExecuteMsg {
         /// Block height when the token emission ends.
         end_block: u64,
         /// ratio of in_denom / out_denom as target price
-        target_price: Option<Decimal>
+        target_price: Option<Decimal>,
     },
     /// Update stream and calculates distribution state.
     UpdateStream {
@@ -136,6 +136,11 @@ pub enum ExecuteMsg {
         stream_id: u64,
     },
     CancelStream {
+        stream_id: u64,
+    },
+    // Seller can trigger this to cancel the stream if the Threshold is not met.
+    // Anyone can call this method.
+    ThresholdCancelStream {
         stream_id: u64,
     },
 }

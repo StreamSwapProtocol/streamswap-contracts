@@ -119,7 +119,7 @@ impl Stream {
             stream_creation_denom,
             stream_creation_fee,
             stream_exit_fee_percent,
-            target_price
+            target_price,
         }
     }
 

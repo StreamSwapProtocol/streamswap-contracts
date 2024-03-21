@@ -95,7 +95,7 @@ pub fn execute(
             out_supply,
             start_block,
             end_block,
-            target_price
+            target_price,
         ),
         ExecuteMsg::UpdateOperator {
             stream_id,
@@ -212,6 +212,7 @@ pub fn execute(
             accepted_in_denom,
             exit_fee_percent,
         ),
+        ExecuteMsg::ThresholdCancelStream { .. } => {}
     }
 }
 #[allow(clippy::too_many_arguments)]
