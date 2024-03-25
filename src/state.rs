@@ -80,6 +80,7 @@ pub enum Status {
     Finalized,
     Paused,
     Cancelled,
+    ThresholdNotMet,
 }
 #[allow(clippy::too_many_arguments)]
 impl Stream {
@@ -146,7 +147,7 @@ impl Stream {
     }
 
     pub fn is_killswitch_active(&self) -> bool {
-        self.status == Status::Cancelled || self.status == Status::Paused
+        self.status == Status::Cancelled || self.status == Status::Paused || self.status == Status::ThresholdNotMet
     }
 }
 type StreamId = u64;

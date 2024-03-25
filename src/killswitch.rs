@@ -276,13 +276,13 @@ pub fn execute_threshold_cancel_stream(
 
     if let Some(target_price) = stream.target_price {
         if stream.current_streamed_price > target_price {
-            return Err(ContractError::StreamThresholdPriceReached {});
+            return Err(ContractError::StreamThresholdPriceNotMet {});
         }
     } else {
         return Err(ContractError::StreamThresholdPriceNotSet {});
     }
-    // use cancelled flag
-    stream.status = Status::Cancelled;
+
+    stream.status = Status::ThresholdNotMet;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     //Refund all out tokens to stream creator(treasury)

@@ -15,6 +15,7 @@ use semver::Version;
 use crate::helpers::{check_name_and_url, from_semver, get_decimals};
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay};
+use crate::killswitch::execute_threshold_cancel_stream;
 
 // Version and contract info for migration
 const CONTRACT_NAME: &str = "crates.io:cw-streamswap";
@@ -212,7 +213,7 @@ pub fn execute(
             accepted_in_denom,
             exit_fee_percent,
         ),
-        ExecuteMsg::ThresholdCancelStream { .. } => {}
+        ExecuteMsg::ThresholdCancelStream { stream_id } => execute_threshold_cancel_stream(deps, env, info, stream_id)
     }
 }
 #[allow(clippy::too_many_arguments)]
@@ -971,7 +972,11 @@ pub fn execute_exit_stream(
         stream.in_supply,
         &mut position,
     )?;
-    // TODO: check for threshold price
+    if let Some(target_price) = stream.target_price {
+        if stream.current_streamed_price < target_price {
+            return Err(ContractError::StreamThresholdPriceNotMet {});
+        }
+    }
 
     // Swap fee = fixed_rate*position.spent_in this calculation is only for execution reply attributes
     let swap_fee = Decimal::from_ratio(position.spent, Uint128::one())

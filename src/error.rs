@@ -152,6 +152,6 @@ pub enum ContractError {
     #[error("Stream threshold price not set")]
     StreamThresholdPriceNotSet {},
 
-    #[error("Stream threshold price reached")]
-    StreamThresholdPriceReached {},
+    #[error("Stream threshold price met")]
+    StreamThresholdPriceNotMet {},
 }
