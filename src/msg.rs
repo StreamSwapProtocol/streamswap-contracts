@@ -45,6 +45,10 @@ pub enum ExecuteMsg {
         start_block: u64,
         /// Block height when the token emission ends.
         end_block: u64,
+        /// Min price of each `token_out` in `token_in`.
+        /// Eg. Creator wants to sell 1000 `token_out` for 100 `token_in`
+        /// then price is 0.1
+        min_price: Option<Decimal>,
     },
     /// Update stream and calculates distribution state.
     UpdateStream {

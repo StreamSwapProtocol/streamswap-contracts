@@ -68,6 +68,7 @@ pub struct Stream {
     pub stream_creation_fee: Uint128,
     /// Stream swap fee in percent. Saved under here to avoid any changes in config to efect existing streams.
     pub stream_exit_fee_percent: Decimal,
+    pub min_price: Option<Decimal>,
 }
 
 #[cw_serde]
@@ -94,6 +95,7 @@ impl Stream {
         stream_creation_denom: String,
         stream_creation_fee: Uint128,
         stream_exit_fee_percent: Decimal,
+        min_price: Option<Decimal>,
     ) -> Self {
         Stream {
             name,
@@ -116,6 +118,7 @@ impl Stream {
             stream_creation_denom,
             stream_creation_fee,
             stream_exit_fee_percent,
+            min_price: min_price,
         }
     }
 

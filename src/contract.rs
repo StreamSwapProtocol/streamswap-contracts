@@ -82,6 +82,7 @@ pub fn execute(
             out_supply,
             start_block,
             end_block,
+            min_price,
         } => execute_create_stream(
             deps,
             env,
@@ -311,6 +312,7 @@ pub fn execute_create_stream(
         config.stream_creation_denom,
         config.stream_creation_fee,
         config.exit_fee_percent,
+        None,
     );
     let id = next_stream_id(deps.storage)?;
     STREAMS.save(deps.storage, id, &stream)?;
