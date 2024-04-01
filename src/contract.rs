@@ -4,6 +4,7 @@ use crate::msg::{
     SudoMsg,
 };
 use crate::state::{next_stream_id, Config, Position, Status, Stream, CONFIG, POSITIONS, STREAMS};
+use crate::threshold::ThresholdState;
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
     attr, entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
@@ -95,6 +96,7 @@ pub fn execute(
             out_supply,
             start_block,
             end_block,
+            min_price,
         ),
         ExecuteMsg::UpdateOperator {
             stream_id,
@@ -211,6 +213,10 @@ pub fn execute(
             accepted_in_denom,
             exit_fee_percent,
         ),
+
+        ExecuteMsg::CancelStreamWithThreshold { stream_id } => {
+            killswitch::cancel_stream_with_threshold(deps, env, info, stream_id)
+        }
     }
 }
 #[allow(clippy::too_many_arguments)]
@@ -226,6 +232,7 @@ pub fn execute_create_stream(
     out_supply: Uint128,
     start_block: u64,
     end_block: u64,
+    min_price: Option<Decimal>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     if end_block <= start_block {
@@ -312,10 +319,18 @@ pub fn execute_create_stream(
         config.stream_creation_denom,
         config.stream_creation_fee,
         config.exit_fee_percent,
-        None,
+        min_price,
     );
     let id = next_stream_id(deps.storage)?;
     STREAMS.save(deps.storage, id, &stream)?;
+
+    let threshold_state = ThresholdState::new();
+    threshold_state.set_treshold_if_any(
+        stream.clone(),
+        id,
+        deps.storage,
+        config.exit_fee_percent,
+    )?;
 
     let attr = vec![
         attr("action", "create_stream"),
@@ -856,10 +871,14 @@ pub fn execute_finalize_stream(
     if stream.last_updated_block < stream.end_block {
         update_stream(env.block.height, &mut stream)?;
     }
-
     if stream.status == Status::Active {
         stream.status = Status::Finalized
     }
+    // If threshold is set and not reached, finalize will fail
+    // Creator should execute cancel_stream_with_threshold to cancel the stream
+    let thresholds_state = ThresholdState::new();
+    thresholds_state.error_if_not_reached(stream_id, deps.storage, stream.spent_in)?;
+
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let config = CONFIG.load(deps.storage)?;
@@ -954,6 +973,10 @@ pub fn execute_exit_stream(
     if stream.last_updated_block < stream.end_block {
         update_stream(env.block.height, &mut stream)?;
     }
+
+    let threshold_state = ThresholdState::new();
+    threshold_state.error_if_not_reached(stream_id, deps.storage, stream.spent_in)?;
+
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;

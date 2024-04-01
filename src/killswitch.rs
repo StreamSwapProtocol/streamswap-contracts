@@ -1,5 +1,6 @@
 use crate::contract::{update_position, update_stream};
 use crate::state::{Status, Stream, CONFIG, POSITIONS, STREAMS};
+use crate::threshold::ThresholdState;
 use crate::ContractError;
 use cosmwasm_std::{
     attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
@@ -260,6 +261,51 @@ pub fn execute_cancel_stream(
         .add_attribute("status", "cancelled"))
 }
 
+pub fn cancel_stream_with_threshold(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    stream_id: u64,
+) -> Result<Response, ContractError> {
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    if info.sender != stream.treasury {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    if env.block.height < stream.end_block {
+        return Err(ContractError::StreamNotEnded {});
+    }
+    // Stream should not be paused or cancelled
+    if stream.is_killswitch_active() {
+        return Err(ContractError::StreamKillswitchActive {});
+    }
+
+    let spent_id = stream.spent_in;
+    // check if stream is ended
+    let threshold_state = ThresholdState::new();
+
+    threshold_state.error_if_treshold_not_set(stream_id, deps.storage)?;
+    threshold_state.error_if_reached(stream_id, deps.storage, spent_id)?;
+
+    stream.status = Status::Cancelled;
+
+    STREAMS.save(deps.storage, stream_id, &stream)?;
+
+    //Refund all out tokens to stream creator(treasury)
+    let messages: Vec<CosmosMsg> = vec![CosmosMsg::Bank(BankMsg::Send {
+        to_address: stream.treasury.to_string(),
+        amount: vec![Coin {
+            denom: stream.out_denom,
+            amount: stream.out_supply,
+        }],
+    })];
+
+    Ok(Response::new()
+        .add_attribute("action", "cancel_stream")
+        .add_messages(messages)
+        .add_attribute("stream_id", stream_id.to_string())
+        .add_attribute("status", "cancelled"))
+}
 pub fn sudo_pause_stream(
     deps: DepsMut,
     env: Env,

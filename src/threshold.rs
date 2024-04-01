@@ -1,19 +1,14 @@
-use std::convert::Infallible;
-
-use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    Addr, CheckedFromRatioError, ConversionOverflowError, Decimal, DivideByZeroError, Fraction,
+    CheckedFromRatioError, ConversionOverflowError, Decimal, DivideByZeroError, Fraction,
     OverflowError, StdError, Storage, Uint128,
 };
-use cw_storage_plus::{Item, Map};
+use cw_storage_plus::Map;
+use std::convert::Infallible;
 use thiserror::Error;
 
 use crate::state::Stream;
 
-#[cw_serde]
-pub struct ThresholdState {
-    pub threshold: Uint128,
-}
+pub type Threshold = Uint128;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ThresholdError {
@@ -37,14 +32,20 @@ pub enum ThresholdError {
 
     #[error("Threshold not reached")]
     ThresholdNotReached {},
+
+    #[error("Threshold reached")]
+    ThresholdReached {},
+
+    #[error("Threshold not set")]
+    ThresholdNotSet {},
 }
 pub const THRESHOLDS_STATE_KEY: &str = "thresholds";
 
-pub struct ThresholdsState<'a>(Map<'a, u64, ThresholdState>);
+pub struct ThresholdState<'a>(Map<'a, u64, Threshold>);
 
-impl<'a> ThresholdsState<'a> {
-    pub fn new(storage_key: &'a str) -> Self {
-        ThresholdsState(Map::new(storage_key))
+impl<'a> ThresholdState<'a> {
+    pub fn new() -> Self {
+        ThresholdState(Map::new(THRESHOLDS_STATE_KEY))
     }
     pub fn set_treshold_if_any(
         &self,
@@ -61,7 +62,6 @@ impl<'a> ThresholdsState<'a> {
                 // If creator is aiming to get 30_000 in_tokens, total threshold should be 30_000 + 0.3% of 30_000
                 let target_price =
                     min_price.checked_div(Decimal::one().checked_sub(swap_fee_percent)?)?;
-                println!("Target price: {:?}", target_price);
                 let decimal_threshold = target_price
                     .checked_mul(Decimal::from_ratio(
                         Uint128::from(out_supply),
@@ -70,10 +70,7 @@ impl<'a> ThresholdsState<'a> {
                     .floor();
                 let threshold =
                     Uint128::from(decimal_threshold.numerator() / decimal_threshold.denominator());
-                print!("Threshold: {:?}", threshold);
-
-                let state = ThresholdState { threshold };
-                self.0.save(storage, stream_id, &state)?;
+                self.0.save(storage, stream_id, &threshold)?;
                 Ok(())
             }
             None => Ok(()),
@@ -86,13 +83,42 @@ impl<'a> ThresholdsState<'a> {
         spent_in: Uint128,
     ) -> Result<(), ThresholdError> {
         let state = self.0.may_load(storage, stream_id)?;
-        println!("State: {:?}", state);
         if let Some(state) = state {
-            if spent_in < state.threshold {
+            if spent_in < state {
                 Err(ThresholdError::ThresholdNotReached {})
             } else {
                 Ok(())
             }
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn error_if_reached(
+        &self,
+        stream_id: u64,
+        storage: &dyn Storage,
+        spent_in: Uint128,
+    ) -> Result<(), ThresholdError> {
+        let state = self.0.may_load(storage, stream_id)?;
+        if let Some(state) = state {
+            if spent_in >= state {
+                Err(ThresholdError::ThresholdReached {})
+            } else {
+                Ok(())
+            }
+        } else {
+            Ok(())
+        }
+    }
+    pub fn error_if_treshold_not_set(
+        &self,
+        stream_id: u64,
+        storage: &dyn Storage,
+    ) -> Result<(), ThresholdError> {
+        let state = self.0.may_load(storage, stream_id)?;
+        if state.is_none() {
+            Err(ThresholdError::ThresholdNotReached {})
         } else {
             Ok(())
         }
@@ -106,13 +132,12 @@ mod tests {
     use super::*;
     use crate::state::Stream;
     use cosmwasm_std::testing::MockStorage;
-    use cosmwasm_std::{Decimal256, Uint128};
-    use cw_storage_plus::Item;
+    use cosmwasm_std::{Addr, Decimal256, Uint128};
 
     #[test]
     fn test_thresholds_state() {
         let mut storage = MockStorage::new();
-        let thresholds = ThresholdsState::new(THRESHOLDS_STATE_KEY);
+        let thresholds = ThresholdState::new();
         let stream = Stream {
             min_price: Some(Decimal::from_str("0.1").unwrap()),
             out_supply: Uint128::new(1000),

@@ -68,6 +68,7 @@ pub struct Stream {
     pub stream_creation_fee: Uint128,
     /// Stream swap fee in percent. Saved under here to avoid any changes in config to efect existing streams.
     pub stream_exit_fee_percent: Decimal,
+    /// Minimum avarage price for the stream to be finalized.
     pub min_price: Option<Decimal>,
 }
 
