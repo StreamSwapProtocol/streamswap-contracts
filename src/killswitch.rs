@@ -91,15 +91,34 @@ pub fn execute_withdraw_paused(
 
 pub fn execute_exit_cancelled(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     stream_id: u64,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
-    let stream = STREAMS.load(deps.storage, stream_id)?;
-    // check if stream is cancelled
+    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+
+    // This execution requires the stream to be cancelled or
+    // the stream to be ended and the threshold not reached.
     if !stream.is_cancelled() {
-        return Err(ContractError::StreamNotCancelled {});
+        let threshold_state = ThresholdState::new();
+        // Threshold should be set
+        threshold_state
+            .error_if_treshold_not_set(stream_id, deps.storage)
+            .map_err(|_| ContractError::StreamNotCancelled {})?;
+
+        // Stream should be paused
+        if stream.is_paused() == true {
+            return Err(ContractError::StreamNotCancelled {});
+        }
+
+        // Stream should be ended
+        if stream.end_block > env.block.height {
+            return Err(ContractError::StreamNotCancelled {});
+        }
+        // Update stream before checking threshold
+        update_stream(env.block.height, &mut stream)?;
+        threshold_state.error_if_reached(stream_id, deps.storage, stream.spent_in)?;
     }
 
     let operator_target =
@@ -279,12 +298,18 @@ pub fn cancel_stream_with_threshold(
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
     }
+    // This should be impossible because creator can not finalize stream when threshold is not reached
+    if stream.status == Status::Finalized {
+        return Err(ContractError::StreamAlreadyFinalized {});
+    }
 
+    update_stream(env.block.height, &mut stream)?;
     let spent_id = stream.spent_in;
     // check if stream is ended
     let threshold_state = ThresholdState::new();
 
     threshold_state.error_if_treshold_not_set(stream_id, deps.storage)?;
+    // treshold should not be reached
     threshold_state.error_if_reached(stream_id, deps.storage, spent_id)?;
 
     stream.status = Status::Cancelled;

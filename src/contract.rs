@@ -876,8 +876,15 @@ pub fn execute_finalize_stream(
     }
     // If threshold is set and not reached, finalize will fail
     // Creator should execute cancel_stream_with_threshold to cancel the stream
+    // Only returns error if threshold is set and not reached and stream end block is reached
     let thresholds_state = ThresholdState::new();
-    thresholds_state.error_if_not_reached(stream_id, deps.storage, stream.spent_in)?;
+    thresholds_state.error_if_not_reached(
+        stream_id,
+        deps.storage,
+        stream.spent_in,
+        env.block.height,
+        stream.clone(),
+    )?;
 
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
@@ -975,7 +982,14 @@ pub fn execute_exit_stream(
     }
 
     let threshold_state = ThresholdState::new();
-    threshold_state.error_if_not_reached(stream_id, deps.storage, stream.spent_in)?;
+
+    threshold_state.error_if_not_reached(
+        stream_id,
+        deps.storage,
+        stream.spent_in,
+        env.block.height,
+        stream.clone(),
+    )?;
 
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
