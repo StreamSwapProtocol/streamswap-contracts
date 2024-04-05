@@ -1,3 +1,4 @@
+use crate::killswitch::execute_cancel_stream_with_threshold;
 use crate::msg::{
     AveragePriceResponse, ConfigResponse, ExecuteMsg, InstantiateMsg, LatestStreamedPriceResponse,
     MigrateMsg, PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse,
@@ -215,7 +216,7 @@ pub fn execute(
         ),
 
         ExecuteMsg::CancelStreamWithThreshold { stream_id } => {
-            killswitch::cancel_stream_with_threshold(deps, env, info, stream_id)
+            execute_cancel_stream_with_threshold(deps, env, info, stream_id)
         }
     }
 }
@@ -325,12 +326,7 @@ pub fn execute_create_stream(
     STREAMS.save(deps.storage, id, &stream)?;
 
     let threshold_state = ThresholdState::new();
-    threshold_state.set_treshold_if_any(
-        stream.clone(),
-        id,
-        deps.storage,
-        config.exit_fee_percent,
-    )?;
+    threshold_state.set_treshold_if_any(stream.clone(), id, deps.storage)?;
 
     let attr = vec![
         attr("action", "create_stream"),
@@ -878,13 +874,16 @@ pub fn execute_finalize_stream(
     // Creator should execute cancel_stream_with_threshold to cancel the stream
     // Only returns error if threshold is set and not reached and stream end block is reached
     let thresholds_state = ThresholdState::new();
-    thresholds_state.error_if_not_reached(
-        stream_id,
-        deps.storage,
-        stream.spent_in,
-        env.block.height,
-        stream.clone(),
-    )?;
+    let is_set = thresholds_state.check_if_threshold_set(stream_id, deps.storage)?;
+    if is_set {
+        thresholds_state.error_if_not_reached(
+            stream_id,
+            deps.storage,
+            stream.spent_in,
+            env.block.height,
+            stream.clone(),
+        )?;
+    }
 
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
@@ -983,13 +982,16 @@ pub fn execute_exit_stream(
 
     let threshold_state = ThresholdState::new();
 
-    threshold_state.error_if_not_reached(
-        stream_id,
-        deps.storage,
-        stream.spent_in,
-        env.block.height,
-        stream.clone(),
-    )?;
+    let is_set = threshold_state.check_if_threshold_set(stream_id, deps.storage)?;
+    if is_set {
+        threshold_state.error_if_not_reached(
+            stream_id,
+            deps.storage,
+            stream.spent_in,
+            env.block.height,
+            stream.clone(),
+        )?;
+    }
 
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());

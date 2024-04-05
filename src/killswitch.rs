@@ -1,6 +1,6 @@
 use crate::contract::{update_position, update_stream};
 use crate::state::{Status, Stream, CONFIG, POSITIONS, STREAMS};
-use crate::threshold::ThresholdState;
+use crate::threshold::{ThresholdError, ThresholdState};
 use crate::ContractError;
 use cosmwasm_std::{
     attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
@@ -103,9 +103,10 @@ pub fn execute_exit_cancelled(
     if !stream.is_cancelled() {
         let threshold_state = ThresholdState::new();
         // Threshold should be set
-        threshold_state
-            .error_if_treshold_not_set(stream_id, deps.storage)
-            .map_err(|_| ContractError::StreamNotCancelled {})?;
+        let is_set = threshold_state.check_if_threshold_set(stream_id, deps.storage)?;
+        if !is_set {
+            return Err(ContractError::StreamNotCancelled {});
+        }
 
         // Stream should be paused
         if stream.is_paused() == true {
@@ -280,7 +281,7 @@ pub fn execute_cancel_stream(
         .add_attribute("status", "cancelled"))
 }
 
-pub fn cancel_stream_with_threshold(
+pub fn execute_cancel_stream_with_threshold(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -308,7 +309,12 @@ pub fn cancel_stream_with_threshold(
     // check if stream is ended
     let threshold_state = ThresholdState::new();
 
-    threshold_state.error_if_treshold_not_set(stream_id, deps.storage)?;
+    let is_set = threshold_state.check_if_threshold_set(stream_id, deps.storage)?;
+    if !is_set {
+        return Err(ContractError::ThresholdError(
+            ThresholdError::ThresholdNotSet {},
+        ));
+    }
     // treshold should not be reached
     threshold_state.error_if_reached(stream_id, deps.storage, spent_id)?;
 

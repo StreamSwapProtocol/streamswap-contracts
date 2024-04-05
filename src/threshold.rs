@@ -52,7 +52,6 @@ impl<'a> ThresholdState<'a> {
         stream: Stream,
         stream_id: u64,
         storage: &mut dyn Storage,
-        swap_fee_percent: Decimal,
     ) -> Result<(), ThresholdError> {
         match stream.min_price {
             Some(min_price) => {
@@ -63,8 +62,8 @@ impl<'a> ThresholdState<'a> {
                 // x = 30_000 / (1 - 0.003) = 30_000 / 0.997 = 30_090.27
                 // So, we should set threshold to 30_090
                 // swap_fee_to_be_collected = 30_090 * 0.003 = 90.27
-                let target_price =
-                    min_price.checked_div(Decimal::one().checked_sub(swap_fee_percent)?)?;
+                let target_price = min_price
+                    .checked_div(Decimal::one().checked_sub(stream.stream_exit_fee_percent)?)?;
                 let decimal_threshold = target_price
                     .checked_mul(Decimal::from_ratio(
                         Uint128::from(out_supply),
@@ -87,15 +86,19 @@ impl<'a> ThresholdState<'a> {
         now_block: u64,
         stream: Stream,
     ) -> Result<(), ThresholdError> {
-        let state = self.0.may_load(storage, stream_id)?;
-        if let Some(state) = state {
-            if spent_in < state && now_block > stream.end_block {
+        // Returns an error if threshold not set.
+        // If set, checks if 'spent_in' is below threshold and
+        // 'now_block' exceeds 'stream.end_block', meaning
+        // the stream should've ended without reaching the threshold.
+        let threshold = self.0.may_load(storage, stream_id)?;
+        if let Some(threshold) = threshold {
+            if spent_in < threshold && now_block > stream.end_block {
                 Err(ThresholdError::ThresholdNotReached {})
             } else {
                 Ok(())
             }
         } else {
-            Ok(())
+            return Err(ThresholdError::ThresholdNotSet {});
         }
     }
 
@@ -105,108 +108,147 @@ impl<'a> ThresholdState<'a> {
         storage: &dyn Storage,
         spent_in: Uint128,
     ) -> Result<(), ThresholdError> {
-        let state = self.0.may_load(storage, stream_id)?;
-        if let Some(state) = state {
-            if spent_in >= state {
+        let threshold = self.0.may_load(storage, stream_id)?;
+        // This returns an error if the threshold is not set.
+        if let Some(threshold) = threshold {
+            if spent_in >= threshold {
+                // We are not checking if stream is ended
+                // because if threshold is reached, it doesn't matter if stream is ended or not
                 Err(ThresholdError::ThresholdReached {})
             } else {
                 Ok(())
             }
         } else {
-            Ok(())
+            return Err(ThresholdError::ThresholdNotSet {});
         }
     }
-    pub fn error_if_treshold_not_set(
+    pub fn check_if_threshold_set(
         &self,
         stream_id: u64,
         storage: &dyn Storage,
-    ) -> Result<(), ThresholdError> {
-        let state = self.0.may_load(storage, stream_id)?;
-        if state.is_none() {
-            Err(ThresholdError::ThresholdNotReached {})
-        } else {
-            Ok(())
-        }
+    ) -> Result<bool, ThresholdError> {
+        let threshold = self.0.may_load(storage, stream_id)?;
+        Ok(threshold.is_some())
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::str::FromStr;
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
 
-//     use super::*;
-//     use crate::state::Stream;
-//     use cosmwasm_std::testing::MockStorage;
-//     use cosmwasm_std::{Addr, Decimal256, Uint128};
+    use super::*;
+    use crate::state::Stream;
+    use cosmwasm_std::testing::MockStorage;
+    use cosmwasm_std::{Addr, Decimal256, Uint128};
 
-//     #[test]
-//     fn test_thresholds_state() {
-//         let mut storage = MockStorage::new();
-//         let thresholds = ThresholdState::new();
-//         let stream = Stream {
-//             min_price: Some(Decimal::from_str("0.1").unwrap()),
-//             out_supply: Uint128::new(1000),
-//             in_supply: Uint128::new(1000),
-//             start_block: 0,
-//             end_block: 100,
-//             current_streamed_price: Decimal::percent(100),
-//             dist_index: Decimal256::one(),
-//             in_denom: "uusd".to_string(),
-//             last_updated_block: 0,
-//             name: "test".to_string(),
-//             url: Some("test".to_string()),
-//             out_denom: "uluna".to_string(),
-//             out_remaining: Uint128::new(1000),
-//             pause_block: None,
-//             shares: Uint128::new(0),
-//             spent_in: Uint128::new(0),
-//             status: crate::state::Status::Active,
-//             stream_creation_denom: "uusd".to_string(),
-//             stream_creation_fee: Uint128::new(0),
-//             stream_exit_fee_percent: Decimal::percent(0),
-//             treasury: Addr::unchecked("treasury"),
-//         };
-//         let stream_id = 1;
+    #[test]
+    fn test_thresholds_state() {
+        let mut storage = MockStorage::new();
+        let thresholds = ThresholdState::new();
+        let stream = Stream {
+            min_price: Some(Decimal::from_str("0.1").unwrap()),
+            out_supply: Uint128::new(1000),
+            in_supply: Uint128::new(1000),
+            start_block: 0,
+            end_block: 100,
+            current_streamed_price: Decimal::percent(100),
+            dist_index: Decimal256::one(),
+            in_denom: "uusd".to_string(),
+            last_updated_block: 0,
+            name: "test".to_string(),
+            url: Some("test".to_string()),
+            out_denom: "uluna".to_string(),
+            out_remaining: Uint128::new(1000),
+            pause_block: None,
+            shares: Uint128::new(0),
+            spent_in: Uint128::new(0),
+            status: crate::state::Status::Active,
+            stream_creation_denom: "uusd".to_string(),
+            stream_creation_fee: Uint128::new(0),
+            stream_exit_fee_percent: Decimal::from_str("0.042").unwrap(),
+            treasury: Addr::unchecked("treasury"),
+        };
+        let stream_id = 1;
 
-//         thresholds
-//             .set_treshold_if_any(
-//                 stream.clone(),
-//                 stream_id,
-//                 &mut storage,
-//                 Decimal::from_str("0.042").unwrap(),
-//             )
-//             .unwrap();
+        thresholds
+            .set_treshold_if_any(stream.clone(), stream_id, &mut storage)
+            .unwrap();
 
-//         let result = thresholds.error_if_not_reached(stream_id, &storage, Uint128::new(0));
-//         assert_eq!(result.is_err(), true);
+        let result = thresholds.error_if_not_reached(
+            stream_id,
+            &storage,
+            Uint128::new(0),
+            101,
+            stream.clone(),
+        );
+        assert_eq!(result.is_err(), true);
 
-//         let result = thresholds.error_if_not_reached(stream_id, &storage, Uint128::new(103));
-//         assert_eq!(result.is_err(), true);
+        let result = thresholds.error_if_not_reached(
+            stream_id,
+            &storage,
+            Uint128::new(100),
+            101,
+            stream.clone(),
+        );
+        assert_eq!(result.is_err(), true);
 
-//         let result = thresholds.error_if_not_reached(stream_id, &storage, Uint128::new(104));
-//         assert_eq!(result.is_ok(), true);
+        let result = thresholds.error_if_not_reached(
+            stream_id,
+            &storage,
+            Uint128::new(104),
+            101,
+            stream.clone(),
+        );
+        assert_eq!(result.is_ok(), true);
 
-//         let mut new_stream = stream.clone();
-//         new_stream.min_price = Some(Decimal::from_str("14.37").unwrap());
-//         new_stream.out_supply = Uint128::new(100_000_000_000);
+        // New stream with higher min_price
 
-//         let stream_id = 2;
-//         thresholds
-//             .set_treshold_if_any(
-//                 new_stream.clone(),
-//                 stream_id,
-//                 &mut storage,
-//                 Decimal::from_str("0.042").unwrap(),
-//             )
-//             .unwrap();
+        let mut new_stream = stream.clone();
+        new_stream.min_price = Some(Decimal::from_str("14.37").unwrap());
+        new_stream.out_supply = Uint128::new(100_000_000_000);
+        // Math:
+        // expected_threshold = (min_price * out_supply) / (1 - swap_fee_percent)
+        // x = 14.37 * 100_000_000_000 / (1 - 0.042) = 14.37 * 100_000_000_000 / 0.958 = 1_500_000_000_000;
 
-//         let result = thresholds.error_if_not_reached(stream_id, &storage, Uint128::new(0));
+        // Say creator wants to sell 1000 out_tokens, and swap fee is 0.3%
+        // If creator is aiming to get 30_000 in_tokens(which means min_price is 30 "in/out"), total threshold should be
+        // x = 30_000 / (1 - 0.003) = 30_000 / 0.997 = 30_090.27
+        // So, we should set threshold to 30_090
+        // swap_fee_to_be_collected = 30_090 * 0.003 = 90.27
 
-//         assert_eq!(result.is_err(), true);
+        let stream_id = 2;
+        thresholds
+            .set_treshold_if_any(new_stream.clone(), stream_id, &mut storage)
+            .unwrap();
 
-//         let result =
-//             thresholds.error_if_not_reached(stream_id, &storage, Uint128::new(100_000_000_000));
+        let result = thresholds.error_if_not_reached(
+            stream_id,
+            &storage,
+            Uint128::new(0),
+            103,
+            new_stream.clone(),
+        );
 
-//         assert_eq!(result.is_ok(), true);
-//     }
-// }
+        assert_eq!(result.is_err(), true);
+
+        let result = thresholds.error_if_not_reached(
+            stream_id,
+            &storage,
+            Uint128::new(100_000_000_000 + 1),
+            103,
+            new_stream.clone(),
+        );
+
+        assert_eq!(result.is_err(), true);
+
+        let result = thresholds.error_if_not_reached(
+            stream_id,
+            &storage,
+            Uint128::new(1_500_000_000_000),
+            103,
+            new_stream.clone(),
+        );
+
+        assert_eq!(result.is_ok(), true);
+    }
+}
