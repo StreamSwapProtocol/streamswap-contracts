@@ -9,12 +9,13 @@ mod test_module {
     use crate::killswitch::{execute_pause_stream, execute_withdraw_paused, sudo_resume_stream};
     use crate::msg::ExecuteMsg::UpdateProtocolAdmin;
     use crate::state::{Status, Stream};
+    use crate::threshold::ThresholdError;
     use crate::ContractError;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::StdError::{self};
     use cosmwasm_std::{
         attr, coin, Addr, BankMsg, Coin, CosmosMsg, Decimal, Decimal256, Response, SubMsg,
-        Timestamp, Uint128, Uint64,
+        Timestamp, Uint128,
     };
     use cw_utils::PaymentError;
     use std::ops::Sub;
@@ -204,6 +205,44 @@ mod test_module {
             None,
         );
         assert_eq!(res, Err(ContractError::StreamInvalidStartBlock {}));
+
+        // min_price zero case
+        let start_block = 500;
+        let end_block = 1000;
+        let mut env = mock_env();
+        env.block.height = 0;
+        let info = mock_info(
+            "creator1",
+            &[
+                Coin {
+                    denom: "fee".to_string(),
+                    amount: Uint128::new(100),
+                },
+                Coin {
+                    denom: out_denom.to_string(),
+                    amount: out_supply,
+                },
+            ],
+        );
+        let res = execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            name.to_string(),
+            Some(url.to_string()),
+            in_denom.to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start_block,
+            end_block,
+            Some(Decimal::percent(0)),
+        )
+        .unwrap_err();
+        assert_eq!(
+            res,
+            ContractError::ThresholdError(ThresholdError::ThresholdZero {})
+        );
 
         // stream starts too soon case
         let end_block = 1000;
@@ -726,7 +765,7 @@ mod test_module {
             operator_target: None,
             operator: None,
         };
-        let res = execute(deps.as_mut(), env, info, msg);
+        let _res = execute(deps.as_mut(), env, info, msg);
 
         // dist index updated
         let env = mock_env();
@@ -3695,7 +3734,7 @@ mod test_module {
             env.block.height = end + 1;
 
             // Exit should be possible
-            // Since there is only one subscriber all ot denom should be sent to subscriber
+            // Since there is only one subscriber all out denom should be sent to subscriber
             // In calculations we are always rounding down that one token will be left in the stream
             // Asuming token is 6 decimals
             // This amount could be considered as insignificant
@@ -3856,7 +3895,19 @@ mod test_module {
                     }),
                 ]
             );
-            // Subscriber two executes exit cancelled after creator cancels stream
+            // Creator can not finalize the stream
+            let info = mock_info("treasury", &[]);
+            let res =
+                execute_finalize_stream(deps.as_mut(), env.clone(), info, 1, None).unwrap_err();
+            assert_eq!(res, ContractError::StreamKillswitchActive {});
+
+            // Creator can not cancel the stream again
+            let info = mock_info("treasury", &[]);
+            let res = execute_cancel_stream_with_threshold(deps.as_mut(), env.clone(), info, 1)
+                .unwrap_err();
+            assert_eq!(res, ContractError::StreamKillswitchActive {});
+
+            // Subscriber 2 executes exit cancelled after creator cancels stream
             let info = mock_info("subscriber2", &[]);
             let res = execute_exit_cancelled(deps.as_mut(), env.clone(), info, 1, None).unwrap();
             assert_eq!(
@@ -3867,6 +3918,119 @@ mod test_module {
                     amount: vec![Coin::new(1, "in_denom")],
                 })]
             );
+        }
+
+        #[test]
+        fn test_threshold_cancel() {
+            let treasury = Addr::unchecked("treasury");
+            let start = 1_000_000;
+            let end = 5_000_000;
+            let out_supply = Uint128::new(500);
+            let out_denom = "out_denom";
+            let in_denom = "in_denom";
+
+            // treshold = 500*0.5 / 1-0.01 =252.5
+
+            // instantiate
+            let mut deps = mock_dependencies();
+            let mut env = mock_env();
+            env.block.height = 0;
+            let msg = crate::msg::InstantiateMsg {
+                min_stream_blocks: 1_000,
+                min_blocks_until_start_block: 1_000,
+                stream_creation_denom: "fee".to_string(),
+                stream_creation_fee: Uint128::new(100),
+                exit_fee_percent: Decimal::percent(1),
+                fee_collector: "collector".to_string(),
+                protocol_admin: "protocol_admin".to_string(),
+                accepted_in_denom: in_denom.to_string(),
+            };
+            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+            // create stream
+            let mut env = mock_env();
+            env.block.height = 1;
+            let info = mock_info(
+                "creator",
+                &[
+                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(100, "fee"),
+                ],
+            );
+            execute_create_stream(
+                deps.as_mut(),
+                env,
+                info,
+                treasury.to_string(),
+                "test".to_string(),
+                Some("https://sample.url".to_string()),
+                in_denom.to_string(),
+                out_denom.to_string(),
+                out_supply,
+                start,
+                end,
+                Some(Decimal::from_str("5").unwrap()),
+            )
+            .unwrap();
+
+            // Subscription 1
+            let mut env = mock_env();
+            env.block.height = start;
+            let funds = Coin::new(250, "in_denom");
+            let info = mock_info("subscriber", &[funds]);
+            let msg = crate::msg::ExecuteMsg::Subscribe {
+                stream_id: 1,
+                operator_target: None,
+                operator: Some("operator".to_string()),
+            };
+            let _res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+
+            // Subscription 2
+            let funds = Coin::new(500, "in_denom");
+            let info = mock_info("subscriber2", &[funds]);
+            let msg = crate::msg::ExecuteMsg::Subscribe {
+                stream_id: 1,
+                operator_target: None,
+                operator: Some("operator".to_string()),
+            };
+            let _res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+            // Can not cancel stream before it ends
+            let mut env = mock_env();
+            env.block.height = start + 1_000_000;
+            let res = execute_cancel_stream_with_threshold(
+                deps.as_mut(),
+                env,
+                mock_info("treasury", &[]),
+                1,
+            )
+            .unwrap_err();
+            assert_eq!(res, ContractError::StreamNotEnded {});
+
+            // Set time to the end of the stream
+            let mut env = mock_env();
+            env.block.height = end + 1;
+
+            // Non creator can't cancel stream
+            let res = execute_cancel_stream_with_threshold(
+                deps.as_mut(),
+                env.clone(),
+                mock_info("random", &[]),
+                1,
+            )
+            .unwrap_err();
+            assert_eq!(res, ContractError::Unauthorized {});
+
+            // Creator can cancel stream
+            let _res = execute_cancel_stream_with_threshold(
+                deps.as_mut(),
+                env.clone(),
+                mock_info("treasury", &[]),
+                1,
+            )
+            .unwrap();
+            // Query stream should return stream with is_cancelled = true
+            let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
+            assert_eq!(stream.status, Status::Cancelled);
         }
     }
 }

@@ -38,6 +38,9 @@ pub enum ThresholdError {
 
     #[error("Threshold not set")]
     ThresholdNotSet {},
+
+    #[error("Min price can't be zero")]
+    ThresholdZero {},
 }
 pub const THRESHOLDS_STATE_KEY: &str = "thresholds";
 
@@ -55,6 +58,9 @@ impl<'a> ThresholdState<'a> {
     ) -> Result<(), ThresholdError> {
         match stream.min_price {
             Some(min_price) => {
+                if min_price.is_zero() {
+                    return Err(ThresholdError::ThresholdZero {});
+                }
                 let out_supply = stream.out_supply.u128();
                 // We should also include our swap fee percent to final threshold
                 // Say creator wants to sell 1000 out_tokens, and swap fee is 0.3%
@@ -64,6 +70,7 @@ impl<'a> ThresholdState<'a> {
                 // swap_fee_to_be_collected = 30_090 * 0.003 = 90.27
                 let target_price = min_price
                     .checked_div(Decimal::one().checked_sub(stream.stream_exit_fee_percent)?)?;
+
                 let decimal_threshold = target_price
                     .checked_mul(Decimal::from_ratio(
                         Uint128::from(out_supply),
@@ -82,23 +89,19 @@ impl<'a> ThresholdState<'a> {
         &self,
         stream_id: u64,
         storage: &dyn Storage,
-        spent_in: Uint128,
-        now_block: u64,
         stream: Stream,
     ) -> Result<(), ThresholdError> {
-        // Returns an error if threshold not set.
-        // If set, checks if 'spent_in' is below threshold and
-        // 'now_block' exceeds 'stream.end_block', meaning
-        // the stream should've ended without reaching the threshold.
+        // If threshold is not set, It returns ok
+        // If threshold is set, It returns error if threshold is not reached
         let threshold = self.0.may_load(storage, stream_id)?;
         if let Some(threshold) = threshold {
-            if spent_in < threshold && now_block > stream.end_block {
+            if stream.spent_in < threshold {
                 Err(ThresholdError::ThresholdNotReached {})
             } else {
                 Ok(())
             }
         } else {
-            return Err(ThresholdError::ThresholdNotSet {});
+            Ok(())
         }
     }
 
@@ -106,20 +109,17 @@ impl<'a> ThresholdState<'a> {
         &self,
         stream_id: u64,
         storage: &dyn Storage,
-        spent_in: Uint128,
+        stream: Stream,
     ) -> Result<(), ThresholdError> {
         let threshold = self.0.may_load(storage, stream_id)?;
-        // This returns an error if the threshold is not set.
         if let Some(threshold) = threshold {
-            if spent_in >= threshold {
-                // We are not checking if stream is ended
-                // because if threshold is reached, it doesn't matter if stream is ended or not
+            if stream.spent_in >= threshold {
                 Err(ThresholdError::ThresholdReached {})
             } else {
                 Ok(())
             }
         } else {
-            return Err(ThresholdError::ThresholdNotSet {});
+            Ok(())
         }
     }
     pub fn check_if_threshold_set(
@@ -145,7 +145,7 @@ mod tests {
     fn test_thresholds_state() {
         let mut storage = MockStorage::new();
         let thresholds = ThresholdState::new();
-        let stream = Stream {
+        let mut stream = Stream {
             min_price: Some(Decimal::from_str("0.1").unwrap()),
             out_supply: Uint128::new(1000),
             in_supply: Uint128::new(1000),
@@ -173,81 +173,37 @@ mod tests {
         thresholds
             .set_treshold_if_any(stream.clone(), stream_id, &mut storage)
             .unwrap();
-
-        let result = thresholds.error_if_not_reached(
-            stream_id,
-            &storage,
-            Uint128::new(0),
-            101,
-            stream.clone(),
-        );
+        stream.spent_in = Uint128::new(100);
+        let result = thresholds.error_if_not_reached(stream_id, &storage, stream.clone());
+        assert_eq!(result.is_err(), true);
+        stream.spent_in = Uint128::new(102);
+        let result = thresholds.error_if_not_reached(stream_id, &storage, stream.clone());
         assert_eq!(result.is_err(), true);
 
-        let result = thresholds.error_if_not_reached(
-            stream_id,
-            &storage,
-            Uint128::new(100),
-            101,
-            stream.clone(),
-        );
-        assert_eq!(result.is_err(), true);
-
-        let result = thresholds.error_if_not_reached(
-            stream_id,
-            &storage,
-            Uint128::new(104),
-            101,
-            stream.clone(),
-        );
+        stream.spent_in = Uint128::new(104);
+        let result = thresholds.error_if_not_reached(stream_id, &storage, stream.clone());
         assert_eq!(result.is_ok(), true);
 
         // New stream with higher min_price
-
         let mut new_stream = stream.clone();
         new_stream.min_price = Some(Decimal::from_str("14.37").unwrap());
         new_stream.out_supply = Uint128::new(100_000_000_000);
+
         // Math:
         // expected_threshold = (min_price * out_supply) / (1 - swap_fee_percent)
         // x = 14.37 * 100_000_000_000 / (1 - 0.042) = 14.37 * 100_000_000_000 / 0.958 = 1_500_000_000_000;
-
-        // Say creator wants to sell 1000 out_tokens, and swap fee is 0.3%
-        // If creator is aiming to get 30_000 in_tokens(which means min_price is 30 "in/out"), total threshold should be
-        // x = 30_000 / (1 - 0.003) = 30_000 / 0.997 = 30_090.27
-        // So, we should set threshold to 30_090
-        // swap_fee_to_be_collected = 30_090 * 0.003 = 90.27
 
         let stream_id = 2;
         thresholds
             .set_treshold_if_any(new_stream.clone(), stream_id, &mut storage)
             .unwrap();
-
-        let result = thresholds.error_if_not_reached(
-            stream_id,
-            &storage,
-            Uint128::new(0),
-            103,
-            new_stream.clone(),
-        );
+        new_stream.spent_in = Uint128::new(1_499_999_999_999);
+        let result = thresholds.error_if_not_reached(stream_id, &storage, new_stream.clone());
 
         assert_eq!(result.is_err(), true);
 
-        let result = thresholds.error_if_not_reached(
-            stream_id,
-            &storage,
-            Uint128::new(100_000_000_000 + 1),
-            103,
-            new_stream.clone(),
-        );
-
-        assert_eq!(result.is_err(), true);
-
-        let result = thresholds.error_if_not_reached(
-            stream_id,
-            &storage,
-            Uint128::new(1_500_000_000_000),
-            103,
-            new_stream.clone(),
-        );
+        new_stream.spent_in = Uint128::new(1_500_000_000_000);
+        let result = thresholds.error_if_not_reached(stream_id, &storage, new_stream.clone());
 
         assert_eq!(result.is_ok(), true);
     }

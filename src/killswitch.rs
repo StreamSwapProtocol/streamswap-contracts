@@ -108,18 +108,19 @@ pub fn execute_exit_cancelled(
             return Err(ContractError::StreamNotCancelled {});
         }
 
-        // Stream should be paused
+        // Stream should not be paused
+        // If stream paused now_block can exceed end_block
+        // Stream being appeared as ended only happens when its paused or cancelled
         if stream.is_paused() == true {
             return Err(ContractError::StreamNotCancelled {});
         }
-
         // Stream should be ended
         if stream.end_block > env.block.height {
             return Err(ContractError::StreamNotCancelled {});
         }
         // Update stream before checking threshold
         update_stream(env.block.height, &mut stream)?;
-        threshold_state.error_if_reached(stream_id, deps.storage, stream.spent_in)?;
+        threshold_state.error_if_reached(stream_id, deps.storage, stream.clone())?;
     }
 
     let operator_target =
@@ -288,35 +289,37 @@ pub fn execute_cancel_stream_with_threshold(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    if info.sender != stream.treasury {
-        return Err(ContractError::Unauthorized {});
-    }
 
     if env.block.height < stream.end_block {
         return Err(ContractError::StreamNotEnded {});
     }
+    if info.sender != stream.treasury {
+        return Err(ContractError::Unauthorized {});
+    }
+
     // Stream should not be paused or cancelled
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
     }
+
     // This should be impossible because creator can not finalize stream when threshold is not reached
     if stream.status == Status::Finalized {
         return Err(ContractError::StreamAlreadyFinalized {});
     }
 
-    update_stream(env.block.height, &mut stream)?;
-    let spent_id = stream.spent_in;
-    // check if stream is ended
+    if stream.last_updated_block < stream.end_block {
+        update_stream(env.block.height, &mut stream)?;
+    }
+
     let threshold_state = ThresholdState::new();
 
-    let is_set = threshold_state.check_if_threshold_set(stream_id, deps.storage)?;
-    if !is_set {
+    if !threshold_state.check_if_threshold_set(stream_id, deps.storage)? {
         return Err(ContractError::ThresholdError(
             ThresholdError::ThresholdNotSet {},
         ));
     }
-    // treshold should not be reached
-    threshold_state.error_if_reached(stream_id, deps.storage, spent_id)?;
+    // Treshold should not be reached
+    threshold_state.error_if_reached(stream_id, deps.storage, stream.clone())?;
 
     stream.status = Status::Cancelled;
 
