@@ -872,7 +872,7 @@ pub fn execute_finalize_stream(
     }
     // If threshold is set and not reached, finalize will fail
     // Creator should execute cancel_stream_with_threshold to cancel the stream
-    // Only returns error if threshold is set and not reached and stream end block is reached
+    // Only returns error if threshold is set and not reached
     let thresholds_state = ThresholdState::new();
     thresholds_state.error_if_not_reached(stream_id, deps.storage, stream.clone())?;
 
