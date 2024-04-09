@@ -130,6 +130,14 @@ impl<'a> ThresholdState<'a> {
         let threshold = self.0.may_load(storage, stream_id)?;
         Ok(threshold.is_some())
     }
+    pub fn get_threshold(
+        &self,
+        stream_id: u64,
+        storage: &dyn Storage,
+    ) -> Result<Option<Threshold>, StdError> {
+        let threshold = self.0.may_load(storage, stream_id)?;
+        Ok(threshold)
+    }
 }
 
 #[cfg(test)]

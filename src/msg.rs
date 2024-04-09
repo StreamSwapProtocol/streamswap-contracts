@@ -175,6 +175,8 @@ pub enum QueryMsg {
     /// Returns currently streaming price of a sale.
     #[returns(LatestStreamedPriceResponse)]
     LastStreamedPrice { stream_id: u64 },
+    #[returns(Uint128)]
+    Threshold { stream_id: u64 },
 }
 
 #[cw_serde]

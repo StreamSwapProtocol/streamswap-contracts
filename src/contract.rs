@@ -9,7 +9,8 @@ use crate::threshold::ThresholdState;
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
     attr, entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
-    Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdResult, Uint128, Uint256,
+    Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdError, StdResult, Uint128,
+    Uint256,
 };
 use cw2::{get_contract_version, set_contract_version};
 use semver::Version;
@@ -1157,6 +1158,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::LastStreamedPrice { stream_id } => {
             to_binary(&query_last_streamed_price(deps, env, stream_id)?)
         }
+        QueryMsg::Threshold { stream_id } => {
+            to_binary(&query_threshold_state(deps, env, stream_id)?)
+        }
     }
 }
 pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
@@ -1321,4 +1325,14 @@ pub fn query_last_streamed_price(
     Ok(LatestStreamedPriceResponse {
         current_streamed_price: stream.current_streamed_price,
     })
+}
+
+pub fn query_threshold_state(
+    deps: Deps,
+    _env: Env,
+    stream_id: u64,
+) -> Result<Option<Uint128>, StdError> {
+    let threshold_state = ThresholdState::new();
+    let threshold = threshold_state.get_threshold(stream_id, deps.storage)?;
+    Ok(threshold)
 }
