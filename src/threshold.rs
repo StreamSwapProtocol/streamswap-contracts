@@ -33,11 +33,11 @@ impl<'a> ThresholdState<'a> {
     }
     pub fn set_threshold_if_any(
         &self,
-        stream: &Stream,
+        threshold: Option<Uint128>,
         stream_id: u64,
         storage: &mut dyn Storage,
     ) -> Result<(), ThresholdError> {
-        match stream.threshold {
+        match threshold {
             Some(threshold) => {
                 if threshold.is_zero() {
                     return Err(ThresholdError::ThresholdZero {});
@@ -52,7 +52,7 @@ impl<'a> ThresholdState<'a> {
         &self,
         stream_id: u64,
         storage: &dyn Storage,
-        stream: Stream,
+        stream: &Stream,
     ) -> Result<(), ThresholdError> {
         // If threshold is not set, It returns ok
         // If threshold is set, It returns error if threshold is not reached
@@ -72,7 +72,7 @@ impl<'a> ThresholdState<'a> {
         &self,
         stream_id: u64,
         storage: &dyn Storage,
-        stream: Stream,
+        stream: &Stream,
     ) -> Result<(), ThresholdError> {
         let threshold = self.0.may_load(storage, stream_id)?;
         if let Some(threshold) = threshold {
@@ -117,7 +117,6 @@ mod tests {
         let mut storage = MockStorage::new();
         let thresholds = ThresholdState::new();
         let mut stream = Stream {
-            threshold: Some(Uint128::new(1_500_000_000_000)),
             out_supply: Uint128::new(1000),
             in_supply: Uint128::new(1000),
             start_block: 0,
@@ -139,17 +138,18 @@ mod tests {
             stream_exit_fee_percent: Decimal::from_str("0.042").unwrap(),
             treasury: Addr::unchecked("treasury"),
         };
+        let threshold = Uint128::new(1_500_000_000_000);
         let stream_id = 1;
 
         thresholds
-            .set_threshold_if_any(&stream.clone(), stream_id, &mut storage)
+            .set_threshold_if_any(Some(threshold), stream_id, &mut storage)
             .unwrap();
 
         stream.spent_in = Uint128::new(1_500_000_000_000 - 1);
-        let result = thresholds.error_if_not_reached(stream_id, &storage, stream.clone());
+        let result = thresholds.error_if_not_reached(stream_id, &storage, &stream.clone());
         assert_eq!(result.is_err(), true);
         stream.spent_in = Uint128::new(1_500_000_000_000);
-        let result = thresholds.error_if_not_reached(stream_id, &storage, stream.clone());
+        let result = thresholds.error_if_not_reached(stream_id, &storage, &stream.clone());
         assert_eq!(result.is_err(), false);
     }
 }

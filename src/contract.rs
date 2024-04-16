@@ -321,13 +321,12 @@ pub fn execute_create_stream(
         config.stream_creation_denom,
         config.stream_creation_fee,
         config.exit_fee_percent,
-        threshold,
     );
     let id = next_stream_id(deps.storage)?;
     STREAMS.save(deps.storage, id, &stream)?;
 
     let threshold_state = ThresholdState::new();
-    threshold_state.set_threshold_if_any(&stream.clone(), id, deps.storage)?;
+    threshold_state.set_threshold_if_any(threshold, id, deps.storage)?;
 
     let attr = vec![
         attr("action", "create_stream"),
@@ -875,7 +874,7 @@ pub fn execute_finalize_stream(
     // Creator should execute cancel_stream_with_threshold to cancel the stream
     // Only returns error if threshold is set and not reached
     let thresholds_state = ThresholdState::new();
-    thresholds_state.error_if_not_reached(stream_id, deps.storage, stream.clone())?;
+    thresholds_state.error_if_not_reached(stream_id, deps.storage, &stream)?;
 
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
@@ -974,7 +973,7 @@ pub fn execute_exit_stream(
 
     let threshold_state = ThresholdState::new();
 
-    threshold_state.error_if_not_reached(stream_id, deps.storage, stream.clone())?;
+    threshold_state.error_if_not_reached(stream_id, deps.storage, &stream)?;
 
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());

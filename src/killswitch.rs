@@ -120,7 +120,7 @@ pub fn execute_exit_cancelled(
         }
         // Update stream before checking threshold
         update_stream(env.block.height, &mut stream)?;
-        threshold_state.error_if_reached(stream_id, deps.storage, stream.clone())?;
+        threshold_state.error_if_reached(stream_id, deps.storage, &stream)?;
     }
 
     let operator_target =
@@ -318,8 +318,8 @@ pub fn execute_cancel_stream_with_threshold(
             ThresholdError::ThresholdNotSet {},
         ));
     }
-    // Treshold should not be reached
-    threshold_state.error_if_reached(stream_id, deps.storage, stream.clone())?;
+    // Threshold should not be reached
+    threshold_state.error_if_reached(stream_id, deps.storage, &stream)?;
 
     stream.status = Status::Cancelled;
 
