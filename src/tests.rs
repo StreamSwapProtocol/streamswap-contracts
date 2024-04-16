@@ -236,7 +236,7 @@ mod test_module {
             out_supply,
             start_block,
             end_block,
-            Some(Decimal::percent(0)),
+            Some(Uint128::new(0)),
         )
         .unwrap_err();
         assert_eq!(
@@ -3713,7 +3713,7 @@ mod test_module {
                 out_supply,
                 start,
                 end,
-                Some(Decimal::from_str("0.5").unwrap()),
+                Some(Uint128::from(250u128)),
             )
             .unwrap();
 
@@ -3824,7 +3824,7 @@ mod test_module {
                 out_supply,
                 start,
                 end,
-                Some(Decimal::from_str("0.5").unwrap()),
+                Some(500u128.into()),
             )
             .unwrap();
 
@@ -3969,7 +3969,7 @@ mod test_module {
                 out_supply,
                 start,
                 end,
-                Some(Decimal::from_str("5").unwrap()),
+                Some(1_000u128.into()),
             )
             .unwrap();
 
@@ -4006,7 +4006,7 @@ mod test_module {
             .unwrap_err();
             assert_eq!(res, ContractError::StreamNotEnded {});
 
-            // Set time to the end of the stream
+            // Set block to the end of the stream
             let mut env = mock_env();
             env.block.height = end + 1;
 

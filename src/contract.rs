@@ -85,7 +85,7 @@ pub fn execute(
             out_supply,
             start_block,
             end_block,
-            min_price,
+            threshold,
         } => execute_create_stream(
             deps,
             env,
@@ -98,7 +98,7 @@ pub fn execute(
             out_supply,
             start_block,
             end_block,
-            min_price,
+            threshold,
         ),
         ExecuteMsg::UpdateOperator {
             stream_id,
@@ -234,7 +234,7 @@ pub fn execute_create_stream(
     out_supply: Uint128,
     start_block: u64,
     end_block: u64,
-    min_price: Option<Decimal>,
+    threshold: Option<Uint128>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     if end_block <= start_block {
@@ -321,13 +321,13 @@ pub fn execute_create_stream(
         config.stream_creation_denom,
         config.stream_creation_fee,
         config.exit_fee_percent,
-        min_price,
+        threshold,
     );
     let id = next_stream_id(deps.storage)?;
     STREAMS.save(deps.storage, id, &stream)?;
 
     let threshold_state = ThresholdState::new();
-    threshold_state.set_treshold_if_any(stream.clone(), id, deps.storage)?;
+    threshold_state.set_threshold_if_any(&stream.clone(), id, deps.storage)?;
 
     let attr = vec![
         attr("action", "create_stream"),
