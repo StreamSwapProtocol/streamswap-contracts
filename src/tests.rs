@@ -3654,18 +3654,18 @@ mod test_module {
         }
     }
 
-    mod treshold {
+    mod threshold {
         use crate::{
             killswitch::{execute_cancel_stream_with_threshold, execute_exit_cancelled},
             threshold::ThresholdError,
         };
 
-        // Create a stream with a treshold
+        // Create a stream with a threshold
         // Subscribe to the stream
         use super::*;
 
         #[test]
-        fn test_treshold_reached() {
+        fn test_threshold_reached() {
             let treasury = Addr::unchecked("treasury");
             let start = 1_000_000;
             let end = 5_000_000;
@@ -3673,7 +3673,7 @@ mod test_module {
             let out_denom = "out_denom";
             let in_denom = "in_denom";
 
-            // treshold = 500*0.5 / 1-0.01 =252.5
+            // threshold = 500*0.5 / 1-0.01 =252.5
 
             // instantiate
             let mut deps = mock_dependencies();
@@ -3776,7 +3776,7 @@ mod test_module {
         }
 
         #[test]
-        fn test_treshold_not_reached() {
+        fn test_threshold_not_reached() {
             let treasury = Addr::unchecked("treasury");
             let start = 1_000_000;
             let end = 5_000_000;
@@ -3784,7 +3784,7 @@ mod test_module {
             let out_denom = "out_denom";
             let in_denom = "in_denom";
 
-            // treshold = 500*0.5 / 1-0.01 =252.5
+            // threshold = 500*0.5 / 1-0.01 =252.5
 
             // instantiate
             let mut deps = mock_dependencies();
@@ -3929,7 +3929,7 @@ mod test_module {
             let out_denom = "out_denom";
             let in_denom = "in_denom";
 
-            // treshold = 500*0.5 / 1-0.01 =252.5
+            // threshold = 500*0.5 / 1-0.01 =252.5
 
             // instantiate
             let mut deps = mock_dependencies();
