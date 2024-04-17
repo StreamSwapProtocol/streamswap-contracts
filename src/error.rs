@@ -3,6 +3,8 @@ use cw_utils::PaymentError;
 use std::convert::Infallible;
 use thiserror::Error;
 
+use crate::threshold::ThresholdError;
+
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
     #[error("{0}")]
@@ -19,6 +21,9 @@ pub enum ContractError {
 
     #[error("{0}")]
     DivideByZeroError(#[from] DivideByZeroError),
+
+    #[error("{0}")]
+    ThresholdError(#[from] ThresholdError),
 
     #[error("{0}")]
     ConversionOverflowError(#[from] ConversionOverflowError),
