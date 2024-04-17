@@ -1,0 +1,1 @@
+0daee216f38261ed406e2c0761c087239b8f23eb7ec08452b4568c998a7bad96  /target/wasm32-unknown-unknown/release/cw_streamswap.wasm

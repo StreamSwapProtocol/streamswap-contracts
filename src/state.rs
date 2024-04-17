@@ -20,7 +20,7 @@ pub struct Config {
     pub exit_fee_percent: Decimal,
     /// Address of the fee collector
     pub fee_collector: Addr,
-    /// protocol admin can pause streams in case of emergency.
+    /// Protocol admin can pause streams in case of emergency.
     pub protocol_admin: Addr,
 }
 
@@ -36,27 +36,27 @@ pub struct Stream {
     pub url: Option<String>,
     /// Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal256,
-    /// last updated block of stream.
+    /// Last updated block of stream.
     pub last_updated_block: u64,
-    /// denom of the `token_out`.
+    /// Denom of the `token_out`.
     pub out_denom: String,
-    /// total number of `token_out` to be sold during the continuous stream.
+    /// Total number of `token_out` to be sold during the continuous stream.
     pub out_supply: Uint128,
-    /// total number of remaining out tokens at the time of update.
+    /// Total number of remaining out tokens at the time of update.
     pub out_remaining: Uint128,
-    /// denom of the `token_in`.
+    /// Denom of the `token_in`.
     pub in_denom: String,
-    /// total number of `token_in` on the buy side at latest state.
+    /// Total number of `token_in` on the buy side at latest state.
     pub in_supply: Uint128,
-    /// total number of `token_in` spent at latest state.
+    /// Total number of `token_in` spent at latest state.
     pub spent_in: Uint128,
-    /// total number of shares minted.
+    /// Total number of shares minted.
     pub shares: Uint128,
-    /// start block when the token emission starts. in nanos.
+    /// Start block when the token emission starts. in nanos.
     pub start_block: u64,
-    /// end block when the token emission ends.
+    /// End block when the token emission ends.
     pub end_block: u64,
-    /// price at when latest distribution is triggered.
+    /// Price at when latest distribution is triggered.
     pub current_streamed_price: Decimal,
     /// Status of the stream. Can be `Waiting`, `Active`, `Finalized`, `Paused` or `Canceled` for kill switch.
     pub status: Status,
@@ -156,22 +156,22 @@ pub fn next_stream_id(store: &mut dyn Storage) -> Result<u64, ContractError> {
 
 #[cw_serde]
 pub struct Position {
-    /// creator of the position.
+    /// Creator of the position.
     pub owner: Addr,
-    /// current amount of tokens in buy pool
+    /// Current amount of tokens in buy pool
     pub in_balance: Uint128,
     pub shares: Uint128,
-    // index is used to calculate the distribution a position has
+    // Index is used to calculate the distribution a position has
     pub index: Decimal256,
-    // block height when the position was last updated.
+    // Block height when the position was last updated.
     pub last_updated_block: u64,
-    // total amount of `token_out` purchased in tokens at latest calculation
+    // Total amount of `token_out` purchased in tokens at latest calculation
     pub purchased: Uint128,
-    // pending purchased accumulates purchases after decimal truncation
+    // Pending purchased accumulates purchases after decimal truncation
     pub pending_purchase: Decimal256,
-    // total amount of `token_in` spent tokens at latest calculation
+    // Total amount of `token_in` spent tokens at latest calculation
     pub spent: Uint128,
-    // operator can update position
+    // Operator can update position
     pub operator: Option<Addr>,
 }
 
