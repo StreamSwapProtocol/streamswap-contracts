@@ -3,3 +3,30 @@ members = [
     "contracts/*",
 ]
 resolver = "2"
+
+[workspace.package]
+version    = "0.1.0"
+edition    = "2021"
+homepage   = ""
+repository = ""
+license    = "Apache-2.0"
+authors = ["Orkun Külçe <orkunkl@users.noreply.github.com>", "Adnan Deniz Çorlu<adenizcorlu@gmail.com"]
+
+[workspace.dependencies]
+cosmwasm-std = "1.1.9"
+cosmwasm-schema = "1.1.9"
+cw-controllers= " 1.0.1"
+cw-storage-plus = "1.0.1"
+cw-utils = "1.0.1"
+cw2 = "1.0.1 "
+schemars = "0.8.11"
+serde = { version = "1.0.152", default-features = false, features = ["derive"] }
+thiserror = { version = "1.0.38" }
+semver = "1.0.16"
+
+[workspace.metadata.scripts]
+optimize = """docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/workspace-optimizer:0.12.8
+"""

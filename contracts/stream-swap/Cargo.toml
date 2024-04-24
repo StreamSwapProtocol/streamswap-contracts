@@ -1,7 +1,6 @@
 [package]
 name = "cw-streamswap"
-version = "0.1.0"
-authors = ["Orkun Külçe <orkunkl@users.noreply.github.com>"]
+version = { workspace = true }
 edition = "2021"
 exclude = [
   # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
@@ -31,16 +30,17 @@ optimize = """docker run --rm -v "$(pwd)":/code \
 """
 
 [dependencies]
-cosmwasm-std = "1.1.9"
-cosmwasm-schema = "1.1.9"
-cw-controllers= " 1.0.1"
-cw-storage-plus = "1.0.1"
-cw-utils = "1.0.1"
-cw2 = "1.0.1 "
-schemars = "0.8.11"
-serde = { version = "1.0.152", default-features = false, features = ["derive"] }
-thiserror = { version = "1.0.38" }
-semver = "1.0.16"
+cosmwasm-std = { workspace = true }
+cosmwasm-schema = { workspace = true }
+cw-controllers= { workspace = true }
+cw-storage-plus = { workspace = true }
+cw-utils ={ workspace = true }
+cw2 ={ workspace = true }
+schemars ={ workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+semver = { workspace = true }
+
 
 [dev-dependencies]
 cw-multi-test = "0.16.2"
