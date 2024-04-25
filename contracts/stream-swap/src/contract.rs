@@ -237,74 +237,75 @@ pub fn execute_create_stream(
     threshold: Option<Uint128>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
+
     if end_block <= start_block {
         return Err(ContractError::StreamInvalidEndBlock {});
     }
     if env.block.height > start_block {
         return Err(ContractError::StreamInvalidStartBlock {});
     }
-    if end_block - start_block < config.min_stream_blocks {
-        return Err(ContractError::StreamDurationTooShort {});
-    }
+    // if end_block - start_block < config.min_stream_blocks {
+    //     return Err(ContractError::StreamDurationTooShort {});
+    // }
 
-    if start_block - env.block.height < config.min_blocks_until_start_block {
-        return Err(ContractError::StreamStartsTooSoon {});
-    }
+    // if start_block - env.block.height < config.min_blocks_until_start_block {
+    //     return Err(ContractError::StreamStartsTooSoon {});
+    // }
 
-    if in_denom != config.accepted_in_denom {
-        return Err(ContractError::InDenomIsNotAccepted {});
-    }
+    // if in_denom != config.accepted_in_denom {
+    //     return Err(ContractError::InDenomIsNotAccepted {});
+    // }
 
-    if in_denom == out_denom {
-        return Err(ContractError::SameDenomOnEachSide {});
-    }
+    // if in_denom == out_denom {
+    //     return Err(ContractError::SameDenomOnEachSide {});
+    // }
 
     if out_supply < Uint128::from(1u128) {
         return Err(ContractError::ZeroOutSupply {});
     }
 
-    if out_denom == config.stream_creation_denom {
-        let total_funds = info
-            .funds
-            .iter()
-            .find(|p| p.denom == config.stream_creation_denom)
-            .ok_or(ContractError::NoFundsSent {})?;
+    // if out_denom == config.stream_creation_denom {
+    //     let total_funds = info
+    //         .funds
+    //         .iter()
+    //         .find(|p| p.denom == config.stream_creation_denom)
+    //         .ok_or(ContractError::NoFundsSent {})?;
 
-        if total_funds.amount != config.stream_creation_fee + out_supply {
-            return Err(ContractError::StreamOutSupplyFundsRequired {});
-        }
-        // check for extra funds sent in msg
-        if info.funds.iter().any(|p| p.denom != out_denom) {
-            return Err(ContractError::InvalidFunds {});
-        }
-    } else {
-        let funds = info
-            .funds
-            .iter()
-            .find(|p| p.denom == out_denom)
-            .ok_or(ContractError::NoFundsSent {})?;
+    //     if total_funds.amount != config.stream_creation_fee + out_supply {
+    //         return Err(ContractError::StreamOutSupplyFundsRequired {});
+    //     }
+    //     // check for extra funds sent in msg
+    //     if info.funds.iter().any(|p| p.denom != out_denom) {
+    //         return Err(ContractError::InvalidFunds {});
+    //     }
+    // } else {
+    //     let funds = info
+    //         .funds
+    //         .iter()
+    //         .find(|p| p.denom == out_denom)
+    //         .ok_or(ContractError::NoFundsSent {})?;
 
-        if funds.amount != out_supply {
-            return Err(ContractError::StreamOutSupplyFundsRequired {});
-        }
+    //     if funds.amount != out_supply {
+    //         return Err(ContractError::StreamOutSupplyFundsRequired {});
+    //     }
 
-        let creation_fee = info
-            .funds
-            .iter()
-            .find(|p| p.denom == config.stream_creation_denom)
-            .ok_or(ContractError::NoFundsSent {})?;
-        if creation_fee.amount != config.stream_creation_fee {
-            return Err(ContractError::StreamCreationFeeRequired {});
-        }
+    //     let creation_fee = info
+    //         .funds
+    //         .iter()
+    //         .find(|p| p.denom == config.stream_creation_denom)
+    //         .ok_or(ContractError::NoFundsSent {})?;
+    //     if creation_fee.amount != config.stream_creation_fee {
+    //         return Err(ContractError::StreamCreationFeeRequired {});
+    //     }
 
-        if info
-            .funds
-            .iter()
-            .any(|p| p.denom != out_denom && p.denom != config.stream_creation_denom)
-        {
-            return Err(ContractError::InvalidFunds {});
-        }
-    }
+    //     if info
+    //         .funds
+    //         .iter()
+    //         .any(|p| p.denom != out_denom && p.denom != config.stream_creation_denom)
+    //     {
+    //         return Err(ContractError::InvalidFunds {});
+    //     }
+    // }
 
     check_name_and_url(&name, &url)?;
 
