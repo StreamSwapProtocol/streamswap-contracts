@@ -2,13 +2,11 @@ use cosmwasm_std::{
     entry_point, to_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
     Response, StdResult, WasmMsg,
 };
-use cw_controllers::Admin;
-use cw_utils::maybe_addr;
 
 use crate::{
     error::ContractError,
     msg::{CreateStreamMsg, ExecuteMsg, InstantiateMsg, QueryMsg},
-    payment_checker::{self, check_payment},
+    payment_checker::check_payment,
     state::{Params, PARAMS},
 };
 
@@ -97,56 +95,6 @@ pub fn execute(
         ExecuteMsg::CreateStream(msg) => execute_create_stream(deps, env, info, msg),
     }
 }
-
-pub fn execute_update_config(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    min_stream_blocks: Option<u64>,
-    min_blocks_until_start_block: Option<u64>,
-    stream_creation_fee: Option<Coin>,
-    fee_collector: Option<String>,
-    accepted_in_denoms: Option<Vec<String>>,
-    exit_fee_percent: Option<Decimal>,
-) -> Result<Response, ContractError> {
-    let mut params = PARAMS.load(deps.storage)?;
-
-    if info.sender != params.protocol_admin {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    if let Some(stream_creation_fee) = stream_creation_fee {
-        params.stream_creation_fee = stream_creation_fee;
-    }
-
-    if let Some(exit_fee_percent) = exit_fee_percent {
-        if exit_fee_percent > Decimal::percent(100) || exit_fee_percent < Decimal::percent(0) {
-            return Err(ContractError::InvalidExitFeePercent {});
-        }
-        params.exit_fee_percent = exit_fee_percent;
-    }
-
-    if let Some(fee_collector) = fee_collector {
-        params.fee_collector = deps.api.addr_validate(&fee_collector)?;
-    }
-
-    if let Some(accepted_in_denoms) = accepted_in_denoms {
-        params.accepted_in_denoms = accepted_in_denoms;
-    }
-
-    if let Some(min_stream_blocks) = min_stream_blocks {
-        params.min_stream_blocks = min_stream_blocks;
-    }
-
-    if let Some(min_blocks_until_start_block) = min_blocks_until_start_block {
-        params.min_blocks_until_start_block = min_blocks_until_start_block;
-    }
-
-    PARAMS.save(deps.storage, &params)?;
-
-    Ok(Response::new().add_attribute("action", "update_config"))
-}
-
 pub fn execute_create_stream(
     deps: DepsMut,
     env: Env,
@@ -187,7 +135,9 @@ pub fn execute_create_stream(
 
     let stream_swap_inst_message: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: params.stream_swap_code_id,
+        // TODO: discuss this
         admin: Some(params.protocol_admin.to_string()),
+        // Stream counter/ indentification
         label: "Stream swap instance".to_string(),
         msg: to_binary(&msg)?,
         funds: vec![],
@@ -211,6 +161,54 @@ pub fn execute_create_stream(
         .add_attribute("in_denom", in_denom)
         .add_attribute("threshold", threshold.unwrap_or_default().to_string());
     Ok(res)
+}
+
+pub fn execute_update_config(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    min_stream_blocks: Option<u64>,
+    min_blocks_until_start_block: Option<u64>,
+    stream_creation_fee: Option<Coin>,
+    fee_collector: Option<String>,
+    accepted_in_denoms: Option<Vec<String>>,
+    exit_fee_percent: Option<Decimal>,
+) -> Result<Response, ContractError> {
+    let mut params = PARAMS.load(deps.storage)?;
+
+    if info.sender != params.protocol_admin {
+        return Err(ContractError::Unauthorized {});
+    }
+    if let Some(stream_creation_fee) = stream_creation_fee {
+        params.stream_creation_fee = stream_creation_fee;
+    }
+
+    if let Some(exit_fee_percent) = exit_fee_percent {
+        if exit_fee_percent > Decimal::percent(100) || exit_fee_percent < Decimal::percent(0) {
+            return Err(ContractError::InvalidExitFeePercent {});
+        }
+        params.exit_fee_percent = exit_fee_percent;
+    }
+
+    if let Some(fee_collector) = fee_collector {
+        params.fee_collector = deps.api.addr_validate(&fee_collector)?;
+    }
+
+    if let Some(accepted_in_denoms) = accepted_in_denoms {
+        params.accepted_in_denoms = accepted_in_denoms;
+    }
+
+    if let Some(min_stream_blocks) = min_stream_blocks {
+        params.min_stream_blocks = min_stream_blocks;
+    }
+
+    if let Some(min_blocks_until_start_block) = min_blocks_until_start_block {
+        params.min_blocks_until_start_block = min_blocks_until_start_block;
+    }
+
+    PARAMS.save(deps.storage, &params)?;
+
+    Ok(Response::new().add_attribute("action", "update_config"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

@@ -105,7 +105,6 @@ impl<'a> ThresholdState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
 
     use super::*;
     use crate::state::Stream;

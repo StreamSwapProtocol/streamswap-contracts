@@ -23,6 +23,7 @@ schemars = "0.8.11"
 serde = { version = "1.0.152", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.38" }
 semver = "1.0.16"
+osmosis-std = "0.24.0"
 
 [workspace.metadata.scripts]
 optimize = """docker run --rm -v "$(pwd)":/code \
