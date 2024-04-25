@@ -290,6 +290,8 @@ pub fn execute_create_stream(
 
     check_name_and_url(&name, &url)?;
 
+    check_create_pool_flag(&create_pool)?;
+
     let stream = Stream::new(
         name.clone(),
         deps.api.addr_validate(&treasury)?,
@@ -320,6 +322,22 @@ pub fn execute_create_stream(
         attr("end_time", end_time.to_string()),
     ];
     Ok(Response::default().add_attributes(attr))
+}
+
+pub fn check_create_pool_flag(flag: &Option<CreatePool>) -> Result<(), ContractError> {
+    if let Some(pool) = flag {
+        // Either initial liq amount or percentage is defined
+        if pool.initial_liq_amount.is_some() && pool.initial_liq_percentage.is_some() {
+            return Err(ContractError::InvalidCreatePoolFlag {});
+        }
+        // If percentage is defined, it should be between 0 and 1
+        if let Some(percentage) = pool.initial_liq_percentage {
+            if percentage >= Decimal::one() || percentage <= Decimal::zero() {
+                return Err(ContractError::InvalidCreatePoolFlag {});
+            }
+        }
+    }
+    Ok(())
 }
 
 pub fn execute_update_protocol_admin(
