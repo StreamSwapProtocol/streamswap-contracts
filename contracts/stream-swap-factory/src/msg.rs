@@ -27,6 +27,7 @@ pub enum ExecuteMsg {
 #[cw_serde]
 pub struct CreateStreamMsg {
     pub treasury: String,
+    pub stream_admin: String,
     pub name: String,
     pub url: Option<String>,
     pub out_asset: Coin,
@@ -34,4 +35,9 @@ pub struct CreateStreamMsg {
     pub start_block: u64,
     pub end_block: u64,
     pub threshold: Option<Uint128>,
+}
+
+#[cw_serde]
+pub enum QueryMsg {
+    Params {},
 }

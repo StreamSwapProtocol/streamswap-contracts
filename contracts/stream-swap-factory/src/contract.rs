@@ -7,7 +7,7 @@ use cw_utils::maybe_addr;
 
 use crate::{
     error::ContractError,
-    msg::{self, CreateStreamMsg, ExecuteMsg, InstantiateMsg},
+    msg::{CreateStreamMsg, ExecuteMsg, InstantiateMsg, QueryMsg},
     payment_checker::{self, check_payment},
     state::{Params, PARAMS},
 };
@@ -39,6 +39,9 @@ pub fn instantiate(
 
     if exit_fee_percent > Decimal::percent(100) || exit_fee_percent < Decimal::percent(0) {
         return Err(ContractError::InvalidExitFeePercent {});
+    }
+    if stream_creation_fee.amount.is_zero() {
+        return Err(ContractError::InvalidStreamCreationFee {});
     }
 
     let params = Params {
@@ -159,6 +162,7 @@ pub fn execute_create_stream(
         end_block,
         threshold,
         in_denom,
+        stream_admin,
     } = msg.clone();
     let params = PARAMS.load(deps.storage)?;
     let stream_creation_fee = params.stream_creation_fee.clone();
@@ -207,4 +211,11 @@ pub fn execute_create_stream(
         .add_attribute("in_denom", in_denom)
         .add_attribute("threshold", threshold.unwrap_or_default().to_string());
     Ok(res)
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    match msg {
+        QueryMsg::Params {} => to_binary(&PARAMS.load(deps.storage)?),
+    }
 }

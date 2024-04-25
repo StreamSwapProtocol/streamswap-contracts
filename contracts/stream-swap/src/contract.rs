@@ -1,10 +1,9 @@
 use crate::killswitch::execute_cancel_stream_with_threshold;
 use crate::msg::{
-    AveragePriceResponse, ConfigResponse, ExecuteMsg, InstantiateMsg, LatestStreamedPriceResponse,
-    MigrateMsg, PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse,
-    SudoMsg,
+    AveragePriceResponse, ConfigResponse, ExecuteMsg, LatestStreamedPriceResponse, MigrateMsg,
+    PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse, SudoMsg,
 };
-use crate::state::{next_stream_id, Config, Position, Status, Stream, CONFIG, POSITIONS, STREAMS};
+use crate::state::{next_stream_id, Position, Status, Stream, POSITIONS, STREAMS};
 use crate::threshold::ThresholdState;
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
@@ -13,6 +12,9 @@ use cosmwasm_std::{
     Uint256,
 };
 use cw2::{get_contract_version, set_contract_version};
+use cw_streamswap_factory::msg::CreateStreamMsg;
+use cw_streamswap_factory::state::Params as FactoryParams;
+use cw_streamswap_factory::state::PARAMS as FACTORYPARAMS;
 use semver::Version;
 
 use crate::helpers::{check_name_and_url, from_semver, get_decimals};
@@ -26,46 +28,70 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
-    _env: Env,
-    _info: MessageInfo,
-    msg: InstantiateMsg,
+    env: Env,
+    info: MessageInfo,
+    msg: CreateStreamMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    // exit fee percent can not be equal to or greater than 1, or smaller than 0
-    if msg.exit_fee_percent >= Decimal::one() || msg.exit_fee_percent < Decimal::zero() {
-        return Err(ContractError::InvalidExitFeePercent {});
+    let params_query_msg = cw_streamswap_factory::msg::QueryMsg::Params {};
+    let factory_params: FactoryParams = deps
+        .querier
+        .query_wasm_smart(info.sender.to_string(), &params_query_msg)?;
+    FACTORYPARAMS.save(deps.storage, &factory_params)?;
+
+    let CreateStreamMsg {
+        start_block,
+        end_block,
+        treasury,
+        name,
+        url,
+        threshold,
+        out_asset,
+        in_denom,
+        stream_admin,
+    } = msg;
+
+    if end_block <= start_block {
+        return Err(ContractError::StreamInvalidEndBlock {});
     }
-
-    if msg.stream_creation_fee.is_zero() {
-        return Err(ContractError::InvalidStreamCreationFee {});
+    if env.block.height > start_block {
+        return Err(ContractError::StreamInvalidStartBlock {});
     }
+    let stream_admin = deps.api.addr_validate(&stream_admin)?;
+    let treasury = deps.api.addr_validate(&treasury)?;
 
-    let config = Config {
-        min_stream_blocks: msg.min_stream_blocks,
-        min_blocks_until_start_block: msg.min_blocks_until_start_block,
-        stream_creation_denom: msg.stream_creation_denom.clone(),
-        stream_creation_fee: msg.stream_creation_fee,
-        exit_fee_percent: msg.exit_fee_percent,
-        fee_collector: deps.api.addr_validate(&msg.fee_collector)?,
-        protocol_admin: deps.api.addr_validate(&msg.protocol_admin)?,
-        accepted_in_denom: msg.accepted_in_denom,
-    };
-    CONFIG.save(deps.storage, &config)?;
+    check_name_and_url(&name, &url)?;
 
-    let attrs = vec![
-        attr("action", "instantiate"),
-        attr("min_stream_blocks", msg.min_stream_blocks.to_string()),
-        attr(
-            "min_blocks_until_start_block",
-            msg.min_blocks_until_start_block.to_string(),
-        ),
-        attr("stream_creation_denom", msg.stream_creation_denom),
-        attr("stream_creation_fee", msg.stream_creation_fee),
-        attr("exit_fee_percent", msg.exit_fee_percent.to_string()),
-        attr("fee_collector", msg.fee_collector),
-        attr("protocol_admin", msg.protocol_admin),
+    let stream = Stream::new(
+        name.clone(),
+        treasury,
+        stream_admin,
+        url.clone(),
+        out_asset,
+        in_denom.clone(),
+        start_block,
+        end_block,
+        start_block,
+    );
+    let id = next_stream_id(deps.storage)?;
+    STREAMS.save(deps.storage, id, &stream)?;
+
+    let threshold_state = ThresholdState::new();
+    threshold_state.set_threshold_if_any(threshold, id, deps.storage)?;
+
+    let attr = vec![
+        attr("action", "create_stream"),
+        attr("id", id.to_string()),
+        attr("treasury", treasury),
+        attr("name", name),
+        attr("url", url.unwrap_or_default()),
+        attr("in_denom", in_denom),
+        attr("out_denom", out_asset.denom),
+        attr("out_supply", out_asset.amount.to_string()),
+        attr("start_block", start_block.to_string()),
+        attr("end_block", end_block.to_string()),
     ];
-    Ok(Response::default().add_attributes(attrs))
+    Ok(Response::default().add_attributes(attr))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -76,30 +102,6 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::CreateStream {
-            treasury,
-            name,
-            url,
-            in_denom,
-            out_denom,
-            out_supply,
-            start_block,
-            end_block,
-            threshold,
-        } => execute_create_stream(
-            deps,
-            env,
-            info,
-            treasury,
-            name,
-            url,
-            in_denom,
-            out_denom,
-            out_supply,
-            start_block,
-            end_block,
-            threshold,
-        ),
         ExecuteMsg::UpdateOperator {
             stream_id,
             new_operator,
@@ -192,118 +194,11 @@ pub fn execute(
             stream_id,
             operator_target,
         } => killswitch::execute_exit_cancelled(deps, env, info, stream_id, operator_target),
-        ExecuteMsg::UpdateProtocolAdmin {
-            new_protocol_admin: new_admin,
-        } => execute_update_protocol_admin(deps, env, info, new_admin),
-        ExecuteMsg::UpdateConfig {
-            min_stream_blocks,
-            min_blocks_until_start_block,
-            stream_creation_denom,
-            stream_creation_fee,
-            fee_collector,
-            accepted_in_denom,
-            exit_fee_percent,
-        } => execute_update_config(
-            deps,
-            env,
-            info,
-            min_stream_blocks,
-            min_blocks_until_start_block,
-            stream_creation_denom,
-            stream_creation_fee,
-            fee_collector,
-            accepted_in_denom,
-            exit_fee_percent,
-        ),
 
         ExecuteMsg::CancelStreamWithThreshold { stream_id } => {
             execute_cancel_stream_with_threshold(deps, env, info, stream_id)
         }
     }
-}
-#[allow(clippy::too_many_arguments)]
-pub fn execute_create_stream(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    treasury: String,
-    name: String,
-    url: Option<String>,
-    in_denom: String,
-    out_denom: String,
-    out_supply: Uint128,
-    start_block: u64,
-    end_block: u64,
-    threshold: Option<Uint128>,
-) -> Result<Response, ContractError> {
-    let config = CONFIG.load(deps.storage)?;
-
-    if end_block <= start_block {
-        return Err(ContractError::StreamInvalidEndBlock {});
-    }
-    if env.block.height > start_block {
-        return Err(ContractError::StreamInvalidStartBlock {});
-    }
-    if out_supply < Uint128::from(1u128) {
-        return Err(ContractError::ZeroOutSupply {});
-    }
-
-    check_name_and_url(&name, &url)?;
-
-    let stream = Stream::new(
-        name.clone(),
-        deps.api.addr_validate(&treasury)?,
-        url.clone(),
-        out_denom.clone(),
-        out_supply,
-        in_denom.clone(),
-        start_block,
-        end_block,
-        start_block,
-        config.stream_creation_denom,
-        config.stream_creation_fee,
-        config.exit_fee_percent,
-    );
-    let id = next_stream_id(deps.storage)?;
-    STREAMS.save(deps.storage, id, &stream)?;
-
-    let threshold_state = ThresholdState::new();
-    threshold_state.set_threshold_if_any(threshold, id, deps.storage)?;
-
-    let attr = vec![
-        attr("action", "create_stream"),
-        attr("id", id.to_string()),
-        attr("treasury", treasury),
-        attr("name", name),
-        attr("url", url.unwrap_or_default()),
-        attr("in_denom", in_denom),
-        attr("out_denom", out_denom),
-        attr("out_supply", out_supply),
-        attr("start_block", start_block.to_string()),
-        attr("end_block", end_block.to_string()),
-    ];
-    Ok(Response::default().add_attributes(attr))
-}
-
-pub fn execute_update_protocol_admin(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    new_admin: String,
-) -> Result<Response, ContractError> {
-    let mut config = CONFIG.load(deps.storage)?;
-    if info.sender != config.protocol_admin {
-        return Err(ContractError::Unauthorized {});
-    }
-    config.protocol_admin = deps.api.addr_validate(&new_admin)?;
-    CONFIG.save(deps.storage, &config)?;
-
-    let attrs = vec![
-        attr("action", "update_protocol_admin"),
-        attr("new_admin", new_admin),
-    ];
-
-    Ok(Response::default().add_attributes(attrs))
 }
 
 /// Updates stream to calculate released distribution and spent amount

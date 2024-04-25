@@ -3,58 +3,10 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Decimal, Decimal256, Uint128};
 
 #[cw_serde]
-pub struct InstantiateMsg {
-    /// Minimum sale duration in blocks
-    pub min_stream_blocks: u64,
-    /// Minimum duration between start block and current block
-    pub min_blocks_until_start_block: u64,
-    /// Accepted stream creation fee denom
-    pub stream_creation_denom: String,
-    /// Stream creation fee amount
-    pub stream_creation_fee: Uint128,
-    /// in/buy token exit fee in percent
-    pub exit_fee_percent: Decimal,
-    /// Address of the fee collector
-    pub fee_collector: String,
-    /// protocol admin can pause streams in case of emergency.
-    pub protocol_admin: String,
-    /// Accepted in_denom to buy out_tokens
-    pub accepted_in_denom: String,
-}
-
-#[cw_serde]
 pub enum ExecuteMsg {
-    /// CreateStream creates new token stream. Anyone can create a new stream.
-    /// Creation Fee send along msg prevents spams.
-    CreateStream {
-        /// Address where the stream earnings will be sent.
-        treasury: String,
-        /// Name of the stream.
-        name: String,
-        /// An external resource describing a stream.
-        url: Option<String>,
-        /// Payment denom - used to buy `token_out`.
-        /// Also known as quote currency.
-        in_denom: String,
-        /// Denom to stream (distributed to the investors).
-        /// Also known as a base currency.
-        out_denom: String,
-        /// Total number of `token_out` to be sold during the continuous stream.
-        out_supply: Uint128,
-        /// Block height when the token emission starts.
-        start_block: u64,
-        /// Block height when the token emission ends.
-        end_block: u64,
-        /// Minimum amount of `spent_in` for a stream to be finalized.
-        threshold: Option<Uint128>,
-    },
     /// Update stream and calculates distribution state.
     UpdateStream {
         stream_id: u64,
-    },
-    // Update protocol admin, only authorized admin can update.
-    UpdateProtocolAdmin {
-        new_protocol_admin: String,
     },
     /// UpdateOperator updates the operator of the position.
     UpdateOperator {
@@ -120,16 +72,6 @@ pub enum ExecuteMsg {
         stream_id: u64,
         /// Operator_target is the address of operator targets to execute on behalf of the user.
         operator_target: Option<String>,
-    },
-
-    UpdateConfig {
-        min_stream_blocks: Option<u64>,
-        min_blocks_until_start_block: Option<u64>,
-        stream_creation_denom: Option<String>,
-        stream_creation_fee: Option<Uint128>,
-        fee_collector: Option<String>,
-        accepted_in_denom: Option<String>,
-        exit_fee_percent: Option<Decimal>,
     },
     ResumeStream {
         stream_id: u64,

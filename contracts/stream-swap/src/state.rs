@@ -1,30 +1,30 @@
 use crate::ContractError;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Decimal, Decimal256, Storage, Uint128};
+use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
 use std::ops::Mul;
 
-#[cw_serde]
-pub struct Config {
-    /// Minimum sale duration as blocks
-    pub min_stream_blocks: u64,
-    /// Minimum duration between start_block and current_block
-    pub min_blocks_until_start_block: u64,
-    /// Accepted in_denom to buy out_tokens
-    pub accepted_in_denom: String,
-    /// Accepted stream creation fee denom
-    pub stream_creation_denom: String,
-    /// Stream creation fee amount
-    pub stream_creation_fee: Uint128,
-    /// in/buy token exit fee in percent
-    pub exit_fee_percent: Decimal,
-    /// Address of the fee collector
-    pub fee_collector: Addr,
-    /// Protocol admin can pause streams in case of emergency.
-    pub protocol_admin: Addr,
-}
+// #[cw_serde]
+// pub struct Config {
+//     /// Minimum sale duration as blocks
+//     pub min_stream_blocks: u64,
+//     /// Minimum duration between start_block and current_block
+//     pub min_blocks_until_start_block: u64,
+//     /// Accepted in_denom to buy out_tokens
+//     pub accepted_in_denom: String,
+//     /// Accepted stream creation fee denom
+//     pub stream_creation_denom: String,
+//     /// Stream creation fee amount
+//     pub stream_creation_fee: Uint128,
+//     /// in/buy token exit fee in percent
+//     pub exit_fee_percent: Decimal,
+//     /// Address of the fee collector
+//     pub fee_collector: Addr,
+//     /// Protocol admin can pause streams in case of emergency.
+//     pub protocol_admin: Addr,
+// }
 
-pub const CONFIG: Item<Config> = Item::new("config");
+//pub const CONFIG: Item<Config> = Item::new("config");
 
 #[cw_serde]
 pub struct Stream {
@@ -32,6 +32,8 @@ pub struct Stream {
     pub name: String,
     /// Destination for the earned token_in.
     pub treasury: Addr,
+
+    pub stream_admin: Addr,
     /// URL for more information about the stream.
     pub url: Option<String>,
     /// Proportional distribution variable to calculate the distribution of in token_out to buyers.
@@ -39,9 +41,7 @@ pub struct Stream {
     /// Last updated block of stream.
     pub last_updated_block: u64,
     /// Denom of the `token_out`.
-    pub out_denom: String,
-    /// Total number of `token_out` to be sold during the continuous stream.
-    pub out_supply: Uint128,
+    pub out_asset: Coin,
     /// Total number of remaining out tokens at the time of update.
     pub out_remaining: Uint128,
     /// Denom of the `token_in`.
@@ -62,12 +62,6 @@ pub struct Stream {
     pub status: Status,
     /// Block height when the stream was paused.
     pub pause_block: Option<u64>,
-    /// Stream creation fee denom. Saved under here to avoid any changes in config to efect existing streams.
-    pub stream_creation_denom: String,
-    /// Stream creation fee amount. Saved under here to avoid any changes in config to efect existing streams.
-    pub stream_creation_fee: Uint128,
-    /// Stream swap fee in percent. Saved under here to avoid any changes in config to efect existing streams.
-    pub stream_exit_fee_percent: Decimal,
 }
 
 #[cw_serde]
@@ -84,26 +78,23 @@ impl Stream {
     pub fn new(
         name: String,
         treasury: Addr,
+        stream_admin: Addr,
         url: Option<String>,
-        out_denom: String,
-        out_supply: Uint128,
+        out_asset: Coin,
         in_denom: String,
         start_block: u64,
         end_block: u64,
         last_updated_block: u64,
-        stream_creation_denom: String,
-        stream_creation_fee: Uint128,
-        stream_exit_fee_percent: Decimal,
     ) -> Self {
         Stream {
             name,
             treasury,
+            stream_admin,
             url,
             dist_index: Decimal256::zero(),
             last_updated_block: last_updated_block,
-            out_denom,
-            out_supply,
-            out_remaining: out_supply,
+            out_asset,
+            out_remaining: Uint128::zero(),
             in_denom,
             in_supply: Uint128::zero(),
             spent_in: Uint128::zero(),
@@ -113,9 +104,6 @@ impl Stream {
             current_streamed_price: Decimal::zero(),
             status: Status::Waiting,
             pause_block: None,
-            stream_creation_denom,
-            stream_creation_fee,
-            stream_exit_fee_percent,
         }
     }
 
