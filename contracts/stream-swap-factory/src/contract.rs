@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, Coin, Decimal, Deps, DepsMut, Env, MessageInfo, Response,
-    StdResult,
+    entry_point, to_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
+    Response, StdResult, WasmMsg,
 };
 use cw_controllers::Admin;
 use cw_utils::maybe_addr;
@@ -159,7 +159,7 @@ pub fn execute_create_stream(
         end_block,
         threshold,
         in_denom,
-    } = msg;
+    } = msg.clone();
     let params = PARAMS.load(deps.storage)?;
     let stream_creation_fee = params.stream_creation_fee.clone();
     let accepted_in_denoms = params.accepted_in_denoms.clone();
@@ -177,9 +177,34 @@ pub fn execute_create_stream(
         return Err(ContractError::InDenomIsNotAccepted {});
     }
 
-    if in_denom == out_asset.denom {
+    if &in_denom == &out_asset.denom {
         return Err(ContractError::SameDenomOnEachSide {});
     }
 
-    Ok(Response::new().add_attribute("action", "create_stream"))
+    let stream_swap_inst_message: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
+        code_id: params.stream_swap_code_id,
+        admin: Some(params.admin.to_string()),
+        label: "Stream swap instance".to_string(),
+        msg: to_binary(&msg)?,
+        funds: vec![],
+    });
+    // TODO: If stream cration fee is zero this will fail
+    let fund_transfer_message: CosmosMsg = CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
+        to_address: params.fee_collector.to_string(),
+        amount: vec![stream_creation_fee],
+    });
+
+    let res = Response::new()
+        .add_message(stream_swap_inst_message)
+        .add_message(fund_transfer_message)
+        .add_attribute("action", "create_stream")
+        .add_attribute("name", name)
+        .add_attribute("treasury", treasury)
+        .add_attribute("url", url.unwrap_or_default())
+        .add_attribute("out_asset", out_asset.to_string())
+        .add_attribute("start_block", start_block.to_string())
+        .add_attribute("end_block", end_block.to_string())
+        .add_attribute("in_denom", in_denom)
+        .add_attribute("threshold", threshold.unwrap_or_default().to_string());
+    Ok(res)
 }

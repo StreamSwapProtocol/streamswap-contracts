@@ -1,3 +1,4 @@
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Decimal, Uint128};
 
 pub struct InstantiateMsg {
@@ -23,6 +24,7 @@ pub enum ExecuteMsg {
     CreateStream(CreateStreamMsg),
 }
 
+#[cw_serde]
 pub struct CreateStreamMsg {
     pub treasury: String,
     pub name: String,
