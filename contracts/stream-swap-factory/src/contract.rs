@@ -21,7 +21,7 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     let InstantiateMsg {
         stream_swap_code_id,
-        admin,
+        protocol_admin,
         stream_creation_fee,
         exit_fee_percent,
         accepted_in_denoms,
@@ -30,9 +30,9 @@ pub fn instantiate(
         min_blocks_until_start_block,
     } = msg;
 
-    let admin = deps
+    let protocol_admin = deps
         .api
-        .addr_validate(&admin.unwrap_or(info.sender.to_string()))?;
+        .addr_validate(&protocol_admin.unwrap_or(info.sender.to_string()))?;
     let fee_collector = deps
         .api
         .addr_validate(&fee_collector.unwrap_or(info.sender.to_string()))?;
@@ -45,7 +45,6 @@ pub fn instantiate(
     }
 
     let params = Params {
-        admin: admin.clone(),
         stream_creation_fee: stream_creation_fee.clone(),
         exit_fee_percent,
         stream_swap_code_id,
@@ -53,12 +52,13 @@ pub fn instantiate(
         fee_collector,
         min_stream_blocks,
         min_blocks_until_start_block,
+        protocol_admin: protocol_admin.clone(),
     };
     PARAMS.save(deps.storage, &params)?;
 
     let res = Response::new()
         .add_attribute("action", "instantiate")
-        .add_attribute("admin", admin.to_string())
+        .add_attribute("admin", protocol_admin.to_string())
         .add_attribute(
             "stream_creation_fee",
             stream_creation_fee.amount.to_string(),
@@ -111,7 +111,7 @@ pub fn execute_update_config(
 ) -> Result<Response, ContractError> {
     let mut params = PARAMS.load(deps.storage)?;
 
-    if info.sender != params.admin {
+    if info.sender != params.protocol_admin {
         return Err(ContractError::Unauthorized {});
     }
 
@@ -187,7 +187,7 @@ pub fn execute_create_stream(
 
     let stream_swap_inst_message: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: params.stream_swap_code_id,
-        admin: Some(params.admin.to_string()),
+        admin: Some(params.protocol_admin.to_string()),
         label: "Stream swap instance".to_string(),
         msg: to_binary(&msg)?,
         funds: vec![],

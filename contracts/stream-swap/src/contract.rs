@@ -1,7 +1,7 @@
 use crate::killswitch::execute_cancel_stream_with_threshold;
 use crate::msg::{
-    AveragePriceResponse, ConfigResponse, ExecuteMsg, LatestStreamedPriceResponse, MigrateMsg,
-    PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse, SudoMsg,
+    AveragePriceResponse, ExecuteMsg, LatestStreamedPriceResponse, MigrateMsg, PositionResponse,
+    PositionsResponse, QueryMsg, StreamResponse, StreamsResponse, SudoMsg,
 };
 use crate::state::{next_stream_id, Position, Status, Stream, POSITIONS, STREAMS};
 use crate::threshold::ThresholdState;
@@ -64,10 +64,10 @@ pub fn instantiate(
 
     let stream = Stream::new(
         name.clone(),
-        treasury,
+        treasury.clone(),
         stream_admin,
         url.clone(),
-        out_asset,
+        out_asset.clone(),
         in_denom.clone(),
         start_block,
         end_block,
@@ -715,12 +715,12 @@ pub fn execute_finalize_stream(
 
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
-    let config = CONFIG.load(deps.storage)?;
+    let factory_params = FACTORYPARAMS.load(deps.storage)?;
     let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or_else(|| stream.treasury.clone());
 
     //Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
     let swap_fee = Decimal::from_ratio(stream.spent_in, Uint128::one())
-        .checked_mul(stream.stream_exit_fee_percent)?
+        .checked_mul(factory_params.exit_fee_percent)?
         * Uint128::one();
 
     let creator_revenue = stream.spent_in.checked_sub(swap_fee)?;
@@ -735,15 +735,15 @@ pub fn execute_finalize_stream(
     });
     //Exact fee for stream creation charged at creation but claimed at finalize
     let creation_fee_msg = CosmosMsg::Bank(BankMsg::Send {
-        to_address: config.fee_collector.to_string(),
+        to_address: factory_params.fee_collector.to_string(),
         amount: vec![Coin {
-            denom: stream.stream_creation_denom,
-            amount: stream.stream_creation_fee,
+            denom: factory_params.stream_creation_fee.denom,
+            amount: factory_params.stream_creation_fee.amount,
         }],
     });
 
     let swap_fee_msg = CosmosMsg::Bank(BankMsg::Send {
-        to_address: config.fee_collector.to_string(),
+        to_address: factory_params.fee_collector.to_string(),
         amount: vec![Coin {
             denom: stream.in_denom,
             amount: swap_fee,
@@ -762,7 +762,7 @@ pub fn execute_finalize_stream(
         let remaining_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: treasury.to_string(),
             amount: vec![Coin {
-                denom: stream.out_denom,
+                denom: stream.out_asset.denom,
                 amount: remaining_out,
             }],
         });
@@ -773,18 +773,22 @@ pub fn execute_finalize_stream(
         attr("action", "finalize_stream"),
         attr("stream_id", stream_id.to_string()),
         attr("treasury", treasury.as_str()),
-        attr("fee_collector", config.fee_collector.to_string()),
+        attr("fee_collector", factory_params.fee_collector.to_string()),
         attr("creators_revenue", creator_revenue),
         attr("refunded_out_remaining", stream.out_remaining.to_string()),
         attr(
             "total_sold",
             stream
-                .out_supply
+                .out_asset
+                .amount
                 .checked_sub(stream.out_remaining)?
                 .to_string(),
         ),
         attr("swap_fee", swap_fee),
-        attr("creation_fee", config.stream_creation_fee.to_string()),
+        attr(
+            "creation_fee_amount",
+            factory_params.stream_creation_fee.amount.to_string(),
+        ),
     ]))
 }
 
@@ -796,7 +800,7 @@ pub fn execute_exit_stream(
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    let _config = CONFIG.load(deps.storage)?;
+    let factory_params = FACTORYPARAMS.load(deps.storage)?;
     // check if stream is paused
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
@@ -827,13 +831,13 @@ pub fn execute_exit_stream(
     )?;
     // Swap fee = fixed_rate*position.spent_in this calculation is only for execution reply attributes
     let swap_fee = Decimal::from_ratio(position.spent, Uint128::one())
-        .checked_mul(stream.stream_exit_fee_percent)?
+        .checked_mul(factory_params.exit_fee_percent)?
         * Uint128::one();
 
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: operator_target.to_string(),
         amount: vec![Coin {
-            denom: stream.out_denom.to_string(),
+            denom: stream.out_asset.denom.to_string(),
             amount: position.purchased,
         }],
     });
@@ -869,64 +873,6 @@ pub fn execute_exit_stream(
             .add_message(send_msg)
             .add_attributes(attributes))
     }
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn execute_update_config(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    min_stream_blocks: Option<u64>,
-    min_blocks_until_start: Option<u64>,
-    stream_creation_denom: Option<String>,
-    stream_creation_fee: Option<Uint128>,
-    fee_collector: Option<String>,
-    accepted_in_denom: Option<String>,
-    exit_fee_percent: Option<Decimal>,
-) -> Result<Response, ContractError> {
-    let mut cfg = CONFIG.load(deps.storage)?;
-
-    if info.sender != cfg.protocol_admin {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    if let Some(stream_creation_fee) = stream_creation_fee {
-        if stream_creation_fee.is_zero() {
-            return Err(ContractError::InvalidStreamCreationFee {});
-        }
-    }
-    // exit fee percent can not be equal to or greater than 1, or smaller than 0
-    if let Some(exit_fee_percent) = exit_fee_percent {
-        if exit_fee_percent >= Decimal::one() || exit_fee_percent < Decimal::zero() {
-            return Err(ContractError::InvalidExitFeePercent {});
-        }
-    }
-
-    cfg.min_stream_blocks = min_stream_blocks.unwrap_or(cfg.min_stream_blocks);
-    cfg.min_blocks_until_start_block =
-        min_blocks_until_start.unwrap_or(cfg.min_blocks_until_start_block);
-    cfg.stream_creation_denom = stream_creation_denom.unwrap_or(cfg.stream_creation_denom);
-    cfg.stream_creation_fee = stream_creation_fee.unwrap_or(cfg.stream_creation_fee);
-    cfg.accepted_in_denom = accepted_in_denom.unwrap_or(cfg.accepted_in_denom);
-    let collector = maybe_addr(deps.api, fee_collector)?.unwrap_or(cfg.fee_collector);
-    cfg.fee_collector = collector;
-    cfg.exit_fee_percent = exit_fee_percent.unwrap_or(cfg.exit_fee_percent);
-
-    CONFIG.save(deps.storage, &cfg)?;
-
-    let attributes = vec![
-        attr("action", "update_config"),
-        attr("min_stream_blocks", cfg.min_stream_blocks.to_string()),
-        attr(
-            "min_blocks_until_start",
-            cfg.min_blocks_until_start_block.to_string(),
-        ),
-        attr("stream_creation_denom", cfg.stream_creation_denom),
-        attr("stream_creation_fee", cfg.stream_creation_fee),
-        attr("fee_collector", cfg.fee_collector),
-    ];
-
-    Ok(Response::default().add_attributes(attributes))
 }
 
 fn check_access(
@@ -975,7 +921,7 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Config {} => to_binary(&query_config(deps)?),
+        QueryMsg::Params {} => to_binary(&query_params(deps)?),
         QueryMsg::Stream { stream_id } => to_binary(&query_stream(deps, env, stream_id)?),
         QueryMsg::Position { stream_id, owner } => {
             to_binary(&query_position(deps, env, stream_id, owner)?)
@@ -999,18 +945,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
     }
 }
-pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
-    let cfg = CONFIG.load(deps.storage)?;
-    Ok(ConfigResponse {
-        min_stream_blocks: cfg.min_stream_blocks,
-        min_blocks_until_start_block: cfg.min_blocks_until_start_block,
-        stream_creation_denom: cfg.stream_creation_denom,
-        stream_creation_fee: cfg.stream_creation_fee,
-        exit_fee_percent: cfg.exit_fee_percent,
-        fee_collector: cfg.fee_collector.to_string(),
-        protocol_admin: cfg.protocol_admin.to_string(),
-        accepted_in_denom: cfg.accepted_in_denom,
-    })
+pub fn query_params(deps: Deps) -> StdResult<FactoryParams> {
+    let factory_params = FACTORYPARAMS.load(deps.storage)?;
+    Ok(factory_params)
 }
 
 pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamResponse> {
@@ -1019,8 +956,7 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
         id: stream_id,
         treasury: stream.treasury.to_string(),
         in_denom: stream.in_denom,
-        out_denom: stream.out_denom,
-        out_supply: stream.out_supply,
+        out_asset: stream.out_asset,
         start_block: stream.start_block,
         end_block: stream.end_block,
         spent_in: stream.spent_in,
@@ -1033,8 +969,7 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
         pause_block: stream.pause_block,
         url: stream.url,
         current_streamed_price: stream.current_streamed_price,
-        exit_fee_percent: stream.stream_exit_fee_percent,
-        stream_creation_fee: stream.stream_creation_fee,
+        stream_admin: stream.stream_admin.into_string(),
     };
     Ok(stream)
 }
@@ -1059,8 +994,6 @@ pub fn list_streams(
                 id: stream_id,
                 treasury: stream.treasury.to_string(),
                 in_denom: stream.in_denom,
-                out_denom: stream.out_denom,
-                out_supply: stream.out_supply,
                 start_block: stream.start_block,
                 end_block: stream.end_block,
                 spent_in: stream.spent_in,
@@ -1073,8 +1006,8 @@ pub fn list_streams(
                 pause_block: stream.pause_block,
                 url: stream.url,
                 current_streamed_price: stream.current_streamed_price,
-                exit_fee_percent: stream.stream_exit_fee_percent,
-                stream_creation_fee: stream.stream_creation_fee,
+                out_asset: stream.out_asset,
+                stream_admin: stream.stream_admin.into_string(),
             };
             Ok(stream)
         })
@@ -1147,7 +1080,7 @@ pub fn query_average_price(
     stream_id: u64,
 ) -> StdResult<AveragePriceResponse> {
     let stream = STREAMS.load(deps.storage, stream_id)?;
-    let total_purchased = stream.out_supply - stream.out_remaining;
+    let total_purchased = stream.out_asset.amount - stream.out_remaining;
     let average_price = Decimal::from_ratio(stream.spent_in, total_purchased);
     Ok(AveragePriceResponse { average_price })
 }

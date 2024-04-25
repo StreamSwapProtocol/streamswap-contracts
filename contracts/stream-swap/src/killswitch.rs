@@ -1,10 +1,11 @@
 use crate::contract::{update_position, update_stream};
-use crate::state::{Status, Stream, CONFIG, POSITIONS, STREAMS};
+use crate::state::{Status, Stream, POSITIONS, STREAMS};
 use crate::threshold::{ThresholdError, ThresholdState};
 use crate::ContractError;
 use cosmwasm_std::{
     attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
 };
+use cw_streamswap_factory::state::{Params as FactoryParams, PARAMS as FACTORY_PARAMS};
 use cw_utils::maybe_addr;
 
 pub fn execute_withdraw_paused(
@@ -166,8 +167,8 @@ pub fn execute_pause_stream(
     info: MessageInfo,
     stream_id: u64,
 ) -> Result<Response, ContractError> {
-    let config = CONFIG.load(deps.storage)?;
-    if info.sender != config.protocol_admin {
+    let factory_params = FACTORY_PARAMS.load(deps.storage)?;
+    if info.sender != factory_params.protocol_admin {
         return Err(ContractError::Unauthorized {});
     }
     //check if stream is ended
@@ -209,7 +210,7 @@ pub fn execute_resume_stream(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    let cfg = CONFIG.load(deps.storage)?;
+    let factory_params: FactoryParams = FACTORY_PARAMS.load(deps.storage)?;
     //Cancelled can't be resumed
     if stream.is_cancelled() {
         return Err(ContractError::StreamIsCancelled {});
@@ -217,7 +218,7 @@ pub fn execute_resume_stream(
     if stream.status != Status::Paused {
         return Err(ContractError::StreamNotPaused {});
     }
-    if cfg.protocol_admin != info.sender {
+    if factory_params.protocol_admin != info.sender {
         return Err(ContractError::Unauthorized {});
     }
 
@@ -242,8 +243,8 @@ pub fn execute_cancel_stream(
     info: MessageInfo,
     stream_id: u64,
 ) -> Result<Response, ContractError> {
-    let cfg = CONFIG.load(deps.storage)?;
-    if cfg.protocol_admin != info.sender {
+    let factory_params: FactoryParams = FACTORY_PARAMS.load(deps.storage)?;
+    if factory_params.protocol_admin != info.sender {
         return Err(ContractError::Unauthorized {});
     }
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
@@ -261,16 +262,16 @@ pub fn execute_cancel_stream(
         CosmosMsg::Bank(BankMsg::Send {
             to_address: stream.treasury.to_string(),
             amount: vec![Coin {
-                denom: stream.out_denom,
-                amount: stream.out_supply,
+                denom: stream.out_asset.denom,
+                amount: stream.out_asset.amount,
             }],
         }),
         //Refund stream creation fee to stream creator
         CosmosMsg::Bank(BankMsg::Send {
             to_address: stream.treasury.to_string(),
             amount: vec![Coin {
-                denom: stream.stream_creation_denom,
-                amount: stream.stream_creation_fee,
+                denom: factory_params.stream_creation_fee.denom,
+                amount: factory_params.stream_creation_fee.amount,
             }],
         }),
     ];
@@ -329,8 +330,8 @@ pub fn execute_cancel_stream_with_threshold(
     let messages: Vec<CosmosMsg> = vec![CosmosMsg::Bank(BankMsg::Send {
         to_address: stream.treasury.to_string(),
         amount: vec![Coin {
-            denom: stream.out_denom,
-            amount: stream.out_supply,
+            denom: stream.out_asset.denom,
+            amount: stream.out_asset.amount,
         }],
     })];
 
@@ -406,6 +407,7 @@ pub fn sudo_cancel_stream(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let factory_params: FactoryParams = FACTORY_PARAMS.load(deps.storage)?;
     if stream.is_cancelled() {
         return Err(ContractError::StreamIsCancelled {});
     }
@@ -420,16 +422,16 @@ pub fn sudo_cancel_stream(
         CosmosMsg::Bank(BankMsg::Send {
             to_address: stream.treasury.to_string(),
             amount: vec![Coin {
-                denom: stream.out_denom,
-                amount: stream.out_supply,
+                denom: stream.out_asset.denom,
+                amount: stream.out_asset.amount,
             }],
         }),
         //Refund stream creation fee to stream creator
         CosmosMsg::Bank(BankMsg::Send {
             to_address: stream.treasury.to_string(),
             amount: vec![Coin {
-                denom: stream.stream_creation_denom,
-                amount: stream.stream_creation_fee,
+                denom: factory_params.stream_creation_fee.denom,
+                amount: factory_params.stream_creation_fee.amount,
             }],
         }),
     ];

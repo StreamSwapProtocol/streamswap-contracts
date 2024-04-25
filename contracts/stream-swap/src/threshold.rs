@@ -110,14 +110,17 @@ mod tests {
     use super::*;
     use crate::state::Stream;
     use cosmwasm_std::testing::MockStorage;
-    use cosmwasm_std::{Addr, Decimal, Decimal256, Uint128};
+    use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Uint128};
 
     #[test]
     fn test_thresholds_state() {
         let mut storage = MockStorage::new();
         let thresholds = ThresholdState::new();
         let mut stream = Stream {
-            out_supply: Uint128::new(1000),
+            out_asset: Coin {
+                denom: "uluna".to_string(),
+                amount: Uint128::new(1000),
+            },
             in_supply: Uint128::new(1000),
             start_block: 0,
             end_block: 100,
@@ -127,16 +130,13 @@ mod tests {
             last_updated_block: 0,
             name: "test".to_string(),
             url: Some("test".to_string()),
-            out_denom: "uluna".to_string(),
             out_remaining: Uint128::new(1000),
             pause_block: None,
             shares: Uint128::new(0),
             spent_in: Uint128::new(0),
             status: crate::state::Status::Active,
-            stream_creation_denom: "uusd".to_string(),
-            stream_creation_fee: Uint128::new(0),
-            stream_exit_fee_percent: Decimal::from_str("0.042").unwrap(),
             treasury: Addr::unchecked("treasury"),
+            stream_admin: Addr::unchecked("admin"),
         };
         let threshold = Uint128::new(1_500_000_000_000);
         let stream_id = 1;

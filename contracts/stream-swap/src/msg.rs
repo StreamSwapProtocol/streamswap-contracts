@@ -1,6 +1,7 @@
 use crate::state::Status;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, Decimal256, Uint128};
+use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Uint128};
+use cw_streamswap_factory::state::Params as FactoryParams;
 
 #[cw_serde]
 pub enum ExecuteMsg {
@@ -88,8 +89,8 @@ pub enum ExecuteMsg {
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     /// Returns current configuration.
-    #[returns(ConfigResponse)]
-    Config {},
+    #[returns(FactoryParams)]
+    Params {},
     /// Returns a stream's current state.
     #[returns(StreamResponse)]
     Stream { stream_id: u64 },
@@ -138,7 +139,6 @@ pub struct ConfigResponse {
     /// Address of the protocol admin.
     pub protocol_admin: String,
 }
-
 #[cw_serde]
 pub struct StreamResponse {
     pub id: u64,
@@ -150,10 +150,8 @@ pub struct StreamResponse {
     pub dist_index: Decimal256,
     /// Last updated block of stream.
     pub last_updated_block: u64,
-    /// Denom of the `token_out`.
-    pub out_denom: String,
-    /// Total number of `token_out` to be sold during the continuous stream.
-    pub out_supply: Uint128,
+
+    pub out_asset: Coin,
     /// Total number of remaining out tokens at the time of update.
     pub out_remaining: Uint128,
     /// Denom of the `token_in`.
@@ -174,10 +172,8 @@ pub struct StreamResponse {
     pub status: Status,
     /// Block height when the stream was paused.
     pub pause_block: Option<u64>,
-    /// Exit fee percent.
-    pub exit_fee_percent: Decimal,
-    /// Creation fee amount.
-    pub stream_creation_fee: Uint128,
+    /// Address of the stream admin.
+    pub stream_admin: String,
 }
 
 #[cw_serde]

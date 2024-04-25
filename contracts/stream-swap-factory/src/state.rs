@@ -4,7 +4,7 @@ use cw_storage_plus::{Item, Map};
 
 #[cw_serde]
 pub struct Params {
-    pub admin: Addr,
+    pub protocol_admin: Addr,
     pub fee_collector: Addr,
     pub stream_creation_fee: Coin,
     pub exit_fee_percent: Decimal,
