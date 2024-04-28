@@ -15,3 +15,4 @@ pub struct Params {
 }
 
 pub const PARAMS: Item<Params> = Item::new("params");
+pub const FREEZESTATE: Item<bool> = Item::new("freezestate");

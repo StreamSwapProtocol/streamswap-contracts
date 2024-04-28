@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
+    entry_point, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
     Response, StdResult, WasmMsg,
 };
 
@@ -7,7 +7,7 @@ use crate::{
     error::ContractError,
     msg::{CreateStreamMsg, ExecuteMsg, InstantiateMsg, QueryMsg},
     payment_checker::check_payment,
-    state::{Params, PARAMS},
+    state::{Params, FREEZESTATE, PARAMS},
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -54,6 +54,9 @@ pub fn instantiate(
     };
     PARAMS.save(deps.storage, &params)?;
 
+    // Initilize Freezestate
+    FREEZESTATE.save(deps.storage, &false)?;
+
     let res = Response::new()
         .add_attribute("action", "instantiate")
         .add_attribute("admin", protocol_admin.to_string())
@@ -93,6 +96,7 @@ pub fn execute(
             exit_fee_percent,
         ),
         ExecuteMsg::CreateStream(msg) => execute_create_stream(deps, env, info, msg),
+        ExecuteMsg::Freeze {} => execute_freeze(deps, info),
     }
 }
 pub fn execute_create_stream(
@@ -101,6 +105,10 @@ pub fn execute_create_stream(
     info: MessageInfo,
     msg: CreateStreamMsg,
 ) -> Result<Response, ContractError> {
+    let is_frozen = FREEZESTATE.load(deps.storage)?;
+    if is_frozen {
+        return Err(ContractError::ContractIsFrozen {});
+    }
     let CreateStreamMsg {
         treasury,
         name,
@@ -139,7 +147,7 @@ pub fn execute_create_stream(
         admin: Some(params.protocol_admin.to_string()),
         // Stream counter/ indentification
         label: "Stream swap instance".to_string(),
-        msg: to_binary(&msg)?,
+        msg: to_json_binary(&msg)?,
         funds: vec![],
     });
     // TODO: If stream cration fee is zero this will fail
@@ -211,9 +219,18 @@ pub fn execute_update_config(
     Ok(Response::new().add_attribute("action", "update_config"))
 }
 
+pub fn execute_freeze(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    let params = PARAMS.load(deps.storage)?;
+    if info.sender != params.protocol_admin {
+        return Err(ContractError::Unauthorized {});
+    }
+    FREEZESTATE.save(deps.storage, &true)?;
+    Ok(Response::new().add_attribute("action", "freeze"))
+}
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Params {} => to_binary(&PARAMS.load(deps.storage)?),
+        QueryMsg::Params {} => to_json_binary(&PARAMS.load(deps.storage)?),
     }
 }

@@ -121,6 +121,9 @@ pub enum ContractError {
     #[error("Stream is already finalized")]
     StreamAlreadyFinalized {},
 
+    #[error("Contract is frozen")]
+    ContractIsFrozen {},
+
     #[error("Stream Name too short")]
     StreamNameTooShort {},
 

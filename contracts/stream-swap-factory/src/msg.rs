@@ -22,6 +22,7 @@ pub enum ExecuteMsg {
         exit_fee_percent: Option<Decimal>,
     },
     CreateStream(CreateStreamMsg),
+    Freeze {},
 }
 
 #[cw_serde]
