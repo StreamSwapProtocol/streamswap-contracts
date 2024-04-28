@@ -1,0 +1,25 @@
+[package]
+authors     = ["Adnan Deniz Corlu <adenizcorlu@gmail.com>"]
+name = "testing"
+edition = { workspace = true }
+version     = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+
+[lib]
+doctest = false
+[features]
+# for more explicit tests, cargo test --features=backtraces
+backtraces = ["cosmwasm-std/backtraces"]
+
+
+[dependencies]
+cosmwasm-schema      = { workspace = true }
+cosmwasm-std = { version = "1.5.0", features = ["iterator", "staking", "stargate"] }
+cw-controllers       = { workspace = true }
+cw2                  = { workspace = true }
+cw-storage-plus = "1.2.0"
+cw-utils = "1.0.3"
+schemars = "0.8.16"
+cw-multi-test = "0.20.0"
