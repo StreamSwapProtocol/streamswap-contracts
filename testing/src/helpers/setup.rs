@@ -63,6 +63,7 @@ pub fn setup() -> SetupResponse {
         test_accounts,
         stream_swap_factory_code_id,
         stream_swap_code_id,
+        app,
     }
 }
 
@@ -72,6 +73,7 @@ pub fn mint_to_address(app: &mut App, to_address: String, amount: Vec<Coin>) {
 }
 
 pub struct SetupResponse {
+    pub app: App,
     pub test_accounts: TestAccounts,
     pub stream_swap_factory_code_id: u64,
     pub stream_swap_code_id: u64,
