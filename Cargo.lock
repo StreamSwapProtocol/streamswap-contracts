@@ -994,6 +994,8 @@ dependencies = [
  "cw-controllers",
  "cw-multi-test 0.20.1",
  "cw-storage-plus",
+ "cw-streamswap",
+ "cw-streamswap-factory",
  "cw-utils",
  "cw2",
  "schemars",

@@ -1,6 +1,6 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Decimal, Uint128};
-
+#[cw_serde]
 pub struct InstantiateMsg {
     pub stream_swap_code_id: u64,
     pub protocol_admin: Option<String>,
@@ -12,6 +12,7 @@ pub struct InstantiateMsg {
     pub min_blocks_until_start_block: u64,
 }
 
+#[cw_serde]
 pub enum ExecuteMsg {
     UpdateConfig {
         min_stream_blocks: Option<u64>,
