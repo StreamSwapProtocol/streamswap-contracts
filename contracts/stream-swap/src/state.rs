@@ -3,29 +3,6 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
 use std::ops::Mul;
-
-// #[cw_serde]
-// pub struct Config {
-//     /// Minimum sale duration as blocks
-//     pub min_stream_blocks: u64,
-//     /// Minimum duration between start_block and current_block
-//     pub min_blocks_until_start_block: u64,
-//     /// Accepted in_denom to buy out_tokens
-//     pub accepted_in_denom: String,
-//     /// Accepted stream creation fee denom
-//     pub stream_creation_denom: String,
-//     /// Stream creation fee amount
-//     pub stream_creation_fee: Uint128,
-//     /// in/buy token exit fee in percent
-//     pub exit_fee_percent: Decimal,
-//     /// Address of the fee collector
-//     pub fee_collector: Addr,
-//     /// Protocol admin can pause streams in case of emergency.
-//     pub protocol_admin: Addr,
-// }
-
-//pub const CONFIG: Item<Config> = Item::new("config");
-
 #[cw_serde]
 pub struct Stream {
     /// Name of the stream.
@@ -188,3 +165,43 @@ impl Position {
 
 // Position (stream_id, owner_addr) -> Position
 pub const POSITIONS: Map<(StreamId, &Addr), Position> = Map::new("positions");
+
+#[cfg(test)]
+#[test]
+fn test_compute_shares_amount() {
+    let mut stream = Stream::new(
+        "test".to_string(),
+        Addr::unchecked("treasury"),
+        Addr::unchecked("stream_admin"),
+        Some("url".to_string()),
+        Coin {
+            denom: "out_denom".to_string(),
+            amount: Uint128::from(100u128),
+        },
+        "in_denom".to_string(),
+        0,
+        100,
+        0,
+    );
+
+    // add new shares
+    let shares = stream.compute_shares_amount(Uint128::from(100u128), false);
+    assert_eq!(shares, Uint128::from(100u128));
+    stream.in_supply = Uint128::from(100u128);
+    stream.shares = shares;
+
+    // add new shares
+    stream.shares += stream.compute_shares_amount(Uint128::from(100u128), false);
+    stream.in_supply += Uint128::from(100u128);
+    assert_eq!(stream.shares, Uint128::from(200u128));
+
+    // add new shares
+    stream.shares += stream.compute_shares_amount(Uint128::from(250u128), false);
+    assert_eq!(stream.shares, Uint128::from(450u128));
+    stream.in_supply += Uint128::from(250u128);
+
+    // remove shares
+    stream.shares -= stream.compute_shares_amount(Uint128::from(100u128), true);
+    assert_eq!(stream.shares, Uint128::from(350u128));
+    stream.in_supply -= Uint128::from(100u128);
+}
