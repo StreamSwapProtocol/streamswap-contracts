@@ -98,7 +98,7 @@ pub fn execute(
             accepted_in_denoms,
             exit_fee_percent,
         ),
-        ExecuteMsg::CreateStream(msg) => execute_create_stream(deps, env, info, msg),
+        ExecuteMsg::CreateStream { msg } => execute_create_stream(deps, env, info, msg),
         ExecuteMsg::Freeze {} => execute_freeze(deps, info),
     }
 }
@@ -131,10 +131,16 @@ pub fn execute_create_stream(
     let last_stream_id = LAST_STREAM_ID.load(deps.storage)?;
     let stream_id = last_stream_id + 1;
 
+    if end_block <= start_block {
+        return Err(ContractError::StreamInvalidEndBlock {});
+    }
+    if env.block.height > start_block {
+        return Err(ContractError::StreamInvalidStartBlock {});
+    }
+
     if end_block - start_block < params.min_stream_blocks {
         return Err(ContractError::StreamDurationTooShort {});
     }
-
     if start_block - env.block.height < params.min_blocks_until_start_block {
         return Err(ContractError::StreamStartsTooSoon {});
     }
@@ -167,12 +173,10 @@ pub fn execute_create_stream(
         .add_attribute("action", "create_stream")
         .add_attribute("name", name)
         .add_attribute("treasury", treasury)
-        .add_attribute("url", url.unwrap_or_default())
         .add_attribute("out_asset", out_asset.to_string())
         .add_attribute("start_block", start_block.to_string())
         .add_attribute("end_block", end_block.to_string())
-        .add_attribute("in_denom", in_denom)
-        .add_attribute("threshold", threshold.unwrap_or_default().to_string());
+        .add_attribute("in_denom", in_denom);
     Ok(res)
 }
 
@@ -237,5 +241,6 @@ pub fn execute_freeze(deps: DepsMut, info: MessageInfo) -> Result<Response, Cont
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Params {} => to_json_binary(&PARAMS.load(deps.storage)?),
+        QueryMsg::Freezestate {} => to_json_binary(&FREEZESTATE.load(deps.storage)?),
     }
 }

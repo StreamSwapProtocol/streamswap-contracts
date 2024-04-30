@@ -84,7 +84,6 @@ pub fn instantiate(
         attr("id", id.to_string()),
         attr("treasury", treasury),
         attr("name", name),
-        attr("url", url.unwrap_or_default()),
         attr("in_denom", in_denom),
         attr("out_denom", out_asset.denom),
         attr("out_supply", out_asset.amount.to_string()),

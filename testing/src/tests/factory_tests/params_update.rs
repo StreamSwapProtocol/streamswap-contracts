@@ -227,4 +227,6 @@ fn params_update() {
         .wrap()
         .query_wasm_smart(factory_address.clone(), &QueryMsg::Params {})
         .unwrap();
+
+    assert_eq!(res.min_blocks_until_start_block, 100);
 }

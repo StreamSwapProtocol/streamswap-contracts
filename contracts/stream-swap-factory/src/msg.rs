@@ -22,7 +22,9 @@ pub enum ExecuteMsg {
         accepted_in_denoms: Option<Vec<String>>,
         exit_fee_percent: Option<Decimal>,
     },
-    CreateStream(CreateStreamMsg),
+    CreateStream {
+        msg: CreateStreamMsg,
+    },
     Freeze {},
 }
 
@@ -42,4 +44,5 @@ pub struct CreateStreamMsg {
 #[cw_serde]
 pub enum QueryMsg {
     Params {},
+    Freezestate {},
 }

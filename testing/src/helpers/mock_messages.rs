@@ -1,5 +1,7 @@
 use cosmwasm_std::{Coin, Decimal};
-use cw_streamswap_factory::msg::{CreateStreamMsg, InstantiateMsg as FactoryInstantiateMsg};
+use cw_streamswap_factory::msg::{
+    CreateStreamMsg, ExecuteMsg as FactoryExecuteMsg, InstantiateMsg as FactoryInstantiateMsg,
+};
 
 use super::setup::TestAccounts;
 
@@ -25,24 +27,23 @@ pub fn get_factory_inst_msg(
 pub fn get_create_stream_msg(
     name: &str,
     treasury: &str,
-    out_asset_denom: &str,
+    out_asset: Coin,
     in_denom: &str,
     start_block: u64,
     end_block: u64,
     threshold: Option<u128>,
-) -> CreateStreamMsg {
-    CreateStreamMsg {
-        treasury: treasury.to_string(),
-        stream_admin: treasury.to_string(),
-        name: name.to_string(),
-        url: None,
-        out_asset: Coin {
-            denom: out_asset_denom.to_string(),
-            amount: 100u128.into(),
+) -> FactoryExecuteMsg {
+    FactoryExecuteMsg::CreateStream {
+        msg: CreateStreamMsg {
+            treasury: treasury.to_string(),
+            stream_admin: treasury.to_string(),
+            name: name.to_string(),
+            url: None,
+            out_asset,
+            in_denom: in_denom.to_string(),
+            start_block,
+            end_block,
+            threshold: threshold.map(|t| t.into()),
         },
-        in_denom: in_denom.to_string(),
-        start_block,
-        end_block,
-        threshold: threshold.map(|t| t.into()),
     }
 }

@@ -2,9 +2,8 @@
 use crate::helpers::{
     mock_messages::get_factory_inst_msg,
     setup::{setup, SetupResponse},
-    utils::get_contract_address_from_res,
 };
-use cosmwasm_std::{coin, Addr, Decimal, Timestamp, Uint128};
+use cosmwasm_std::{coin, Decimal};
 use cw_multi_test::Executor;
 use cw_streamswap_factory::{msg::QueryMsg, state::Params};
 

@@ -20,24 +20,52 @@ pub fn setup() -> SetupResponse {
     });
 
     // All three accounts need to have some tokens
-    mint_to_address(&mut app, admin.to_string(), vec![coin(1_000, "in_token")]);
-    mint_to_address(&mut app, creator.to_string(), vec![coin(1_000, "in_token")]);
     mint_to_address(
         &mut app,
-        subscriber.to_string(),
-        vec![coin(1_000, "in_token")],
+        admin.to_string(),
+        vec![coin(1_000_000, "in_token")],
     );
-
-    mint_to_address(&mut app, admin.to_string(), vec![coin(1_000, "out_token")]);
     mint_to_address(
         &mut app,
         creator.to_string(),
-        vec![coin(1_000, "out_token")],
+        vec![coin(1_000_000, "in_token")],
     );
     mint_to_address(
         &mut app,
         subscriber.to_string(),
-        vec![coin(1_000, "out_token")],
+        vec![coin(1_000_000, "in_token")],
+    );
+
+    mint_to_address(
+        &mut app,
+        admin.to_string(),
+        vec![coin(1_000_000, "out_token")],
+    );
+    mint_to_address(
+        &mut app,
+        creator.to_string(),
+        vec![coin(1_000_000, "out_token")],
+    );
+    mint_to_address(
+        &mut app,
+        subscriber.to_string(),
+        vec![coin(1_000_000, "out_token")],
+    );
+
+    mint_to_address(
+        &mut app,
+        admin.to_string(),
+        vec![coin(1_000_000, "fee_token")],
+    );
+    mint_to_address(
+        &mut app,
+        creator.to_string(),
+        vec![coin(1_000_000, "fee_token")],
+    );
+    mint_to_address(
+        &mut app,
+        subscriber.to_string(),
+        vec![coin(1_000_000, "fee_token")],
     );
 
     let stream_swap_factory_contract = Box::new(ContractWrapper::new(
