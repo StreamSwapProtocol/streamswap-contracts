@@ -7,7 +7,7 @@ use crate::{
     error::ContractError,
     msg::{CreateStreamMsg, ExecuteMsg, InstantiateMsg, QueryMsg},
     payment_checker::check_payment,
-    state::{Params, FREEZESTATE, PARAMS},
+    state::{Params, FREEZESTATE, LAST_STREAM_ID, PARAMS},
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -56,6 +56,9 @@ pub fn instantiate(
 
     // Initilize Freezestate
     FREEZESTATE.save(deps.storage, &false)?;
+
+    // Initilize Last Stream ID
+    LAST_STREAM_ID.save(deps.storage, &0)?;
 
     let res = Response::new()
         .add_attribute("action", "instantiate")
@@ -125,6 +128,8 @@ pub fn execute_create_stream(
     let accepted_in_denoms = params.accepted_in_denoms.clone();
     let expected_funds = vec![stream_creation_fee.clone(), out_asset.clone()];
     check_payment(&info.funds, &expected_funds)?;
+    let last_stream_id = LAST_STREAM_ID.load(deps.storage)?;
+    let stream_id = last_stream_id + 1;
 
     if end_block - start_block < params.min_stream_blocks {
         return Err(ContractError::StreamDurationTooShort {});
@@ -145,11 +150,11 @@ pub fn execute_create_stream(
         code_id: params.stream_swap_code_id,
         // TODO: discuss this
         admin: Some(params.protocol_admin.to_string()),
-        // Stream counter/ indentification
-        label: "Stream swap instance".to_string(),
+        label: format!("Stream Swap Stream {} - {}", name, stream_id),
         msg: to_json_binary(&msg)?,
         funds: vec![],
     });
+    LAST_STREAM_ID.save(deps.storage, &stream_id)?;
     // TODO: If stream cration fee is zero this will fail
     let fund_transfer_message: CosmosMsg = CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
         to_address: params.fee_collector.to_string(),
