@@ -45,4 +45,5 @@ pub struct CreateStreamMsg {
 pub enum QueryMsg {
     Params {},
     Freezestate {},
+    LastStreamId {},
 }

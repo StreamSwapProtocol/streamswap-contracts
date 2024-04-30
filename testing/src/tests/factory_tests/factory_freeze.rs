@@ -31,8 +31,9 @@ fn factory_freeze() {
     // When factory is created, it is not frozen, Stream creation is allowed
     let create_stream_msg = get_create_stream_msg(
         "stream",
+        None,
         &test_accounts.creator.to_string(),
-        coin(100, "out_token"),
+        coin(100, "out_denom"),
         "in_denom",
         app.block_info().height + 100,
         app.block_info().height + 200,
@@ -43,7 +44,7 @@ fn factory_freeze() {
             test_accounts.creator.clone(),
             factory_address.clone(),
             &create_stream_msg,
-            &[coin(100, "fee_token"), coin(100, "out_token")],
+            &[coin(100, "fee_token"), coin(100, "out_denom")],
         )
         .unwrap();
 
@@ -81,8 +82,9 @@ fn factory_freeze() {
     // When factory is frozen, Stream creation is not allowed
     let create_stream_msg = get_create_stream_msg(
         "stream",
+        None,
         &test_accounts.creator.to_string(),
-        coin(100, "out_token"),
+        coin(100, "out_denom"),
         "in_denom",
         app.block_info().height + 100,
         app.block_info().height + 200,
@@ -93,7 +95,7 @@ fn factory_freeze() {
             test_accounts.creator.clone(),
             factory_address.clone(),
             &create_stream_msg,
-            &[coin(100, "fee_token"), coin(100, "out_token")],
+            &[coin(100, "fee_token"), coin(100, "out_denom")],
         )
         .unwrap_err();
     let err = res.source().unwrap();

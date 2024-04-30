@@ -26,6 +26,7 @@ pub fn get_factory_inst_msg(
 
 pub fn get_create_stream_msg(
     name: &str,
+    url: Option<String>,
     treasury: &str,
     out_asset: Coin,
     in_denom: &str,
@@ -38,7 +39,7 @@ pub fn get_create_stream_msg(
             treasury: treasury.to_string(),
             stream_admin: treasury.to_string(),
             name: name.to_string(),
-            url: None,
+            url: url,
             out_asset,
             in_denom: in_denom.to_string(),
             start_block,

@@ -148,10 +148,6 @@ pub fn execute_create_stream(
         return Err(ContractError::InDenomIsNotAccepted {});
     }
 
-    if &in_denom == &out_asset.denom {
-        return Err(ContractError::SameDenomOnEachSide {});
-    }
-
     let stream_swap_inst_message: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: params.stream_swap_code_id,
         // TODO: discuss this
@@ -242,5 +238,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Params {} => to_json_binary(&PARAMS.load(deps.storage)?),
         QueryMsg::Freezestate {} => to_json_binary(&FREEZESTATE.load(deps.storage)?),
+        QueryMsg::LastStreamId {} => to_json_binary(&LAST_STREAM_ID.load(deps.storage)?),
     }
 }
