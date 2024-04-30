@@ -77,14 +77,14 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::UpdateConfig {
+        ExecuteMsg::UpdateParams {
             min_stream_blocks,
             min_blocks_until_start_block,
             stream_creation_fee,
             fee_collector,
             accepted_in_denoms,
             exit_fee_percent,
-        } => execute_update_config(
+        } => execute_update_params(
             deps,
             env,
             info,
@@ -171,7 +171,7 @@ pub fn execute_create_stream(
     Ok(res)
 }
 
-pub fn execute_update_config(
+pub fn execute_update_params(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,

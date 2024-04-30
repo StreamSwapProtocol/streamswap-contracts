@@ -11,7 +11,7 @@ pub fn setup() -> SetupResponse {
     let mut app = App::default();
     let admin = Addr::unchecked("admin");
     let creator = Addr::unchecked("stream_creator");
-    let collector = Addr::unchecked("subscriber");
+    let subscriber = Addr::unchecked("subscriber");
 
     app.set_block(BlockInfo {
         chain_id: "test_1".to_string(),
@@ -24,7 +24,7 @@ pub fn setup() -> SetupResponse {
     mint_to_address(&mut app, creator.to_string(), vec![coin(1_000, "in_token")]);
     mint_to_address(
         &mut app,
-        collector.to_string(),
+        subscriber.to_string(),
         vec![coin(1_000, "in_token")],
     );
 
@@ -36,7 +36,7 @@ pub fn setup() -> SetupResponse {
     );
     mint_to_address(
         &mut app,
-        collector.to_string(),
+        subscriber.to_string(),
         vec![coin(1_000, "out_token")],
     );
 
@@ -57,7 +57,7 @@ pub fn setup() -> SetupResponse {
     let test_accounts = TestAccounts {
         admin: admin.clone(),
         creator: creator.clone(),
-        collector: collector.clone(),
+        subscriber: subscriber.clone(),
     };
     SetupResponse {
         test_accounts,
@@ -82,5 +82,5 @@ pub struct SetupResponse {
 pub struct TestAccounts {
     pub admin: Addr,
     pub creator: Addr,
-    pub collector: Addr,
+    pub subscriber: Addr,
 }

@@ -14,7 +14,7 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    UpdateConfig {
+    UpdateParams {
         min_stream_blocks: Option<u64>,
         min_blocks_until_start_block: Option<u64>,
         stream_creation_fee: Option<Coin>,

@@ -244,10 +244,12 @@ pub fn execute_cancel_stream(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let factory_params: FactoryParams = FACTORY_PARAMS.load(deps.storage)?;
+
     if factory_params.protocol_admin != info.sender {
         return Err(ContractError::Unauthorized {});
     }
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+
     if stream.is_cancelled() {
         return Err(ContractError::StreamIsCancelled {});
     }
