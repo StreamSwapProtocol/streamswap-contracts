@@ -7,7 +7,8 @@ use crate::state::{next_stream_id, Config, Position, Status, Stream, CONFIG, POS
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
     attr, entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
-    Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdResult, Uint128, Uint256,
+    Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdResult, Timestamp, Uint128,
+    Uint256, Uint64,
 };
 use cw2::{get_contract_version, set_contract_version};
 use semver::Version;
@@ -38,8 +39,8 @@ pub fn instantiate(
     }
 
     let config = Config {
-        min_stream_blocks: msg.min_stream_blocks,
-        min_blocks_until_start_block: msg.min_blocks_until_start_block,
+        min_stream_seconds: msg.min_stream_seconds,
+        min_seconds_until_start_time: msg.min_seconds_until_start_time,
         stream_creation_denom: msg.stream_creation_denom.clone(),
         stream_creation_fee: msg.stream_creation_fee,
         exit_fee_percent: msg.exit_fee_percent,
@@ -51,10 +52,10 @@ pub fn instantiate(
 
     let attrs = vec![
         attr("action", "instantiate"),
-        attr("min_stream_blocks", msg.min_stream_blocks.to_string()),
+        attr("min_stream_seconds", msg.min_stream_seconds),
         attr(
-            "min_blocks_until_start_block",
-            msg.min_blocks_until_start_block.to_string(),
+            "min_seconds_until_start_time",
+            msg.min_seconds_until_start_time,
         ),
         attr("stream_creation_denom", msg.stream_creation_denom),
         attr("stream_creation_fee", msg.stream_creation_fee),
@@ -80,20 +81,11 @@ pub fn execute(
             in_denom,
             out_denom,
             out_supply,
-            start_block,
-            end_block,
+            start_time,
+            end_time,
         } => execute_create_stream(
-            deps,
-            env,
-            info,
-            treasury,
-            name,
-            url,
-            in_denom,
-            out_denom,
-            out_supply,
-            start_block,
-            end_block,
+            deps, env, info, treasury, name, url, in_denom, out_denom, out_supply, start_time,
+            end_time,
         ),
         ExecuteMsg::UpdateOperator {
             stream_id,
@@ -110,7 +102,7 @@ pub fn execute(
             operator,
         } => {
             let stream = STREAMS.load(deps.storage, stream_id)?;
-            if stream.start_block > env.block.height {
+            if stream.start_time > env.block.time {
                 Ok(execute_subscribe_pending(
                     deps.branch(),
                     env,
@@ -138,7 +130,7 @@ pub fn execute(
             operator_target,
         } => {
             let stream = STREAMS.load(deps.storage, stream_id)?;
-            if stream.start_block > env.block.height {
+            if stream.start_time > env.block.time {
                 Ok(execute_withdraw_pending(
                     deps.branch(),
                     env,
@@ -191,8 +183,8 @@ pub fn execute(
             new_protocol_admin: new_admin,
         } => execute_update_protocol_admin(deps, env, info, new_admin),
         ExecuteMsg::UpdateConfig {
-            min_stream_blocks,
-            min_blocks_until_start_block,
+            min_stream_duration,
+            min_duration_until_start_time,
             stream_creation_denom,
             stream_creation_fee,
             fee_collector,
@@ -202,8 +194,8 @@ pub fn execute(
             deps,
             env,
             info,
-            min_stream_blocks,
-            min_blocks_until_start_block,
+            min_stream_duration,
+            min_duration_until_start_time,
             stream_creation_denom,
             stream_creation_fee,
             fee_collector,
@@ -223,21 +215,21 @@ pub fn execute_create_stream(
     in_denom: String,
     out_denom: String,
     out_supply: Uint128,
-    start_block: u64,
-    end_block: u64,
+    start_time: Timestamp,
+    end_time: Timestamp,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    if end_block <= start_block {
-        return Err(ContractError::StreamInvalidEndBlock {});
+    if end_time < start_time {
+        return Err(ContractError::StreamInvalidEndTime {});
     }
-    if env.block.height > start_block {
-        return Err(ContractError::StreamInvalidStartBlock {});
+    if env.block.time > start_time {
+        return Err(ContractError::StreamInvalidStartTime {});
     }
-    if end_block - start_block < config.min_stream_blocks {
+    if end_time.seconds() - start_time.seconds() < config.min_stream_seconds.u64() {
         return Err(ContractError::StreamDurationTooShort {});
     }
 
-    if start_block - env.block.height < config.min_blocks_until_start_block {
+    if start_time.seconds() - env.block.time.seconds() < config.min_seconds_until_start_time.u64() {
         return Err(ContractError::StreamStartsTooSoon {});
     }
 
@@ -305,9 +297,9 @@ pub fn execute_create_stream(
         out_denom.clone(),
         out_supply,
         in_denom.clone(),
-        start_block,
-        end_block,
-        start_block,
+        start_time,
+        end_time,
+        start_time,
         config.stream_creation_denom,
         config.stream_creation_fee,
         config.exit_fee_percent,
@@ -324,8 +316,8 @@ pub fn execute_create_stream(
         attr("in_denom", in_denom),
         attr("out_denom", out_denom),
         attr("out_supply", out_supply),
-        attr("start_block", start_block.to_string()),
-        attr("end_block", end_block.to_string()),
+        attr("start_time", start_time.to_string()),
+        attr("end_time", end_time.to_string()),
     ];
     Ok(Response::default().add_attributes(attr))
 }
@@ -358,11 +350,10 @@ pub fn execute_update_stream(
     stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-
     if stream.is_paused() {
         return Err(ContractError::StreamPaused {});
     }
-    let (_, dist_amount) = update_stream(env.block.height, &mut stream)?;
+    let (_, dist_amount) = update_stream(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let attrs = vec![
@@ -376,10 +367,10 @@ pub fn execute_update_stream(
 }
 
 pub fn update_stream(
-    now_block: u64,
+    now: Timestamp,
     stream: &mut Stream,
 ) -> Result<(Decimal, Uint128), ContractError> {
-    let diff = calculate_diff(stream.end_block, stream.last_updated_block, now_block);
+    let diff = calculate_diff(stream.end_time, stream.last_updated, now);
 
     let mut new_distribution_balance = Uint128::zero();
 
@@ -416,24 +407,20 @@ pub fn update_stream(
         }
     }
 
-    stream.last_updated_block = if now_block < stream.start_block {
-        stream.start_block
+    stream.last_updated = if now < stream.start_time {
+        stream.start_time
     } else {
-        now_block
+        now
     };
 
     Ok((diff, new_distribution_balance))
 }
 
-fn calculate_diff(end_block: u64, last_updated_block: u64, now_block: u64) -> Decimal {
-    // diff = (now_block - last_updated_block) / (end_block - last_updated_block)
-    let now_block = if now_block > end_block {
-        end_block
-    } else {
-        now_block
-    };
-    let numerator = now_block.saturating_sub(last_updated_block);
-    let denominator = end_block.saturating_sub(last_updated_block);
+fn calculate_diff(end_time: Timestamp, last_updated: Timestamp, now: Timestamp) -> Decimal {
+    // diff = (now - last_updated) / (end_time - last_updated)
+    let now = if now > end_time { end_time } else { now };
+    let numerator = now.nanos().saturating_sub(last_updated.nanos());
+    let denominator = end_time.nanos().saturating_sub(last_updated.nanos());
 
     if denominator == 0 || numerator == 0 {
         Decimal::zero()
@@ -461,7 +448,7 @@ pub fn execute_update_position(
     }
 
     // sync stream
-    update_stream(env.block.height, &mut stream)?;
+    update_stream(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     // updates position to latest distribution. Returns the amount of out tokens that has been purchased
@@ -469,7 +456,7 @@ pub fn execute_update_position(
     let (purchased, spent) = update_position(
         stream.dist_index,
         stream.shares,
-        stream.last_updated_block,
+        stream.last_updated,
         stream.in_supply,
         &mut position,
     )?;
@@ -488,7 +475,7 @@ pub fn execute_update_position(
 pub fn update_position(
     stream_dist_index: Decimal256,
     stream_shares: Uint128,
-    stream_last_updated_block: u64,
+    stream_last_updated: Timestamp,
     stream_in_supply: Uint128,
     position: &mut Position,
 ) -> Result<(Uint128, Uint128), ContractError> {
@@ -525,7 +512,7 @@ pub fn update_position(
     }
 
     position.index = stream_dist_index;
-    position.last_updated_block = stream_last_updated_block;
+    position.last_updated = stream_last_updated;
 
     Ok((purchased_uint128, spent))
 }
@@ -544,10 +531,10 @@ pub fn execute_subscribe(
         return Err(ContractError::StreamKillswitchActive {});
     }
 
-    if env.block.height >= stream.end_block {
+    if env.block.time >= stream.end_time {
         return Err(ContractError::StreamEnded {});
     }
-    // On first subscibe change status to Active
+    //On first subscibe change status to Active
     if stream.status == Status::Waiting {
         stream.status = Status::Active
     }
@@ -565,7 +552,7 @@ pub fn execute_subscribe(
             if operator_target != info.sender {
                 return Err(ContractError::Unauthorized {});
             }
-            update_stream(env.block.height, &mut stream)?;
+            update_stream(env.block.time, &mut stream)?;
             new_shares = stream.compute_shares_amount(in_amount, false);
             // new positions do not update purchase as it has no effect on distribution
             let new_position = Position::new(
@@ -573,7 +560,7 @@ pub fn execute_subscribe(
                 in_amount,
                 new_shares,
                 Some(stream.dist_index),
-                env.block.height,
+                env.block.time,
                 operator,
             );
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
@@ -582,12 +569,12 @@ pub fn execute_subscribe(
             check_access(&info, &position.owner, &position.operator)?;
 
             // incoming tokens should not participate in prev distribution
-            update_stream(env.block.height, &mut stream)?;
+            update_stream(env.block.time, &mut stream)?;
             new_shares = stream.compute_shares_amount(in_amount, false);
             update_position(
                 stream.dist_index,
                 stream.shares,
-                stream.last_updated_block,
+                stream.last_updated,
                 stream.in_supply,
                 &mut position,
             )?;
@@ -644,7 +631,7 @@ pub fn execute_subscribe_pending(
                 in_amount,
                 new_shares,
                 Some(stream.dist_index),
-                env.block.height,
+                env.block.time,
                 operator,
             );
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
@@ -704,7 +691,7 @@ pub fn execute_withdraw(
         return Err(ContractError::StreamKillswitchActive {});
     }
     // can't withdraw after stream ended
-    if env.block.height >= stream.end_block {
+    if env.block.time >= stream.end_time {
         return Err(ContractError::StreamEnded {});
     }
 
@@ -713,11 +700,11 @@ pub fn execute_withdraw(
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
     check_access(&info, &position.owner, &position.operator)?;
 
-    update_stream(env.block.height, &mut stream)?;
+    update_stream(env.block.time, &mut stream)?;
     update_position(
         stream.dist_index,
         stream.shares,
-        stream.last_updated_block,
+        stream.last_updated,
         stream.in_supply,
         &mut position,
     )?;
@@ -848,11 +835,11 @@ pub fn execute_finalize_stream(
     if stream.treasury != info.sender {
         return Err(ContractError::Unauthorized {});
     }
-    if env.block.height <= stream.end_block {
+    if env.block.time <= stream.end_time {
         return Err(ContractError::StreamNotEnded {});
     }
-    if stream.last_updated_block < stream.end_block {
-        update_stream(env.block.height, &mut stream)?;
+    if stream.last_updated < stream.end_time {
+        update_stream(env.block.time, &mut stream)?;
     }
 
     if stream.status == Status::Active {
@@ -946,11 +933,11 @@ pub fn execute_exit_stream(
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
     }
-    if env.block.height <= stream.end_block {
+    if env.block.time <= stream.end_time {
         return Err(ContractError::StreamNotEnded {});
     }
-    if stream.last_updated_block < stream.end_block {
-        update_stream(env.block.height, &mut stream)?;
+    if stream.last_updated < stream.end_time {
+        update_stream(env.block.time, &mut stream)?;
     }
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
@@ -961,7 +948,7 @@ pub fn execute_exit_stream(
     update_position(
         stream.dist_index,
         stream.shares,
-        stream.last_updated_block,
+        stream.last_updated,
         stream.in_supply,
         &mut position,
     )?;
@@ -1016,8 +1003,8 @@ pub fn execute_update_config(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    min_stream_blocks: Option<u64>,
-    min_blocks_until_start: Option<u64>,
+    min_stream_duration: Option<Uint64>,
+    min_duration_until_start_time: Option<Uint64>,
     stream_creation_denom: Option<String>,
     stream_creation_fee: Option<Uint128>,
     fee_collector: Option<String>,
@@ -1042,9 +1029,9 @@ pub fn execute_update_config(
         }
     }
 
-    cfg.min_stream_blocks = min_stream_blocks.unwrap_or(cfg.min_stream_blocks);
-    cfg.min_blocks_until_start_block =
-        min_blocks_until_start.unwrap_or(cfg.min_blocks_until_start_block);
+    cfg.min_stream_seconds = min_stream_duration.unwrap_or(cfg.min_stream_seconds);
+    cfg.min_seconds_until_start_time =
+        min_duration_until_start_time.unwrap_or(cfg.min_seconds_until_start_time);
     cfg.stream_creation_denom = stream_creation_denom.unwrap_or(cfg.stream_creation_denom);
     cfg.stream_creation_fee = stream_creation_fee.unwrap_or(cfg.stream_creation_fee);
     cfg.accepted_in_denom = accepted_in_denom.unwrap_or(cfg.accepted_in_denom);
@@ -1056,10 +1043,10 @@ pub fn execute_update_config(
 
     let attributes = vec![
         attr("action", "update_config"),
-        attr("min_stream_blocks", cfg.min_stream_blocks.to_string()),
+        attr("min_stream_duration", cfg.min_stream_seconds),
         attr(
-            "min_blocks_until_start",
-            cfg.min_blocks_until_start_block.to_string(),
+            "min_duration_until_start_time",
+            cfg.min_seconds_until_start_time,
         ),
         attr("stream_creation_denom", cfg.stream_creation_denom),
         attr("stream_creation_fee", cfg.stream_creation_fee),
@@ -1139,8 +1126,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let cfg = CONFIG.load(deps.storage)?;
     Ok(ConfigResponse {
-        min_stream_blocks: cfg.min_stream_blocks,
-        min_blocks_until_start_block: cfg.min_blocks_until_start_block,
+        min_stream_seconds: cfg.min_stream_seconds,
+        min_seconds_until_start_time: cfg.min_seconds_until_start_time,
         stream_creation_denom: cfg.stream_creation_denom,
         stream_creation_fee: cfg.stream_creation_fee,
         exit_fee_percent: cfg.exit_fee_percent,
@@ -1158,16 +1145,16 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
         in_denom: stream.in_denom,
         out_denom: stream.out_denom,
         out_supply: stream.out_supply,
-        start_block: stream.start_block,
-        end_block: stream.end_block,
+        start_time: stream.start_time,
+        end_time: stream.end_time,
         spent_in: stream.spent_in,
         dist_index: stream.dist_index,
         out_remaining: stream.out_remaining,
         in_supply: stream.in_supply,
         shares: stream.shares,
-        last_updated_block: stream.last_updated_block,
+        last_updated: stream.last_updated,
         status: stream.status,
-        pause_block: stream.pause_block,
+        pause_date: stream.pause_date,
         url: stream.url,
         current_streamed_price: stream.current_streamed_price,
         exit_fee_percent: stream.stream_exit_fee_percent,
@@ -1198,16 +1185,16 @@ pub fn list_streams(
                 in_denom: stream.in_denom,
                 out_denom: stream.out_denom,
                 out_supply: stream.out_supply,
-                start_block: stream.start_block,
-                end_block: stream.end_block,
+                start_time: stream.start_time,
+                end_time: stream.end_time,
                 spent_in: stream.spent_in,
-                last_updated_block: stream.last_updated_block,
+                last_updated: stream.last_updated,
                 dist_index: stream.dist_index,
                 out_remaining: stream.out_remaining,
                 in_supply: stream.in_supply,
                 shares: stream.shares,
                 status: stream.status,
-                pause_block: stream.pause_block,
+                pause_date: stream.pause_date,
                 url: stream.url,
                 current_streamed_price: stream.current_streamed_price,
                 exit_fee_percent: stream.stream_exit_fee_percent,
@@ -1237,7 +1224,7 @@ pub fn query_position(
         spent: position.spent,
         shares: position.shares,
         operator: position.operator,
-        last_updated_block: position.last_updated_block,
+        last_updated: position.last_updated,
         pending_purchase: position.pending_purchase,
     };
     Ok(res)
@@ -1263,7 +1250,7 @@ pub fn list_positions(
                 stream_id,
                 owner: owner.to_string(),
                 index: position.index,
-                last_updated_block: position.last_updated_block,
+                last_updated: position.last_updated,
                 purchased: position.purchased,
                 pending_purchase: position.pending_purchase,
                 spent: position.spent,

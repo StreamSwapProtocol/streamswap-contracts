@@ -1,13 +1,13 @@
 use crate::state::Status;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, Decimal256, Uint128};
+use cosmwasm_std::{Addr, Decimal, Decimal256, Timestamp, Uint128, Uint64};
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    /// Minimum sale duration in blocks
-    pub min_stream_blocks: u64,
-    /// Minimum duration between start block and current block
-    pub min_blocks_until_start_block: u64,
+    /// Minimum sale duration in unix seconds
+    pub min_stream_seconds: Uint64,
+    /// Minimum duration between start time and current time in unix seconds
+    pub min_seconds_until_start_time: Uint64,
     /// Accepted stream creation fee denom
     pub stream_creation_denom: String,
     /// Stream creation fee amount
@@ -41,10 +41,10 @@ pub enum ExecuteMsg {
         out_denom: String,
         /// Total number of `token_out` to be sold during the continuous stream.
         out_supply: Uint128,
-        /// Block height when the token emission starts.
-        start_block: u64,
-        /// Block height when the token emission ends.
-        end_block: u64,
+        /// Unix timestamp when the stream starts. Calculations in nano sec precision.
+        start_time: Timestamp,
+        /// Unix timestamp when the stream ends. Calculations in nano sec precision.
+        end_time: Timestamp,
     },
     /// Update stream and calculates distribution state.
     UpdateStream {
@@ -121,8 +121,8 @@ pub enum ExecuteMsg {
     },
 
     UpdateConfig {
-        min_stream_blocks: Option<u64>,
-        min_blocks_until_start_block: Option<u64>,
+        min_stream_duration: Option<Uint64>,
+        min_duration_until_start_time: Option<Uint64>,
         stream_creation_denom: Option<String>,
         stream_creation_fee: Option<Uint128>,
         fee_collector: Option<String>,
@@ -172,10 +172,10 @@ pub enum QueryMsg {
 
 #[cw_serde]
 pub struct ConfigResponse {
-    /// Minimum blocks for a stream to last.
-    pub min_stream_blocks: u64,
-    /// Minimum blocks until the start block of a stream.
-    pub min_blocks_until_start_block: u64,
+    /// Minimum time in seconds for a stream to last.
+    pub min_stream_seconds: Uint64,
+    /// Minimum time in seconds until the start time of a stream.
+    pub min_seconds_until_start_time: Uint64,
     /// Denom accepted for subscription.
     pub accepted_in_denom: String,
     /// Denom used as fee for creating a stream.
@@ -199,8 +199,8 @@ pub struct StreamResponse {
     pub url: Option<String>,
     /// Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal256,
-    /// last updated block of stream.
-    pub last_updated_block: u64,
+    /// last updated time of stream.
+    pub last_updated: Timestamp,
     /// denom of the `token_out`.
     pub out_denom: String,
     /// total number of `token_out` to be sold during the continuous stream.
@@ -215,16 +215,16 @@ pub struct StreamResponse {
     pub spent_in: Uint128,
     /// total number of shares minted.
     pub shares: Uint128,
-    /// start block when the token emission starts.
-    pub start_block: u64,
-    /// end block when the token emission ends.
-    pub end_block: u64,
+    /// start time when the token emission starts. in nanos.
+    pub start_time: Timestamp,
+    /// end time when the token emission ends.
+    pub end_time: Timestamp,
     /// price at when latest distribution is triggered.
     pub current_streamed_price: Decimal,
     /// Status of the stream. Can be `Waiting`, `Active`, `Finalzed`, `Paused` or `Canceled` for kill switch.
     pub status: Status,
-    /// Block height when the stream was paused.
-    pub pause_block: Option<u64>,
+    /// Date when the stream was paused.
+    pub pause_date: Option<Timestamp>,
     /// Exit fee percent.
     pub exit_fee_percent: Decimal,
     /// Creation fee amount.
@@ -246,8 +246,7 @@ pub struct PositionResponse {
     pub shares: Uint128,
     // index is used to calculate the distribution a position has
     pub index: Decimal256,
-    // last_updated_block is the block height when the position was last updated
-    pub last_updated_block: u64,
+    pub last_updated: Timestamp,
     // total amount of `token_out` purchased in tokens at latest calculation
     pub purchased: Uint128,
     // pending purchased accumulates purchases after decimal truncation
