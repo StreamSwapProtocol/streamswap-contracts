@@ -20,6 +20,8 @@ pub struct InstantiateMsg {
     pub protocol_admin: String,
     /// Accepted in_denom to buy out_tokens
     pub accepted_in_denom: String,
+    /// Pool creation fee
+    pub pool_creation_fee: Uint128,
 }
 
 #[cw_serde]
