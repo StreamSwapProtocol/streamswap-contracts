@@ -1,15 +1,15 @@
 use crate::ContractError;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Decimal, Decimal256, Storage, Uint128};
+use cosmwasm_std::{Addr, Decimal, Decimal256, Storage, Timestamp, Uint128, Uint64};
 use cw_storage_plus::{Item, Map};
 use std::ops::Mul;
 
 #[cw_serde]
 pub struct Config {
-    /// Minimum sale duration as blocks
-    pub min_stream_blocks: u64,
-    /// Minimum duration between start_block and current_block
-    pub min_blocks_until_start_block: u64,
+    /// Minimum sale duration in unix seconds
+    pub min_stream_seconds: Uint64,
+    /// Minimum duration between start time and current time in unix seconds
+    pub min_seconds_until_start_time: Uint64,
     /// Accepted in_denom to buy out_tokens
     pub accepted_in_denom: String,
     /// Accepted stream creation fee denom
@@ -20,7 +20,7 @@ pub struct Config {
     pub exit_fee_percent: Decimal,
     /// Address of the fee collector
     pub fee_collector: Addr,
-    /// Protocol admin can pause streams in case of emergency.
+    /// protocol admin can pause streams in case of emergency.
     pub protocol_admin: Addr,
 }
 
@@ -36,32 +36,32 @@ pub struct Stream {
     pub url: Option<String>,
     /// Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal256,
-    /// Last updated block of stream.
-    pub last_updated_block: u64,
-    /// Denom of the `token_out`.
+    /// last updated time of stream.
+    pub last_updated: Timestamp,
+    /// denom of the `token_out`.
     pub out_denom: String,
-    /// Total number of `token_out` to be sold during the continuous stream.
+    /// total number of `token_out` to be sold during the continuous stream.
     pub out_supply: Uint128,
-    /// Total number of remaining out tokens at the time of update.
+    /// total number of remaining out tokens at the time of update.
     pub out_remaining: Uint128,
-    /// Denom of the `token_in`.
+    /// denom of the `token_in`.
     pub in_denom: String,
-    /// Total number of `token_in` on the buy side at latest state.
+    /// total number of `token_in` on the buy side at latest state.
     pub in_supply: Uint128,
-    /// Total number of `token_in` spent at latest state.
+    /// total number of `token_in` spent at latest state.
     pub spent_in: Uint128,
-    /// Total number of shares minted.
+    /// total number of shares minted.
     pub shares: Uint128,
-    /// Start block when the token emission starts. in nanos.
-    pub start_block: u64,
-    /// End block when the token emission ends.
-    pub end_block: u64,
-    /// Price at when latest distribution is triggered.
+    /// start time when the token emission starts. in nanos.
+    pub start_time: Timestamp,
+    /// end time when the token emission ends.
+    pub end_time: Timestamp,
+    /// price at when latest distribution is triggered.
     pub current_streamed_price: Decimal,
     /// Status of the stream. Can be `Waiting`, `Active`, `Finalized`, `Paused` or `Canceled` for kill switch.
     pub status: Status,
-    /// Block height when the stream was paused.
-    pub pause_block: Option<u64>,
+    /// Date when the stream was paused.
+    pub pause_date: Option<Timestamp>,
     /// Stream creation fee denom. Saved under here to avoid any changes in config to efect existing streams.
     pub stream_creation_denom: String,
     /// Stream creation fee amount. Saved under here to avoid any changes in config to efect existing streams.
@@ -88,9 +88,9 @@ impl Stream {
         out_denom: String,
         out_supply: Uint128,
         in_denom: String,
-        start_block: u64,
-        end_block: u64,
-        last_updated_block: u64,
+        start_time: Timestamp,
+        end_time: Timestamp,
+        last_updated: Timestamp,
         stream_creation_denom: String,
         stream_creation_fee: Uint128,
         stream_exit_fee_percent: Decimal,
@@ -100,7 +100,7 @@ impl Stream {
             treasury,
             url,
             dist_index: Decimal256::zero(),
-            last_updated_block: last_updated_block,
+            last_updated,
             out_denom,
             out_supply,
             out_remaining: out_supply,
@@ -108,11 +108,11 @@ impl Stream {
             in_supply: Uint128::zero(),
             spent_in: Uint128::zero(),
             shares: Uint128::zero(),
-            start_block,
-            end_block,
+            start_time,
+            end_time,
             current_streamed_price: Decimal::zero(),
             status: Status::Waiting,
-            pause_block: None,
+            pause_date: None,
             stream_creation_denom,
             stream_creation_fee,
             stream_exit_fee_percent,
@@ -156,22 +156,21 @@ pub fn next_stream_id(store: &mut dyn Storage) -> Result<u64, ContractError> {
 
 #[cw_serde]
 pub struct Position {
-    /// Creator of the position.
+    /// creator of the position.
     pub owner: Addr,
-    /// Current amount of tokens in buy pool
+    /// current amount of tokens in buy pool
     pub in_balance: Uint128,
     pub shares: Uint128,
-    // Index is used to calculate the distribution a position has
+    // index is used to calculate the distribution a position has
     pub index: Decimal256,
-    // Block height when the position was last updated.
-    pub last_updated_block: u64,
-    // Total amount of `token_out` purchased in tokens at latest calculation
+    pub last_updated: Timestamp,
+    // total amount of `token_out` purchased in tokens at latest calculation
     pub purchased: Uint128,
-    // Pending purchased accumulates purchases after decimal truncation
+    // pending purchased accumulates purchases after decimal truncation
     pub pending_purchase: Decimal256,
-    // Total amount of `token_in` spent tokens at latest calculation
+    // total amount of `token_in` spent tokens at latest calculation
     pub spent: Uint128,
-    // Operator can update position
+    // operator can update position
     pub operator: Option<Addr>,
 }
 
@@ -181,7 +180,7 @@ impl Position {
         in_balance: Uint128,
         shares: Uint128,
         index: Option<Decimal256>,
-        last_updated_block: u64,
+        last_updated: Timestamp,
         operator: Option<Addr>,
     ) -> Self {
         Position {
@@ -189,7 +188,7 @@ impl Position {
             in_balance,
             shares,
             index: index.unwrap_or_default(),
-            last_updated_block,
+            last_updated,
             purchased: Uint128::zero(),
             pending_purchase: Decimal256::zero(),
             spent: Uint128::zero(),

@@ -54,7 +54,7 @@ The fee amount is determined by governance voting through sudo contract executio
 Anyone can join a sale by sending a [SubscribeMsg](https://github.com/osmosis-labs/osmosis/blob/main/proto/osmosis/streamswap/v1/tx.proto#L13) transaction.
 When doing so, the transaction author has to send the `amount` he wants to spend in transaction funds.
 That `amount` will be credited from the tx author and pledged to the sale.
-`SubscribeMsg` can be submitted at any time after the sale is created and before its end_block.
+`SubscribeMsg` can be submitted at any time after the sale is created and before its end time.
 New shares will be minted to the owner of the position.
 Share calculation works in this manner:
 
@@ -75,15 +75,15 @@ From that moment, the investor will join the **token sale distribution stream**:
 
 At any time an investor can increase his participation in the sale by sending again `SubscribeMsg`
 (his pledge will increase accordingly) or cancel it by sending `WithdrawMsg`. When canceling, the module will send back
-unspent pledged tokens to the investor and keep the purchased tokens until the sale end_block.
+unspent pledged tokens to the investor and keep the purchased tokens until the sale end_time.
 
 ### Distribution
 
-Stream distribution is done based on the total amount of shares and block passed.
+Stream distribution is done based on the total amount of shares and time.
 On each `update_stream` call, the contract will calculate the amount to be distributed to the investors.
 
 ```
-diff = (stream.last_updated_block - now_block) / (stream.end_block - stream.last_updated_block)
+diff = (stream.last_updated - now) / (stream.end - stream.last_updated)
 new_distribution_balance = stream.out_remaining_token * diff
 spent_in = stream.in_token_supply * diff
 stream.in_supply -= spent_in
@@ -123,7 +123,7 @@ After the calculation, the position balance, spent amount, and purchased amount 
 ### Withdraw
 
 When a position owner wants to withdraw unspent tokens in the position, he can send `WithdrawMsg` transaction.
-The contract will send back unspent tokens to the owner and keep the purchased tokens to be released after sale end_block.
+The contract will send back unspent tokens to the owner and keep the purchased tokens to be released after sale end_time.
 
 On withdraw user's share is reduced.
 
@@ -140,7 +140,7 @@ let shares_amount = if withdraw_amount == position.in_balance {
 
 When participating in a sale, investors receive a stream of sale tokens.
 These tokens are locked until the sale ends to avoid second market creation during
-the sale. Once the sale is finished (block height is after `stream.end_block`), every
+the sale. Once the sale is finished (block time is after `stream.end_time`), every
 investor can send [`ExitMsg`](https://github.com/osmosis-labs/osmosis/blob/main/proto/osmosis/streamswap/v1/tx.proto#L37)
 to close his position, withdraw purchased tokens to his account, and claim unspent tokens.
 Before exiting both stream and position are updated for calculating the amount of position spent/bought.
@@ -149,13 +149,13 @@ On exit, the position data is removed to save space.
 ### Finalize Stream
 
 To withdraw earned tokens to the `stream.treasury` account treasury account can send a
-transaction with [`FinalizeMsg`](https://github.com/osmosis-labs/osmosis/blob/main/proto/osmosis/streamswap/v1/tx.proto#L42) after the `sale.end_block`.
+transaction with [`FinalizeMsg`](https://github.com/osmosis-labs/osmosis/blob/main/proto/osmosis/streamswap/v1/tx.proto#L42) after the `sale.end_time`.
 On finalize stream, exit fee on whole sale is applied to tokens spent on buy side and sent to fee collector address.
 
 ### Price
 
 Average price of the sale: `stream.spent_in / (stream.out_supply - stream.out_remaining)`.
-Last streamed price: `spent_in / new_distribution_balance` at the latest `update_stream`.
+Last streamed price: `spent_in / new_distribution_balance` at the latest time of `update_stream`.
 
 ### Creation Fee
 
@@ -188,12 +188,12 @@ required parameters conducting the streaming process:
 - `out_supply`: total initial supply of `token_out` to sale.
 - `in_supply`: total supply of in tokens at latest distribution.
 - `spent_in`:total number of `token_in` spent at latest state
-- `start_block`: Block height when stream starts.
-- `end_block`: Block height when the stream ends.
+- `start_time`: Unix timestamp when the stream starts.
+- `end_time`: Unix timestamp when the stream ends.
 - `current_streamed_price`: current price of the stream.
 - `dist_index`: variable to hold the latest distribution index. Used to calculate how much proportionally
   a position holder is entitled to receive from the stream.
-- `last_updated_block`: last updated block of stream
+- `last_updated`: last updated time of stream
 - `out_remaining`: total number of remaining out tokens at the time of update
 - `shares`: total number of shares in the stream
 
@@ -203,7 +203,7 @@ required parameters conducting the streaming process:
 when a user subscribes to a stream.
 
 - `owner`: owner of the position.
-- `last_updated_block`: last updated block of position
+- `last_updated`: last updated time of position
 - `shares`: number of shares of the position.
 - `in_balance`: balance of `token_in` currently in the position.
 - `index`: index of the position. Used to calculate incoming distribution belonging to the position

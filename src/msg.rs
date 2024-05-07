@@ -1,13 +1,13 @@
 use crate::state::Status;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, Decimal256, Uint128};
+use cosmwasm_std::{Addr, Decimal, Decimal256, Timestamp, Uint128, Uint64};
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    /// Minimum sale duration in blocks
-    pub min_stream_blocks: u64,
-    /// Minimum duration between start block and current block
-    pub min_blocks_until_start_block: u64,
+    /// Minimum sale duration in unix seconds
+    pub min_stream_seconds: Uint64,
+    /// Minimum duration between start time and current time in unix seconds
+    pub min_seconds_until_start_time: Uint64,
     /// Accepted stream creation fee denom
     pub stream_creation_denom: String,
     /// Stream creation fee amount
@@ -41,12 +41,10 @@ pub enum ExecuteMsg {
         out_denom: String,
         /// Total number of `token_out` to be sold during the continuous stream.
         out_supply: Uint128,
-        /// Block height when the token emission starts.
-        start_block: u64,
-        /// Block height when the token emission ends.
-        end_block: u64,
-        /// Minimum amount of `spent_in` for a stream to be finalized.
-        threshold: Option<Uint128>,
+        /// Unix timestamp when the stream starts. Calculations in nano sec precision.
+        start_time: Timestamp,
+        /// Unix timestamp when the stream ends. Calculations in nano sec precision.
+        end_time: Timestamp,
     },
     /// Update stream and calculates distribution state.
     UpdateStream {
@@ -118,13 +116,13 @@ pub enum ExecuteMsg {
     /// ExitCancelled returns the whole balance user put in the stream, both spent and unspent.
     ExitCancelled {
         stream_id: u64,
-        /// Operator_target is the address of operator targets to execute on behalf of the user.
+        /// operator_target is the address of operator targets to execute on behalf of the user.
         operator_target: Option<String>,
     },
 
     UpdateConfig {
-        min_stream_blocks: Option<u64>,
-        min_blocks_until_start_block: Option<u64>,
+        min_stream_duration: Option<Uint64>,
+        min_duration_until_start_time: Option<Uint64>,
         stream_creation_denom: Option<String>,
         stream_creation_fee: Option<Uint128>,
         fee_collector: Option<String>,
@@ -135,9 +133,6 @@ pub enum ExecuteMsg {
         stream_id: u64,
     },
     CancelStream {
-        stream_id: u64,
-    },
-    CancelStreamWithThreshold {
         stream_id: u64,
     },
 }
@@ -173,16 +168,14 @@ pub enum QueryMsg {
     /// Returns currently streaming price of a sale.
     #[returns(LatestStreamedPriceResponse)]
     LastStreamedPrice { stream_id: u64 },
-    #[returns(Uint128)]
-    Threshold { stream_id: u64 },
 }
 
 #[cw_serde]
 pub struct ConfigResponse {
-    /// Minimum blocks for a stream to last.
-    pub min_stream_blocks: u64,
-    /// Minimum blocks until the start block of a stream.
-    pub min_blocks_until_start_block: u64,
+    /// Minimum time in seconds for a stream to last.
+    pub min_stream_seconds: Uint64,
+    /// Minimum time in seconds until the start time of a stream.
+    pub min_seconds_until_start_time: Uint64,
     /// Denom accepted for subscription.
     pub accepted_in_denom: String,
     /// Denom used as fee for creating a stream.
@@ -200,38 +193,38 @@ pub struct ConfigResponse {
 #[cw_serde]
 pub struct StreamResponse {
     pub id: u64,
-    /// Address of the treasury where the stream earnings will be sent.
+    /// address of the treasury where the stream earnings will be sent.
     pub treasury: String,
     /// URL of the stream.
     pub url: Option<String>,
     /// Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal256,
-    /// Last updated block of stream.
-    pub last_updated_block: u64,
-    /// Denom of the `token_out`.
+    /// last updated time of stream.
+    pub last_updated: Timestamp,
+    /// denom of the `token_out`.
     pub out_denom: String,
-    /// Total number of `token_out` to be sold during the continuous stream.
+    /// total number of `token_out` to be sold during the continuous stream.
     pub out_supply: Uint128,
-    /// Total number of remaining out tokens at the time of update.
+    /// total number of remaining out tokens at the time of update.
     pub out_remaining: Uint128,
-    /// Denom of the `token_in`.
+    /// denom of the `token_in`.
     pub in_denom: String,
-    /// Total number of `token_in` on the buy side at latest state.
+    /// total number of `token_in` on the buy side at latest state.
     pub in_supply: Uint128,
-    /// Total number of `token_in` spent at latest state.
+    /// total number of `token_in` spent at latest state.
     pub spent_in: Uint128,
-    /// Total number of shares minted.
+    /// total number of shares minted.
     pub shares: Uint128,
-    /// Start block when the token emission starts.
-    pub start_block: u64,
-    /// End block when the token emission ends.
-    pub end_block: u64,
-    /// Price at when latest distribution is triggered.
+    /// start time when the token emission starts. in nanos.
+    pub start_time: Timestamp,
+    /// end time when the token emission ends.
+    pub end_time: Timestamp,
+    /// price at when latest distribution is triggered.
     pub current_streamed_price: Decimal,
     /// Status of the stream. Can be `Waiting`, `Active`, `Finalzed`, `Paused` or `Canceled` for kill switch.
     pub status: Status,
-    /// Block height when the stream was paused.
-    pub pause_block: Option<u64>,
+    /// Date when the stream was paused.
+    pub pause_date: Option<Timestamp>,
     /// Exit fee percent.
     pub exit_fee_percent: Decimal,
     /// Creation fee amount.
@@ -246,22 +239,21 @@ pub struct StreamsResponse {
 #[cw_serde]
 pub struct PositionResponse {
     pub stream_id: u64,
-    /// Creator of the position.
+    /// creator of the position.
     pub owner: String,
-    /// Current amount of tokens in buy pool
+    /// current amount of tokens in buy pool
     pub in_balance: Uint128,
     pub shares: Uint128,
-    // Index is used to calculate the distribution a position has
+    // index is used to calculate the distribution a position has
     pub index: Decimal256,
-    // Last_updated_block is the block height when the position was last updated
-    pub last_updated_block: u64,
-    // Total amount of `token_out` purchased in tokens at latest calculation
+    pub last_updated: Timestamp,
+    // total amount of `token_out` purchased in tokens at latest calculation
     pub purchased: Uint128,
-    // Pending purchased accumulates purchases after decimal truncation
+    // pending purchased accumulates purchases after decimal truncation
     pub pending_purchase: Decimal256,
-    // Total amount of `token_in` spent tokens at latest calculation
+    // total amount of `token_in` spent tokens at latest calculation
     pub spent: Uint128,
-    // Operator can update position
+    // operator can update position
     pub operator: Option<Addr>,
 }
 
