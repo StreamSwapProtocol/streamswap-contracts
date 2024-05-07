@@ -6,7 +6,7 @@ use crate::msg::{
 use crate::state::{next_stream_id, Config, Position, Status, Stream, CONFIG, POSITIONS, STREAMS};
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
-    attr, entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
+    attr, entry_point, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
     Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdResult, Timestamp, Uint128,
     Uint256, Uint64,
 };
@@ -1102,24 +1102,24 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Config {} => to_binary(&query_config(deps)?),
-        QueryMsg::Stream { stream_id } => to_binary(&query_stream(deps, env, stream_id)?),
+        QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
+        QueryMsg::Stream { stream_id } => to_json_binary(&query_stream(deps, env, stream_id)?),
         QueryMsg::Position { stream_id, owner } => {
-            to_binary(&query_position(deps, env, stream_id, owner)?)
+            to_json_binary(&query_position(deps, env, stream_id, owner)?)
         }
         QueryMsg::ListStreams { start_after, limit } => {
-            to_binary(&list_streams(deps, start_after, limit)?)
+            to_json_binary(&list_streams(deps, start_after, limit)?)
         }
         QueryMsg::ListPositions {
             stream_id,
             start_after,
             limit,
-        } => to_binary(&list_positions(deps, stream_id, start_after, limit)?),
+        } => to_json_binary(&list_positions(deps, stream_id, start_after, limit)?),
         QueryMsg::AveragePrice { stream_id } => {
-            to_binary(&query_average_price(deps, env, stream_id)?)
+            to_json_binary(&query_average_price(deps, env, stream_id)?)
         }
         QueryMsg::LastStreamedPrice { stream_id } => {
-            to_binary(&query_last_streamed_price(deps, env, stream_id)?)
+            to_json_binary(&query_last_streamed_price(deps, env, stream_id)?)
         }
     }
 }
