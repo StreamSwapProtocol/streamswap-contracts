@@ -3,8 +3,6 @@ use cw_utils::PaymentError;
 use std::convert::Infallible;
 use thiserror::Error;
 
-use crate::threshold::ThresholdError;
-
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
     #[error("{0}")]
@@ -21,9 +19,6 @@ pub enum ContractError {
 
     #[error("{0}")]
     DivideByZeroError(#[from] DivideByZeroError),
-
-    #[error("{0}")]
-    ThresholdError(#[from] ThresholdError),
 
     #[error("{0}")]
     ConversionOverflowError(#[from] ConversionOverflowError),
@@ -91,11 +86,11 @@ pub enum ContractError {
     #[error("Stream starts too soon")]
     StreamStartsTooSoon {},
 
-    #[error("Invalid start block")]
-    StreamInvalidStartBlock {},
+    #[error("Invalid start time")]
+    StreamInvalidStartTime {},
 
-    #[error("Invalid end block")]
-    StreamInvalidEndBlock {},
+    #[error("Invalid end time")]
+    StreamInvalidEndTime {},
 
     #[error("Creation fee amount do not match the supplied funds")]
     StreamCreationFeeRequired {},
