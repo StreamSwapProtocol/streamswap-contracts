@@ -45,6 +45,8 @@ pub enum ExecuteMsg {
         start_time: Timestamp,
         /// Unix timestamp when the stream ends. Calculations in nano sec precision.
         end_time: Timestamp,
+        /// Minimum amount of `spent_in` for a stream to be finalized.
+        threshold: Option<Uint128>,
     },
     /// Update stream and calculates distribution state.
     UpdateStream {
@@ -119,6 +121,9 @@ pub enum ExecuteMsg {
         /// operator_target is the address of operator targets to execute on behalf of the user.
         operator_target: Option<String>,
     },
+    CancelStreamWithThreshold {
+        stream_id: u64,
+    },
 
     UpdateConfig {
         min_stream_duration: Option<Uint64>,
@@ -168,6 +173,8 @@ pub enum QueryMsg {
     /// Returns currently streaming price of a sale.
     #[returns(LatestStreamedPriceResponse)]
     LastStreamedPrice { stream_id: u64 },
+    #[returns(Uint128)]
+    Threshold { stream_id: u64 },
 }
 
 #[cw_serde]
@@ -193,7 +200,7 @@ pub struct ConfigResponse {
 #[cw_serde]
 pub struct StreamResponse {
     pub id: u64,
-    /// address of the treasury where the stream earnings will be sent.
+    /// Address of the treasury where the stream earnings will be sent.
     pub treasury: String,
     /// URL of the stream.
     pub url: Option<String>,
