@@ -267,8 +267,14 @@ pub fn execute_create_stream(
             .find(|p| p.denom == config.stream_creation_denom)
             .ok_or(ContractError::NoFundsSent {})?;
 
-        if total_funds.amount != config.stream_creation_fee + out_supply {
-            return Err(ContractError::StreamOutSupplyFundsRequired {});
+        if let Some(pool) = &create_pool {
+            if total_funds.amount != config.stream_creation_fee + out_supply + pool.out_amount_clp {
+                return Err(ContractError::StreamOutSupplyFundsRequired {});
+            }
+        } else {
+            if total_funds.amount != config.stream_creation_fee + out_supply {
+                return Err(ContractError::StreamOutSupplyFundsRequired {});
+            }
         }
         // check for extra funds sent in msg
         if info.funds.iter().any(|p| p.denom != out_denom) {
@@ -281,8 +287,14 @@ pub fn execute_create_stream(
             .find(|p| p.denom == out_denom)
             .ok_or(ContractError::NoFundsSent {})?;
 
-        if funds.amount != out_supply {
-            return Err(ContractError::StreamOutSupplyFundsRequired {});
+        if let Some(pool) = &create_pool {
+            if funds.amount != out_supply + pool.out_amount_clp {
+                return Err(ContractError::StreamOutSupplyFundsRequired {});
+            }
+        } else {
+            if funds.amount != out_supply {
+                return Err(ContractError::StreamOutSupplyFundsRequired {});
+            }
         }
 
         let creation_fee = info
