@@ -132,6 +132,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         );
         assert_eq!(res, Err(ContractError::InDenomIsNotAccepted {}));
         // end < start case
@@ -158,6 +159,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         );
         assert_eq!(res, Err(ContractError::StreamInvalidEndTime {}));
 
@@ -179,6 +181,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         );
         assert_eq!(res, Err(ContractError::StreamDurationTooShort {}));
 
@@ -200,6 +203,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         );
         assert_eq!(res, Err(ContractError::StreamInvalidStartTime {}));
 
@@ -221,6 +225,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         );
         assert_eq!(res, Err(ContractError::StreamStartsTooSoon {}));
 
@@ -242,6 +247,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         );
         assert_eq!(res, Err(ContractError::SameDenomOnEachSide {}));
 
@@ -263,6 +269,7 @@ mod test_module {
             Uint128::new(0),
             start_time,
             end_time,
+            None,
         );
         assert_eq!(res, Err(ContractError::ZeroOutSupply {}));
 
@@ -284,6 +291,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         );
         assert_eq!(res, Err(ContractError::NoFundsSent {}));
 
@@ -303,6 +311,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         );
         assert_eq!(res, Err(ContractError::StreamOutSupplyFundsRequired {}));
 
@@ -328,6 +337,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         );
         assert_eq!(res, Err(ContractError::StreamCreationFeeRequired {}));
 
@@ -347,6 +357,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         );
         assert_eq!(res, Err(ContractError::NoFundsSent {}));
 
@@ -366,6 +377,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         );
         assert_eq!(res, Err(ContractError::NoFundsSent {}));
 
@@ -385,6 +397,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         );
         assert_eq!(res, Err(ContractError::StreamOutSupplyFundsRequired {}));
 
@@ -404,6 +417,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         )
         .unwrap();
 
@@ -426,6 +440,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         )
         .unwrap_err();
         assert_eq!(err, ContractError::InvalidFunds {});
@@ -453,6 +468,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         )
         .unwrap_err();
         assert_eq!(err, ContractError::InvalidFunds {});
@@ -479,6 +495,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         )
         .unwrap_err();
         assert_eq!(res, ContractError::StreamNameTooShort {});
@@ -495,6 +512,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         )
         .unwrap_err();
         assert_eq!(res, ContractError::StreamNameTooLong {});
@@ -511,6 +529,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         )
         .unwrap_err();
         assert_eq!(res, ContractError::InvalidStreamName {});
@@ -537,6 +556,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         )
         .unwrap_err();
         assert_eq!(res, ContractError::StreamUrlTooShort {});
@@ -552,7 +572,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time,
+            end_time, None
         )
             .unwrap_err();
         assert_eq!(res, ContractError::StreamUrlTooLong {});
@@ -569,6 +589,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         )
         .unwrap_err();
 
@@ -596,6 +617,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
+            None,
         )
         .unwrap();
 
@@ -652,6 +674,7 @@ mod test_module {
             out_supply,
             start,
             end,
+            None,
         )
         .unwrap();
 
@@ -795,6 +818,7 @@ mod test_module {
             out_supply,
             start,
             end,
+            None,
         )
         .unwrap();
 
@@ -972,6 +996,7 @@ mod test_module {
             out_supply,
             start,
             end,
+            None,
         )
         .unwrap();
 
@@ -1122,6 +1147,7 @@ mod test_module {
             out_supply,
             start,
             end,
+            None,
         )
         .unwrap();
 
@@ -1365,6 +1391,7 @@ mod test_module {
             out_supply,
             start,
             end,
+            None,
         )
         .unwrap();
 
@@ -1456,6 +1483,7 @@ mod test_module {
             out_supply,
             start,
             end,
+            None,
         )
         .unwrap();
 
@@ -1565,6 +1593,7 @@ mod test_module {
             out_supply,
             start,
             end,
+            None,
         )
         .unwrap();
 
@@ -1728,6 +1757,7 @@ mod test_module {
             out_supply,
             start,
             end,
+            None,
         )
         .unwrap();
 
@@ -1868,6 +1898,7 @@ mod test_module {
             out_supply,
             start,
             end,
+            None,
         )
         .unwrap();
 
@@ -1992,6 +2023,7 @@ mod test_module {
             out_supply,
             start,
             end,
+            None,
         )
         .unwrap();
         // First subscription
@@ -2094,6 +2126,7 @@ mod test_module {
             out_supply,
             start,
             end,
+            None,
         )
         .unwrap();
 
@@ -2198,6 +2231,7 @@ mod test_module {
             out_supply,
             start,
             end,
+            None,
         )
         .unwrap();
 
@@ -2310,6 +2344,7 @@ mod test_module {
             out_supply,
             start,
             end,
+            None,
         )
         .unwrap();
 
@@ -2580,6 +2615,7 @@ mod test_module {
             out_supply,
             start,
             end,
+            None,
         )
         .unwrap();
 
@@ -2678,6 +2714,7 @@ mod test_module {
                 out_supply,
                 start,
                 end,
+                None,
             )
             .unwrap();
 
@@ -2841,6 +2878,7 @@ mod test_module {
                 out_supply,
                 start,
                 end,
+                None,
             )
             .unwrap();
 
@@ -2984,6 +3022,7 @@ mod test_module {
                 out_supply,
                 start,
                 end,
+                None,
             )
             .unwrap();
 
@@ -3110,6 +3149,7 @@ mod test_module {
                 out_supply,
                 start,
                 end,
+                None,
             )
             .unwrap();
 
@@ -3299,6 +3339,7 @@ mod test_module {
                 out_supply,
                 start,
                 end,
+                None,
             )
             .unwrap();
 
@@ -3386,6 +3427,7 @@ mod test_module {
                 out_supply,
                 start,
                 end,
+                None,
             )
             .unwrap();
 
@@ -3465,6 +3507,7 @@ mod test_module {
                 out_supply,
                 start,
                 end,
+                None,
             )
             .unwrap();
             //second stream
@@ -3480,6 +3523,7 @@ mod test_module {
                 out_supply,
                 start,
                 end,
+                None,
             )
             .unwrap();
 
@@ -3559,6 +3603,7 @@ mod test_module {
                 out_supply,
                 start,
                 end,
+                None,
             )
             .unwrap();
 

@@ -1,4 +1,4 @@
-use crate::state::Status;
+use crate::state::{CreatePool, Status};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Decimal, Decimal256, Timestamp, Uint128, Uint64};
 
@@ -47,6 +47,8 @@ pub enum ExecuteMsg {
         start_time: Timestamp,
         /// Unix timestamp when the stream ends. Calculations in nano sec precision.
         end_time: Timestamp,
+        /// CreatePool Flag
+        create_pool: Option<CreatePool>,
     },
     /// Update stream and calculates distribution state.
     UpdateStream {

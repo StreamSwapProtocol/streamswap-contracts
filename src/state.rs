@@ -2,6 +2,7 @@ use crate::ContractError;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Decimal, Decimal256, Storage, Timestamp, Uint128, Uint64};
 use cw_storage_plus::{Item, Map};
+use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
 use std::ops::Mul;
 
 #[cw_serde]
@@ -22,6 +23,8 @@ pub struct Config {
     pub fee_collector: Addr,
     /// protocol admin can pause streams in case of emergency.
     pub protocol_admin: Addr,
+    /// Pool creation fee
+    pub pool_creation_fee: Uint128,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");
@@ -152,6 +155,14 @@ pub fn next_stream_id(store: &mut dyn Storage) -> Result<u64, ContractError> {
     let id: u64 = STREAM_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
     STREAM_ID_COUNTER.save(store, &id)?;
     Ok(id)
+}
+
+#[cw_serde]
+pub struct CreatePool {
+    // amount of out tokens that will be sent to the pool
+    pub out_amount_clp: Uint128,
+    // osmosis concentration pool creation message
+    pub msg_create_pool: MsgCreateConcentratedPool,
 }
 
 #[cw_serde]

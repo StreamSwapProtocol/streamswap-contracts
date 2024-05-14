@@ -3,7 +3,9 @@ use crate::msg::{
     MigrateMsg, PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse,
     SudoMsg,
 };
-use crate::state::{next_stream_id, Config, Position, Status, Stream, CONFIG, POSITIONS, STREAMS};
+use crate::state::{
+    next_stream_id, Config, CreatePool, Position, Status, Stream, CONFIG, POSITIONS, STREAMS,
+};
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
     attr, entry_point, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
@@ -47,6 +49,7 @@ pub fn instantiate(
         fee_collector: deps.api.addr_validate(&msg.fee_collector)?,
         protocol_admin: deps.api.addr_validate(&msg.protocol_admin)?,
         accepted_in_denom: msg.accepted_in_denom,
+        pool_creation_fee: msg.pool_creation_fee,
     };
     CONFIG.save(deps.storage, &config)?;
 
@@ -83,9 +86,20 @@ pub fn execute(
             out_supply,
             start_time,
             end_time,
+            create_pool,
         } => execute_create_stream(
-            deps, env, info, treasury, name, url, in_denom, out_denom, out_supply, start_time,
+            deps,
+            env,
+            info,
+            treasury,
+            name,
+            url,
+            in_denom,
+            out_denom,
+            out_supply,
+            start_time,
             end_time,
+            create_pool,
         ),
         ExecuteMsg::UpdateOperator {
             stream_id,
@@ -217,6 +231,7 @@ pub fn execute_create_stream(
     out_supply: Uint128,
     start_time: Timestamp,
     end_time: Timestamp,
+    create_pool: Option<CreatePool>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     if end_time < start_time {
@@ -290,7 +305,7 @@ pub fn execute_create_stream(
 
     check_name_and_url(&name, &url)?;
 
-    check_create_pool_flag(&create_pool)?;
+    check_create_pool_flag(out_supply, &create_pool)?;
 
     let stream = Stream::new(
         name.clone(),
@@ -324,17 +339,13 @@ pub fn execute_create_stream(
     Ok(Response::default().add_attributes(attr))
 }
 
-pub fn check_create_pool_flag(flag: &Option<CreatePool>) -> Result<(), ContractError> {
+pub fn check_create_pool_flag(
+    out_amount: Uint128,
+    flag: &Option<CreatePool>,
+) -> Result<(), ContractError> {
     if let Some(pool) = flag {
-        // Either initial liq amount or percentage is defined
-        if pool.initial_liq_amount.is_some() && pool.initial_liq_percentage.is_some() {
-            return Err(ContractError::InvalidCreatePoolFlag {});
-        }
-        // If percentage is defined, it should be between 0 and 1
-        if let Some(percentage) = pool.initial_liq_percentage {
-            if percentage >= Decimal::one() || percentage <= Decimal::zero() {
-                return Err(ContractError::InvalidCreatePoolFlag {});
-            }
+        if out_amount < pool.out_amount_clp {
+            return Err(ContractError::InvalidCreatePool {});
         }
     }
     Ok(())
