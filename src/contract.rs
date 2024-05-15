@@ -301,6 +301,7 @@ pub fn execute_create_stream(
         config.stream_creation_denom,
         config.stream_creation_fee,
         config.exit_fee_percent,
+        create_pool,
     );
     let id = next_stream_id(deps.storage)?;
     STREAMS.save(deps.storage, id, &stream)?;
@@ -867,6 +868,7 @@ pub fn execute_finalize_stream(
 
     let creator_revenue = stream.spent_in.checked_sub(swap_fee)?;
 
+    let mut messages = vec![];
     //Creator's revenue claimed at finalize
     let revenue_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: treasury.to_string(),
@@ -875,6 +877,7 @@ pub fn execute_finalize_stream(
             amount: creator_revenue,
         }],
     });
+    messages.push(revenue_msg);
     //Exact fee for stream creation charged at creation but claimed at finalize
     let creation_fee_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: config.fee_collector.to_string(),
@@ -883,6 +886,7 @@ pub fn execute_finalize_stream(
             amount: stream.stream_creation_fee,
         }],
     });
+    messages.push(creation_fee_msg.clone());
 
     let swap_fee_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: config.fee_collector.to_string(),
@@ -891,14 +895,29 @@ pub fn execute_finalize_stream(
             amount: swap_fee,
         }],
     });
+    messages.push(swap_fee_msg);
 
-    let mut messages = if stream.spent_in != Uint128::zero() {
-        vec![revenue_msg, creation_fee_msg, swap_fee_msg]
-    } else {
-        vec![creation_fee_msg]
-    };
+    // if no spent, charge only creation fee
+    if stream.spent_in == Uint128::zero() {
+        messages = vec![creation_fee_msg]
+    }
 
-    // In case the stream is ended without any shares in it. We need to refund the remaining out tokens although that is unlikely to happen
+    /*
+    // TODO: create pool if create_pool flag is set
+    if let Some(pool) = stream {
+        let pool_msg = CosmosMsg::Bank(BankMsg::Send {
+            to_address: pool.pool_address.to_string(),
+            amount: vec![Coin {
+                denom: pool.pool_denom,
+                amount: pool.pool_amount,
+            }],
+        });
+        messages.push(pool_msg);
+    }
+
+     */
+    // In case the stream is ended without any shares in it. We need to refund the remaining out
+    // tokens although that is unlikely to happen
     if stream.out_remaining > Uint128::zero() {
         let remaining_out = stream.out_remaining;
         let remaining_msg = CosmosMsg::Bank(BankMsg::Send {
