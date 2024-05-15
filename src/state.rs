@@ -74,7 +74,7 @@ pub struct Stream {
     /// Stream swap fee in percent. Saved under here to avoid any changes in config to efect existing streams.
     pub stream_exit_fee_percent: Decimal,
     /// Create Pool message
-    create_pool: Option<CreatePool>,
+    pub create_pool: Option<CreatePool>,
 }
 
 #[cw_serde]

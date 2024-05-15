@@ -271,11 +271,15 @@ pub fn execute_create_stream(
         denom: config.stream_creation_denom.clone(),
         amount: config.stream_creation_fee,
     };
-    if create_pool.is_some() {
+    if let Some(pool) = create_pool {
         expected_balance += Coin {
             denom: config.pool_creation_denom.clone(),
             amount: config.pool_creation_fee,
         };
+        expected_balance += Coin {
+            denom: out_denom,
+            amount: pool.out_amount_clp,
+         };
     }
 
     let mut funds_balance = NativeBalance(info.funds.clone());
@@ -902,9 +906,9 @@ pub fn execute_finalize_stream(
         messages = vec![creation_fee_msg]
     }
 
-    /*
     // TODO: create pool if create_pool flag is set
-    if let Some(pool) = stream {
+    if let Some(pool) = stream.create_pool {
+
         let pool_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: pool.pool_address.to_string(),
             amount: vec![Coin {
@@ -915,7 +919,6 @@ pub fn execute_finalize_stream(
         messages.push(pool_msg);
     }
 
-     */
     // In case the stream is ended without any shares in it. We need to refund the remaining out
     // tokens although that is unlikely to happen
     if stream.out_remaining > Uint128::zero() {
