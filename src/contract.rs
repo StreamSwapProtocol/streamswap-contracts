@@ -17,7 +17,7 @@ use semver::Version;
 
 use crate::helpers::{check_name_and_url, from_semver, get_decimals};
 use cw_storage_plus::Bound;
-use cw_utils::{maybe_addr, must_pay};
+use cw_utils::{maybe_addr, must_pay, NativeBalance};
 
 // Version and contract info for migration
 const CONTRACT_NAME: &str = "crates.io:cw-streamswap";
@@ -50,6 +50,7 @@ pub fn instantiate(
         protocol_admin: deps.api.addr_validate(&msg.protocol_admin)?,
         accepted_in_denom: msg.accepted_in_denom,
         pool_creation_fee: msg.pool_creation_fee,
+        pool_creation_denom: msg.pool_creation_denom,
     };
     CONFIG.save(deps.storage, &config)?;
 
@@ -260,59 +261,27 @@ pub fn execute_create_stream(
         return Err(ContractError::ZeroOutSupply {});
     }
 
-    if out_denom == config.stream_creation_denom {
-        let total_funds = info
-            .funds
-            .iter()
-            .find(|p| p.denom == config.stream_creation_denom)
-            .ok_or(ContractError::NoFundsSent {})?;
+    let mut expected_balance = NativeBalance(vec![]);
+    // add out_denom
+    expected_balance += Coin {
+        denom: out_denom.clone(),
+        amount: out_supply,
+    };
+    expected_balance += Coin {
+        denom: config.stream_creation_denom.clone(),
+        amount: config.stream_creation_fee,
+    };
+    if create_pool.is_some() {
+        expected_balance += Coin {
+            denom: config.pool_creation_denom.clone(),
+            amount: config.pool_creation_fee,
+        };
+    }
 
-        if let Some(pool) = &create_pool {
-            if total_funds.amount != config.stream_creation_fee + out_supply + pool.out_amount_clp {
-                return Err(ContractError::StreamOutSupplyFundsRequired {});
-            }
-        } else {
-            if total_funds.amount != config.stream_creation_fee + out_supply {
-                return Err(ContractError::StreamOutSupplyFundsRequired {});
-            }
-        }
-        // check for extra funds sent in msg
-        if info.funds.iter().any(|p| p.denom != out_denom) {
-            return Err(ContractError::InvalidFunds {});
-        }
-    } else {
-        let funds = info
-            .funds
-            .iter()
-            .find(|p| p.denom == out_denom)
-            .ok_or(ContractError::NoFundsSent {})?;
-
-        if let Some(pool) = &create_pool {
-            if funds.amount != out_supply + pool.out_amount_clp {
-                return Err(ContractError::StreamOutSupplyFundsRequired {});
-            }
-        } else {
-            if funds.amount != out_supply {
-                return Err(ContractError::StreamOutSupplyFundsRequired {});
-            }
-        }
-
-        let creation_fee = info
-            .funds
-            .iter()
-            .find(|p| p.denom == config.stream_creation_denom)
-            .ok_or(ContractError::NoFundsSent {})?;
-        if creation_fee.amount != config.stream_creation_fee {
-            return Err(ContractError::StreamCreationFeeRequired {});
-        }
-
-        if info
-            .funds
-            .iter()
-            .any(|p| p.denom != out_denom && p.denom != config.stream_creation_denom)
-        {
-            return Err(ContractError::InvalidFunds {});
-        }
+    let mut funds_balance = NativeBalance(info.funds.clone());
+    funds_balance.normalize();
+    if expected_balance != funds_balance {
+        return Err(ContractError::InvalidFunds {});
     }
 
     check_name_and_url(&name, &url)?;

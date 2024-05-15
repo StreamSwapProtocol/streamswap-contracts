@@ -23,6 +23,8 @@ pub struct Config {
     pub fee_collector: Addr,
     /// protocol admin can pause streams in case of emergency.
     pub protocol_admin: Addr,
+    /// Pool creation fee denom
+    pub pool_creation_denom: String,
     /// Pool creation fee
     pub pool_creation_fee: Uint128,
 }
