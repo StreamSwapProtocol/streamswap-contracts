@@ -35,7 +35,7 @@ mod test_module {
             "fee".to_string(),
             Uint128::from(100u128),
             Decimal::percent(10),
-            None
+            None,
         );
 
         // add new shares

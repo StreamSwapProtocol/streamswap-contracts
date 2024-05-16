@@ -101,7 +101,7 @@ impl Stream {
         stream_creation_denom: String,
         stream_creation_fee: Uint128,
         stream_exit_fee_percent: Decimal,
-        create_pool: Option<CreatePool>
+        create_pool: Option<CreatePool>,
     ) -> Self {
         Stream {
             name,
