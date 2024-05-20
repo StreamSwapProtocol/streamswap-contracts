@@ -3725,4 +3725,125 @@ mod test_module {
             );
         }
     }
+
+    #[cfg(test)]
+    mod pool {
+        use super::*;
+
+        use cosmwasm_std::{BlockInfo, Empty};
+        use cw_multi_test::{App, AppBuilder, Contract, ContractWrapper, Executor, no_init};
+        use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
+        use crate::contract::query;
+        use crate::msg::ExecuteMsg;
+        use crate::state::CreatePool;
+        use crate::test_helpers::{contract_streamswap, MyStargateKeeper};
+
+        #[test]
+        fn test_pool_creation() {
+            let admin = Addr::unchecked("admin");
+            let mut app = AppBuilder::default().with_stargate(MyStargateKeeper {}).build(no_init); //|router,_,_|  {router.}).init_modules();
+            let code_id = app.store_code(contract_streamswap());
+            let msg = crate::msg::InstantiateMsg {
+                min_stream_seconds: Uint64::new(1000),
+                min_seconds_until_start_time: Uint64::new(1000),
+                stream_creation_denom: "fee".to_string(),
+                stream_creation_fee: Uint128::new(100),
+                exit_fee_percent: Decimal::percent(1),
+                fee_collector: "collector".to_string(),
+                protocol_admin: "protocol_admin".to_string(),
+                accepted_in_denom: "in".to_string(),
+                pool_creation_denom: "uosmo".to_string(),
+                pool_creation_fee: Uint128::new(100),
+            };
+
+            let treasury = Addr::unchecked("treasury");
+            let start = Timestamp::from_seconds(1_000_000);
+            let end = Timestamp::from_seconds(5_000_000);
+            let in_denom = "in";
+            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_denom = "out_denom";
+
+            // instantiate
+            let contract_addr = app.instantiate_contract(code_id, admin.clone(), &msg, &[], "streamswap", Some(admin.to_string())).unwrap();
+
+            let mut block = BlockInfo{
+                height: 100,
+                time: Timestamp::from_seconds(100),
+                chain_id: "test".to_string(),
+            };
+            app.set_block(block);
+
+            // create stream
+           block.time = Timestamp::from_seconds(1);
+
+            let create_stream_msg = ExecuteMsg::CreateStream {
+                treasury: treasury.to_string(),
+                name: "test".to_string(),
+                url: Some("https://sample.url".to_string()),
+                in_denom: in_denom.to_string(),
+                out_denom: out_denom.to_string(),
+                out_supply,
+                start_time: start,
+                end_time: end,
+                // %20 will go to pool
+                // sender is contract
+                create_pool: Some(CreatePool{ out_amount_clp: out_supply * 1 / 5, msg_create_pool: MsgCreateConcentratedPool{
+                    sender: "".to_string(),
+                    denom0: "".to_string(),
+                    denom1: "".to_string(),
+                    tick_spacing: 0,
+                    spread_factor: "".to_string(),
+                } }),
+            }
+            app.execute_contract(treasury, contract_addr, )
+            let info = mock_info(
+                "creator",
+                &[
+                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(100, "fee"),
+                ],
+            );
+            execute_create_stream(
+                deps.as_mut(),
+                env,
+                info,
+                treasury.to_string(),
+                "test".to_string(),
+                Some("https://sample.url".to_string()),
+                "in".to_string(),
+                out_denom.to_string(),
+                out_supply,
+                start,
+                end,
+                None,
+            )
+                .unwrap();
+
+            // first subscription
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(100);
+            let info = mock_info("creator1", &[Coin::new(1_000_000_000, "in")]);
+            let msg = crate::msg::ExecuteMsg::Subscribe {
+                stream_id: 1,
+                operator_target: None,
+                operator: None,
+            };
+            execute(deps.as_mut(), env, info, msg).unwrap();
+
+            // second subscription
+            let mut env = mock_env();
+            env.block.time = start.plus_seconds(100_000);
+            let info = mock_info("creator2", &[Coin::new(3_000_000_000, "in")]);
+            let msg = crate::msg::ExecuteMsg::Subscribe {
+                stream_id: 1,
+                operator_target: None,
+                operator: None,
+            };
+            execute(deps.as_mut(), env, info, msg).unwrap();
+
+            // finalize stream
+            // check outgoing messages
+        }
+
+    }
 }

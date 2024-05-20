@@ -44,4 +44,6 @@ semver = "1.0.16"
 osmosis-std = "0.24"
 
 [dev-dependencies]
-cw-multi-test = "1.1.0"
+cw-multi-test = "0.20.0"
+prost = "0.12.4"
+anyhow = "1.0.83"
