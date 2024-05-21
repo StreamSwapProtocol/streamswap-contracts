@@ -1,7 +1,5 @@
-use cosmwasm_std::{to_json_binary, Addr, Api, Binary, BlockInfo, Empty, Querier, Storage};
-use cw_multi_test::{
-    error::AnyResult, AppResponse, Contract, ContractWrapper, CosmosRouter, Stargate,
-};
+use cosmwasm_std::{to_json_binary, Addr, Api, Binary, BlockInfo, Querier, Storage};
+use cw_multi_test::{error::AnyResult, AppResponse, CosmosRouter, Stargate};
 use osmosis_std::types::cosmos::base::v1beta1::Coin;
 use osmosis_std::types::osmosis::poolmanager::v1beta1::{NumPoolsResponse, Params, ParamsResponse};
 
