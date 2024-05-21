@@ -9,6 +9,7 @@ mod test_module {
     use crate::killswitch::{execute_pause_stream, execute_withdraw_paused, sudo_resume_stream};
     use crate::msg::ExecuteMsg::UpdateProtocolAdmin;
     use crate::state::{Status, Stream};
+    use crate::threshold::ThresholdError;
     use crate::ContractError;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::StdError::{self};
@@ -135,8 +136,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         );
         assert_eq!(res, Err(ContractError::InDenomIsNotAccepted {}));
         // end < start case
@@ -162,8 +162,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None,None
         );
         assert_eq!(res, Err(ContractError::StreamInvalidEndTime {}));
 
@@ -184,8 +183,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         );
         assert_eq!(res, Err(ContractError::StreamDurationTooShort {}));
 
@@ -206,8 +204,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         );
         assert_eq!(res, Err(ContractError::StreamInvalidStartTime {}));
 
@@ -228,8 +225,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         );
         assert_eq!(res, Err(ContractError::StreamStartsTooSoon {}));
 
@@ -250,8 +246,7 @@ mod test_module {
             "in".to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         );
         assert_eq!(res, Err(ContractError::SameDenomOnEachSide {}));
 
@@ -272,10 +267,47 @@ mod test_module {
             out_denom.to_string(),
             Uint128::new(0),
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         );
         assert_eq!(res, Err(ContractError::ZeroOutSupply {}));
+
+        // threshold zero case
+        let start_time = Timestamp::from_seconds(3000);
+        let end_time = Timestamp::from_seconds(100000);
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(1);
+        let info = mock_info(
+            "creator1",
+            &[
+                Coin {
+                    denom: "fee".to_string(),
+                    amount: Uint128::new(100),
+                },
+                Coin {
+                    denom: out_denom.to_string(),
+                    amount: out_supply,
+                },
+            ],
+        );
+        let res = execute_create_stream(
+            deps.as_mut(),
+            env,
+            info,
+            treasury.to_string(),
+            name.to_string(),
+            Some(url.to_string()),
+            in_denom.to_string(),
+            out_denom.to_string(),
+            out_supply,
+            start_time,
+            end_time,
+            Some(Uint128::new(0)), None
+        )
+        .unwrap_err();
+        assert_eq!(
+            res,
+            ContractError::ThresholdError(ThresholdError::ThresholdZero {})
+        );
 
         // no funds fee case
         let end_time = Timestamp::from_seconds(100000);
@@ -294,10 +326,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         );
-        assert_eq!(res, Err(ContractError::InvalidFunds {}));
+        assert_eq!(res, Err(ContractError::InvalidFunds{}));
 
         // wrong supply amount case
         let mut env = mock_env();
@@ -314,10 +345,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         );
-        assert_eq!(res, Err(ContractError::InvalidFunds {}));
+        assert_eq!(res, Err(ContractError::InvalidFunds{}));
 
         // wrong creation fee case
         let mut env = mock_env();
@@ -340,10 +370,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         );
-        assert_eq!(res, Err(ContractError::InvalidFunds {}));
+        assert_eq!(res, Err(ContractError::InvalidFunds{}));
 
         // no creation fee case
         let mut env = mock_env();
@@ -360,10 +389,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         );
-        assert_eq!(res, Err(ContractError::InvalidFunds {}));
+        assert_eq!(res, Err(ContractError::InvalidFunds{}));
 
         // mismatch creation fee case
         let mut env = mock_env();
@@ -380,8 +408,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         );
         assert_eq!(res, Err(ContractError::InvalidFunds {}));
 
@@ -400,8 +427,7 @@ mod test_module {
             "fee".to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         );
         assert_eq!(res, Err(ContractError::InvalidFunds {}));
 
@@ -420,8 +446,7 @@ mod test_module {
             "fee".to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         )
         .unwrap();
 
@@ -443,8 +468,7 @@ mod test_module {
             "fee".to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         )
         .unwrap_err();
         assert_eq!(err, ContractError::InvalidFunds {});
@@ -471,8 +495,7 @@ mod test_module {
             "different_denom".to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         )
         .unwrap_err();
         assert_eq!(err, ContractError::InvalidFunds {});
@@ -498,8 +521,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         )
         .unwrap_err();
         assert_eq!(res, ContractError::StreamNameTooShort {});
@@ -515,8 +537,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         )
         .unwrap_err();
         assert_eq!(res, ContractError::StreamNameTooLong {});
@@ -532,8 +553,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         )
         .unwrap_err();
         assert_eq!(res, ContractError::InvalidStreamName {});
@@ -559,8 +579,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         )
         .unwrap_err();
         assert_eq!(res, ContractError::StreamUrlTooShort {});
@@ -576,7 +595,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time, None
+            end_time, None, None
         )
             .unwrap_err();
         assert_eq!(res, ContractError::StreamUrlTooLong {});
@@ -592,8 +611,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         )
         .unwrap_err();
 
@@ -620,8 +638,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time,
-            None,
+            end_time, None, None
         )
         .unwrap();
 
@@ -678,8 +695,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end,
-            None,
+            end, None, None
         )
         .unwrap();
 
@@ -823,8 +839,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end,
-            None,
+            end, None, None
         )
         .unwrap();
 
@@ -1002,8 +1017,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end,
-            None,
+            end, None, None
         )
         .unwrap();
 
@@ -1128,7 +1142,6 @@ mod test_module {
             exit_fee_percent: Decimal::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
-
             accepted_in_denom: "in".to_string(),
             pool_creation_denom: "uosmo".to_string(),
             pool_creation_fee: Uint128::new(100),
@@ -1155,8 +1168,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end,
-            None,
+            end, None, None
         )
         .unwrap();
 
@@ -1400,8 +1412,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end,
-            None,
+            end, None, None
         )
         .unwrap();
 
@@ -1493,8 +1504,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end,
-            None,
+            end, None, None
         )
         .unwrap();
 
@@ -1604,8 +1614,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end,
-            None,
+            end, None, None
         )
         .unwrap();
 
@@ -1769,8 +1778,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end,
-            None,
+            end, None, None
         )
         .unwrap();
 
@@ -1911,8 +1919,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end,
-            None,
+            end, None, None
         )
         .unwrap();
 
@@ -2037,8 +2044,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end,
-            None,
+            end, None, None
         )
         .unwrap();
         // First subscription
@@ -2141,8 +2147,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end,
-            None,
+            end, None, None
         )
         .unwrap();
 
@@ -2247,8 +2252,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end,
-            None,
+            end, None, None
         )
         .unwrap();
 
@@ -2361,8 +2365,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end,
-            None,
+            end, None, None
         )
         .unwrap();
 
@@ -2634,8 +2637,7 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end,
-            None,
+            end, None, None
         )
         .unwrap();
 
@@ -2734,8 +2736,7 @@ mod test_module {
                 out_denom.to_string(),
                 out_supply,
                 start,
-                end,
-                None,
+                end, None, None
             )
             .unwrap();
 
@@ -2899,8 +2900,7 @@ mod test_module {
                 out_denom.to_string(),
                 out_supply,
                 start,
-                end,
-                None,
+                end, None, None
             )
             .unwrap();
 
@@ -3044,8 +3044,7 @@ mod test_module {
                 out_denom.to_string(),
                 out_supply,
                 start,
-                end,
-                None,
+                end, None, None
             )
             .unwrap();
 
@@ -3172,8 +3171,7 @@ mod test_module {
                 out_denom.to_string(),
                 out_supply,
                 start,
-                end,
-                None,
+                end, None, None
             )
             .unwrap();
 
@@ -3363,8 +3361,7 @@ mod test_module {
                 out_denom.to_string(),
                 out_supply,
                 start,
-                end,
-                None,
+                end, None, None
             )
             .unwrap();
 
@@ -3452,8 +3449,7 @@ mod test_module {
                 out_denom.to_string(),
                 out_supply,
                 start,
-                end,
-                None,
+                end, None, None
             )
             .unwrap();
 
@@ -3533,8 +3529,7 @@ mod test_module {
                 out_denom.to_string(),
                 out_supply,
                 start,
-                end,
-                None,
+                end, None, None
             )
             .unwrap();
             //second stream
@@ -3549,8 +3544,7 @@ mod test_module {
                 out_denom.to_string(),
                 out_supply,
                 start,
-                end,
-                None,
+                end, None, None
             )
             .unwrap();
 
@@ -3630,8 +3624,7 @@ mod test_module {
                 out_denom.to_string(),
                 out_supply,
                 start,
-                end,
-                None,
+                end, None, None
             )
             .unwrap();
 
@@ -3723,191 +3716,6 @@ mod test_module {
                     amount: vec![Coin::new(2000000000000, "in")]
                 })
             );
-        }
-    }
-
-    #[cfg(test)]
-    mod pool {
-        use super::*;
-
-        use crate::msg::ExecuteMsg;
-        use crate::state::CreatePool;
-        use crate::test_helpers::{contract_streamswap, MyStargateKeeper};
-        use cosmwasm_std::BlockInfo;
-        use cw_multi_test::{AppBuilder, Executor};
-        use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
-
-        #[test]
-        fn test_pool_creation() {
-            let admin = Addr::unchecked("admin");
-            let treasury = Addr::unchecked("treasury");
-            let start = Timestamp::from_seconds(1_000_000);
-            let end = Timestamp::from_seconds(5_000_000);
-            let in_denom = "in_denom";
-            let out_supply = 1_000_000_000_000;
-            let out_denom = "out_denom";
-            // %20 of out_supply will go to pool
-            let out_clp_amount = 200_000_000_000;
-            // this is mocked by querier at test_helpers.rs
-            let pool_creation_fee = 1000000;
-            let pool_creation_denom = "uosmo";
-            let stream_creation_denom = "uosmo";
-            let stream_creation_fee = 100;
-
-            let subs1_addr = Addr::unchecked("subs1");
-            let subs1_token = Coin::new(1_000_000_000, in_denom);
-
-            let subs2_addr = Addr::unchecked("subs2");
-            let subs2_token = Coin::new(3_000_000_000, in_denom);
-
-            let mut app = AppBuilder::default()
-                .with_stargate(MyStargateKeeper {})
-                .build(|router, _, storage| {
-                    // initialization moved to App construction
-                    router
-                        .bank
-                        .init_balance(
-                            storage,
-                            &treasury,
-                            vec![
-                                Coin::new(out_supply + out_clp_amount, out_denom),
-                                Coin::new(
-                                    pool_creation_fee + stream_creation_fee,
-                                    pool_creation_denom,
-                                ),
-                                // Coin::new(stream_creation_fee, stream_creation_denom),
-                            ],
-                        )
-                        .unwrap();
-                    router
-                        .bank
-                        .init_balance(storage, &subs1_addr, vec![subs1_token.clone()])
-                        .unwrap();
-                    router
-                        .bank
-                        .init_balance(storage, &subs2_addr, vec![subs2_token.clone()])
-                        .unwrap();
-                });
-
-            let code_id = app.store_code(contract_streamswap());
-            let msg = crate::msg::InstantiateMsg {
-                min_stream_seconds: Uint64::new(1000),
-                min_seconds_until_start_time: Uint64::new(1000),
-                stream_creation_denom: stream_creation_denom.to_string(),
-                stream_creation_fee: stream_creation_fee.into(),
-                exit_fee_percent: Decimal::percent(1),
-                fee_collector: "collector".to_string(),
-                protocol_admin: "protocol_admin".to_string(),
-                accepted_in_denom: in_denom.to_string(),
-                pool_creation_denom: pool_creation_denom.to_string(),
-                pool_creation_fee: pool_creation_fee.into(),
-            };
-
-            // instantiate
-            let mut block = BlockInfo {
-                height: 100,
-                time: Timestamp::from_seconds(100),
-                chain_id: "test".to_string(),
-            };
-            app.set_block(block.clone());
-            let contract_addr = app
-                .instantiate_contract(
-                    code_id,
-                    admin.clone(),
-                    &msg,
-                    &[],
-                    "streamswap",
-                    Some(admin.to_string()),
-                )
-                .unwrap();
-
-            // create stream
-            block.time = Timestamp::from_seconds(1);
-            app.set_block(block);
-            let create_stream_msg = ExecuteMsg::CreateStream {
-                treasury: treasury.to_string(),
-                name: "test".to_string(),
-                url: Some("https://sample.url".to_string()),
-                in_denom: in_denom.to_string(),
-                out_denom: out_denom.to_string(),
-                out_supply: out_supply.into(),
-                start_time: start,
-                end_time: end,
-                // %20 will go to pool
-                // sender is contract
-                create_pool: Some(CreatePool {
-                    out_amount_clp: out_clp_amount.into(),
-                    msg_create_pool: MsgCreateConcentratedPool {
-                        sender: treasury.to_string(),
-                        denom0: in_denom.to_string(),
-                        denom1: out_denom.to_string(),
-                        tick_spacing: 100,
-                        spread_factor: "10".to_string(),
-                    },
-                }),
-            };
-            app.execute_contract(
-                treasury.clone(),
-                contract_addr.clone(),
-                &create_stream_msg,
-                &[
-                    Coin::new(out_supply + out_clp_amount, out_denom),
-                    Coin::new(
-                        stream_creation_fee + pool_creation_fee,
-                        stream_creation_denom,
-                    ),
-                ],
-            )
-            .unwrap();
-
-            // first subscription
-            app.update_block(|b| {
-                b.time = start.plus_seconds(100);
-            });
-            app.execute_contract(
-                subs1_addr,
-                contract_addr.clone(),
-                &ExecuteMsg::Subscribe {
-                    stream_id: 1,
-                    operator_target: None,
-                    operator: None,
-                },
-                &[subs1_token],
-            )
-            .unwrap();
-
-            // second subscription
-            app.update_block(|b| {
-                b.time = start.plus_seconds(100_000);
-            });
-            app.execute_contract(
-                subs2_addr,
-                contract_addr.clone(),
-                &ExecuteMsg::Subscribe {
-                    stream_id: 1,
-                    operator_target: None,
-                    operator: None,
-                },
-                &[subs2_token],
-            )
-            .unwrap();
-
-            // finalize stream
-            app.update_block(|b| {
-                b.time = end.plus_seconds(100_000);
-            });
-            app.execute_contract(
-                treasury,
-                contract_addr.clone(),
-                &ExecuteMsg::FinalizeStream {
-                    stream_id: 1,
-                    new_treasury: None,
-                },
-                &[],
-            )
-            .unwrap();
-
-            // TODO: it do not makes sense to implement mock based tests here. best to use test-tube
         }
     }
 }

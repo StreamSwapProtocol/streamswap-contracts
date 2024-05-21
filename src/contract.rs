@@ -1,3 +1,4 @@
+use crate::killswitch::execute_cancel_stream_with_threshold;
 use crate::msg::{
     AveragePriceResponse, ConfigResponse, ExecuteMsg, InstantiateMsg, LatestStreamedPriceResponse,
     MigrateMsg, PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse,
@@ -6,11 +7,12 @@ use crate::msg::{
 use crate::state::{
     next_stream_id, Config, CreatePool, Position, Status, Stream, CONFIG, POSITIONS, STREAMS,
 };
+use crate::threshold::ThresholdState;
 use crate::{helpers, killswitch, ContractError};
 use cosmwasm_std::{
     attr, entry_point, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
-    Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdResult, Timestamp, Uint128,
-    Uint256, Uint64,
+    Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdError, StdResult, Timestamp,
+    Uint128, Uint256, Uint64,
 };
 use cw2::{get_contract_version, set_contract_version};
 use semver::Version;
@@ -92,6 +94,7 @@ pub fn execute(
             out_supply,
             start_time,
             end_time,
+            threshold,
             create_pool,
         } => execute_create_stream(
             deps,
@@ -105,6 +108,7 @@ pub fn execute(
             out_supply,
             start_time,
             end_time,
+            threshold,
             create_pool,
         ),
         ExecuteMsg::UpdateOperator {
@@ -116,6 +120,9 @@ pub fn execute(
             operator_target,
         } => execute_update_position(deps, env, info, stream_id, operator_target),
         ExecuteMsg::UpdateStream { stream_id } => execute_update_stream(deps, env, stream_id),
+        ExecuteMsg::CancelStreamWithThreshold { stream_id } => {
+            execute_cancel_stream_with_threshold(deps, env, info, stream_id)
+        }
         ExecuteMsg::Subscribe {
             stream_id,
             operator_target,
@@ -237,6 +244,7 @@ pub fn execute_create_stream(
     out_supply: Uint128,
     start_time: Timestamp,
     end_time: Timestamp,
+    threshold: Option<Uint128>,
     create_pool: Option<CreatePool>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
@@ -320,6 +328,9 @@ pub fn execute_create_stream(
     );
     let id = next_stream_id(deps.storage)?;
     STREAMS.save(deps.storage, id, &stream)?;
+
+    let threshold_state = ThresholdState::new();
+    threshold_state.set_threshold_if_any(threshold, id, deps.storage)?;
 
     let attr = vec![
         attr("action", "create_stream"),
@@ -859,6 +870,11 @@ pub fn execute_finalize_stream(
     if stream.status == Status::Active {
         stream.status = Status::Finalized
     }
+    // If threshold is set and not reached, finalize will fail
+    // Creator should execute cancel_stream_with_threshold to cancel the stream
+    // Only returns error if threshold is set and not reached
+    let thresholds_state = ThresholdState::new();
+    thresholds_state.error_if_not_reached(stream_id, deps.storage, &stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let config = CONFIG.load(deps.storage)?;
@@ -988,6 +1004,9 @@ pub fn execute_exit_stream(
     if stream.last_updated < stream.end_time {
         update_stream(env.block.time, &mut stream)?;
     }
+    let threshold_state = ThresholdState::new();
+
+    threshold_state.error_if_not_reached(stream_id, deps.storage, &stream)?;
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
@@ -1170,6 +1189,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::LastStreamedPrice { stream_id } => {
             to_json_binary(&query_last_streamed_price(deps, env, stream_id)?)
         }
+        QueryMsg::Threshold { stream_id } => {
+            to_json_binary(&query_threshold_state(deps, env, stream_id)?)
+        }
     }
 }
 pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
@@ -1334,4 +1356,14 @@ pub fn query_last_streamed_price(
     Ok(LatestStreamedPriceResponse {
         current_streamed_price: stream.current_streamed_price,
     })
+}
+
+pub fn query_threshold_state(
+    deps: Deps,
+    _env: Env,
+    stream_id: u64,
+) -> Result<Option<Uint128>, StdError> {
+    let threshold_state = ThresholdState::new();
+    let threshold = threshold_state.get_threshold(stream_id, deps.storage)?;
+    Ok(threshold)
 }
