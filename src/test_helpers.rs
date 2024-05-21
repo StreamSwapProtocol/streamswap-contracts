@@ -1,6 +1,14 @@
-use cosmwasm_std::{from_json, to_json_binary, Addr, Api, Binary, BlockInfo, Querier, Storage, Empty, Coin, CustomMsg, CustomQuery};
-use cw_multi_test::{error::AnyResult, AppResponse, CosmosRouter, Stargate, Contract, ContractWrapper,Module, AcceptingModule};
 use crate::contract::{execute, instantiate, query};
+use cosmwasm_std::{
+    from_json, to_json_binary, Addr, Api, Binary, BlockInfo, CustomMsg, CustomQuery, Empty,
+    Querier, Storage,
+};
+use cw_multi_test::{
+    error::AnyResult, AcceptingModule, AppResponse, Contract, ContractWrapper, CosmosRouter,
+    Module, Stargate,
+};
+use osmosis_std::types::cosmos::base::v1beta1::Coin;
+use osmosis_std::types::osmosis::poolmanager::v1beta1::{Params, ParamsResponse};
 
 pub fn contract_streamswap() -> Box<dyn Contract<Empty>> {
     Box::new(ContractWrapper::new(execute, instantiate, query))
@@ -59,20 +67,19 @@ impl Stargate for MyStargateKeeper {
         path: String,
         data: Binary,
     ) -> AnyResult<Binary> {
-        /*
-        if path == *"/OmniFlix.onft.v1beta1.Query/Params" {
-            let params = QueryParamsResponse {
+        if path == *"/osmosis.poolmanager.v1beta1.Query/Params" {
+            let params = ParamsResponse {
                 params: Some(Params {
-                    denom_creation_fee: Some(Coin {
-                        denom: "uflix".to_string(),
+                    pool_creation_fee: vec![Coin {
+                        denom: "uosmo".to_string(),
                         amount: "1000000".to_string(),
-                    }),
+                    }],
+                    taker_fee_params: None,
+                    authorized_quote_denoms: vec![],
                 }),
             };
             return Ok(to_json_binary(&params)?);
         }
-
-         */
         Ok(data)
     }
 }

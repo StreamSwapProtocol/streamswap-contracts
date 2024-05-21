@@ -7,6 +7,6 @@ mod helpers;
 mod killswitch;
 pub mod msg;
 pub mod state;
+mod test_helpers;
 #[cfg(test)]
 mod tests;
-mod test_helpers;
