@@ -1,3 +1,4 @@
+use crate::threshold::ThresholdError;
 use cosmwasm_std::{ConversionOverflowError, DivideByZeroError, OverflowError, StdError, Uint128};
 use cw_utils::PaymentError;
 use std::convert::Infallible;
@@ -19,6 +20,9 @@ pub enum ContractError {
 
     #[error("{0}")]
     DivideByZeroError(#[from] DivideByZeroError),
+
+    #[error("{0}")]
+    ThresholdError(#[from] ThresholdError),
 
     #[error("{0}")]
     ConversionOverflowError(#[from] ConversionOverflowError),
