@@ -75,7 +75,6 @@ mod test_module {
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
             pool_creation_denom: "uosmo".to_string(),
-            pool_creation_fee: Uint128::new(100),
         };
         let res =
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap_err();
@@ -92,7 +91,6 @@ mod test_module {
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
             pool_creation_denom: "uosmo".to_string(),
-            pool_creation_fee: Uint128::new(100),
         };
         let res =
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap_err();
@@ -108,7 +106,6 @@ mod test_module {
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
             pool_creation_denom: "uosmo".to_string(),
-            pool_creation_fee: Uint128::new(100),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -136,7 +133,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         );
         assert_eq!(res, Err(ContractError::InDenomIsNotAccepted {}));
         // end < start case
@@ -162,7 +161,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time, None,None
+            end_time,
+            None,
+            None,
         );
         assert_eq!(res, Err(ContractError::StreamInvalidEndTime {}));
 
@@ -183,7 +184,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         );
         assert_eq!(res, Err(ContractError::StreamDurationTooShort {}));
 
@@ -204,7 +207,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         );
         assert_eq!(res, Err(ContractError::StreamInvalidStartTime {}));
 
@@ -225,7 +230,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         );
         assert_eq!(res, Err(ContractError::StreamStartsTooSoon {}));
 
@@ -246,7 +253,9 @@ mod test_module {
             "in".to_string(),
             out_supply,
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         );
         assert_eq!(res, Err(ContractError::SameDenomOnEachSide {}));
 
@@ -267,7 +276,9 @@ mod test_module {
             out_denom.to_string(),
             Uint128::new(0),
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         );
         assert_eq!(res, Err(ContractError::ZeroOutSupply {}));
 
@@ -301,7 +312,8 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
-            Some(Uint128::new(0)), None
+            Some(Uint128::new(0)),
+            None,
         )
         .unwrap_err();
         assert_eq!(
@@ -326,9 +338,11 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         );
-        assert_eq!(res, Err(ContractError::InvalidFunds{}));
+        assert_eq!(res, Err(ContractError::InvalidFunds {}));
 
         // wrong supply amount case
         let mut env = mock_env();
@@ -345,9 +359,11 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         );
-        assert_eq!(res, Err(ContractError::InvalidFunds{}));
+        assert_eq!(res, Err(ContractError::InvalidFunds {}));
 
         // wrong creation fee case
         let mut env = mock_env();
@@ -370,9 +386,11 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         );
-        assert_eq!(res, Err(ContractError::InvalidFunds{}));
+        assert_eq!(res, Err(ContractError::InvalidFunds {}));
 
         // no creation fee case
         let mut env = mock_env();
@@ -389,9 +407,11 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         );
-        assert_eq!(res, Err(ContractError::InvalidFunds{}));
+        assert_eq!(res, Err(ContractError::InvalidFunds {}));
 
         // mismatch creation fee case
         let mut env = mock_env();
@@ -408,7 +428,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         );
         assert_eq!(res, Err(ContractError::InvalidFunds {}));
 
@@ -427,7 +449,9 @@ mod test_module {
             "fee".to_string(),
             out_supply,
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         );
         assert_eq!(res, Err(ContractError::InvalidFunds {}));
 
@@ -446,7 +470,9 @@ mod test_module {
             "fee".to_string(),
             out_supply,
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         )
         .unwrap();
 
@@ -468,7 +494,9 @@ mod test_module {
             "fee".to_string(),
             out_supply,
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         )
         .unwrap_err();
         assert_eq!(err, ContractError::InvalidFunds {});
@@ -495,7 +523,9 @@ mod test_module {
             "different_denom".to_string(),
             out_supply,
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         )
         .unwrap_err();
         assert_eq!(err, ContractError::InvalidFunds {});
@@ -521,7 +551,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         )
         .unwrap_err();
         assert_eq!(res, ContractError::StreamNameTooShort {});
@@ -537,7 +569,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         )
         .unwrap_err();
         assert_eq!(res, ContractError::StreamNameTooLong {});
@@ -553,7 +587,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         )
         .unwrap_err();
         assert_eq!(res, ContractError::InvalidStreamName {});
@@ -579,7 +615,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         )
         .unwrap_err();
         assert_eq!(res, ContractError::StreamUrlTooShort {});
@@ -611,7 +649,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         )
         .unwrap_err();
 
@@ -638,7 +678,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start_time,
-            end_time, None, None
+            end_time,
+            None,
+            None,
         )
         .unwrap();
 
@@ -670,7 +712,6 @@ mod test_module {
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
             pool_creation_denom: "uosmo".to_string(),
-            pool_creation_fee: Uint128::new(100),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -695,7 +736,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end, None, None
+            end,
+            None,
+            None,
         )
         .unwrap();
 
@@ -814,7 +857,6 @@ mod test_module {
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
             pool_creation_denom: "uosmo".to_string(),
-            pool_creation_fee: Uint128::new(100),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -839,7 +881,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end, None, None
+            end,
+            None,
+            None,
         )
         .unwrap();
 
@@ -992,7 +1036,6 @@ mod test_module {
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
             pool_creation_denom: "uosmo".to_string(),
-            pool_creation_fee: Uint128::new(100),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1017,7 +1060,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end, None, None
+            end,
+            None,
+            None,
         )
         .unwrap();
 
@@ -1144,7 +1189,6 @@ mod test_module {
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
             pool_creation_denom: "uosmo".to_string(),
-            pool_creation_fee: Uint128::new(100),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1168,7 +1212,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end, None, None
+            end,
+            None,
+            None,
         )
         .unwrap();
 
@@ -1387,7 +1433,6 @@ mod test_module {
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
             pool_creation_denom: "uosmo".to_string(),
-            pool_creation_fee: Uint128::new(100),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1412,7 +1457,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end, None, None
+            end,
+            None,
+            None,
         )
         .unwrap();
 
@@ -1479,7 +1526,6 @@ mod test_module {
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
             pool_creation_denom: "uosmo".to_string(),
-            pool_creation_fee: Uint128::new(100),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1504,7 +1550,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end, None, None
+            end,
+            None,
+            None,
         )
         .unwrap();
 
@@ -1589,7 +1637,6 @@ mod test_module {
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
             pool_creation_denom: "uosmo".to_string(),
-            pool_creation_fee: Uint128::new(100),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1614,7 +1661,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end, None, None
+            end,
+            None,
+            None,
         )
         .unwrap();
 
@@ -1753,7 +1802,6 @@ mod test_module {
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
             pool_creation_denom: "uosmo".to_string(),
-            pool_creation_fee: Uint128::new(100),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1778,7 +1826,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end, None, None
+            end,
+            None,
+            None,
         )
         .unwrap();
 
@@ -1894,7 +1944,6 @@ mod test_module {
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
             pool_creation_denom: "uosmo".to_string(),
-            pool_creation_fee: Uint128::new(100),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1919,7 +1968,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end, None, None
+            end,
+            None,
+            None,
         )
         .unwrap();
 
@@ -2020,7 +2071,6 @@ mod test_module {
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: in_denom.to_string(),
             pool_creation_denom: "uosmo".to_string(),
-            pool_creation_fee: Uint128::new(100),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
         // Create stream
@@ -2044,7 +2094,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end, None, None
+            end,
+            None,
+            None,
         )
         .unwrap();
         // First subscription
@@ -2122,7 +2174,6 @@ mod test_module {
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
             pool_creation_denom: "uosmo".to_string(),
-            pool_creation_fee: Uint128::new(100),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2147,7 +2198,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end, None, None
+            end,
+            None,
+            None,
         )
         .unwrap();
 
@@ -2227,7 +2280,6 @@ mod test_module {
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
             pool_creation_denom: "uosmo".to_string(),
-            pool_creation_fee: Uint128::new(100),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2252,7 +2304,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end, None, None
+            end,
+            None,
+            None,
         )
         .unwrap();
 
@@ -2340,7 +2394,6 @@ mod test_module {
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
             pool_creation_denom: "uosmo".to_string(),
-            pool_creation_fee: Uint128::new(100),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2365,7 +2418,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end, None, None
+            end,
+            None,
+            None,
         )
         .unwrap();
 
@@ -2483,7 +2538,6 @@ mod test_module {
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
             pool_creation_denom: "uosmo".to_string(),
-            pool_creation_fee: Uint128::new(100),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2518,7 +2572,6 @@ mod test_module {
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
             pool_creation_denom: "uosmo".to_string(),
-            pool_creation_fee: Uint128::new(100),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2637,7 +2690,9 @@ mod test_module {
             out_denom.to_string(),
             out_supply,
             start,
-            end, None, None
+            end,
+            None,
+            None,
         )
         .unwrap();
 
@@ -2711,7 +2766,6 @@ mod test_module {
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
                 pool_creation_denom: "uosmo".to_string(),
-                pool_creation_fee: Uint128::new(100),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2736,7 +2790,9 @@ mod test_module {
                 out_denom.to_string(),
                 out_supply,
                 start,
-                end, None, None
+                end,
+                None,
+                None,
             )
             .unwrap();
 
@@ -2875,7 +2931,6 @@ mod test_module {
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
                 pool_creation_denom: "uosmo".to_string(),
-                pool_creation_fee: Uint128::new(100),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2900,7 +2955,9 @@ mod test_module {
                 out_denom.to_string(),
                 out_supply,
                 start,
-                end, None, None
+                end,
+                None,
+                None,
             )
             .unwrap();
 
@@ -3019,7 +3076,6 @@ mod test_module {
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
                 pool_creation_denom: "uosmo".to_string(),
-                pool_creation_fee: Uint128::new(100),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -3044,7 +3100,9 @@ mod test_module {
                 out_denom.to_string(),
                 out_supply,
                 start,
-                end, None, None
+                end,
+                None,
+                None,
             )
             .unwrap();
 
@@ -3146,7 +3204,6 @@ mod test_module {
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
                 pool_creation_denom: "uosmo".to_string(),
-                pool_creation_fee: Uint128::new(100),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -3171,7 +3228,9 @@ mod test_module {
                 out_denom.to_string(),
                 out_supply,
                 start,
-                end, None, None
+                end,
+                None,
+                None,
             )
             .unwrap();
 
@@ -3336,7 +3395,6 @@ mod test_module {
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
                 pool_creation_denom: "uosmo".to_string(),
-                pool_creation_fee: Uint128::new(100),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -3361,7 +3419,9 @@ mod test_module {
                 out_denom.to_string(),
                 out_supply,
                 start,
-                end, None, None
+                end,
+                None,
+                None,
             )
             .unwrap();
 
@@ -3424,7 +3484,6 @@ mod test_module {
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
                 pool_creation_denom: "uosmo".to_string(),
-                pool_creation_fee: Uint128::new(100),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -3449,7 +3508,9 @@ mod test_module {
                 out_denom.to_string(),
                 out_supply,
                 start,
-                end, None, None
+                end,
+                None,
+                None,
             )
             .unwrap();
 
@@ -3503,7 +3564,6 @@ mod test_module {
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
                 pool_creation_denom: "uosmo".to_string(),
-                pool_creation_fee: Uint128::new(100),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -3529,7 +3589,9 @@ mod test_module {
                 out_denom.to_string(),
                 out_supply,
                 start,
-                end, None, None
+                end,
+                None,
+                None,
             )
             .unwrap();
             //second stream
@@ -3544,7 +3606,9 @@ mod test_module {
                 out_denom.to_string(),
                 out_supply,
                 start,
-                end, None, None
+                end,
+                None,
+                None,
             )
             .unwrap();
 
@@ -3599,7 +3663,6 @@ mod test_module {
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
                 pool_creation_denom: "uosmo".to_string(),
-                pool_creation_fee: Uint128::new(100),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -3624,7 +3687,9 @@ mod test_module {
                 out_denom.to_string(),
                 out_supply,
                 start,
-                end, None, None
+                end,
+                None,
+                None,
             )
             .unwrap();
 

@@ -22,8 +22,6 @@ pub struct InstantiateMsg {
     pub accepted_in_denom: String,
     /// Pool creation denom
     pub pool_creation_denom: String,
-    /// Pool creation fee
-    pub pool_creation_fee: Uint128,
 }
 
 #[cw_serde]

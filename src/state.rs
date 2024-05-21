@@ -25,8 +25,6 @@ pub struct Config {
     pub protocol_admin: Addr,
     /// Pool creation fee denom
     pub pool_creation_denom: String,
-    /// Pool creation fee
-    pub pool_creation_fee: Uint128,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");

@@ -56,7 +56,6 @@ pub fn instantiate(
         fee_collector: deps.api.addr_validate(&msg.fee_collector)?,
         protocol_admin: deps.api.addr_validate(&msg.protocol_admin)?,
         accepted_in_denom: msg.accepted_in_denom,
-        pool_creation_fee: msg.pool_creation_fee,
         pool_creation_denom: msg.pool_creation_denom,
     };
     CONFIG.save(deps.storage, &config)?;
