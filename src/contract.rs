@@ -6,7 +6,7 @@ use crate::msg::{
 use crate::state::{
     next_stream_id, Config, CreatePool, Position, Status, Stream, CONFIG, POSITIONS, STREAMS,
 };
-use crate::{killswitch, ContractError};
+use crate::{helpers, killswitch, ContractError};
 use cosmwasm_std::{
     attr, entry_point, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
     Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdResult, Timestamp, Uint128,
@@ -21,7 +21,6 @@ use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay, NativeBalance};
 
 use osmosis_std::types::cosmos::base;
-use osmosis_std::types::cosmos::params::v1beta1::ParamsQuerier;
 use osmosis_std::types::osmosis::concentratedliquidity::v1beta1::MsgCreatePosition;
 use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
 
@@ -283,10 +282,10 @@ pub fn execute_create_stream(
             .params()?
             .params
             .unwrap();
-        let pool_creation_Fee = params.pool_creation_fee.get(0).unwrap();
+        let pool_creation_fee = params.pool_creation_fee.get(0).unwrap();
         expected_balance += Coin {
             denom: config.pool_creation_denom.clone(),
-            amount: Uint128::from_str(pool_creation_Fee.amount.as_str())?,
+            amount: Uint128::from_str(pool_creation_fee.amount.as_str())?,
         };
         expected_balance += Coin {
             denom: out_denom.clone(),
@@ -302,7 +301,7 @@ pub fn execute_create_stream(
 
     check_name_and_url(&name, &url)?;
 
-    check_create_pool_flag(out_supply, &create_pool)?;
+    helpers::check_create_pool_flag(out_supply, &create_pool)?;
 
     let stream = Stream::new(
         name.clone(),
@@ -335,18 +334,6 @@ pub fn execute_create_stream(
         attr("end_time", end_time.to_string()),
     ];
     Ok(Response::default().add_attributes(attr))
-}
-
-pub fn check_create_pool_flag(
-    out_amount: Uint128,
-    flag: &Option<CreatePool>,
-) -> Result<(), ContractError> {
-    if let Some(pool) = flag {
-        if out_amount < pool.out_amount_clp {
-            return Err(ContractError::InvalidCreatePool {});
-        }
-    }
-    Ok(())
 }
 
 pub fn execute_update_protocol_admin(

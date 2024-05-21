@@ -1,14 +1,10 @@
 use crate::contract::{execute, instantiate, query};
-use cosmwasm_std::{
-    from_json, to_json_binary, Addr, Api, Binary, BlockInfo, CustomMsg, CustomQuery, Empty,
-    Querier, Storage,
-};
+use cosmwasm_std::{to_json_binary, Addr, Api, Binary, BlockInfo, Empty, Querier, Storage};
 use cw_multi_test::{
-    error::AnyResult, AcceptingModule, AppResponse, Contract, ContractWrapper, CosmosRouter,
-    Module, Stargate,
+    error::AnyResult, AppResponse, Contract, ContractWrapper, CosmosRouter, Stargate,
 };
 use osmosis_std::types::cosmos::base::v1beta1::Coin;
-use osmosis_std::types::osmosis::poolmanager::v1beta1::{Params, ParamsResponse};
+use osmosis_std::types::osmosis::poolmanager::v1beta1::{NumPoolsResponse, Params, ParamsResponse};
 
 pub fn contract_streamswap() -> Box<dyn Contract<Empty>> {
     Box::new(ContractWrapper::new(execute, instantiate, query))
@@ -20,12 +16,12 @@ impl Stargate for MyStargateKeeper {
     fn execute<ExecC, QueryC>(
         &self,
         _api: &dyn Api,
-        storage: &mut dyn Storage,
+        _storage: &mut dyn Storage,
         _router: &dyn CosmosRouter<ExecC = ExecC, QueryC = QueryC>,
         _block: &BlockInfo,
-        sender: Addr,
-        type_url: String,
-        value: Binary,
+        _sender: Addr,
+        _type_url: String,
+        _value: Binary,
     ) -> AnyResult<AppResponse> {
         /*
         if type_url == *"/osmosis.concentratedliquidity.poolmodel.concentrated.v1beta1.MsgCreateConcentratedPool" {
@@ -67,19 +63,25 @@ impl Stargate for MyStargateKeeper {
         path: String,
         data: Binary,
     ) -> AnyResult<Binary> {
-        if path == *"/osmosis.poolmanager.v1beta1.Query/Params" {
-            let params = ParamsResponse {
-                params: Some(Params {
-                    pool_creation_fee: vec![Coin {
-                        denom: "uosmo".to_string(),
-                        amount: "1000000".to_string(),
-                    }],
-                    taker_fee_params: None,
-                    authorized_quote_denoms: vec![],
-                }),
-            };
-            return Ok(to_json_binary(&params)?);
+        match path.as_str() {
+            "/osmosis.poolmanager.v1beta1.Query/Params" => {
+                let params = ParamsResponse {
+                    params: Some(Params {
+                        pool_creation_fee: vec![Coin {
+                            denom: "uosmo".to_string(),
+                            amount: "1000000".to_string(),
+                        }],
+                        taker_fee_params: None,
+                        authorized_quote_denoms: vec![],
+                    }),
+                };
+                return Ok(to_json_binary(&params)?);
+            }
+            "/osmosis.poolmanager.v1beta1.Query/NumPools" => {
+                let res = NumPoolsResponse { num_pools: 1 };
+                return Ok(to_json_binary(&res)?);
+            }
+            _ => return Ok(data),
         }
-        Ok(data)
     }
 }

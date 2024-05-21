@@ -3733,8 +3733,8 @@ mod test_module {
         use crate::msg::ExecuteMsg;
         use crate::state::CreatePool;
         use crate::test_helpers::{contract_streamswap, MyStargateKeeper};
-        use cosmwasm_std::{BlockInfo, Empty};
-        use cw_multi_test::{no_init, App, AppBuilder, Contract, ContractWrapper, Executor};
+        use cosmwasm_std::BlockInfo;
+        use cw_multi_test::{AppBuilder, Executor};
         use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
 
         #[test]
@@ -3754,17 +3754,38 @@ mod test_module {
             let stream_creation_denom = "uosmo";
             let stream_creation_fee = 100;
 
+            let subs1_addr = Addr::unchecked("subs1");
+            let subs1_token = Coin::new(1_000_000_000, in_denom);
+
+            let subs2_addr = Addr::unchecked("subs2");
+            let subs2_token = Coin::new(3_000_000_000, in_denom);
+
             let mut app = AppBuilder::default()
                 .with_stargate(MyStargateKeeper {})
                 .build(|router, _, storage| {
                     // initialization moved to App construction
                     router
                         .bank
-                        .init_balance(storage, &treasury, vec![
-                            Coin::new(out_supply + out_clp_amount, out_denom),
-                            Coin::new(pool_creation_fee + stream_creation_fee, pool_creation_denom),
-                            // Coin::new(stream_creation_fee, stream_creation_denom),
-                        ])
+                        .init_balance(
+                            storage,
+                            &treasury,
+                            vec![
+                                Coin::new(out_supply + out_clp_amount, out_denom),
+                                Coin::new(
+                                    pool_creation_fee + stream_creation_fee,
+                                    pool_creation_denom,
+                                ),
+                                // Coin::new(stream_creation_fee, stream_creation_denom),
+                            ],
+                        )
+                        .unwrap();
+                    router
+                        .bank
+                        .init_balance(storage, &subs1_addr, vec![subs1_token.clone()])
+                        .unwrap();
+                    router
+                        .bank
+                        .init_balance(storage, &subs2_addr, vec![subs2_token.clone()])
                         .unwrap();
                 });
 
@@ -3825,52 +3846,68 @@ mod test_module {
                     },
                 }),
             };
-            let res = app
-                .execute_contract(
-                    treasury,
-                    contract_addr,
-                    &create_stream_msg,
-                    &[
-                        Coin::new(out_supply + out_clp_amount, out_denom),
-                        Coin::new(stream_creation_fee + pool_creation_fee, stream_creation_denom),
-                    ],
-                )
-                .unwrap();
-            let info = mock_info(
-                "creator",
+            app.execute_contract(
+                treasury.clone(),
+                contract_addr.clone(),
+                &create_stream_msg,
                 &[
-                    Coin::new(out_supply, out_denom),
-                    Coin::new(100, "fee"),
+                    Coin::new(out_supply + out_clp_amount, out_denom),
+                    Coin::new(
+                        stream_creation_fee + pool_creation_fee,
+                        stream_creation_denom,
+                    ),
                 ],
-            );
+            )
+            .unwrap();
 
-            /*
             // first subscription
-            let mut env = mock_env();
-            env.block.time = start.plus_seconds(100);
-            let info = mock_info("creator1", &[Coin::new(1_000_000_000, "in")]);
-            let msg = crate::msg::ExecuteMsg::Subscribe {
-                stream_id: 1,
-                operator_target: None,
-                operator: None,
-            };
-            execute(deps.as_mut(), env, info, msg).unwrap();
+            app.update_block(|b| {
+                b.time = start.plus_seconds(100);
+            });
+            app.execute_contract(
+                subs1_addr,
+                contract_addr.clone(),
+                &ExecuteMsg::Subscribe {
+                    stream_id: 1,
+                    operator_target: None,
+                    operator: None,
+                },
+                &[subs1_token],
+            )
+            .unwrap();
 
             // second subscription
-            let mut env = mock_env();
-            env.block.time = start.plus_seconds(100_000);
-            let info = mock_info("creator2", &[Coin::new(3_000_000_000, "in")]);
-            let msg = crate::msg::ExecuteMsg::Subscribe {
-                stream_id: 1,
-                operator_target: None,
-                operator: None,
-            };
-            execute(deps.as_mut(), env, info, msg).unwrap();
+            app.update_block(|b| {
+                b.time = start.plus_seconds(100_000);
+            });
+            app.execute_contract(
+                subs2_addr,
+                contract_addr.clone(),
+                &ExecuteMsg::Subscribe {
+                    stream_id: 1,
+                    operator_target: None,
+                    operator: None,
+                },
+                &[subs2_token],
+            )
+            .unwrap();
 
-
-             */
             // finalize stream
-            // check outgoing messages
+            app.update_block(|b| {
+                b.time = end.plus_seconds(100_000);
+            });
+            app.execute_contract(
+                treasury,
+                contract_addr.clone(),
+                &ExecuteMsg::FinalizeStream {
+                    stream_id: 1,
+                    new_treasury: None,
+                },
+                &[],
+            )
+            .unwrap();
+
+            // TODO: it do not makes sense to implement mock based tests here. best to use test-tube
         }
     }
 }
