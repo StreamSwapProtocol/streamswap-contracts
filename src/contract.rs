@@ -291,7 +291,7 @@ pub fn execute_create_stream(
             .unwrap();
         let pool_creation_fee = params.pool_creation_fee.get(0).unwrap();
         expected_balance += Coin {
-            denom: config.pool_creation_denom.clone(),
+            denom: pool_creation_fee.denom.clone(),
             amount: Uint128::from_str(pool_creation_fee.amount.as_str())?,
         };
         expected_balance += Coin {
