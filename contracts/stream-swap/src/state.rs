@@ -1,6 +1,6 @@
 use crate::ContractError;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Storage, Uint128};
+use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Storage, Timestamp, Uint128};
 use cw_storage_plus::{Item, Map};
 use std::ops::Mul;
 #[cw_serde]
@@ -16,7 +16,7 @@ pub struct Stream {
     /// Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal256,
     /// Last updated block of stream.
-    pub last_updated_block: u64,
+    pub last_updated_time: Timestamp,
     /// Denom of the `token_out`.
     pub out_asset: Coin,
     /// Total number of remaining out tokens at the time of update.
@@ -30,15 +30,15 @@ pub struct Stream {
     /// Total number of shares minted.
     pub shares: Uint128,
     /// Start block when the token emission starts. in nanos.
-    pub start_block: u64,
+    pub start_time: Timestamp,
     /// End block when the token emission ends.
-    pub end_block: u64,
+    pub end_time: Timestamp,
     /// Price at when latest distribution is triggered.
     pub current_streamed_price: Decimal,
     /// Status of the stream. Can be `Waiting`, `Active`, `Finalized`, `Paused` or `Canceled` for kill switch.
     pub status: Status,
     /// Block height when the stream was paused.
-    pub pause_block: Option<u64>,
+    pub pause_time: Option<Timestamp>,
 }
 
 #[cw_serde]
@@ -59,9 +59,9 @@ impl Stream {
         url: Option<String>,
         out_asset: Coin,
         in_denom: String,
-        start_block: u64,
-        end_block: u64,
-        last_updated_block: u64,
+        start_time: Timestamp,
+        end_time: Timestamp,
+        last_updated_time: Timestamp,
     ) -> Self {
         Stream {
             name,
@@ -69,18 +69,18 @@ impl Stream {
             stream_admin,
             url,
             dist_index: Decimal256::zero(),
-            last_updated_block: last_updated_block,
+            last_updated_time,
+            start_time,
+            end_time,
+            pause_time: None,
             out_asset,
             out_remaining: Uint128::zero(),
             in_denom,
             in_supply: Uint128::zero(),
             spent_in: Uint128::zero(),
             shares: Uint128::zero(),
-            start_block,
-            end_block,
             current_streamed_price: Decimal::zero(),
             status: Status::Waiting,
-            pause_block: None,
         }
     }
 
@@ -179,9 +179,9 @@ fn test_compute_shares_amount() {
             amount: Uint128::from(100u128),
         },
         "in_denom".to_string(),
-        0,
-        100,
-        0,
+        Timestamp::from_seconds(0),
+        Timestamp::from_seconds(100),
+        Timestamp::from_seconds(0),
     );
 
     // add new shares

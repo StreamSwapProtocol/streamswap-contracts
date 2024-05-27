@@ -40,8 +40,8 @@ pub fn instantiate(
     FACTORYPARAMS.save(deps.storage, &factory_params)?;
 
     let CreateStreamMsg {
-        start_block,
-        end_block,
+        start_time,
+        end_time,
         treasury,
         name,
         url,
@@ -51,10 +51,10 @@ pub fn instantiate(
         stream_admin,
     } = msg;
 
-    if end_block <= start_block {
+    if start_time > end_time {
         return Err(ContractError::StreamInvalidEndBlock {});
     }
-    if env.block.height > start_block {
+    if env.block.time > start_time {
         return Err(ContractError::StreamInvalidStartBlock {});
     }
     if &in_denom == &out_asset.denom {

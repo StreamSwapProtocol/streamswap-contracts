@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Storage, Uint128};
+use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Storage, Uint128, Uint64};
 use cw_storage_plus::{Item, Map};
 
 #[cw_serde]
@@ -10,8 +10,8 @@ pub struct Params {
     pub exit_fee_percent: Decimal,
     pub stream_swap_code_id: u64,
     pub accepted_in_denoms: Vec<String>,
-    pub min_stream_blocks: u64,
-    pub min_blocks_until_start_block: u64,
+    pub min_stream_seconds: u64,
+    pub min_seconds_until_start_time: u64,
 }
 
 pub const PARAMS: Item<Params> = Item::new("params");

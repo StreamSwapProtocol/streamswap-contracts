@@ -24,8 +24,8 @@ pub fn instantiate(
         exit_fee_percent,
         accepted_in_denoms,
         fee_collector,
-        min_stream_blocks,
-        min_blocks_until_start_block,
+        min_stream_seconds,
+        min_seconds_until_start_time,
     } = msg;
 
     let protocol_admin = deps
@@ -48,8 +48,8 @@ pub fn instantiate(
         stream_swap_code_id,
         accepted_in_denoms,
         fee_collector,
-        min_stream_blocks,
-        min_blocks_until_start_block,
+        min_stream_seconds: min_stream_seconds.into(),
+        min_seconds_until_start_time: min_seconds_until_start_time.into(),
         protocol_admin: protocol_admin.clone(),
     };
     PARAMS.save(deps.storage, &params)?;
@@ -81,8 +81,8 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::UpdateParams {
-            min_stream_blocks,
-            min_blocks_until_start_block,
+            min_stream_seconds,
+            min_seconds_until_start_time,
             stream_creation_fee,
             fee_collector,
             accepted_in_denoms,
@@ -91,8 +91,8 @@ pub fn execute(
             deps,
             env,
             info,
-            min_stream_blocks,
-            min_blocks_until_start_block,
+            min_stream_seconds,
+            min_seconds_until_start_time,
             stream_creation_fee,
             fee_collector,
             accepted_in_denoms,
@@ -117,8 +117,8 @@ pub fn execute_create_stream(
         name,
         url,
         out_asset,
-        start_block,
-        end_block,
+        start_time,
+        end_time,
         threshold,
         in_denom,
         stream_admin,
@@ -131,17 +131,17 @@ pub fn execute_create_stream(
     let last_stream_id = LAST_STREAM_ID.load(deps.storage)?;
     let stream_id = last_stream_id + 1;
 
-    if end_block <= start_block {
-        return Err(ContractError::StreamInvalidEndBlock {});
+    if start_time > end_time {
+        return Err(ContractError::StreamInvalidEndTime {});
     }
-    if env.block.height > start_block {
-        return Err(ContractError::StreamInvalidStartBlock {});
+    if start_time < env.block.time {
+        return Err(ContractError::StreamInvalidStartTime {});
     }
 
-    if end_block - start_block < params.min_stream_blocks {
+    if end_time.seconds() - start_time.seconds() < params.min_stream_seconds {
         return Err(ContractError::StreamDurationTooShort {});
     }
-    if start_block - env.block.height < params.min_blocks_until_start_block {
+    if start_time.seconds() - env.block.time.seconds() < params.min_seconds_until_start_time {
         return Err(ContractError::StreamStartsTooSoon {});
     }
     if !accepted_in_denoms.contains(&in_denom) {
@@ -170,8 +170,8 @@ pub fn execute_create_stream(
         .add_attribute("name", name)
         .add_attribute("treasury", treasury)
         .add_attribute("out_asset", out_asset.to_string())
-        .add_attribute("start_block", start_block.to_string())
-        .add_attribute("end_block", end_block.to_string())
+        .add_attribute("start_time", start_time.to_string())
+        .add_attribute("end time", end_time.to_string())
         .add_attribute("in_denom", in_denom);
     Ok(res)
 }
@@ -180,8 +180,8 @@ pub fn execute_update_params(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    min_stream_blocks: Option<u64>,
-    min_blocks_until_start_block: Option<u64>,
+    min_stream_seconds: Option<u64>,
+    min_seconds_until_start_time: Option<u64>,
     stream_creation_fee: Option<Coin>,
     fee_collector: Option<String>,
     accepted_in_denoms: Option<Vec<String>>,
@@ -211,12 +211,12 @@ pub fn execute_update_params(
         params.accepted_in_denoms = accepted_in_denoms;
     }
 
-    if let Some(min_stream_blocks) = min_stream_blocks {
-        params.min_stream_blocks = min_stream_blocks;
+    if let Some(min_stream_seconds) = min_stream_seconds {
+        params.min_stream_seconds = min_stream_seconds;
     }
 
-    if let Some(min_blocks_until_start_block) = min_blocks_until_start_block {
-        params.min_blocks_until_start_block = min_blocks_until_start_block;
+    if let Some(min_seconds_until_start_time) = min_seconds_until_start_time {
+        params.min_seconds_until_start_time = min_seconds_until_start_time;
     }
 
     PARAMS.save(deps.storage, &params)?;
