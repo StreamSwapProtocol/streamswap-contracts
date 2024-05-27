@@ -115,13 +115,13 @@ pub fn execute_create_stream(
     let CreateStreamMsg {
         treasury,
         name,
-        url,
         out_asset,
         start_time,
         end_time,
-        threshold,
         in_denom,
         stream_admin,
+        url,
+        threshold,
     } = msg.clone();
     let params = PARAMS.load(deps.storage)?;
     let stream_creation_fee = params.stream_creation_fee.clone();

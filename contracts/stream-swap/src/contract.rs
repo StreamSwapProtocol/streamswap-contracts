@@ -8,8 +8,8 @@ use crate::threshold::ThresholdState;
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
     attr, entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
-    Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdError, StdResult, Uint128,
-    Uint256,
+    Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdError, StdResult, Timestamp,
+    Uint128, Uint256,
 };
 use cw2::{get_contract_version, set_contract_version};
 use cw_streamswap_factory::msg::CreateStreamMsg;
@@ -231,10 +231,10 @@ pub fn execute_update_stream(
 }
 
 pub fn update_stream(
-    now_block: u64,
+    now: Timestamp,
     stream: &mut Stream,
 ) -> Result<(Decimal, Uint128), ContractError> {
-    let diff = calculate_diff(stream.end_block, stream.last_updated_block, now_block);
+    let diff = calculate_diff(stream.end_time, stream.last_updated, now);
 
     let mut new_distribution_balance = Uint128::zero();
 
@@ -271,24 +271,20 @@ pub fn update_stream(
         }
     }
 
-    stream.last_updated_block = if now_block < stream.start_block {
-        stream.start_block
+    stream.last_updated = if now < stream.start_time {
+        stream.start_time
     } else {
-        now_block
+        now
     };
 
     Ok((diff, new_distribution_balance))
 }
 
-fn calculate_diff(end_block: u64, last_updated_block: u64, now_block: u64) -> Decimal {
-    // diff = (now_block - last_updated_block) / (end_block - last_updated_block)
-    let now_block = if now_block > end_block {
-        end_block
-    } else {
-        now_block
-    };
-    let numerator = now_block.saturating_sub(last_updated_block);
-    let denominator = end_block.saturating_sub(last_updated_block);
+fn calculate_diff(end_time: Timestamp, last_updated: Timestamp, now: Timestamp) -> Decimal {
+    // diff = (now - last_updated) / (end_time - last_updated)
+    let now = if now > end_time { end_time } else { now };
+    let numerator = now.nanos().saturating_sub(last_updated.nanos());
+    let denominator = end_time.nanos().saturating_sub(last_updated.nanos());
 
     if denominator == 0 || numerator == 0 {
         Decimal::zero()
@@ -343,7 +339,7 @@ pub fn execute_update_position(
 pub fn update_position(
     stream_dist_index: Decimal256,
     stream_shares: Uint128,
-    stream_last_updated_block: u64,
+    stream_last_updated_time: Timestamp,
     stream_in_supply: Uint128,
     position: &mut Position,
 ) -> Result<(Uint128, Uint128), ContractError> {
@@ -380,7 +376,7 @@ pub fn update_position(
     }
 
     position.index = stream_dist_index;
-    position.last_updated_block = stream_last_updated_block;
+    position.last_updated_time = stream_last_updated_time;
 
     Ok((purchased_uint128, spent))
 }

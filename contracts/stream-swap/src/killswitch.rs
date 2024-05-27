@@ -1,9 +1,12 @@
+use std::any::Any;
+
 use crate::contract::{update_position, update_stream};
 use crate::state::{Status, Stream, POSITIONS, STREAMS};
 use crate::threshold::{ThresholdError, ThresholdState};
 use crate::ContractError;
 use cosmwasm_std::{
-    attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
+    attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult, Timestamp,
+    Uint128,
 };
 use cw_streamswap_factory::state::{Params as FactoryParams, PARAMS as FACTORY_PARAMS};
 use cw_utils::maybe_addr;
@@ -39,7 +42,7 @@ pub fn execute_withdraw_paused(
     update_position(
         stream.dist_index,
         stream.shares,
-        stream.last_updated_block,
+        stream.last_updated,
         stream.in_supply,
         &mut position,
     )?;
@@ -116,7 +119,7 @@ pub fn execute_exit_cancelled(
             return Err(ContractError::StreamNotCancelled {});
         }
         // Stream should be ended
-        if stream.end_block > env.block.height {
+        if stream.end_time > env.block.time {
             return Err(ContractError::StreamNotCancelled {});
         }
         // Update stream before checking threshold
@@ -173,11 +176,11 @@ pub fn execute_pause_stream(
     }
     //check if stream is ended
     let stream = STREAMS.load(deps.storage, stream_id)?;
-    if env.block.height >= stream.end_block {
+    if env.block.time >= stream.end_time {
         return Err(ContractError::StreamEnded {});
     }
     // check if stream is not started
-    if env.block.height < stream.start_block {
+    if env.block.time < stream.start_time {
         return Err(ContractError::StreamNotStarted {});
     }
     // paused or cancelled can not be paused
@@ -187,7 +190,7 @@ pub fn execute_pause_stream(
     // update stream before pause
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     update_stream(env.block.height, &mut stream)?;
-    pause_stream(env.block.height, &mut stream)?;
+    pause_stream(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     Ok(Response::default()
@@ -197,9 +200,9 @@ pub fn execute_pause_stream(
         .add_attribute("pause_block", env.block.height.to_string()))
 }
 
-pub fn pause_stream(now_block: u64, stream: &mut Stream) -> StdResult<()> {
+pub fn pause_stream(now: Timestamp, stream: &mut Stream) -> StdResult<()> {
     stream.status = Status::Paused;
-    stream.pause_block = Some(now_block);
+    stream.pause_date = Some(now);
     Ok(())
 }
 
@@ -222,11 +225,14 @@ pub fn execute_resume_stream(
         return Err(ContractError::Unauthorized {});
     }
 
-    let pause_block = stream.pause_block.unwrap();
+    let pause_date = stream.pause_date.unwrap();
     //postpone stream times with respect to pause duration
-    stream.end_block = stream.end_block + (env.block.height - pause_block);
-    stream.last_updated_block = stream.last_updated_block + (env.block.height - pause_block);
-
+    stream.end_time = stream
+        .end_time
+        .plus_nanos(env.block.time.nanos() - pause_date.nanos());
+    stream.last_updated = stream
+        .last_updated
+        .plus_nanos(env.block.time.nanos() - pause_date.nanos());
     stream.status = Status::Active;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
@@ -293,7 +299,7 @@ pub fn execute_cancel_stream_with_threshold(
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
 
-    if env.block.height < stream.end_block {
+    if env.block.time < stream.end_time {
         return Err(ContractError::StreamNotEnded {});
     }
     if info.sender != stream.treasury {
@@ -310,7 +316,7 @@ pub fn execute_cancel_stream_with_threshold(
         return Err(ContractError::StreamAlreadyFinalized {});
     }
 
-    if stream.last_updated_block < stream.end_block {
+    if stream.last_updated < env.block.time {
         update_stream(env.block.height, &mut stream)?;
     }
 
@@ -350,19 +356,21 @@ pub fn sudo_pause_stream(
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
 
-    if env.block.height >= stream.end_block {
+    STREAMS.save(deps.storage, stream_id, &stream)?;
+
+    if env.block.time >= stream.end_time {
         return Err(ContractError::StreamEnded {});
     }
     // check if stream is not started
-    if env.block.height < stream.start_block {
+    if env.block.time < stream.start_time {
         return Err(ContractError::StreamNotStarted {});
     }
     // Paused or cancelled can not be paused
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
     }
-    update_stream(env.block.height, &mut stream)?;
-    pause_stream(env.block.height, &mut stream)?;
+    update_stream(env.block.time, &mut stream)?;
+    pause_stream(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     Ok(Response::default()
@@ -386,20 +394,23 @@ pub fn sudo_resume_stream(
     if !stream.is_paused() {
         return Err(ContractError::StreamNotPaused {});
     }
-    // ok to use unwrap here
-    let pause_block = stream.pause_block.unwrap();
+    let pause_date = stream.pause_date.unwrap();
     //postpone stream times with respect to pause duration
-    stream.end_block = stream.end_block + (env.block.height - pause_block);
-    stream.last_updated_block = stream.last_updated_block + (env.block.height - pause_block);
+    stream.end_time = stream
+        .end_time
+        .plus_nanos(env.block.time.nanos() - pause_date.nanos());
+    stream.last_updated = stream
+        .last_updated
+        .plus_nanos(env.block.time.nanos() - pause_date.nanos());
 
     stream.status = Status::Active;
-    stream.pause_block = None;
+    stream.pause_date = None;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     Ok(Response::default()
         .add_attribute("action", "resume_stream")
         .add_attribute("stream_id", stream_id.to_string())
-        .add_attribute("new_end_date", stream.end_block.to_string())
+        .add_attribute("new_end_date", stream.end_time.to_string())
         .add_attribute("status", "active"))
 }
 

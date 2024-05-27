@@ -16,7 +16,7 @@ pub struct Stream {
     /// Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal256,
     /// Last updated block of stream.
-    pub last_updated_time: Timestamp,
+    pub last_updated: Timestamp,
     /// Denom of the `token_out`.
     pub out_asset: Coin,
     /// Total number of remaining out tokens at the time of update.
@@ -38,7 +38,7 @@ pub struct Stream {
     /// Status of the stream. Can be `Waiting`, `Active`, `Finalized`, `Paused` or `Canceled` for kill switch.
     pub status: Status,
     /// Block height when the stream was paused.
-    pub pause_time: Option<Timestamp>,
+    pub pause_date: Option<Timestamp>,
 }
 
 #[cw_serde]
@@ -61,7 +61,7 @@ impl Stream {
         in_denom: String,
         start_time: Timestamp,
         end_time: Timestamp,
-        last_updated_time: Timestamp,
+        last_updated: Timestamp,
     ) -> Self {
         Stream {
             name,
@@ -69,10 +69,10 @@ impl Stream {
             stream_admin,
             url,
             dist_index: Decimal256::zero(),
-            last_updated_time,
+            last_updated,
             start_time,
             end_time,
-            pause_time: None,
+            pause_date: None,
             out_asset,
             out_remaining: Uint128::zero(),
             in_denom,
@@ -129,7 +129,7 @@ pub struct Position {
     // Index is used to calculate the distribution a position has
     pub index: Decimal256,
     // Block height when the position was last updated.
-    pub last_updated_block: u64,
+    pub last_updated_time: Timestamp,
     // Total amount of `token_out` purchased in tokens at latest calculation
     pub purchased: Uint128,
     // Pending purchased accumulates purchases after decimal truncation
@@ -146,15 +146,15 @@ impl Position {
         in_balance: Uint128,
         shares: Uint128,
         index: Option<Decimal256>,
-        last_updated_block: u64,
         operator: Option<Addr>,
+        last_updated_time: Timestamp,
     ) -> Self {
         Position {
             owner,
             in_balance,
             shares,
             index: index.unwrap_or_default(),
-            last_updated_block,
+            last_updated_time,
             purchased: Uint128::zero(),
             pending_purchase: Decimal256::zero(),
             spent: Uint128::zero(),
