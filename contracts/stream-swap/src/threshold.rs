@@ -109,7 +109,7 @@ mod tests {
     use super::*;
     use crate::state::Stream;
     use cosmwasm_std::testing::MockStorage;
-    use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Uint128};
+    use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Timestamp, Uint128};
 
     #[test]
     fn test_thresholds_state() {
@@ -121,16 +121,16 @@ mod tests {
                 amount: Uint128::new(1000),
             },
             in_supply: Uint128::new(1000),
-            start_block: 0,
-            end_block: 100,
+            start_time: Timestamp::from_seconds(0),
+            end_time: Timestamp::from_seconds(1000),
+            last_updated_time: Timestamp::from_seconds(0),
+            pause_time: None,
             current_streamed_price: Decimal::percent(100),
             dist_index: Decimal256::one(),
             in_denom: "uusd".to_string(),
-            last_updated_block: 0,
             name: "test".to_string(),
             url: Some("test".to_string()),
             out_remaining: Uint128::new(1000),
-            pause_block: None,
             shares: Uint128::new(0),
             spent_in: Uint128::new(0),
             status: crate::state::Status::Active,

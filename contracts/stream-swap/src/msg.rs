@@ -14,10 +14,6 @@ pub enum ExecuteMsg {
         stream_id: u64,
         new_operator: Option<String>,
     },
-    /// Subscribe to a token stream. Any use at any time before the stream end can join
-    /// the stream by sending `token_in` to the Stream through the Subscribe msg.
-    /// During the stream, user `token_in` will be automatically charged every
-    /// epoch to purchase `token_out`.
     Subscribe {
         stream_id: u64,
         /// operator_target is the address of operator targets to execute on behalf of the user.
@@ -122,10 +118,10 @@ pub enum QueryMsg {
 
 #[cw_serde]
 pub struct ConfigResponse {
-    /// Minimum blocks for a stream to last.
-    pub min_stream_blocks: u64,
-    /// Minimum blocks until the start block of a stream.
-    pub min_blocks_until_start_block: u64,
+    /// Minimum seconds for a stream to last.
+    pub min_stream_seconds: u64,
+    /// Minimum seconds until the start time of a stream.
+    pub min_seconds_until_start_time: u64,
     /// Denom accepted for subscription.
     pub accepted_in_denom: String,
     /// Denom used as fee for creating a stream.
@@ -148,8 +144,8 @@ pub struct StreamResponse {
     pub url: Option<String>,
     /// Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal256,
-    /// Last updated block of stream.
-    pub last_updated_block: u64,
+    /// Last updated second of stream.
+    pub last_updated_second: u64,
 
     pub out_asset: Coin,
     /// Total number of remaining out tokens at the time of update.
@@ -162,16 +158,16 @@ pub struct StreamResponse {
     pub spent_in: Uint128,
     /// Total number of shares minted.
     pub shares: Uint128,
-    /// Start block when the token emission starts.
-    pub start_block: u64,
-    /// End block when the token emission ends.
-    pub end_block: u64,
+    /// Start second when the token emission starts.
+    pub start_second: u64,
+    /// End second when the token emission ends.
+    pub end_second: u64,
     /// Price at when latest distribution is triggered.
     pub current_streamed_price: Decimal,
     /// Status of the stream. Can be `Waiting`, `Active`, `Finalzed`, `Paused` or `Canceled` for kill switch.
     pub status: Status,
-    /// Block height when the stream was paused.
-    pub pause_block: Option<u64>,
+    /// second height when the stream was paused.
+    pub pause_second: Option<u64>,
     /// Address of the stream admin.
     pub stream_admin: String,
 }
@@ -191,8 +187,8 @@ pub struct PositionResponse {
     pub shares: Uint128,
     // Index is used to calculate the distribution a position has
     pub index: Decimal256,
-    // Last_updated_block is the block height when the position was last updated
-    pub last_updated_block: u64,
+    // Last_updated_time is the time when the position was last updated
+    pub last_updated_time: u64,
     // Total amount of `token_out` purchased in tokens at latest calculation
     pub purchased: Uint128,
     // Pending purchased accumulates purchases after decimal truncation
