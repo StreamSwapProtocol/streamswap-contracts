@@ -3,10 +3,10 @@ use crate::helpers::{
     mock_messages::{get_create_stream_msg, get_factory_inst_msg},
     setup::{setup, SetupResponse},
 };
-use cosmwasm_std::{coin, Addr, Decimal};
+use cosmwasm_std::coin;
 use cw_multi_test::Executor;
 use cw_streamswap_factory::error::ContractError as FactoryError;
-use cw_streamswap_factory::{msg::QueryMsg, state::Params};
+use cw_streamswap_factory::msg::QueryMsg;
 
 #[test]
 fn factory_freeze() {
@@ -35,8 +35,8 @@ fn factory_freeze() {
         &test_accounts.creator.to_string(),
         coin(100, "out_denom"),
         "in_denom",
-        app.block_info().height + 100,
-        app.block_info().height + 200,
+        app.block_info().time.plus_seconds(100),
+        app.block_info().time.plus_seconds(200),
         None,
     );
     let _create_stream_res = app
@@ -86,8 +86,8 @@ fn factory_freeze() {
         &test_accounts.creator.to_string(),
         coin(100, "out_denom"),
         "in_denom",
-        app.block_info().height + 100,
-        app.block_info().height + 200,
+        app.block_info().time.plus_seconds(100),
+        app.block_info().time.plus_seconds(200),
         None,
     );
     let res = app

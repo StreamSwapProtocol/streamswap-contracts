@@ -39,6 +39,6 @@ fn factory_proper_instantiate() {
     assert_eq!(res.stream_swap_code_id, stream_swap_code_id);
     assert_eq!(res.accepted_in_denoms, vec!["in_denom".to_string()]);
     assert_eq!(res.fee_collector, test_accounts.admin.to_string());
-    assert_eq!(res.min_stream_blocks, 10);
-    assert_eq!(res.min_blocks_until_start_block, 10);
+    assert_eq!(res.min_stream_seconds, 100);
+    assert_eq!(res.min_seconds_until_start_time, 100);
 }

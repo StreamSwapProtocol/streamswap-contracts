@@ -16,7 +16,7 @@ pub fn setup() -> SetupResponse {
     app.set_block(BlockInfo {
         chain_id: "test_1".to_string(),
         height: 1_000,
-        time: Timestamp::from_nanos(1_000),
+        time: Timestamp::from_seconds(1_000),
     });
 
     // All three accounts need to have some tokens

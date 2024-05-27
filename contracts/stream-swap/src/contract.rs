@@ -901,24 +901,24 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
     }
 }
 
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    let contract_info = get_contract_version(deps.storage)?;
-    let storage_contract_name: String = contract_info.contract;
-    let storage_version: Version = contract_info.version.parse().map_err(from_semver)?;
-    let version: Version = CONTRACT_VERSION.parse().map_err(from_semver)?;
+// #[cfg_attr(not(feature = "library"), entry_point)]
+// pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+//     let contract_info = get_contract_version(deps.storage)?;
+//     let storage_contract_name: String = contract_info.contract;
+//     let storage_version: Version = contract_info.version.parse().map_err(from_semver)?;
+//     let version: Version = CONTRACT_VERSION.parse().map_err(from_semver)?;
 
-    if storage_contract_name != CONTRACT_NAME {
-        return Err(ContractError::CannotMigrate {
-            previous_contract: storage_contract_name,
-        });
-    }
-    if storage_version < version {
-        set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-        // Code to facilitate state change goes here
-    }
-    Ok(Response::default())
-}
+//     if storage_contract_name != CONTRACT_NAME {
+//         return Err(ContractError::CannotMigrate {
+//             previous_contract: storage_contract_name,
+//         });
+//     }
+//     if storage_version < version {
+//         set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+//         // Code to facilitate state change goes here
+//     }
+//     Ok(Response::default())
+// }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {

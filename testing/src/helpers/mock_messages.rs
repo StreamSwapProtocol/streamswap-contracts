@@ -1,4 +1,4 @@
-use cosmwasm_std::{Coin, Decimal};
+use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
 use cw_streamswap_factory::msg::{
     CreateStreamMsg, ExecuteMsg as FactoryExecuteMsg, InstantiateMsg as FactoryInstantiateMsg,
 };
@@ -19,8 +19,8 @@ pub fn get_factory_inst_msg(
         },
         exit_fee_percent: Decimal::percent(1),
         accepted_in_denoms: vec!["in_denom".to_string()],
-        min_stream_blocks: 10,
-        min_blocks_until_start_block: 10,
+        min_stream_seconds: 100,
+        min_seconds_until_start_time: 100,
     }
 }
 
@@ -30,21 +30,21 @@ pub fn get_create_stream_msg(
     treasury: &str,
     out_asset: Coin,
     in_denom: &str,
-    start_block: u64,
-    end_block: u64,
-    threshold: Option<u128>,
+    start_time: Timestamp,
+    end_time: Timestamp,
+    treshold: Option<Uint128>,
 ) -> FactoryExecuteMsg {
     FactoryExecuteMsg::CreateStream {
         msg: CreateStreamMsg {
             treasury: treasury.to_string(),
             stream_admin: treasury.to_string(),
             name: name.to_string(),
-            url: url,
+            url,
             out_asset,
             in_denom: in_denom.to_string(),
-            start_block,
-            end_block,
-            threshold: threshold.map(|t| t.into()),
+            start_time,
+            end_time,
+            threshold: treshold,
         },
     }
 }

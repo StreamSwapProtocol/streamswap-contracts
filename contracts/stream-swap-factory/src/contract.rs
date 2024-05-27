@@ -1,3 +1,5 @@
+use core::time;
+
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
     Response, StdResult, WasmMsg,
@@ -126,10 +128,17 @@ pub fn execute_create_stream(
     let params = PARAMS.load(deps.storage)?;
     let stream_creation_fee = params.stream_creation_fee.clone();
     let accepted_in_denoms = params.accepted_in_denoms.clone();
+    if !accepted_in_denoms.contains(&in_denom) {
+        return Err(ContractError::InDenomIsNotAccepted {});
+    }
     let expected_funds = vec![stream_creation_fee.clone(), out_asset.clone()];
     check_payment(&info.funds, &expected_funds)?;
     let last_stream_id = LAST_STREAM_ID.load(deps.storage)?;
     let stream_id = last_stream_id + 1;
+    println!("Stream ID: {}", stream_id);
+    println!("Stream start{} ", start_time);
+    println!("Stream end{} ", end_time);
+    println!("now{} ", env.block.time);
 
     if start_time > end_time {
         return Err(ContractError::StreamInvalidEndTime {});
@@ -137,15 +146,21 @@ pub fn execute_create_stream(
     if start_time < env.block.time {
         return Err(ContractError::StreamInvalidStartTime {});
     }
+    // Explicitly handle the Option returned by checked_sub
+    let stream_duration = end_time
+        .seconds()
+        .checked_sub(start_time.seconds())
+        .ok_or(ContractError::StreamInvalidEndTime {})?;
 
-    if end_time.seconds() - start_time.seconds() < params.min_stream_seconds {
+    if stream_duration < params.min_stream_seconds {
         return Err(ContractError::StreamDurationTooShort {});
     }
-    if start_time.seconds() - env.block.time.seconds() < params.min_seconds_until_start_time {
+    let time_until_start = start_time
+        .seconds()
+        .checked_sub(env.block.time.seconds())
+        .ok_or(ContractError::StreamInvalidStartTime {})?;
+    if time_until_start < params.min_seconds_until_start_time {
         return Err(ContractError::StreamStartsTooSoon {});
-    }
-    if !accepted_in_denoms.contains(&in_denom) {
-        return Err(ContractError::InDenomIsNotAccepted {});
     }
 
     let stream_swap_inst_message: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
