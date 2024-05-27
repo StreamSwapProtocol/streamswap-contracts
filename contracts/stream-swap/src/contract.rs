@@ -37,6 +37,7 @@ pub fn instantiate(
     let factory_params: FactoryParams = deps
         .querier
         .query_wasm_smart(info.sender.to_string(), &params_query_msg)?;
+
     FACTORYPARAMS.save(deps.storage, &factory_params)?;
 
     let CreateStreamMsg {
@@ -52,10 +53,10 @@ pub fn instantiate(
     } = msg;
 
     if start_time > end_time {
-        return Err(ContractError::StreamInvalidEndBlock {});
+        return Err(ContractError::StreamInvalidEndTime {});
     }
     if env.block.time > start_time {
-        return Err(ContractError::StreamInvalidStartBlock {});
+        return Err(ContractError::StreamInvalidStartTime {});
     }
     if &in_denom == &out_asset.denom {
         return Err(ContractError::SameDenomOnEachSide {});
@@ -75,9 +76,9 @@ pub fn instantiate(
         url.clone(),
         out_asset.clone(),
         in_denom.clone(),
-        start_block,
-        end_block,
-        start_block,
+        start_time,
+        end_time,
+        start_time,
     );
     let id = next_stream_id(deps.storage)?;
     STREAMS.save(deps.storage, id, &stream)?;
@@ -93,8 +94,8 @@ pub fn instantiate(
         attr("in_denom", in_denom),
         attr("out_denom", out_asset.denom),
         attr("out_supply", out_asset.amount.to_string()),
-        attr("start_block", start_block.to_string()),
-        attr("end_block", end_block.to_string()),
+        attr("start_time", start_time.to_string()),
+        attr("end_time", end_time.to_string()),
     ];
     Ok(Response::default().add_attributes(attr))
 }
@@ -122,7 +123,7 @@ pub fn execute(
             operator,
         } => {
             let stream = STREAMS.load(deps.storage, stream_id)?;
-            if stream.start_block > env.block.height {
+            if stream.start_time > env.block.time {
                 Ok(execute_subscribe_pending(
                     deps.branch(),
                     env,
@@ -150,7 +151,7 @@ pub fn execute(
             operator_target,
         } => {
             let stream = STREAMS.load(deps.storage, stream_id)?;
-            if stream.start_block > env.block.height {
+            if stream.start_time > env.block.time {
                 Ok(execute_withdraw_pending(
                     deps.branch(),
                     env,
@@ -217,7 +218,7 @@ pub fn execute_update_stream(
     if stream.is_paused() {
         return Err(ContractError::StreamPaused {});
     }
-    let (_, dist_amount) = update_stream(env.block.height, &mut stream)?;
+    let (_, dist_amount) = update_stream(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     let attrs = vec![
@@ -312,7 +313,7 @@ pub fn execute_update_position(
     }
 
     // sync stream
-    update_stream(env.block.height, &mut stream)?;
+    update_stream(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     // updates position to latest distribution. Returns the amount of out tokens that has been purchased
@@ -320,7 +321,7 @@ pub fn execute_update_position(
     let (purchased, spent) = update_position(
         stream.dist_index,
         stream.shares,
-        stream.last_updated_block,
+        stream.last_updated,
         stream.in_supply,
         &mut position,
     )?;
@@ -376,7 +377,7 @@ pub fn update_position(
     }
 
     position.index = stream_dist_index;
-    position.last_updated_time = stream_last_updated_time;
+    position.last_updated = stream_last_updated_time;
 
     Ok((purchased_uint128, spent))
 }
@@ -395,7 +396,7 @@ pub fn execute_subscribe(
         return Err(ContractError::StreamKillswitchActive {});
     }
 
-    if env.block.height >= stream.end_block {
+    if env.block.time >= stream.end_time {
         return Err(ContractError::StreamEnded {});
     }
     // On first subscibe change status to Active
@@ -416,7 +417,7 @@ pub fn execute_subscribe(
             if operator_target != info.sender {
                 return Err(ContractError::Unauthorized {});
             }
-            update_stream(env.block.height, &mut stream)?;
+            update_stream(env.block.time, &mut stream)?;
             new_shares = stream.compute_shares_amount(in_amount, false);
             // new positions do not update purchase as it has no effect on distribution
             let new_position = Position::new(
@@ -424,8 +425,8 @@ pub fn execute_subscribe(
                 in_amount,
                 new_shares,
                 Some(stream.dist_index),
-                env.block.height,
                 operator,
+                env.block.time,
             );
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
         }
@@ -433,12 +434,12 @@ pub fn execute_subscribe(
             check_access(&info, &position.owner, &position.operator)?;
 
             // incoming tokens should not participate in prev distribution
-            update_stream(env.block.height, &mut stream)?;
+            update_stream(env.block.time, &mut stream)?;
             new_shares = stream.compute_shares_amount(in_amount, false);
             update_position(
                 stream.dist_index,
                 stream.shares,
-                stream.last_updated_block,
+                stream.last_updated,
                 stream.in_supply,
                 &mut position,
             )?;
@@ -495,8 +496,8 @@ pub fn execute_subscribe_pending(
                 in_amount,
                 new_shares,
                 Some(stream.dist_index),
-                env.block.height,
                 operator,
+                env.block.time,
             );
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
         }
@@ -555,7 +556,7 @@ pub fn execute_withdraw(
         return Err(ContractError::StreamKillswitchActive {});
     }
     // can't withdraw after stream ended
-    if env.block.height >= stream.end_block {
+    if env.block.time >= stream.end_time {
         return Err(ContractError::StreamEnded {});
     }
 
@@ -564,11 +565,11 @@ pub fn execute_withdraw(
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
     check_access(&info, &position.owner, &position.operator)?;
 
-    update_stream(env.block.height, &mut stream)?;
+    update_stream(env.block.time, &mut stream)?;
     update_position(
         stream.dist_index,
         stream.shares,
-        stream.last_updated_block,
+        stream.last_updated,
         stream.in_supply,
         &mut position,
     )?;
@@ -699,11 +700,11 @@ pub fn execute_finalize_stream(
     if stream.treasury != info.sender {
         return Err(ContractError::Unauthorized {});
     }
-    if env.block.height <= stream.end_block {
+    if env.block.time <= stream.end_time {
         return Err(ContractError::StreamNotEnded {});
     }
-    if stream.last_updated_block < stream.end_block {
-        update_stream(env.block.height, &mut stream)?;
+    if stream.last_updated < stream.end_time {
+        update_stream(env.block.time, &mut stream)?;
     }
     if stream.status == Status::Active {
         stream.status = Status::Finalized
@@ -806,11 +807,11 @@ pub fn execute_exit_stream(
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
     }
-    if env.block.height <= stream.end_block {
+    if env.block.time <= stream.end_time {
         return Err(ContractError::StreamNotEnded {});
     }
-    if stream.last_updated_block < stream.end_block {
-        update_stream(env.block.height, &mut stream)?;
+    if stream.last_updated < stream.end_time {
+        update_stream(env.block.time, &mut stream)?;
     }
 
     let threshold_state = ThresholdState::new();
@@ -826,7 +827,7 @@ pub fn execute_exit_stream(
     update_position(
         stream.dist_index,
         stream.shares,
-        stream.last_updated_block,
+        stream.last_updated,
         stream.in_supply,
         &mut position,
     )?;
@@ -958,16 +959,16 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
         treasury: stream.treasury.to_string(),
         in_denom: stream.in_denom,
         out_asset: stream.out_asset,
-        start_block: stream.start_block,
-        end_block: stream.end_block,
+        start_time: stream.start_time,
+        end_time: stream.end_time,
+        last_updated: stream.last_updated,
         spent_in: stream.spent_in,
         dist_index: stream.dist_index,
         out_remaining: stream.out_remaining,
         in_supply: stream.in_supply,
         shares: stream.shares,
-        last_updated_block: stream.last_updated_block,
         status: stream.status,
-        pause_block: stream.pause_block,
+        pause_date: stream.pause_date,
         url: stream.url,
         current_streamed_price: stream.current_streamed_price,
         stream_admin: stream.stream_admin.into_string(),
@@ -995,19 +996,19 @@ pub fn list_streams(
                 id: stream_id,
                 treasury: stream.treasury.to_string(),
                 in_denom: stream.in_denom,
-                start_block: stream.start_block,
-                end_block: stream.end_block,
+                out_asset: stream.out_asset,
+                start_time: stream.start_time,
+                end_time: stream.end_time,
+                last_updated: stream.last_updated,
                 spent_in: stream.spent_in,
-                last_updated_block: stream.last_updated_block,
                 dist_index: stream.dist_index,
                 out_remaining: stream.out_remaining,
                 in_supply: stream.in_supply,
                 shares: stream.shares,
                 status: stream.status,
-                pause_block: stream.pause_block,
+                pause_date: stream.pause_date,
                 url: stream.url,
                 current_streamed_price: stream.current_streamed_price,
-                out_asset: stream.out_asset,
                 stream_admin: stream.stream_admin.into_string(),
             };
             Ok(stream)
@@ -1034,7 +1035,7 @@ pub fn query_position(
         spent: position.spent,
         shares: position.shares,
         operator: position.operator,
-        last_updated_block: position.last_updated_block,
+        last_updated: position.last_updated,
         pending_purchase: position.pending_purchase,
     };
     Ok(res)
@@ -1060,7 +1061,7 @@ pub fn list_positions(
                 stream_id,
                 owner: owner.to_string(),
                 index: position.index,
-                last_updated_block: position.last_updated_block,
+                last_updated: position.last_updated,
                 purchased: position.purchased,
                 pending_purchase: position.pending_purchase,
                 spent: position.spent,

@@ -128,8 +128,8 @@ pub struct Position {
     pub shares: Uint128,
     // Index is used to calculate the distribution a position has
     pub index: Decimal256,
-    // Block height when the position was last updated.
-    pub last_updated_time: Timestamp,
+    // Block time when the position was last updated.
+    pub last_updated: Timestamp,
     // Total amount of `token_out` purchased in tokens at latest calculation
     pub purchased: Uint128,
     // Pending purchased accumulates purchases after decimal truncation
@@ -147,14 +147,14 @@ impl Position {
         shares: Uint128,
         index: Option<Decimal256>,
         operator: Option<Addr>,
-        last_updated_time: Timestamp,
+        last_updated: Timestamp,
     ) -> Self {
         Position {
             owner,
             in_balance,
             shares,
             index: index.unwrap_or_default(),
-            last_updated_time,
+            last_updated,
             purchased: Uint128::zero(),
             pending_purchase: Decimal256::zero(),
             spent: Uint128::zero(),

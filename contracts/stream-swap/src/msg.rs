@@ -1,6 +1,6 @@
 use crate::state::Status;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Uint128};
+use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Timestamp, Uint128};
 use cw_streamswap_factory::state::Params as FactoryParams;
 
 #[cw_serde]
@@ -144,8 +144,8 @@ pub struct StreamResponse {
     pub url: Option<String>,
     /// Proportional distribution variable to calculate the distribution of in token_out to buyers.
     pub dist_index: Decimal256,
-    /// Last updated second of stream.
-    pub last_updated_second: u64,
+    /// Last updated time of stream.
+    pub last_updated: Timestamp,
 
     pub out_asset: Coin,
     /// Total number of remaining out tokens at the time of update.
@@ -158,16 +158,16 @@ pub struct StreamResponse {
     pub spent_in: Uint128,
     /// Total number of shares minted.
     pub shares: Uint128,
-    /// Start second when the token emission starts.
-    pub start_second: u64,
-    /// End second when the token emission ends.
-    pub end_second: u64,
+    /// start time when the token emission starts. in nanos.
+    pub start_time: Timestamp,
+    /// end time when the token emission ends.
+    pub end_time: Timestamp,
     /// Price at when latest distribution is triggered.
     pub current_streamed_price: Decimal,
     /// Status of the stream. Can be `Waiting`, `Active`, `Finalzed`, `Paused` or `Canceled` for kill switch.
     pub status: Status,
     /// second height when the stream was paused.
-    pub pause_second: Option<u64>,
+    pub pause_date: Option<Timestamp>,
     /// Address of the stream admin.
     pub stream_admin: String,
 }
@@ -188,7 +188,7 @@ pub struct PositionResponse {
     // Index is used to calculate the distribution a position has
     pub index: Decimal256,
     // Last_updated_time is the time when the position was last updated
-    pub last_updated_time: u64,
+    pub last_updated: Timestamp,
     // Total amount of `token_out` purchased in tokens at latest calculation
     pub purchased: Uint128,
     // Pending purchased accumulates purchases after decimal truncation

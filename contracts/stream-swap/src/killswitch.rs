@@ -123,7 +123,7 @@ pub fn execute_exit_cancelled(
             return Err(ContractError::StreamNotCancelled {});
         }
         // Update stream before checking threshold
-        update_stream(env.block.height, &mut stream)?;
+        update_stream(env.block.time, &mut stream)?;
         threshold_state.error_if_reached(stream_id, deps.storage, &stream)?;
     }
 
@@ -189,7 +189,7 @@ pub fn execute_pause_stream(
     }
     // update stream before pause
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
-    update_stream(env.block.height, &mut stream)?;
+    update_stream(env.block.time, &mut stream)?;
     pause_stream(env.block.time, &mut stream)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
@@ -317,7 +317,7 @@ pub fn execute_cancel_stream_with_threshold(
     }
 
     if stream.last_updated < env.block.time {
-        update_stream(env.block.height, &mut stream)?;
+        update_stream(env.block.time, &mut stream)?;
     }
 
     let threshold_state = ThresholdState::new();
