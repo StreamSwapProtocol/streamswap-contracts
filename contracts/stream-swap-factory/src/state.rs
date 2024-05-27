@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Storage, Uint128, Uint64};
+use cosmwasm_std::{Addr, Coin, Decimal};
 use cw_storage_plus::Item;
 
 #[cw_serde]

@@ -1,5 +1,3 @@
-use core::time;
-
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
     Response, StdResult, WasmMsg,
@@ -121,9 +119,9 @@ pub fn execute_create_stream(
         start_time,
         end_time,
         in_denom,
-        stream_admin,
-        url,
-        threshold,
+        stream_admin: _,
+        threshold: _,
+        url: _,
     } = msg.clone();
     let params = PARAMS.load(deps.storage)?;
     let stream_creation_fee = params.stream_creation_fee.clone();
@@ -135,10 +133,6 @@ pub fn execute_create_stream(
     check_payment(&info.funds, &expected_funds)?;
     let last_stream_id = LAST_STREAM_ID.load(deps.storage)?;
     let stream_id = last_stream_id + 1;
-    println!("Stream ID: {}", stream_id);
-    println!("Stream start{} ", start_time);
-    println!("Stream end{} ", end_time);
-    println!("now{} ", env.block.time);
 
     if start_time > end_time {
         return Err(ContractError::StreamInvalidEndTime {});

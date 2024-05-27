@@ -1,5 +1,3 @@
-use std::any::Any;
-
 use crate::contract::{update_position, update_stream};
 use crate::state::{Status, Stream, POSITIONS, STREAMS};
 use crate::threshold::{ThresholdError, ThresholdState};

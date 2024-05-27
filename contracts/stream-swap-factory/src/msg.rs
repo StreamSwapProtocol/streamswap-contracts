@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128, Uint64};
+use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
 #[cw_serde]
 pub struct InstantiateMsg {
     pub stream_swap_code_id: u64,

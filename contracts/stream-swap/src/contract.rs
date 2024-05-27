@@ -1,23 +1,22 @@
 use crate::killswitch::execute_cancel_stream_with_threshold;
 use crate::msg::{
-    AveragePriceResponse, ExecuteMsg, LatestStreamedPriceResponse, MigrateMsg, PositionResponse,
+    AveragePriceResponse, ExecuteMsg, LatestStreamedPriceResponse, PositionResponse,
     PositionsResponse, QueryMsg, StreamResponse, StreamsResponse, SudoMsg,
 };
 use crate::state::{next_stream_id, Position, Status, Stream, POSITIONS, STREAMS};
 use crate::threshold::ThresholdState;
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
-    attr, entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
+    attr, entry_point, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
     Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdError, StdResult, Timestamp,
     Uint128, Uint256,
 };
-use cw2::{get_contract_version, set_contract_version};
+use cw2::set_contract_version;
 use cw_streamswap_factory::msg::CreateStreamMsg;
 use cw_streamswap_factory::state::Params as FactoryParams;
 use cw_streamswap_factory::state::PARAMS as FACTORYPARAMS;
-use semver::Version;
 
-use crate::helpers::{check_name_and_url, from_semver, get_decimals};
+use crate::helpers::{check_name_and_url, get_decimals};
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay};
 
@@ -923,27 +922,27 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Params {} => to_binary(&query_params(deps)?),
-        QueryMsg::Stream { stream_id } => to_binary(&query_stream(deps, env, stream_id)?),
+        QueryMsg::Params {} => to_json_binary(&query_params(deps)?),
+        QueryMsg::Stream { stream_id } => to_json_binary(&query_stream(deps, env, stream_id)?),
         QueryMsg::Position { stream_id, owner } => {
-            to_binary(&query_position(deps, env, stream_id, owner)?)
+            to_json_binary(&query_position(deps, env, stream_id, owner)?)
         }
         QueryMsg::ListStreams { start_after, limit } => {
-            to_binary(&list_streams(deps, start_after, limit)?)
+            to_json_binary(&list_streams(deps, start_after, limit)?)
         }
         QueryMsg::ListPositions {
             stream_id,
             start_after,
             limit,
-        } => to_binary(&list_positions(deps, stream_id, start_after, limit)?),
+        } => to_json_binary(&list_positions(deps, stream_id, start_after, limit)?),
         QueryMsg::AveragePrice { stream_id } => {
-            to_binary(&query_average_price(deps, env, stream_id)?)
+            to_json_binary(&query_average_price(deps, env, stream_id)?)
         }
         QueryMsg::LastStreamedPrice { stream_id } => {
-            to_binary(&query_last_streamed_price(deps, env, stream_id)?)
+            to_json_binary(&query_last_streamed_price(deps, env, stream_id)?)
         }
         QueryMsg::Threshold { stream_id } => {
-            to_binary(&query_threshold_state(deps, env, stream_id)?)
+            to_json_binary(&query_threshold_state(deps, env, stream_id)?)
         }
     }
 }
