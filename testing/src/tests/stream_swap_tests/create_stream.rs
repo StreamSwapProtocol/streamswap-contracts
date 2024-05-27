@@ -451,55 +451,55 @@ fn create_stream_failed_duration_checks() {
     let error = err.downcast_ref::<FactoryError>().unwrap();
     assert_eq!(*error, FactoryError::StreamInvalidStartTime {});
 
-    // // Stream duration too short
-    // let create_stream_msg = get_create_stream_msg(
-    //     "stream",
-    //     None,
-    //     &test_accounts.creator.to_string(),
-    //     coin(100, "out_denom"),
-    //     "in_denom",
-    //     app.block_info().time.plus_seconds(100).into(),
-    //     app.block_info().time.plus_seconds(101).into(),
-    //     None,
-    // );
+    // Stream duration too short
+    let create_stream_msg = get_create_stream_msg(
+        "stream",
+        None,
+        &test_accounts.creator.to_string(),
+        coin(100, "out_denom"),
+        "in_denom",
+        app.block_info().time.plus_seconds(100).into(),
+        app.block_info().time.plus_seconds(101).into(),
+        None,
+    );
 
-    // let res = app
-    //     .execute_contract(
-    //         test_accounts.creator.clone(),
-    //         factory_address.clone(),
-    //         &create_stream_msg,
-    //         &[coin(100, "fee_token"), coin(100, "out_denom")],
-    //     )
-    //     .unwrap_err();
+    let res = app
+        .execute_contract(
+            test_accounts.creator.clone(),
+            factory_address.clone(),
+            &create_stream_msg,
+            &[coin(100, "fee_token"), coin(100, "out_denom")],
+        )
+        .unwrap_err();
 
-    // let err = res.source().unwrap();
-    // let error = err.downcast_ref::<FactoryError>().unwrap();
-    // assert_eq!(*error, FactoryError::StreamDurationTooShort {});
+    let err = res.source().unwrap();
+    let error = err.downcast_ref::<FactoryError>().unwrap();
+    assert_eq!(*error, FactoryError::StreamDurationTooShort {});
 
-    // // Stream starts too soon
-    // let create_stream_msg = get_create_stream_msg(
-    //     "stream",
-    //     None,
-    //     &test_accounts.creator.to_string(),
-    //     coin(100, "out_denom"),
-    //     "in_denom",
-    //     app.block_info().time.plus_seconds(1),
-    //     app.block_info().time.plus_seconds(200).into(),
-    //     None,
-    // );
+    // Stream starts too soon
+    let create_stream_msg = get_create_stream_msg(
+        "stream",
+        None,
+        &test_accounts.creator.to_string(),
+        coin(100, "out_denom"),
+        "in_denom",
+        app.block_info().time.plus_seconds(1),
+        app.block_info().time.plus_seconds(200).into(),
+        None,
+    );
 
-    // let res = app
-    //     .execute_contract(
-    //         test_accounts.creator.clone(),
-    //         factory_address.clone(),
-    //         &create_stream_msg,
-    //         &[coin(100, "fee_token"), coin(100, "out_denom")],
-    //     )
-    //     .unwrap_err();
+    let res = app
+        .execute_contract(
+            test_accounts.creator.clone(),
+            factory_address.clone(),
+            &create_stream_msg,
+            &[coin(100, "fee_token"), coin(100, "out_denom")],
+        )
+        .unwrap_err();
 
-    // let err = res.source().unwrap();
-    // let error = err.downcast_ref::<FactoryError>().unwrap();
-    // assert_eq!(*error, FactoryError::StreamStartsTooSoon {});
+    let err = res.source().unwrap();
+    let error = err.downcast_ref::<FactoryError>().unwrap();
+    assert_eq!(*error, FactoryError::StreamStartsTooSoon {});
 }
 
 #[test]
