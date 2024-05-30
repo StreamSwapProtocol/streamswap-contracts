@@ -334,7 +334,7 @@ fn create_stream_failed_fund_checks() {
             &[
                 coin(100, "fee_token"),
                 coin(100, "out_denom"),
-                coin(100, "random"),
+                coin(100, "wrong_denom"),
             ],
         )
         .unwrap_err();
@@ -348,7 +348,7 @@ fn create_stream_failed_fund_checks() {
             actual: [
                 coin(100, "fee_token"),
                 coin(100, "out_denom"),
-                coin(100, "random")
+                coin(100, "wrong_denom")
             ]
             .to_vec()
         })

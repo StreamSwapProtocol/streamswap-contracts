@@ -1,6 +1,5 @@
-use crate::ContractError;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Storage, Timestamp, Uint128};
+use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Timestamp, Uint128};
 use cw_storage_plus::{Item, Map};
 use std::ops::Mul;
 #[cw_serde]
@@ -110,14 +109,7 @@ impl Stream {
         self.status == Status::Cancelled || self.status == Status::Paused
     }
 }
-type StreamId = u64;
-pub const STREAMS: Map<StreamId, Stream> = Map::new("stream");
-const STREAM_ID_COUNTER: Item<StreamId> = Item::new("stream_id_counter");
-pub fn next_stream_id(store: &mut dyn Storage) -> Result<u64, ContractError> {
-    let id: u64 = STREAM_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
-    STREAM_ID_COUNTER.save(store, &id)?;
-    Ok(id)
-}
+pub const STREAM: Item<Stream> = Item::new("stream");
 
 #[cw_serde]
 pub struct Position {
@@ -164,7 +156,7 @@ impl Position {
 }
 
 // Position (stream_id, owner_addr) -> Position
-pub const POSITIONS: Map<(StreamId, &Addr), Position> = Map::new("positions");
+pub const POSITIONS: Map<&Addr, Position> = Map::new("positions");
 
 #[cfg(test)]
 #[test]

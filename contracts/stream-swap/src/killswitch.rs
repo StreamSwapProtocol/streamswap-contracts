@@ -1,5 +1,5 @@
 use crate::contract::{update_position, update_stream};
-use crate::state::{Status, Stream, POSITIONS, STREAMS};
+use crate::state::{Status, Stream, POSITIONS, STREAM};
 use crate::threshold::{ThresholdError, ThresholdState};
 use crate::ContractError;
 use cosmwasm_std::{
@@ -17,7 +17,7 @@ pub fn execute_withdraw_paused(
     cap: Option<Uint128>,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let mut stream = STREAM.load(deps.storage)?;
     // check if stream is paused
     if !stream.is_paused() {
         return Err(ContractError::StreamNotPaused {});
@@ -26,7 +26,7 @@ pub fn execute_withdraw_paused(
 
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
+    let mut position = POSITIONS.load(deps.storage, &operator_target)?;
     if position.owner != info.sender
         && position
             .operator
@@ -67,8 +67,8 @@ pub fn execute_withdraw_paused(
     position.in_balance = position.in_balance.checked_sub(withdraw_amount)?;
     position.shares = position.shares.checked_sub(shares_amount)?;
 
-    STREAMS.save(deps.storage, stream_id, &stream)?;
-    POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
+    STREAM.save(deps.storage, &stream)?;
+    POSITIONS.save(deps.storage, &position.owner, &position)?;
 
     let attributes = vec![
         attr("action", "withdraw_paused"),
@@ -98,14 +98,14 @@ pub fn execute_exit_cancelled(
     stream_id: u64,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let mut stream = STREAM.load(deps.storage)?;
 
     // This execution requires the stream to be cancelled or
     // the stream to be ended and the threshold not reached.
     if !stream.is_cancelled() {
         let threshold_state = ThresholdState::new();
         // Threshold should be set
-        let is_set = threshold_state.check_if_threshold_set(stream_id, deps.storage)?;
+        let is_set = threshold_state.check_if_threshold_set(deps.storage)?;
         if !is_set {
             return Err(ContractError::StreamNotCancelled {});
         }
@@ -122,12 +122,12 @@ pub fn execute_exit_cancelled(
         }
         // Update stream before checking threshold
         update_stream(env.block.time, &mut stream)?;
-        threshold_state.error_if_reached(stream_id, deps.storage, &stream)?;
+        threshold_state.error_if_reached(deps.storage, &stream)?;
     }
 
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
+    let position = POSITIONS.load(deps.storage, &operator_target)?;
     if position.owner != info.sender
         && position
             .operator
@@ -139,7 +139,7 @@ pub fn execute_exit_cancelled(
 
     // no need to update position here, we just need to return total balance
     let total_balance = position.in_balance + position.spent;
-    POSITIONS.remove(deps.storage, (stream_id, &position.owner));
+    POSITIONS.remove(deps.storage, &position.owner);
 
     let attributes = vec![
         attr("action", "withdraw_cancelled"),
@@ -173,7 +173,7 @@ pub fn execute_pause_stream(
         return Err(ContractError::Unauthorized {});
     }
     //check if stream is ended
-    let stream = STREAMS.load(deps.storage, stream_id)?;
+    let stream = STREAM.load(deps.storage)?;
     if env.block.time >= stream.end_time {
         return Err(ContractError::StreamEnded {});
     }
@@ -186,10 +186,10 @@ pub fn execute_pause_stream(
         return Err(ContractError::StreamKillswitchActive {});
     }
     // update stream before pause
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let mut stream = STREAM.load(deps.storage)?;
     update_stream(env.block.time, &mut stream)?;
     pause_stream(env.block.time, &mut stream)?;
-    STREAMS.save(deps.storage, stream_id, &stream)?;
+    STREAM.save(deps.storage, &stream)?;
 
     Ok(Response::default()
         .add_attribute("action", "pause_stream")
@@ -210,7 +210,7 @@ pub fn execute_resume_stream(
     info: MessageInfo,
     stream_id: u64,
 ) -> Result<Response, ContractError> {
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let mut stream = STREAM.load(deps.storage)?;
     let factory_params: FactoryParams = FACTORY_PARAMS.load(deps.storage)?;
     //Cancelled can't be resumed
     if stream.is_cancelled() {
@@ -232,7 +232,7 @@ pub fn execute_resume_stream(
         .last_updated
         .plus_nanos(env.block.time.nanos() - pause_date.nanos());
     stream.status = Status::Active;
-    STREAMS.save(deps.storage, stream_id, &stream)?;
+    STREAM.save(deps.storage, &stream)?;
 
     let attributes = vec![
         attr("action", "resume_stream"),
@@ -252,7 +252,7 @@ pub fn execute_cancel_stream(
     if factory_params.protocol_admin != info.sender {
         return Err(ContractError::Unauthorized {});
     }
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let mut stream = STREAM.load(deps.storage)?;
 
     if stream.is_cancelled() {
         return Err(ContractError::StreamIsCancelled {});
@@ -261,7 +261,7 @@ pub fn execute_cancel_stream(
         return Err(ContractError::StreamNotPaused {});
     }
     stream.status = Status::Cancelled;
-    STREAMS.save(deps.storage, stream_id, &stream)?;
+    STREAM.save(deps.storage, &stream)?;
 
     //Refund all out tokens to stream creator(treasury)
     let messages: Vec<CosmosMsg> = vec![
@@ -295,7 +295,7 @@ pub fn execute_cancel_stream_with_threshold(
     info: MessageInfo,
     stream_id: u64,
 ) -> Result<Response, ContractError> {
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let mut stream = STREAM.load(deps.storage)?;
 
     if env.block.time < stream.end_time {
         return Err(ContractError::StreamNotEnded {});
@@ -320,17 +320,17 @@ pub fn execute_cancel_stream_with_threshold(
 
     let threshold_state = ThresholdState::new();
 
-    if !threshold_state.check_if_threshold_set(stream_id, deps.storage)? {
+    if !threshold_state.check_if_threshold_set(deps.storage)? {
         return Err(ContractError::ThresholdError(
             ThresholdError::ThresholdNotSet {},
         ));
     }
     // Threshold should not be reached
-    threshold_state.error_if_reached(stream_id, deps.storage, &stream)?;
+    threshold_state.error_if_reached(deps.storage, &stream)?;
 
     stream.status = Status::Cancelled;
 
-    STREAMS.save(deps.storage, stream_id, &stream)?;
+    STREAM.save(deps.storage, &stream)?;
 
     //Refund all out tokens to stream creator(treasury)
     let messages: Vec<CosmosMsg> = vec![CosmosMsg::Bank(BankMsg::Send {
@@ -352,9 +352,9 @@ pub fn sudo_pause_stream(
     env: Env,
     stream_id: u64,
 ) -> Result<Response, ContractError> {
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let mut stream = STREAM.load(deps.storage)?;
 
-    STREAMS.save(deps.storage, stream_id, &stream)?;
+    STREAM.save(deps.storage, &stream)?;
 
     if env.block.time >= stream.end_time {
         return Err(ContractError::StreamEnded {});
@@ -369,7 +369,7 @@ pub fn sudo_pause_stream(
     }
     update_stream(env.block.time, &mut stream)?;
     pause_stream(env.block.time, &mut stream)?;
-    STREAMS.save(deps.storage, stream_id, &stream)?;
+    STREAM.save(deps.storage, &stream)?;
 
     Ok(Response::default()
         .add_attribute("action", "sudo_pause_stream")
@@ -383,7 +383,7 @@ pub fn sudo_resume_stream(
     env: Env,
     stream_id: u64,
 ) -> Result<Response, ContractError> {
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let mut stream = STREAM.load(deps.storage)?;
     //Cancelled can't be resumed
     if stream.is_cancelled() {
         return Err(ContractError::StreamIsCancelled {});
@@ -403,7 +403,7 @@ pub fn sudo_resume_stream(
 
     stream.status = Status::Active;
     stream.pause_date = None;
-    STREAMS.save(deps.storage, stream_id, &stream)?;
+    STREAM.save(deps.storage, &stream)?;
 
     Ok(Response::default()
         .add_attribute("action", "resume_stream")
@@ -417,7 +417,7 @@ pub fn sudo_cancel_stream(
     _env: Env,
     stream_id: u64,
 ) -> Result<Response, ContractError> {
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let mut stream = STREAM.load(deps.storage)?;
     let factory_params: FactoryParams = FACTORY_PARAMS.load(deps.storage)?;
     if stream.is_cancelled() {
         return Err(ContractError::StreamIsCancelled {});
@@ -426,7 +426,7 @@ pub fn sudo_cancel_stream(
         return Err(ContractError::StreamNotPaused {});
     }
     stream.status = Status::Cancelled;
-    STREAMS.save(deps.storage, stream_id, &stream)?;
+    STREAM.save(deps.storage, &stream)?;
 
     //Refund all out tokens to stream creator(treasury)
     let messages: Vec<CosmosMsg> = vec![

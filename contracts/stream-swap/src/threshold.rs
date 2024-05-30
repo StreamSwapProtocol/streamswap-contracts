@@ -1,5 +1,5 @@
 use cosmwasm_std::{StdError, Storage, Uint128};
-use cw_storage_plus::Map;
+use cw_storage_plus::{Item, Map};
 use thiserror::Error;
 
 use crate::state::Stream;
@@ -25,16 +25,15 @@ pub enum ThresholdError {
 }
 pub const THRESHOLDS_STATE_KEY: &str = "thresholds";
 
-pub struct ThresholdState<'a>(Map<'a, u64, Threshold>);
+pub struct ThresholdState<'a>(Item<'a, Threshold>);
 
 impl<'a> ThresholdState<'a> {
     pub fn new() -> Self {
-        ThresholdState(Map::new(THRESHOLDS_STATE_KEY))
+        ThresholdState(Item::new(THRESHOLDS_STATE_KEY))
     }
     pub fn set_threshold_if_any(
         &self,
         threshold: Option<Uint128>,
-        stream_id: u64,
         storage: &mut dyn Storage,
     ) -> Result<(), ThresholdError> {
         match threshold {
@@ -42,7 +41,7 @@ impl<'a> ThresholdState<'a> {
                 if threshold.is_zero() {
                     return Err(ThresholdError::ThresholdZero {});
                 }
-                self.0.save(storage, stream_id, &threshold)?;
+                self.0.save(storage, &threshold)?;
                 Ok(())
             }
             None => Ok(()),
@@ -50,13 +49,12 @@ impl<'a> ThresholdState<'a> {
     }
     pub fn error_if_not_reached(
         &self,
-        stream_id: u64,
         storage: &dyn Storage,
         stream: &Stream,
     ) -> Result<(), ThresholdError> {
         // If threshold is not set, It returns ok
         // If threshold is set, It returns error if threshold is not reached
-        let threshold = self.0.may_load(storage, stream_id)?;
+        let threshold = self.0.may_load(storage)?;
         if let Some(threshold) = threshold {
             if stream.spent_in < threshold {
                 Err(ThresholdError::ThresholdNotReached {})
@@ -70,11 +68,10 @@ impl<'a> ThresholdState<'a> {
 
     pub fn error_if_reached(
         &self,
-        stream_id: u64,
         storage: &dyn Storage,
         stream: &Stream,
     ) -> Result<(), ThresholdError> {
-        let threshold = self.0.may_load(storage, stream_id)?;
+        let threshold = self.0.may_load(storage)?;
         if let Some(threshold) = threshold {
             if stream.spent_in >= threshold {
                 Err(ThresholdError::ThresholdReached {})
@@ -85,20 +82,12 @@ impl<'a> ThresholdState<'a> {
             Ok(())
         }
     }
-    pub fn check_if_threshold_set(
-        &self,
-        stream_id: u64,
-        storage: &dyn Storage,
-    ) -> Result<bool, ThresholdError> {
-        let threshold = self.0.may_load(storage, stream_id)?;
+    pub fn check_if_threshold_set(&self, storage: &dyn Storage) -> Result<bool, ThresholdError> {
+        let threshold = self.0.may_load(storage)?;
         Ok(threshold.is_some())
     }
-    pub fn get_threshold(
-        &self,
-        stream_id: u64,
-        storage: &dyn Storage,
-    ) -> Result<Option<Threshold>, StdError> {
-        let threshold = self.0.may_load(storage, stream_id)?;
+    pub fn get_threshold(&self, storage: &dyn Storage) -> Result<Option<Threshold>, StdError> {
+        let threshold = self.0.may_load(storage)?;
         Ok(threshold)
     }
 }
@@ -141,14 +130,14 @@ mod tests {
         let stream_id = 1;
 
         thresholds
-            .set_threshold_if_any(Some(threshold), stream_id, &mut storage)
+            .set_threshold_if_any(Some(threshold), &mut storage)
             .unwrap();
 
         stream.spent_in = Uint128::new(1_500_000_000_000 - 1);
-        let result = thresholds.error_if_not_reached(stream_id, &storage, &stream.clone());
+        let result = thresholds.error_if_not_reached(&storage, &stream.clone());
         assert_eq!(result.is_err(), true);
         stream.spent_in = Uint128::new(1_500_000_000_000);
-        let result = thresholds.error_if_not_reached(stream_id, &storage, &stream.clone());
+        let result = thresholds.error_if_not_reached(&storage, &stream.clone());
         assert_eq!(result.is_err(), false);
     }
 }

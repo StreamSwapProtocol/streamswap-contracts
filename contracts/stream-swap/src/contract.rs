@@ -3,7 +3,7 @@ use crate::msg::{
     AveragePriceResponse, ExecuteMsg, LatestStreamedPriceResponse, PositionResponse,
     PositionsResponse, QueryMsg, StreamResponse, StreamsResponse, SudoMsg,
 };
-use crate::state::{next_stream_id, Position, Status, Stream, POSITIONS, STREAMS};
+use crate::state::{Position, Status, Stream, POSITIONS, STREAM};
 use crate::threshold::ThresholdState;
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
@@ -79,15 +79,13 @@ pub fn instantiate(
         end_time,
         start_time,
     );
-    let id = next_stream_id(deps.storage)?;
-    STREAMS.save(deps.storage, id, &stream)?;
+    STREAM.save(deps.storage, &stream)?;
 
     let threshold_state = ThresholdState::new();
-    threshold_state.set_threshold_if_any(threshold, id, deps.storage)?;
+    threshold_state.set_threshold_if_any(threshold, deps.storage)?;
 
     let attr = vec![
         attr("action", "create_stream"),
-        attr("id", id.to_string()),
         attr("treasury", treasury),
         attr("name", name),
         attr("in_denom", in_denom),
@@ -121,7 +119,7 @@ pub fn execute(
             operator_target,
             operator,
         } => {
-            let stream = STREAMS.load(deps.storage, stream_id)?;
+            let stream = STREAM.load(deps.storage)?;
             if stream.start_time > env.block.time {
                 Ok(execute_subscribe_pending(
                     deps.branch(),
@@ -149,7 +147,7 @@ pub fn execute(
             cap,
             operator_target,
         } => {
-            let stream = STREAMS.load(deps.storage, stream_id)?;
+            let stream = STREAM.load(deps.storage)?;
             if stream.start_time > env.block.time {
                 Ok(execute_withdraw_pending(
                     deps.branch(),
@@ -212,13 +210,13 @@ pub fn execute_update_stream(
     env: Env,
     stream_id: u64,
 ) -> Result<Response, ContractError> {
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let mut stream = STREAM.load(deps.storage)?;
 
     if stream.is_paused() {
         return Err(ContractError::StreamPaused {});
     }
     let (_, dist_amount) = update_stream(env.block.time, &mut stream)?;
-    STREAMS.save(deps.storage, stream_id, &stream)?;
+    STREAM.save(deps.storage, &stream)?;
 
     let attrs = vec![
         attr("action", "update_stream"),
@@ -302,10 +300,10 @@ pub fn execute_update_position(
 ) -> Result<Response, ContractError> {
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
+    let mut position = POSITIONS.load(deps.storage, &operator_target)?;
     check_access(&info, &position.owner, &position.operator)?;
 
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let mut stream = STREAM.load(deps.storage)?;
     // check if stream is paused
     if stream.is_paused() {
         return Err(ContractError::StreamPaused {});
@@ -313,7 +311,7 @@ pub fn execute_update_position(
 
     // sync stream
     update_stream(env.block.time, &mut stream)?;
-    STREAMS.save(deps.storage, stream_id, &stream)?;
+    STREAM.save(deps.storage, &stream)?;
 
     // updates position to latest distribution. Returns the amount of out tokens that has been purchased
     // and in tokens that has been spent.
@@ -324,7 +322,7 @@ pub fn execute_update_position(
         stream.in_supply,
         &mut position,
     )?;
-    POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
+    POSITIONS.save(deps.storage, &position.owner, &position)?;
 
     Ok(Response::new()
         .add_attribute("action", "update_position")
@@ -409,7 +407,7 @@ pub fn execute_subscribe(
     let operator = maybe_addr(deps.api, operator)?;
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let position = POSITIONS.may_load(deps.storage, (stream_id, &operator_target))?;
+    let position = POSITIONS.may_load(deps.storage, &operator_target)?;
     match position {
         None => {
             // operator cannot create a position in behalf of anyone
@@ -427,7 +425,7 @@ pub fn execute_subscribe(
                 operator,
                 env.block.time,
             );
-            POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
+            POSITIONS.save(deps.storage, &operator_target, &new_position)?;
         }
         Some(mut position) => {
             check_access(&info, &position.owner, &position.operator)?;
@@ -445,14 +443,14 @@ pub fn execute_subscribe(
 
             position.in_balance = position.in_balance.checked_add(in_amount)?;
             position.shares = position.shares.checked_add(new_shares)?;
-            POSITIONS.save(deps.storage, (stream_id, &operator_target), &position)?;
+            POSITIONS.save(deps.storage, &operator_target, &position)?;
         }
     }
 
     // increase in supply and shares
     stream.in_supply = stream.in_supply.checked_add(in_amount)?;
     stream.shares = stream.shares.checked_add(new_shares)?;
-    STREAMS.save(deps.storage, stream_id, &stream)?;
+    STREAM.save(deps.storage, &stream)?;
 
     let res = Response::new()
         .add_attribute("action", "subscribe")
@@ -483,7 +481,7 @@ pub fn execute_subscribe_pending(
     let operator = maybe_addr(deps.api, operator)?;
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let position = POSITIONS.may_load(deps.storage, (stream_id, &operator_target))?;
+    let position = POSITIONS.may_load(deps.storage, &operator_target)?;
     match position {
         None => {
             // operator cannot create a position in behalf of anyone
@@ -498,19 +496,19 @@ pub fn execute_subscribe_pending(
                 operator,
                 env.block.time,
             );
-            POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
+            POSITIONS.save(deps.storage, &operator_target, &new_position)?;
         }
         Some(mut position) => {
             check_access(&info, &position.owner, &position.operator)?;
             // if subscibed already, we wont update its position but just increase its in_balance and shares
             position.in_balance = position.in_balance.checked_add(in_amount)?;
             position.shares = position.shares.checked_add(new_shares)?;
-            POSITIONS.save(deps.storage, (stream_id, &operator_target), &position)?;
+            POSITIONS.save(deps.storage, &operator_target, &position)?;
         }
     }
     stream.in_supply = stream.in_supply.checked_add(in_amount)?;
     stream.shares = stream.shares.checked_add(new_shares)?;
-    STREAMS.save(deps.storage, stream_id, &stream)?;
+    STREAM.save(deps.storage, &stream)?;
 
     Ok(Response::new()
         .add_attribute("action", "subscribe_pending")
@@ -527,12 +525,12 @@ pub fn execute_update_operator(
     stream_id: u64,
     operator: Option<String>,
 ) -> Result<Response, ContractError> {
-    let mut position = POSITIONS.load(deps.storage, (stream_id, &info.sender))?;
+    let mut position = POSITIONS.load(deps.storage, &info.sender)?;
 
     let operator = maybe_addr(deps.api, operator)?;
     position.operator = operator.clone();
 
-    POSITIONS.save(deps.storage, (stream_id, &info.sender), &position)?;
+    POSITIONS.save(deps.storage, &info.sender, &position)?;
 
     Ok(Response::new()
         .add_attribute("action", "update_operator")
@@ -561,7 +559,7 @@ pub fn execute_withdraw(
 
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
+    let mut position = POSITIONS.load(deps.storage, &operator_target)?;
     check_access(&info, &position.owner, &position.operator)?;
 
     update_stream(env.block.time, &mut stream)?;
@@ -595,8 +593,8 @@ pub fn execute_withdraw(
     position.in_balance = position.in_balance.checked_sub(withdraw_amount)?;
     position.shares = position.shares.checked_sub(shares_amount)?;
 
-    STREAMS.save(deps.storage, stream_id, &stream)?;
-    POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
+    STREAM.save(deps.storage, &stream)?;
+    POSITIONS.save(deps.storage, &position.owner, &position)?;
 
     let attributes = vec![
         attr("action", "withdraw"),
@@ -631,7 +629,7 @@ pub fn execute_withdraw_pending(
     // check if stream is paused
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
+    let mut position = POSITIONS.load(deps.storage, &operator_target)?;
     check_access(&info, &position.owner, &position.operator)?;
 
     let withdraw_amount = cap.unwrap_or(position.in_balance);
@@ -656,8 +654,8 @@ pub fn execute_withdraw_pending(
     position.in_balance = position.in_balance.checked_sub(withdraw_amount)?;
     position.shares = position.shares.checked_sub(shares_amount)?;
 
-    STREAMS.save(deps.storage, stream_id, &stream)?;
-    POSITIONS.save(deps.storage, (stream_id, &position.owner), &position)?;
+    STREAM.save(deps.storage, &stream)?;
+    POSITIONS.save(deps.storage, &position.owner, &position)?;
 
     let attributes = vec![
         attr("action", "withdraw_pending"),
@@ -687,7 +685,7 @@ pub fn execute_finalize_stream(
     stream_id: u64,
     new_treasury: Option<String>,
 ) -> Result<Response, ContractError> {
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let mut stream = STREAM.load(deps.storage)?;
     // check if the stream is already finalized
     if stream.status == Status::Finalized {
         return Err(ContractError::StreamAlreadyFinalized {});
@@ -712,9 +710,9 @@ pub fn execute_finalize_stream(
     // Creator should execute cancel_stream_with_threshold to cancel the stream
     // Only returns error if threshold is set and not reached
     let thresholds_state = ThresholdState::new();
-    thresholds_state.error_if_not_reached(stream_id, deps.storage, &stream)?;
+    thresholds_state.error_if_not_reached(deps.storage, &stream)?;
 
-    STREAMS.save(deps.storage, stream_id, &stream)?;
+    STREAM.save(deps.storage, &stream)?;
 
     let factory_params = FACTORYPARAMS.load(deps.storage)?;
     let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or_else(|| stream.treasury.clone());
@@ -800,7 +798,7 @@ pub fn execute_exit_stream(
     stream_id: u64,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
-    let mut stream = STREAMS.load(deps.storage, stream_id)?;
+    let mut stream = STREAM.load(deps.storage)?;
     let factory_params = FACTORYPARAMS.load(deps.storage)?;
     // check if stream is paused
     if stream.is_killswitch_active() {
@@ -815,11 +813,11 @@ pub fn execute_exit_stream(
 
     let threshold_state = ThresholdState::new();
 
-    threshold_state.error_if_not_reached(stream_id, deps.storage, &stream)?;
+    threshold_state.error_if_not_reached(deps.storage, &stream)?;
 
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
+    let mut position = POSITIONS.load(deps.storage, &operator_target)?;
     check_access(&info, &position.owner, &position.operator)?;
 
     // update position before exit
@@ -845,8 +843,8 @@ pub fn execute_exit_stream(
 
     stream.shares = stream.shares.checked_sub(position.shares)?;
 
-    STREAMS.save(deps.storage, stream_id, &stream)?;
-    POSITIONS.remove(deps.storage, (stream_id, &position.owner));
+    STREAM.save(deps.storage, &stream)?;
+    POSITIONS.remove(deps.storage, &position.owner);
 
     let attributes = vec![
         attr("action", "exit_stream"),
@@ -923,27 +921,17 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Params {} => to_json_binary(&query_params(deps)?),
-        QueryMsg::Stream { stream_id } => to_json_binary(&query_stream(deps, env, stream_id)?),
-        QueryMsg::Position { stream_id, owner } => {
-            to_json_binary(&query_position(deps, env, stream_id, owner)?)
+        QueryMsg::Stream {} => to_json_binary(&query_stream(deps, env)?),
+        QueryMsg::Position { owner } => to_json_binary(&query_position(deps, env, owner)?),
+        // QueryMsg::ListStreams { start_after, limit } => {
+        //     to_json_binary(&list_streams(deps, start_after, limit)?)
+        // }
+        QueryMsg::ListPositions { start_after, limit } => {
+            to_json_binary(&list_positions(deps, start_after, limit)?)
         }
-        QueryMsg::ListStreams { start_after, limit } => {
-            to_json_binary(&list_streams(deps, start_after, limit)?)
-        }
-        QueryMsg::ListPositions {
-            stream_id,
-            start_after,
-            limit,
-        } => to_json_binary(&list_positions(deps, stream_id, start_after, limit)?),
-        QueryMsg::AveragePrice { stream_id } => {
-            to_json_binary(&query_average_price(deps, env, stream_id)?)
-        }
-        QueryMsg::LastStreamedPrice { stream_id } => {
-            to_json_binary(&query_last_streamed_price(deps, env, stream_id)?)
-        }
-        QueryMsg::Threshold { stream_id } => {
-            to_json_binary(&query_threshold_state(deps, env, stream_id)?)
-        }
+        QueryMsg::AveragePrice {} => to_json_binary(&query_average_price(deps, env)?),
+        QueryMsg::LastStreamedPrice {} => to_json_binary(&query_last_streamed_price(deps, env)?),
+        QueryMsg::Threshold {} => to_json_binary(&query_threshold_state(deps, env)?),
     }
 }
 pub fn query_params(deps: Deps) -> StdResult<FactoryParams> {
@@ -951,10 +939,9 @@ pub fn query_params(deps: Deps) -> StdResult<FactoryParams> {
     Ok(factory_params)
 }
 
-pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamResponse> {
-    let stream = STREAMS.load(deps.storage, stream_id)?;
+pub fn query_stream(deps: Deps, _env: Env) -> StdResult<StreamResponse> {
+    let stream = STREAM.load(deps.storage)?;
     let stream = StreamResponse {
-        id: stream_id,
         treasury: stream.treasury.to_string(),
         in_denom: stream.in_denom,
         out_asset: stream.out_asset,
@@ -975,58 +962,52 @@ pub fn query_stream(deps: Deps, _env: Env, stream_id: u64) -> StdResult<StreamRe
     Ok(stream)
 }
 
-// settings for pagination
-const MAX_LIMIT: u32 = 30;
-const DEFAULT_LIMIT: u32 = 10;
+// // settings for pagination
+// const MAX_LIMIT: u32 = 30;
+// const DEFAULT_LIMIT: u32 = 10;
 
-pub fn list_streams(
-    deps: Deps,
-    start_after: Option<u64>,
-    limit: Option<u32>,
-) -> StdResult<StreamsResponse> {
-    let start = start_after.map(Bound::exclusive);
-    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
-    let streams: StdResult<Vec<StreamResponse>> = STREAMS
-        .range(deps.storage, start, None, Order::Ascending)
-        .take(limit)
-        .map(|item| {
-            let (stream_id, stream) = item?;
-            let stream = StreamResponse {
-                id: stream_id,
-                treasury: stream.treasury.to_string(),
-                in_denom: stream.in_denom,
-                out_asset: stream.out_asset,
-                start_time: stream.start_time,
-                end_time: stream.end_time,
-                last_updated: stream.last_updated,
-                spent_in: stream.spent_in,
-                dist_index: stream.dist_index,
-                out_remaining: stream.out_remaining,
-                in_supply: stream.in_supply,
-                shares: stream.shares,
-                status: stream.status,
-                pause_date: stream.pause_date,
-                url: stream.url,
-                current_streamed_price: stream.current_streamed_price,
-                stream_admin: stream.stream_admin.into_string(),
-            };
-            Ok(stream)
-        })
-        .collect();
-    let streams = streams?;
-    Ok(StreamsResponse { streams })
-}
+// pub fn list_streams(
+//     deps: Deps,
+//     start_after: Option<u64>,
+//     limit: Option<u32>,
+// ) -> StdResult<StreamsResponse> {
+//     let start = start_after.map(Bound::exclusive);
+//     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
+//     let streams: StdResult<Vec<StreamResponse>> = STREAMS
+//         .range(deps.storage, start, None, Order::Ascending)
+//         .take(limit)
+//         .map(|item| {
+//             let (stream_id, stream) = item?;
+//             let stream = StreamResponse {
+//                 id: stream_id,
+//                 treasury: stream.treasury.to_string(),
+//                 in_denom: stream.in_denom,
+//                 out_asset: stream.out_asset,
+//                 start_time: stream.start_time,
+//                 end_time: stream.end_time,
+//                 last_updated: stream.last_updated,
+//                 spent_in: stream.spent_in,
+//                 dist_index: stream.dist_index,
+//                 out_remaining: stream.out_remaining,
+//                 in_supply: stream.in_supply,
+//                 shares: stream.shares,
+//                 status: stream.status,
+//                 pause_date: stream.pause_date,
+//                 url: stream.url,
+//                 current_streamed_price: stream.current_streamed_price,
+//                 stream_admin: stream.stream_admin.into_string(),
+//             };
+//             Ok(stream)
+//         })
+//         .collect();
+//     let streams = streams?;
+//     Ok(StreamsResponse { streams })
+// }
 
-pub fn query_position(
-    deps: Deps,
-    _env: Env,
-    stream_id: u64,
-    owner: String,
-) -> StdResult<PositionResponse> {
+pub fn query_position(deps: Deps, _env: Env, owner: String) -> StdResult<PositionResponse> {
     let owner = deps.api.addr_validate(&owner)?;
-    let position = POSITIONS.load(deps.storage, (stream_id, &owner))?;
+    let position = POSITIONS.load(deps.storage, &owner)?;
     let res = PositionResponse {
-        stream_id,
         owner: owner.to_string(),
         in_balance: position.in_balance,
         purchased: position.purchased,
@@ -1042,31 +1023,28 @@ pub fn query_position(
 
 pub fn list_positions(
     deps: Deps,
-    stream_id: u64,
     start_after: Option<String>,
     limit: Option<u32>,
 ) -> StdResult<PositionsResponse> {
-    let addr = maybe_addr(deps.api, start_after)?;
-    let start = addr.as_ref().map(Bound::exclusive);
-    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
-
+    const MAX_LIMIT: u32 = 30;
+    let start_addr = maybe_addr(deps.api, start_after)?;
+    let start = start_addr.as_ref().map(Bound::exclusive);
+    let limit = limit.unwrap_or(MAX_LIMIT).min(MAX_LIMIT) as usize;
     let positions: StdResult<Vec<PositionResponse>> = POSITIONS
-        .prefix(stream_id)
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|item| {
             let (owner, position) = item?;
             let position = PositionResponse {
-                stream_id,
                 owner: owner.to_string(),
-                index: position.index,
-                last_updated: position.last_updated,
-                purchased: position.purchased,
-                pending_purchase: position.pending_purchase,
-                spent: position.spent,
                 in_balance: position.in_balance,
+                purchased: position.purchased,
+                index: position.index,
+                spent: position.spent,
                 shares: position.shares,
                 operator: position.operator,
+                last_updated: position.last_updated,
+                pending_purchase: position.pending_purchase,
             };
             Ok(position)
         })
@@ -1075,34 +1053,22 @@ pub fn list_positions(
     Ok(PositionsResponse { positions })
 }
 
-pub fn query_average_price(
-    deps: Deps,
-    _env: Env,
-    stream_id: u64,
-) -> StdResult<AveragePriceResponse> {
-    let stream = STREAMS.load(deps.storage, stream_id)?;
+pub fn query_average_price(deps: Deps, _env: Env) -> StdResult<AveragePriceResponse> {
+    let stream = STREAM.load(deps.storage)?;
     let total_purchased = stream.out_asset.amount - stream.out_remaining;
     let average_price = Decimal::from_ratio(stream.spent_in, total_purchased);
     Ok(AveragePriceResponse { average_price })
 }
 
-pub fn query_last_streamed_price(
-    deps: Deps,
-    _env: Env,
-    stream_id: u64,
-) -> StdResult<LatestStreamedPriceResponse> {
-    let stream = STREAMS.load(deps.storage, stream_id)?;
+pub fn query_last_streamed_price(deps: Deps, _env: Env) -> StdResult<LatestStreamedPriceResponse> {
+    let stream = STREAM.load(deps.storage)?;
     Ok(LatestStreamedPriceResponse {
         current_streamed_price: stream.current_streamed_price,
     })
 }
 
-pub fn query_threshold_state(
-    deps: Deps,
-    _env: Env,
-    stream_id: u64,
-) -> Result<Option<Uint128>, StdError> {
+pub fn query_threshold_state(deps: Deps, _env: Env) -> Result<Option<Uint128>, StdError> {
     let threshold_state = ThresholdState::new();
-    let threshold = threshold_state.get_threshold(stream_id, deps.storage)?;
+    let threshold = threshold_state.get_threshold(deps.storage)?;
     Ok(threshold)
 }

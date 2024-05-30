@@ -71,12 +71,12 @@ pub fn setup() -> SetupResponse {
     mint_to_address(
         &mut app,
         creator.to_string(),
-        vec![coin(1_000_000, "random")],
+        vec![coin(1_000_000, "wrong_denom")],
     );
     mint_to_address(
         &mut app,
         subscriber.to_string(),
-        vec![coin(1_000_000, "random")],
+        vec![coin(1_000_000, "wrong_denom")],
     );
 
     let stream_swap_factory_contract = Box::new(ContractWrapper::new(

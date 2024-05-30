@@ -1,5 +1,5 @@
 mod create_stream;
-
+mod subscribe;
 // #[cfg(test)]
 // mod test_module {
 //     use crate::contract::execute;

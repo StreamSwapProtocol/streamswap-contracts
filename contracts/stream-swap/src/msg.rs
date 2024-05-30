@@ -89,31 +89,30 @@ pub enum QueryMsg {
     Params {},
     /// Returns a stream's current state.
     #[returns(StreamResponse)]
-    Stream { stream_id: u64 },
+    Stream {},
     /// Returns list of streams paginated by `start_after` and `limit`.
-    #[returns(StreamsResponse)]
-    ListStreams {
-        start_after: Option<u64>,
-        limit: Option<u32>,
-    },
+    // #[returns(StreamsResponse)]
+    // ListStreams {
+    //     start_after: Option<u64>,
+    //     limit: Option<u32>,
+    // },
     /// Returns current state of a position.
     #[returns(PositionResponse)]
-    Position { stream_id: u64, owner: String },
+    Position { owner: String },
     /// Returns list of positions paginated by `start_after` and `limit`.
     #[returns(PositionsResponse)]
     ListPositions {
-        stream_id: u64,
         start_after: Option<String>,
         limit: Option<u32>,
     },
     /// Returns average price of a stream sale.
     #[returns(AveragePriceResponse)]
-    AveragePrice { stream_id: u64 },
+    AveragePrice {},
     /// Returns currently streaming price of a sale.
     #[returns(LatestStreamedPriceResponse)]
-    LastStreamedPrice { stream_id: u64 },
+    LastStreamedPrice {},
     #[returns(Uint128)]
-    Threshold { stream_id: u64 },
+    Threshold {},
 }
 
 #[cw_serde]
@@ -137,7 +136,6 @@ pub struct ConfigResponse {
 }
 #[cw_serde]
 pub struct StreamResponse {
-    pub id: u64,
     /// Address of the treasury where the stream earnings will be sent.
     pub treasury: String,
     /// URL of the stream.
@@ -179,7 +177,6 @@ pub struct StreamsResponse {
 
 #[cw_serde]
 pub struct PositionResponse {
-    pub stream_id: u64,
     /// Creator of the position.
     pub owner: String,
     /// Current amount of tokens in buy pool
