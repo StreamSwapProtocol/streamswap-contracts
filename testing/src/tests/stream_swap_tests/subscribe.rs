@@ -1,13 +1,18 @@
+use std::str::FromStr;
+
 use crate::helpers::utils::get_contract_address_from_res;
 #[cfg(test)]
 use crate::helpers::{
     mock_messages::{get_create_stream_msg, get_factory_inst_msg},
     setup::{setup, SetupResponse},
 };
-use cosmwasm_std::{coin, Addr, BlockInfo, Uint128};
+use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128};
 use cw_multi_test::Executor;
 use cw_streamswap::{
-    msg::{ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg, StreamResponse},
+    msg::{
+        ExecuteMsg as StreamSwapExecuteMsg, PositionResponse, QueryMsg as StreamSwapQueryMsg,
+        StreamResponse,
+    },
     state::Stream,
     threshold::ThresholdError,
     ContractError as StreamSwapError,
@@ -18,7 +23,7 @@ use cw_streamswap_factory::{
 };
 use cw_utils::PaymentError;
 #[test]
-fn test_subcribe() {
+fn test_first_subcription() {
     let SetupResponse {
         mut app,
         test_accounts,
@@ -65,6 +70,7 @@ fn test_subcribe() {
         .wrap()
         .query_wasm_smart(factory_address.clone(), &FactoryQueryMsg::LastStreamId {})
         .unwrap();
+    assert_eq!(stream_id, 1);
 
     let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
         operator_target: None,
@@ -122,8 +128,51 @@ fn test_subcribe() {
             &StreamSwapQueryMsg::Stream {},
         )
         .unwrap();
+    // First subscription should set the stream to active
     assert_eq!(stream.status, cw_streamswap::state::Status::Active);
+    // Dist index should be zero because no distribution has been made until last update
+    assert_eq!(stream.dist_index, Decimal256::zero());
+    // In supply should be updated
+    assert_eq!(stream.in_supply, Uint128::new(1_000_000));
+    // Position should be updated
+    let position: PositionResponse = app
+        .wrap()
+        .query_wasm_smart(
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapQueryMsg::Position {
+                owner: test_accounts.subscriber.to_string(),
+            },
+        )
+        .unwrap();
+    assert_eq!(position.index, Decimal256::zero());
+    assert_eq!(position.in_balance, Uint128::new(1_000_000));
+    assert_eq!(position.spent, Uint128::zero());
+
+    // Update stream
+    app.set_block(BlockInfo {
+        height: 2_200,
+        time: start_time.plus_seconds(20),
+        chain_id: "test".to_string(),
+    });
+    let _res = app
+        .execute_contract(
+            test_accounts.subscriber.clone(),
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapExecuteMsg::UpdateStream {},
+            &[],
+        )
+        .unwrap();
+    // Dist index should be updated
+    let stream: StreamResponse = app
+        .wrap()
+        .query_wasm_smart(
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapQueryMsg::Stream {},
+        )
+        .unwrap();
 }
+#[test]
+fn test_recurring_subscribe() {}
 
 //#[test]
 //     fn test_subscribe() {

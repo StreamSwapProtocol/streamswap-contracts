@@ -242,6 +242,7 @@ pub fn update_stream(
                 new_distribution_balance,
                 stream.shares,
             ))?;
+
             stream.current_streamed_price = Decimal::from_ratio(spent_in, new_distribution_balance)
         }
     }
