@@ -127,7 +127,6 @@ mod tests {
             stream_admin: Addr::unchecked("admin"),
         };
         let threshold = Uint128::new(1_500_000_000_000);
-        let stream_id = 1;
 
         thresholds
             .set_threshold_if_any(Some(threshold), &mut storage)

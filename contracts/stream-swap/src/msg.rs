@@ -6,16 +6,12 @@ use cw_streamswap_factory::state::Params as FactoryParams;
 #[cw_serde]
 pub enum ExecuteMsg {
     /// Update stream and calculates distribution state.
-    UpdateStream {
-        stream_id: u64,
-    },
+    UpdateStream {},
     /// UpdateOperator updates the operator of the position.
     UpdateOperator {
-        stream_id: u64,
         new_operator: Option<String>,
     },
     Subscribe {
-        stream_id: u64,
         /// operator_target is the address of operator targets to execute on behalf of the user.
         operator_target: Option<String>,
         /// operator can subscribe/withdraw/update position.
@@ -23,7 +19,6 @@ pub enum ExecuteMsg {
     },
     /// Withdraw unspent tokens in balance.
     Withdraw {
-        stream_id: u64,
         cap: Option<Uint128>,
         /// operator_target is the address of operator targets to execute on behalf of the user.
         operator_target: Option<String>,
@@ -31,7 +26,6 @@ pub enum ExecuteMsg {
     /// UpdatePosition updates the position of the user.
     /// syncs position index to the current state of the stream.
     UpdatePosition {
-        stream_id: u64,
         /// operator_target is the address of operator targets to execute on behalf of the user.
         operator_target: Option<String>,
     },
@@ -39,14 +33,12 @@ pub enum ExecuteMsg {
     /// Stream recipient. Returns error if called before the Stream end. Anyone can
     /// call this method.
     FinalizeStream {
-        stream_id: u64,
         new_treasury: Option<String>,
     },
     /// ExitStream withdraws (by a user who subscribed to the stream) purchased
     /// tokens_out from the pool and remained tokens_in. Must be called after
     /// the stream ends.
     ExitStream {
-        stream_id: u64,
         /// operator_target is the address of operator targets to execute on behalf of the user.
         operator_target: Option<String>,
     },
@@ -54,31 +46,21 @@ pub enum ExecuteMsg {
     // Killswitch features
     //
     /// PauseStream pauses the stream. Only protocol admin and governance can pause the stream.
-    PauseStream {
-        stream_id: u64,
-    },
+    PauseStream {},
     /// WithdrawPaused is used to withdraw unspent position funds during pause.
     WithdrawPaused {
-        stream_id: u64,
         cap: Option<Uint128>,
         // operator_target is the address of operator targets to execute on behalf of the user.
         operator_target: Option<String>,
     },
     /// ExitCancelled returns the whole balance user put in the stream, both spent and unspent.
     ExitCancelled {
-        stream_id: u64,
         /// Operator_target is the address of operator targets to execute on behalf of the user.
         operator_target: Option<String>,
     },
-    ResumeStream {
-        stream_id: u64,
-    },
-    CancelStream {
-        stream_id: u64,
-    },
-    CancelStreamWithThreshold {
-        stream_id: u64,
-    },
+    ResumeStream {},
+    CancelStream {},
+    CancelStreamWithThreshold {},
 }
 
 #[cw_serde]
@@ -213,9 +195,9 @@ pub struct LatestStreamedPriceResponse {
 
 #[cw_serde]
 pub enum SudoMsg {
-    PauseStream { stream_id: u64 },
-    CancelStream { stream_id: u64 },
-    ResumeStream { stream_id: u64 },
+    PauseStream {},
+    CancelStream {},
+    ResumeStream {},
 }
 
 #[cw_serde]

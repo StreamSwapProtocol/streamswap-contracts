@@ -13,7 +13,6 @@ pub fn execute_withdraw_paused(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    stream_id: u64,
     cap: Option<Uint128>,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
@@ -72,7 +71,6 @@ pub fn execute_withdraw_paused(
 
     let attributes = vec![
         attr("action", "withdraw_paused"),
-        attr("stream_id", stream_id.to_string()),
         attr("operator_target", operator_target.clone()),
         attr("withdraw_amount", withdraw_amount),
     ];
@@ -95,7 +93,6 @@ pub fn execute_exit_cancelled(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    stream_id: u64,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
@@ -143,7 +140,6 @@ pub fn execute_exit_cancelled(
 
     let attributes = vec![
         attr("action", "withdraw_cancelled"),
-        attr("stream_id", stream_id.to_string()),
         attr("operator_target", operator_target.clone()),
         attr("total_balance", total_balance),
     ];
@@ -166,7 +162,6 @@ pub fn execute_pause_stream(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    stream_id: u64,
 ) -> Result<Response, ContractError> {
     let factory_params = FACTORY_PARAMS.load(deps.storage)?;
     if info.sender != factory_params.protocol_admin {
@@ -193,7 +188,6 @@ pub fn execute_pause_stream(
 
     Ok(Response::default()
         .add_attribute("action", "pause_stream")
-        .add_attribute("stream_id", stream_id.to_string())
         .add_attribute("is_paused", "true")
         .add_attribute("pause_block", env.block.height.to_string()))
 }
@@ -208,7 +202,6 @@ pub fn execute_resume_stream(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
     let factory_params: FactoryParams = FACTORY_PARAMS.load(deps.storage)?;
@@ -234,18 +227,13 @@ pub fn execute_resume_stream(
     stream.status = Status::Active;
     STREAM.save(deps.storage, &stream)?;
 
-    let attributes = vec![
-        attr("action", "resume_stream"),
-        attr("stream_id", stream_id.to_string()),
-    ];
-    Ok(Response::default().add_attributes(attributes))
+    Ok(Response::default().add_attribute("action", "resume_stream"))
 }
 
 pub fn execute_cancel_stream(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    stream_id: u64,
 ) -> Result<Response, ContractError> {
     let factory_params: FactoryParams = FACTORY_PARAMS.load(deps.storage)?;
 
@@ -285,7 +273,6 @@ pub fn execute_cancel_stream(
     Ok(Response::new()
         .add_attribute("action", "cancel_stream")
         .add_messages(messages)
-        .add_attribute("stream_id", stream_id.to_string())
         .add_attribute("status", "cancelled"))
 }
 
@@ -293,7 +280,6 @@ pub fn execute_cancel_stream_with_threshold(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    stream_id: u64,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
 
@@ -344,14 +330,9 @@ pub fn execute_cancel_stream_with_threshold(
     Ok(Response::new()
         .add_attribute("action", "cancel_stream")
         .add_messages(messages)
-        .add_attribute("stream_id", stream_id.to_string())
         .add_attribute("status", "cancelled"))
 }
-pub fn sudo_pause_stream(
-    deps: DepsMut,
-    env: Env,
-    stream_id: u64,
-) -> Result<Response, ContractError> {
+pub fn sudo_pause_stream(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
 
     STREAM.save(deps.storage, &stream)?;
@@ -373,16 +354,11 @@ pub fn sudo_pause_stream(
 
     Ok(Response::default()
         .add_attribute("action", "sudo_pause_stream")
-        .add_attribute("stream_id", stream_id.to_string())
         .add_attribute("is_paused", "true")
         .add_attribute("pause_block", env.block.height.to_string()))
 }
 
-pub fn sudo_resume_stream(
-    deps: DepsMut,
-    env: Env,
-    stream_id: u64,
-) -> Result<Response, ContractError> {
+pub fn sudo_resume_stream(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
     //Cancelled can't be resumed
     if stream.is_cancelled() {
@@ -407,16 +383,11 @@ pub fn sudo_resume_stream(
 
     Ok(Response::default()
         .add_attribute("action", "resume_stream")
-        .add_attribute("stream_id", stream_id.to_string())
         .add_attribute("new_end_date", stream.end_time.to_string())
         .add_attribute("status", "active"))
 }
 
-pub fn sudo_cancel_stream(
-    deps: DepsMut,
-    _env: Env,
-    stream_id: u64,
-) -> Result<Response, ContractError> {
+pub fn sudo_cancel_stream(deps: DepsMut, _env: Env) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
     let factory_params: FactoryParams = FACTORY_PARAMS.load(deps.storage)?;
     if stream.is_cancelled() {
@@ -450,6 +421,5 @@ pub fn sudo_cancel_stream(
     Ok(Response::new()
         .add_attribute("action", "cancel_stream")
         .add_messages(messages)
-        .add_attribute("stream_id", stream_id.to_string())
         .add_attribute("status", "cancelled"))
 }

@@ -105,17 +105,14 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::UpdateOperator {
-            stream_id,
-            new_operator,
-        } => execute_update_operator(deps, env, info, stream_id, new_operator),
-        ExecuteMsg::UpdatePosition {
-            stream_id,
-            operator_target,
-        } => execute_update_position(deps, env, info, stream_id, operator_target),
-        ExecuteMsg::UpdateStream { stream_id } => execute_update_stream(deps, env, stream_id),
+        ExecuteMsg::UpdateOperator { new_operator } => {
+            execute_update_operator(deps, env, info, new_operator)
+        }
+        ExecuteMsg::UpdatePosition { operator_target } => {
+            execute_update_position(deps, env, info, operator_target)
+        }
+        ExecuteMsg::UpdateStream {} => execute_update_stream(deps, env),
         ExecuteMsg::Subscribe {
-            stream_id,
             operator_target,
             operator,
         } => {
@@ -125,7 +122,6 @@ pub fn execute(
                     deps.branch(),
                     env,
                     info,
-                    stream_id,
                     operator,
                     operator_target,
                     stream,
@@ -135,7 +131,6 @@ pub fn execute(
                     deps,
                     env,
                     info,
-                    stream_id,
                     operator,
                     operator_target,
                     stream,
@@ -143,7 +138,6 @@ pub fn execute(
             }
         }
         ExecuteMsg::Withdraw {
-            stream_id,
             cap,
             operator_target,
         } => {
@@ -153,7 +147,6 @@ pub fn execute(
                     deps.branch(),
                     env,
                     info,
-                    stream_id,
                     stream,
                     cap,
                     operator_target,
@@ -163,53 +156,38 @@ pub fn execute(
                     deps,
                     env,
                     info,
-                    stream_id,
                     stream,
                     cap,
                     operator_target,
                 )?)
             }
         }
-        ExecuteMsg::FinalizeStream {
-            stream_id,
-            new_treasury,
-        } => execute_finalize_stream(deps, env, info, stream_id, new_treasury),
-        ExecuteMsg::ExitStream {
-            stream_id,
-            operator_target,
-        } => execute_exit_stream(deps, env, info, stream_id, operator_target),
+        ExecuteMsg::FinalizeStream { new_treasury } => {
+            execute_finalize_stream(deps, env, info, new_treasury)
+        }
+        ExecuteMsg::ExitStream { operator_target } => {
+            execute_exit_stream(deps, env, info, operator_target)
+        }
 
-        ExecuteMsg::PauseStream { stream_id } => {
-            killswitch::execute_pause_stream(deps, env, info, stream_id)
-        }
-        ExecuteMsg::ResumeStream { stream_id } => {
-            killswitch::execute_resume_stream(deps, env, info, stream_id)
-        }
-        ExecuteMsg::CancelStream { stream_id } => {
-            killswitch::execute_cancel_stream(deps, env, info, stream_id)
-        }
+        ExecuteMsg::PauseStream {} => killswitch::execute_pause_stream(deps, env, info),
+        ExecuteMsg::ResumeStream {} => killswitch::execute_resume_stream(deps, env, info),
+        ExecuteMsg::CancelStream {} => killswitch::execute_cancel_stream(deps, env, info),
         ExecuteMsg::WithdrawPaused {
-            stream_id,
             cap,
             operator_target,
-        } => killswitch::execute_withdraw_paused(deps, env, info, stream_id, cap, operator_target),
-        ExecuteMsg::ExitCancelled {
-            stream_id,
-            operator_target,
-        } => killswitch::execute_exit_cancelled(deps, env, info, stream_id, operator_target),
+        } => killswitch::execute_withdraw_paused(deps, env, info, cap, operator_target),
+        ExecuteMsg::ExitCancelled { operator_target } => {
+            killswitch::execute_exit_cancelled(deps, env, info, operator_target)
+        }
 
-        ExecuteMsg::CancelStreamWithThreshold { stream_id } => {
-            execute_cancel_stream_with_threshold(deps, env, info, stream_id)
+        ExecuteMsg::CancelStreamWithThreshold {} => {
+            execute_cancel_stream_with_threshold(deps, env, info)
         }
     }
 }
 
 /// Updates stream to calculate released distribution and spent amount
-pub fn execute_update_stream(
-    deps: DepsMut,
-    env: Env,
-    stream_id: u64,
-) -> Result<Response, ContractError> {
+pub fn execute_update_stream(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
 
     if stream.is_paused() {
@@ -220,7 +198,6 @@ pub fn execute_update_stream(
 
     let attrs = vec![
         attr("action", "update_stream"),
-        attr("stream_id", stream_id.to_string()),
         attr("new_distribution_amount", dist_amount),
         attr("dist_index", stream.dist_index.to_string()),
     ];
@@ -295,7 +272,6 @@ pub fn execute_update_position(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    stream_id: u64,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     let operator_target =
@@ -326,7 +302,6 @@ pub fn execute_update_position(
 
     Ok(Response::new()
         .add_attribute("action", "update_position")
-        .add_attribute("stream_id", stream_id.to_string())
         .add_attribute("operator_target", operator_target)
         .add_attribute("purchased", purchased)
         .add_attribute("spent", spent))
@@ -383,7 +358,6 @@ pub fn execute_subscribe(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    stream_id: u64,
     operator: Option<String>,
     operator_target: Option<String>,
     mut stream: Stream,
@@ -454,7 +428,6 @@ pub fn execute_subscribe(
 
     let res = Response::new()
         .add_attribute("action", "subscribe")
-        .add_attribute("stream_id", stream_id.to_string())
         .add_attribute("owner", operator_target)
         .add_attribute("in_supply", stream.in_supply)
         .add_attribute("in_amount", in_amount);
@@ -466,7 +439,6 @@ pub fn execute_subscribe_pending(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    stream_id: u64,
     operator: Option<String>,
     operator_target: Option<String>,
     mut stream: Stream,
@@ -512,7 +484,6 @@ pub fn execute_subscribe_pending(
 
     Ok(Response::new()
         .add_attribute("action", "subscribe_pending")
-        .add_attribute("stream_id", stream_id.to_string())
         .add_attribute("owner", operator_target)
         .add_attribute("in_supply", stream.in_supply)
         .add_attribute("in_amount", in_amount))
@@ -522,7 +493,6 @@ pub fn execute_update_operator(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    stream_id: u64,
     operator: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut position = POSITIONS.load(deps.storage, &info.sender)?;
@@ -534,7 +504,6 @@ pub fn execute_update_operator(
 
     Ok(Response::new()
         .add_attribute("action", "update_operator")
-        .add_attribute("stream_id", stream_id.to_string())
         .add_attribute("owner", info.sender)
         .add_attribute("operator", operator.unwrap_or_else(|| Addr::unchecked(""))))
 }
@@ -543,7 +512,6 @@ pub fn execute_withdraw(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    stream_id: u64,
     mut stream: Stream,
     cap: Option<Uint128>,
     operator_target: Option<String>,
@@ -598,7 +566,6 @@ pub fn execute_withdraw(
 
     let attributes = vec![
         attr("action", "withdraw"),
-        attr("stream_id", stream_id.to_string()),
         attr("operator_target", operator_target.clone()),
         attr("withdraw_amount", withdraw_amount),
     ];
@@ -621,7 +588,6 @@ pub fn execute_withdraw_pending(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    stream_id: u64,
     mut stream: Stream,
     cap: Option<Uint128>,
     operator_target: Option<String>,
@@ -659,7 +625,6 @@ pub fn execute_withdraw_pending(
 
     let attributes = vec![
         attr("action", "withdraw_pending"),
-        attr("stream_id", stream_id.to_string()),
         attr("operator_target", operator_target.clone()),
         attr("withdraw_amount", withdraw_amount),
     ];
@@ -682,7 +647,6 @@ pub fn execute_finalize_stream(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    stream_id: u64,
     new_treasury: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
@@ -770,7 +734,6 @@ pub fn execute_finalize_stream(
 
     Ok(Response::new().add_messages(messages).add_attributes(vec![
         attr("action", "finalize_stream"),
-        attr("stream_id", stream_id.to_string()),
         attr("treasury", treasury.as_str()),
         attr("fee_collector", factory_params.fee_collector.to_string()),
         attr("creators_revenue", creator_revenue),
@@ -795,7 +758,6 @@ pub fn execute_exit_stream(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    stream_id: u64,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
@@ -848,7 +810,6 @@ pub fn execute_exit_stream(
 
     let attributes = vec![
         attr("action", "exit_stream"),
-        attr("stream_id", stream_id.to_string()),
         attr("spent", position.spent.checked_sub(swap_fee)?),
         attr("purchased", position.purchased),
         attr("swap_fee_paid", swap_fee),
@@ -892,9 +853,9 @@ fn check_access(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractError> {
     match msg {
-        SudoMsg::PauseStream { stream_id } => killswitch::sudo_pause_stream(deps, env, stream_id),
-        SudoMsg::CancelStream { stream_id } => killswitch::sudo_cancel_stream(deps, env, stream_id),
-        SudoMsg::ResumeStream { stream_id } => killswitch::sudo_resume_stream(deps, env, stream_id),
+        SudoMsg::PauseStream {} => killswitch::sudo_pause_stream(deps, env),
+        SudoMsg::CancelStream {} => killswitch::sudo_cancel_stream(deps, env),
+        SudoMsg::ResumeStream {} => killswitch::sudo_resume_stream(deps, env),
     }
 }
 

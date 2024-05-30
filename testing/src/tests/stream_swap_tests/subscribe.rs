@@ -67,7 +67,6 @@ fn test_subcribe() {
         .unwrap();
 
     let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-        stream_id,
         operator_target: None,
         operator: None,
     };
