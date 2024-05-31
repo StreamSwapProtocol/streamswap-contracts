@@ -36,7 +36,8 @@ pub fn instantiate(
     let factory_params: FactoryParams = deps
         .querier
         .query_wasm_smart(info.sender.to_string(), &params_query_msg)?;
-
+    // Factory parameters are collected at the time of stream creation
+    // Any changes to factory parameters will not affect the stream
     FACTORYPARAMS.save(deps.storage, &factory_params)?;
 
     let CreateStreamMsg {
@@ -236,6 +237,8 @@ pub fn update_stream(
         if !new_distribution_balance.is_zero() {
             // decrease amount to be distributed of the stream
             stream.out_remaining = stream.out_remaining.checked_sub(new_distribution_balance)?;
+            println!("out_remaining: {:?}", stream.out_remaining);
+            println!("shares {:?}", stream.shares);
             // update distribution index. A positions share of the distribution is calculated by
             // multiplying the share by the distribution index
             stream.dist_index = stream.dist_index.checked_add(Decimal256::from_ratio(
@@ -404,7 +407,6 @@ pub fn execute_subscribe(
         }
         Some(mut position) => {
             check_access(&info, &position.owner, &position.operator)?;
-
             // incoming tokens should not participate in prev distribution
             update_stream(env.block.time, &mut stream)?;
             new_shares = stream.compute_shares_amount(in_amount, false);
@@ -425,6 +427,7 @@ pub fn execute_subscribe(
     // increase in supply and shares
     stream.in_supply = stream.in_supply.checked_add(in_amount)?;
     stream.shares = stream.shares.checked_add(new_shares)?;
+    println!("stream.shares: {:?}", stream.shares);
     STREAM.save(deps.storage, &stream)?;
 
     let res = Response::new()

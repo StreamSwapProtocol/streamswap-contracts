@@ -370,179 +370,258 @@ fn test_recurring_subscribe() {
     assert_eq!(position.in_balance, Uint128::new(447));
     assert_eq!(position.spent, Uint128::from(3u128));
 }
-//     #[test]
-//     fn test_subscribe_pending() {
-//         // instantiate
-//         let treasury = Addr::unchecked("treasury");
-//         let start = 5000;
-//         let end = 10000;
-//         let out_supply = Uint128::new(1_000_000);
-//         let out_denom = "out_denom";
 
-//         // instantiate
-//         let mut deps = mock_dependencies();
-//         let mut env = mock_env();
-//         env.block.height = 100;
-//         let msg = crate::msg::InstantiateMsg {
-//             min_stream_blocks: 500,
-//             min_blocks_until_start_block: 500,
-//             stream_creation_denom: "fee".to_string(),
-//             stream_creation_fee: Uint128::new(100),
-//             exit_fee_percent: Decimal::percent(1),
-//             fee_collector: "collector".to_string(),
-//             protocol_admin: "protocol_admin".to_string(),
-//             accepted_in_denom: "in".to_string(),
-//         };
-//         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+#[test]
+fn test_subscribe_pending() {
+    let SetupResponse {
+        mut app,
+        test_accounts,
+        stream_swap_code_id,
+        stream_swap_factory_code_id,
+    } = setup();
+    let start_time = app.block_info().time.plus_seconds(100).into();
+    let end_time = app.block_info().time.plus_seconds(200).into();
 
-//         // create stream
-//         let mut env = mock_env();
-//         env.block.height = 200;
-//         let info = mock_info(
-//             "creator1",
-//             &[
-//                 Coin::new(out_supply.u128(), out_denom),
-//                 Coin::new(100, "fee"),
-//             ],
-//         );
-//         execute_create_stream(
-//             deps.as_mut(),
-//             env,
-//             info,
-//             treasury.to_string(),
-//             "test".to_string(),
-//             Some("https://sample.url".to_string()),
-//             "in".to_string(),
-//             out_denom.to_string(),
-//             out_supply,
-//             start,
-//             end,
-//             None,
-//         )
-//         .unwrap();
+    let msg = get_factory_inst_msg(stream_swap_code_id, &test_accounts);
+    let factory_address = app
+        .instantiate_contract(
+            stream_swap_factory_code_id,
+            test_accounts.admin.clone(),
+            &msg,
+            &[],
+            "Factory".to_string(),
+            None,
+        )
+        .unwrap();
 
-//         // first subscribe
-//         let mut env = mock_env();
-//         env.block.height = 300;
+    let create_stream_msg = get_create_stream_msg(
+        &"Stream Swap tests".to_string(),
+        None,
+        &test_accounts.creator.to_string(),
+        coin(1_000_000, "out_denom"),
+        "in_denom",
+        start_time,
+        end_time,
+        None,
+    );
 
-//         let info = mock_info("creator1", &[Coin::new(1_000_000, "in")]);
-//         let msg = crate::msg::ExecuteMsg::Subscribe {
-//             stream_id: 1,
-//             operator_target: None,
-//             operator: None,
-//         };
-//         let res = execute(deps.as_mut(), env, info, msg).unwrap();
-//         assert_eq!(res.attributes[0].key, "action");
-//         assert_eq!(res.attributes[0].value, "subscribe_pending");
-//         // query stream
-//         let mut env = mock_env();
-//         env.block.height = 350;
-//         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
-//         assert_eq!(stream.status, Status::Waiting);
-//         assert_eq!(stream.in_supply, Uint128::new(1000000));
-//         assert_eq!(stream.shares, Uint128::new(1000000));
+    let res = app
+        .execute_contract(
+            test_accounts.creator.clone(),
+            factory_address.clone(),
+            &create_stream_msg,
+            &[coin(100, "fee_token"), coin(1_000_000, "out_denom")],
+        )
+        .unwrap();
+    let stream_swap_contract_address: String = get_contract_address_from_res(res);
 
-//         // second subscribe still waiting
-//         let mut env = mock_env();
-//         env.block.height = 500;
-//         let info = mock_info("creator1", &[Coin::new(1_000_000, "in")]);
-//         let msg = crate::msg::ExecuteMsg::Subscribe {
-//             stream_id: 1,
-//             operator_target: None,
-//             operator: None,
-//         };
-//         let res = execute(deps.as_mut(), env, info, msg).unwrap();
-//         assert_eq!(res.attributes[0].key, "action");
-//         assert_eq!(res.attributes[0].value, "subscribe_pending");
+    let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
+        operator_target: None,
+        operator: None,
+    };
+    app.set_block(BlockInfo {
+        height: 1_100,
+        time: start_time.minus_seconds(100),
+        chain_id: "test".to_string(),
+    });
 
-//         // query stream
-//         let mut env = mock_env();
-//         env.block.height = 450;
-//         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
-//         assert_eq!(stream.status, Status::Waiting);
-//         assert_eq!(stream.in_supply, Uint128::new(2000000));
+    // First subscription
+    let _res = app
+        .execute_contract(
+            test_accounts.subscriber.clone(),
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &subscribe_msg,
+            &[coin(150, "in_denom")],
+        )
+        .unwrap();
 
-//         // Before stream start height, 2 subscriptions have been made and the stream is pending
-//         // After stream start height plus 1000 blocks, one subscription is made and the stream is active
-//         // Creator 1 has 2 subscriptions and 2_000_000 in balance
-//         // Creator 2 has 1 subscription and 1_000_000 in balance
-//         // At 6000 blocks, the stream is active and the balance to be distributed is ~2000000
-//         // At 6000 blocks, creator 1 should have spent 2000000*1000/5000= 400000
-//         // At 6000 blocks, creator 1 should get all 2000000 tokens
-//         // At 6000 blocks, creator 2 should get 0 tokens
-//         // At 7500 blocks, the stream is active and the balance to be distributed is 300000
-//         // At 7500 blocks, creator 1 should get 300000*2000000/3250000 = 184615
-//         // At 7500 blocks, creator 2 should get 300000*1250000/3250000 = 115384
+    // Query Stream
+    let stream: StreamResponse = app
+        .wrap()
+        .query_wasm_smart(
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapQueryMsg::Stream {},
+        )
+        .unwrap();
+    assert_eq!(stream.status, cw_streamswap::state::Status::Waiting);
+    assert_eq!(stream.dist_index, Decimal256::zero());
+    assert_eq!(stream.in_supply, Uint128::new(150));
+    let position: PositionResponse = app
+        .wrap()
+        .query_wasm_smart(
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapQueryMsg::Position {
+                owner: test_accounts.subscriber.to_string(),
+            },
+        )
+        .unwrap();
+    assert_eq!(position.index, Decimal256::zero());
 
-//         // subscription after start height
-//         let mut env = mock_env();
-//         env.block.height = 6000;
-//         let info = mock_info("creator2", &[Coin::new(1_000_000, "in")]);
-//         let msg = crate::msg::ExecuteMsg::Subscribe {
-//             stream_id: 1,
-//             operator_target: None,
-//             operator: None,
-//         };
-//         let res = execute(deps.as_mut(), env, info, msg).unwrap();
-//         assert_eq!(res.attributes[0].key, "action");
-//         // different action because the stream is active
-//         assert_eq!(res.attributes[0].value, "subscribe");
+    // Update stream
+    app.set_block(BlockInfo {
+        height: 1_200,
+        time: start_time.minus_seconds(50),
+        chain_id: "test".to_string(),
+    });
+    let _res = app
+        .execute_contract(
+            test_accounts.subscriber.clone(),
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapExecuteMsg::UpdateStream {},
+            &[],
+        )
+        .unwrap();
+    // Dist index should not be updated as the stream is still pending
+    let stream: StreamResponse = app
+        .wrap()
+        .query_wasm_smart(
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapQueryMsg::Stream {},
+        )
+        .unwrap();
+    assert_eq!(stream.dist_index, Decimal256::from_str("0").unwrap());
+    assert_eq!(stream.in_supply, Uint128::new(150));
+    assert_eq!(stream.spent_in, Uint128::zero());
+    // Stream is still waiting so last updated should be the same as start time
+    assert_eq!(stream.last_updated, start_time);
+    assert_eq!(stream.shares, Uint128::new(150));
 
-//         // update creator 1 position
-//         let mut env = mock_env();
-//         env.block.height = 6000;
-//         let update_msg = crate::msg::ExecuteMsg::UpdatePosition {
-//             stream_id: 1,
-//             operator_target: None,
-//         };
-//         let info = mock_info("creator1", &[]);
-//         let _res = execute(deps.as_mut(), env.clone(), info, update_msg).unwrap();
-//         let position = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
-//         assert_eq!(position.spent, Uint128::new(400000));
+    // Subscriber increases subscription
+    let _res = app
+        .execute_contract(
+            test_accounts.subscriber.clone(),
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapExecuteMsg::Subscribe {
+                operator_target: None,
+                operator: None,
+            },
+            &[coin(150, "in_denom")],
+        )
+        .unwrap();
 
-//         // query stream
-//         let mut env = mock_env();
-//         env.block.height = 6000;
-//         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
-//         assert_eq!(stream.status, Status::Active);
-//         assert_eq!(stream.in_supply, Uint128::new(3000000 - 400000));
-//         assert_eq!(stream.spent_in, Uint128::new(400000));
+    // Query Stream
+    let stream: StreamResponse = app
+        .wrap()
+        .query_wasm_smart(
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapQueryMsg::Stream {},
+        )
+        .unwrap();
+    // Distribution index should not be updated because we are still in pending status
+    assert_eq!(stream.dist_index, Decimal256::from_str("0").unwrap());
 
-//         // update creator 1 position at 7500
-//         let mut env = mock_env();
-//         env.block.height = 7500;
-//         let update_msg = crate::msg::ExecuteMsg::UpdatePosition {
-//             stream_id: 1,
-//             operator_target: None,
-//         };
-//         let info = mock_info("creator1", &[]);
-//         let _res = execute(deps.as_mut(), env.clone(), info, update_msg).unwrap();
+    // Before stream start time, 2 subscriptions have been made and the stream is pending
+    // Both subscriptions are made by the same user
+    // At 10th second after start time, third subscription is made
+    // This one is made by a different user
+    // Stream is active
+    // Total out supply is 1_000_000
+    // Dist index should be = diff = 1/10  Dist balance  = 1000*1/10 = 100
+    // Dist index = 100_000/300 = 333.333333333333333333
+    // At 60th second after start time
+    // Diff = 60-10 = 50/100-10 = 50/90 = 5/9 = 0.555555555555555555
+    // Dist balance = 1_000_000*0.555555555555555555 = 555555.555555555555555
+    // Dist index = 333.333+ 555555.555555555555555/466 = 1406.292560801144492131
 
-//         // query position
-//         let res = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
-//         assert_eq!(res.purchased, Uint128::new(184615 + 200000));
-//         assert_eq!(res.spent, Uint128::new(2000000 / 2));
+    // Set time to start time plus 10 seconds
+    app.set_block(BlockInfo {
+        height: 1_300,
+        time: start_time.plus_seconds(10),
+        chain_id: "test".to_string(),
+    });
 
-//         // update creator 2 position at 7500
-//         let mut env = mock_env();
-//         env.block.height = 7500;
-//         let update_msg = crate::msg::ExecuteMsg::UpdatePosition {
-//             stream_id: 1,
-//             operator_target: None,
-//         };
-//         let info = mock_info("creator2", &[]);
-//         let _res = execute(deps.as_mut(), env.clone(), info, update_msg).unwrap();
+    // Third subscription
+    let _res = app
+        .execute_contract(
+            test_accounts.subscriber_2.clone(),
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapExecuteMsg::Subscribe {
+                operator_target: None,
+                operator: None,
+            },
+            &[coin(150, "in_denom")],
+        )
+        .unwrap();
+    let _res = app
+        .execute_contract(
+            test_accounts.subscriber.clone(),
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapExecuteMsg::UpdateStream {},
+            &[],
+        )
+        .unwrap();
 
-//         // query position
-//         let res = query_position(deps.as_ref(), env, 1, "creator2".to_string()).unwrap();
-//         assert_eq!(res.purchased, Uint128::new(115384));
-//         // spent = in_supply * (now - last_updated) / (end - last_updated)
-//         assert_eq!(res.spent, Uint128::new(1000000 * 1500 / 4000));
-//         // query stream
-//         let mut env = mock_env();
-//         env.block.height = 3500;
-//         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
-//         assert_eq!(stream.status, Status::Active);
-//         // in supply = 3000000 - (positions.spent summed)
-//         assert_eq!(stream.in_supply, Uint128::new(1625000));
-//     }
+    // Dist index should be updated
+    let stream: StreamResponse = app
+        .wrap()
+        .query_wasm_smart(
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapQueryMsg::Stream {},
+        )
+        .unwrap();
+    assert_eq!(
+        stream.dist_index,
+        Decimal256::from_str("333.333333333333333333").unwrap()
+    );
+
+    // Set time to start time plus 60 seconds
+    app.set_block(BlockInfo {
+        height: 1_400,
+        time: start_time.plus_seconds(60),
+        chain_id: "test".to_string(),
+    });
+
+    // Update stream
+    let _res = app
+        .execute_contract(
+            test_accounts.subscriber.clone(),
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapExecuteMsg::UpdateStream {},
+            &[],
+        )
+        .unwrap();
+
+    // Query Stream
+    let stream: StreamResponse = app
+        .wrap()
+        .query_wasm_smart(
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapQueryMsg::Stream {},
+        )
+        .unwrap();
+    // Distribution index should be updated
+    assert_eq!(
+        stream.dist_index,
+        Decimal256::from_str("1406.292560801144492131").unwrap()
+    );
+
+    // Update position
+    let _res = app
+        .execute_contract(
+            test_accounts.subscriber.clone(),
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapExecuteMsg::UpdatePosition {
+                operator_target: None,
+            },
+            &[],
+        )
+        .unwrap();
+
+    // Query Position for subscriber 1
+    let position: PositionResponse = app
+        .wrap()
+        .query_wasm_smart(
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapQueryMsg::Position {
+                owner: test_accounts.subscriber.to_string(),
+            },
+        )
+        .unwrap();
+    // Position should be updated
+    assert_eq!(
+        position.index,
+        Decimal256::from_str("1406.292560801144492131").unwrap()
+    );
+    assert_eq!(position.in_balance, Uint128::new(120));
+    assert_eq!(position.spent, Uint128::new(180));
+}

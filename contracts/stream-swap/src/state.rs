@@ -8,7 +8,7 @@ pub struct Stream {
     pub name: String,
     /// Destination for the earned token_in.
     pub treasury: Addr,
-
+    /// Admin-Creator of the stream.
     pub stream_admin: Addr,
     /// URL for more information about the stream.
     pub url: Option<String>,
