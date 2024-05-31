@@ -1,5 +1,5 @@
 use cosmwasm_std::{StdError, Storage, Uint128};
-use cw_storage_plus::{Item, Map};
+use cw_storage_plus::Item;
 use thiserror::Error;
 
 use crate::state::Stream;

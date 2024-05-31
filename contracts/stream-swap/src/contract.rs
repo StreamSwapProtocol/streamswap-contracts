@@ -1,7 +1,7 @@
 use crate::killswitch::execute_cancel_stream_with_threshold;
 use crate::msg::{
     AveragePriceResponse, ExecuteMsg, LatestStreamedPriceResponse, PositionResponse,
-    PositionsResponse, QueryMsg, StreamResponse, StreamsResponse, SudoMsg,
+    PositionsResponse, QueryMsg, StreamResponse, SudoMsg,
 };
 use crate::state::{Position, Status, Stream, POSITIONS, STREAM};
 use crate::threshold::ThresholdState;

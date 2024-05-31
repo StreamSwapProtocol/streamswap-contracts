@@ -12,6 +12,7 @@ pub fn setup() -> SetupResponse {
     let admin = Addr::unchecked("admin");
     let creator = Addr::unchecked("stream_creator");
     let subscriber = Addr::unchecked("subscriber");
+    let wrong_user = Addr::unchecked("wrong_user");
 
     app.set_block(BlockInfo {
         chain_id: "test_1".to_string(),
@@ -67,7 +68,11 @@ pub fn setup() -> SetupResponse {
         subscriber.to_string(),
         vec![coin(1_000_000, "fee_token")],
     );
-    mint_to_address(&mut app, admin.to_string(), vec![coin(1_000_000, "random")]);
+    mint_to_address(
+        &mut app,
+        admin.to_string(),
+        vec![coin(1_000_000, "wrong_denom")],
+    );
     mint_to_address(
         &mut app,
         creator.to_string(),
@@ -76,6 +81,29 @@ pub fn setup() -> SetupResponse {
     mint_to_address(
         &mut app,
         subscriber.to_string(),
+        vec![coin(1_000_000, "wrong_denom")],
+    );
+    mint_to_address(
+        &mut app,
+        wrong_user.to_string(),
+        vec![coin(1_000_000, "in_denom")],
+    );
+
+    mint_to_address(
+        &mut app,
+        wrong_user.to_string(),
+        vec![coin(1_000_000, "out_denom")],
+    );
+
+    mint_to_address(
+        &mut app,
+        wrong_user.to_string(),
+        vec![coin(1_000_000, "fee_token")],
+    );
+
+    mint_to_address(
+        &mut app,
+        wrong_user.to_string(),
         vec![coin(1_000_000, "wrong_denom")],
     );
 
@@ -97,6 +125,7 @@ pub fn setup() -> SetupResponse {
         admin: admin.clone(),
         creator: creator.clone(),
         subscriber: subscriber.clone(),
+        wrong_user: wrong_user.clone(),
     };
     SetupResponse {
         test_accounts,
@@ -122,4 +151,5 @@ pub struct TestAccounts {
     pub admin: Addr,
     pub creator: Addr,
     pub subscriber: Addr,
+    pub wrong_user: Addr,
 }

@@ -116,7 +116,7 @@ fn test_first_subcription() {
             test_accounts.subscriber.clone(),
             Addr::unchecked(stream_swap_contract_address.clone()),
             &subscribe_msg,
-            &[coin(1_000_000, "in_denom")],
+            &[coin(150, "in_denom")],
         )
         .unwrap();
 
@@ -133,7 +133,7 @@ fn test_first_subcription() {
     // Dist index should be zero because no distribution has been made until last update
     assert_eq!(stream.dist_index, Decimal256::zero());
     // In supply should be updated
-    assert_eq!(stream.in_supply, Uint128::new(1_000_000));
+    assert_eq!(stream.in_supply, Uint128::new(150));
     // Position should be updated
     let position: PositionResponse = app
         .wrap()
@@ -145,7 +145,7 @@ fn test_first_subcription() {
         )
         .unwrap();
     assert_eq!(position.index, Decimal256::zero());
-    assert_eq!(position.in_balance, Uint128::new(1_000_000));
+    assert_eq!(position.in_balance, Uint128::new(150));
     assert_eq!(position.spent, Uint128::zero());
 
     // Update stream
@@ -170,151 +170,206 @@ fn test_first_subcription() {
             &StreamSwapQueryMsg::Stream {},
         )
         .unwrap();
+    assert_eq!(
+        stream.dist_index,
+        Decimal256::from_str("1333.333333333333333333").unwrap()
+    );
+    assert_eq!(stream.in_supply, Uint128::new(120));
+    assert_eq!(stream.spent_in, Uint128::new(30));
+    assert_eq!(stream.last_updated, start_time.plus_seconds(20));
+    assert_eq!(stream.shares, Uint128::new(150));
 }
 #[test]
-fn test_recurring_subscribe() {}
+fn test_recurring_subscribe() {
+    let SetupResponse {
+        mut app,
+        test_accounts,
+        stream_swap_code_id,
+        stream_swap_factory_code_id,
+    } = setup();
+    let start_time = app.block_info().time.plus_seconds(100).into();
+    let end_time = app.block_info().time.plus_seconds(200).into();
 
-//#[test]
-//     fn test_subscribe() {
-//         let treasury = Addr::unchecked("treasury");
-//         let start = 2000;
-//         let end = 1_000_000;
-//         let out_supply = Uint128::new(1_000_000);
-//         let out_denom = "out_denom";
+    let msg = get_factory_inst_msg(stream_swap_code_id, &test_accounts);
+    let factory_address = app
+        .instantiate_contract(
+            stream_swap_factory_code_id,
+            test_accounts.admin.clone(),
+            &msg,
+            &[],
+            "Factory".to_string(),
+            None,
+        )
+        .unwrap();
 
-//         // instantiate
-//         let mut deps = mock_dependencies();
-//         let mut env = mock_env();
-//         env.block.time = Timestamp::from_seconds(100);
-//         let msg = crate::msg::InstantiateMsg {
-//             min_stream_blocks: 500,
-//             min_blocks_until_start_block: 500,
-//             stream_creation_denom: "fee".to_string(),
-//             stream_creation_fee: Uint128::new(100),
-//             exit_fee_percent: Decimal::percent(1),
-//             fee_collector: "collector".to_string(),
-//             protocol_admin: "protocol_admin".to_string(),
-//             accepted_in_denom: "in".to_string(),
-//         };
-//         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+    let create_stream_msg = get_create_stream_msg(
+        &"Stream Swap tests".to_string(),
+        None,
+        &test_accounts.creator.to_string(),
+        coin(1_000_000, "out_denom"),
+        "in_denom",
+        start_time,
+        end_time,
+        None,
+    );
 
-//         // create stream
-//         let mut env = mock_env();
-//         env.block.height = 0;
-//         let info = mock_info(
-//             "creator1",
-//             &[
-//                 Coin::new(out_supply.u128(), out_denom),
-//                 Coin::new(100, "fee"),
-//             ],
-//         );
-//         execute_create_stream(
-//             deps.as_mut(),
-//             env,
-//             info,
-//             treasury.to_string(),
-//             "test".to_string(),
-//             Some("https://sample.url".to_string()),
-//             "in".to_string(),
-//             out_denom.to_string(),
-//             out_supply,
-//             start,
-//             end,
-//             None,
-//         )
-//         .unwrap();
+    let res = app
+        .execute_contract(
+            test_accounts.creator.clone(),
+            factory_address.clone(),
+            &create_stream_msg,
+            &[coin(100, "fee_token"), coin(1_000_000, "out_denom")],
+        )
+        .unwrap();
+    let stream_swap_contract_address: String = get_contract_address_from_res(res);
 
-//         // stream ended
-//         let mut env = mock_env();
-//         env.block.height = 1_000_001;
-//         let info = mock_info("creator1", &[]);
-//         let msg = crate::msg::ExecuteMsg::Subscribe {
-//             stream_id: 1,
-//             operator_target: None,
-//             operator: None,
-//         };
-//         let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
-//         assert_eq!(res, ContractError::StreamEnded {});
+    let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
+        operator_target: None,
+        operator: None,
+    };
+    app.set_block(BlockInfo {
+        height: 1_100,
+        time: start_time,
+        chain_id: "test".to_string(),
+    });
 
-//         // no funds
-//         let mut env = mock_env();
-//         env.block.height = 1100;
-//         let info = mock_info("creator1", &[]);
-//         let msg = crate::msg::ExecuteMsg::Subscribe {
-//             stream_id: 1,
-//             operator_target: None,
-//             operator: None,
-//         };
-//         let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
-//         assert_eq!(res, PaymentError::NoFunds {}.into());
+    // First subscription
+    let _res = app
+        .execute_contract(
+            test_accounts.subscriber.clone(),
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &subscribe_msg,
+            &[coin(150, "in_denom")],
+        )
+        .unwrap();
 
-//         // incorrect denom
-//         let mut env = mock_env();
-//         env.block.height = 1100;
-//         let info = mock_info("creator1", &[Coin::new(100, "wrong_denom")]);
-//         let msg = crate::msg::ExecuteMsg::Subscribe {
-//             stream_id: 1,
-//             operator_target: None,
-//             operator: None,
-//         };
-//         let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
-//         assert_eq!(res, PaymentError::MissingDenom("in".to_string()).into());
+    // Query Stream
+    let stream: StreamResponse = app
+        .wrap()
+        .query_wasm_smart(
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapQueryMsg::Stream {},
+        )
+        .unwrap();
+    assert_eq!(stream.status, cw_streamswap::state::Status::Active);
+    assert_eq!(stream.dist_index, Decimal256::zero());
+    assert_eq!(stream.in_supply, Uint128::new(150));
+    let position: PositionResponse = app
+        .wrap()
+        .query_wasm_smart(
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapQueryMsg::Position {
+                owner: test_accounts.subscriber.to_string(),
+            },
+        )
+        .unwrap();
+    assert_eq!(position.index, Decimal256::zero());
+    assert_eq!(position.in_balance, Uint128::new(150));
+    assert_eq!(position.spent, Uint128::zero());
 
-//         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
-//         assert_eq!(stream.status, Status::Waiting);
+    // Non-operator tries to increase subscription
+    let res = app
+        .execute_contract(
+            test_accounts.wrong_user.clone(),
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapExecuteMsg::Subscribe {
+                operator_target: Some(test_accounts.subscriber.to_string()),
+                operator: None,
+            },
+            &[coin(150, "in_denom")],
+        )
+        .unwrap_err();
+    let err = res.source().unwrap();
+    let error = err.downcast_ref::<StreamSwapError>().unwrap();
+    assert_eq!(error, &StreamSwapError::Unauthorized {});
 
-//         // first subscribe
-//         let mut env = mock_env();
-//         env.block.height = 2100;
-//         let info = mock_info("creator1", &[Coin::new(1_000_000, "in")]);
-//         let msg = crate::msg::ExecuteMsg::Subscribe {
-//             stream_id: 1,
-//             operator_target: None,
-//             operator: None,
-//         };
-//         let _res = execute(deps.as_mut(), env, info, msg);
+    // Subscriber increases subscription in same block_time
+    let _res = app
+        .execute_contract(
+            test_accounts.subscriber.clone(),
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapExecuteMsg::Subscribe {
+                operator_target: None,
+                operator: None,
+            },
+            &[coin(150, "in_denom")],
+        )
+        .unwrap();
 
-//         // dist index updated
-//         let env = mock_env();
-//         let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
-//         // position index not updated,  in_supply updated
-//         assert_eq!(stream.dist_index, Decimal256::zero());
-//         //see that the status is updated
-//         assert_eq!(stream.status, Status::Active);
-//         assert_eq!(stream.in_supply, Uint128::new(1000000));
-//         let position = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
-//         assert_eq!(position.index, Decimal256::zero());
-//         assert_eq!(position.in_balance, Uint128::new(1000000));
-//         // unauthorized subscription increase
-//         let mut env = mock_env();
-//         env.block.height = 2200;
-//         let info = mock_info("random", &[Coin::new(1_000_000, "in")]);
-//         let msg = crate::msg::ExecuteMsg::Subscribe {
-//             stream_id: 1,
-//             operator_target: Some("creator1".to_string()),
-//             operator: None,
-//         };
-//         let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
-//         assert_eq!(res, ContractError::Unauthorized {});
+    // Query Stream
+    let stream: StreamResponse = app
+        .wrap()
+        .query_wasm_smart(
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapQueryMsg::Stream {},
+        )
+        .unwrap();
+    // There will be no distribution because the last update was in the same block
+    assert_eq!(stream.dist_index, Decimal256::from_str("0").unwrap());
 
-//         // subscription increase
-//         let mut env = mock_env();
-//         env.block.height = 2200;
-//         let info = mock_info("creator1", &[Coin::new(1_000_000, "in")]);
-//         let msg = crate::msg::ExecuteMsg::Subscribe {
-//             stream_id: 1,
-//             operator_target: None,
-//             operator: None,
-//         };
-//         let _res = execute(deps.as_mut(), env.clone(), info, msg);
-//         // dist index updated
-//         let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
-//         assert_eq!(stream.dist_index, Decimal256::from_str("0.0001").unwrap());
-//         // dist index updated, position reduced and increased
-//         let position = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
-//         assert_eq!(position.index, Decimal256::from_str("0.0001").unwrap());
-//         assert_eq!(position.in_balance, Uint128::new(1999900));
-//     }
+    let position: PositionResponse = app
+        .wrap()
+        .query_wasm_smart(
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapQueryMsg::Position {
+                owner: test_accounts.subscriber.to_string(),
+            },
+        )
+        .unwrap();
+    assert_eq!(position.index, Decimal256::from_str("0").unwrap());
+    assert_eq!(position.in_balance, Uint128::new(300));
+
+    // Now simulate a block update
+    app.set_block(BlockInfo {
+        height: 1_200,
+        time: start_time.plus_seconds(1),
+        chain_id: "test".to_string(),
+    });
+
+    // Subscriber increases subscription
+    let _res = app
+        .execute_contract(
+            test_accounts.subscriber.clone(),
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapExecuteMsg::Subscribe {
+                operator_target: None,
+                operator: None,
+            },
+            &[coin(150, "in_denom")],
+        )
+        .unwrap();
+
+    // Query Stream
+    let stream: StreamResponse = app
+        .wrap()
+        .query_wasm_smart(
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapQueryMsg::Stream {},
+        )
+        .unwrap();
+    // Distribution index should be updated
+    assert_eq!(
+        stream.dist_index,
+        Decimal256::from_str("33.333333333333333333").unwrap()
+    );
+    assert_eq!(stream.in_supply, Uint128::new(447));
+    let position: PositionResponse = app
+        .wrap()
+        .query_wasm_smart(
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapQueryMsg::Position {
+                owner: test_accounts.subscriber.to_string(),
+            },
+        )
+        .unwrap();
+
+    assert_eq!(
+        position.index,
+        Decimal256::from_str("33.333333333333333333").unwrap()
+    );
+    assert_eq!(position.in_balance, Uint128::new(447));
+    assert_eq!(position.spent, Uint128::from(3u128));
+}
 //     #[test]
 //     fn test_subscribe_pending() {
 //         // instantiate
