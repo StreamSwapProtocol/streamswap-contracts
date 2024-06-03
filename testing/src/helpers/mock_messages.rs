@@ -14,7 +14,7 @@ pub fn get_factory_inst_msg(
         protocol_admin: Some(test_accounts.admin.to_string()),
         fee_collector: Some(test_accounts.admin.to_string()),
         stream_creation_fee: Coin {
-            denom: "fee_token".to_string(),
+            denom: "fee_denom".to_string(),
             amount: 100u128.into(),
         },
         exit_fee_percent: Decimal::percent(1),

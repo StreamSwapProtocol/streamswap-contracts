@@ -34,7 +34,7 @@ fn factory_proper_instantiate() {
         .wrap()
         .query_wasm_smart(factory_address, &QueryMsg::Params {})
         .unwrap();
-    assert_eq!(res.stream_creation_fee, coin(100, "fee_token"));
+    assert_eq!(res.stream_creation_fee, coin(100, "fee_denom"));
     assert_eq!(res.exit_fee_percent, Decimal::percent(1));
     assert_eq!(res.stream_swap_code_id, stream_swap_code_id);
     assert_eq!(res.accepted_in_denoms, vec!["in_denom".to_string()]);

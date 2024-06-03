@@ -44,7 +44,7 @@ fn factory_freeze() {
             test_accounts.creator.clone(),
             factory_address.clone(),
             &create_stream_msg,
-            &[coin(100, "fee_token"), coin(100, "out_denom")],
+            &[coin(100, "fee_denom"), coin(100, "out_denom")],
         )
         .unwrap();
 
@@ -95,7 +95,7 @@ fn factory_freeze() {
             test_accounts.creator.clone(),
             factory_address.clone(),
             &create_stream_msg,
-            &[coin(100, "fee_token"), coin(100, "out_denom")],
+            &[coin(100, "fee_denom"), coin(100, "out_denom")],
         )
         .unwrap_err();
     let err = res.source().unwrap();

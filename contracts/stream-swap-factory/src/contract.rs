@@ -156,6 +156,12 @@ pub fn execute_create_stream(
     if time_until_start < params.min_seconds_until_start_time {
         return Err(ContractError::StreamStartsTooSoon {});
     }
+    // let funds if out_asset is not 0
+    let funds: Vec<Coin> = if out_asset.amount.is_zero() {
+        vec![]
+    } else {
+        vec![out_asset.clone()]
+    };
 
     let stream_swap_inst_message: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: params.stream_swap_code_id,
@@ -163,7 +169,7 @@ pub fn execute_create_stream(
         admin: Some(params.protocol_admin.to_string()),
         label: format!("Stream Swap Stream {} - {}", name, stream_id),
         msg: to_json_binary(&msg)?,
-        funds: vec![],
+        funds,
     });
     LAST_STREAM_ID.save(deps.storage, &stream_id)?;
     // TODO: If stream cration fee is zero this will fail

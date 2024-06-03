@@ -11,13 +11,13 @@ pub fn setup() -> SetupResponse {
     let mut app = App::default();
     let accounts = create_test_accounts();
     let denoms = vec![
-        "fee_token".to_string(),
+        "fee_denom".to_string(),
         "out_denom".to_string(),
         "in_denom".to_string(),
         "wrong_denom".to_string(),
     ];
-    fund_accounts(&mut app, accounts.clone(), denoms.clone());
 
+    fund_accounts(&mut app, accounts.clone(), denoms.clone());
     app.set_block(BlockInfo {
         chain_id: "test_1".to_string(),
         height: 1_000,
@@ -67,7 +67,11 @@ fn create_test_accounts() -> Vec<Addr> {
 fn fund_accounts(app: &mut App, accounts: Vec<Addr>, denoms: Vec<String>) {
     for account in accounts {
         for denom in &denoms {
-            mint_to_address(app, account.to_string(), vec![coin(1_000_000, denom)]);
+            mint_to_address(
+                app,
+                account.to_string(),
+                vec![coin(10_000_000_000_000, denom)],
+            );
         }
     }
 }

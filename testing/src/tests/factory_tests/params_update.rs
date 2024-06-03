@@ -31,7 +31,7 @@ fn params_update() {
 
     // Non-admin cannot update params
     let msg = ExecuteMsg::UpdateParams {
-        stream_creation_fee: Some(coin(100, "fee_token")),
+        stream_creation_fee: Some(coin(100, "fee_denom")),
         exit_fee_percent: None,
         accepted_in_denoms: None,
         fee_collector: None,
@@ -52,7 +52,7 @@ fn params_update() {
 
     // Update stream creation fee
     let msg = ExecuteMsg::UpdateParams {
-        stream_creation_fee: Some(coin(200, "fee_token")),
+        stream_creation_fee: Some(coin(200, "fee_denom")),
         exit_fee_percent: None,
         accepted_in_denoms: None,
         fee_collector: None,
@@ -74,7 +74,7 @@ fn params_update() {
         .query_wasm_smart(factory_address.clone(), &QueryMsg::Params {})
         .unwrap();
 
-    assert_eq!(res.stream_creation_fee, coin(200, "fee_token"));
+    assert_eq!(res.stream_creation_fee, coin(200, "fee_denom"));
 
     // Update wrong exit fee percent
     let msg = ExecuteMsg::UpdateParams {

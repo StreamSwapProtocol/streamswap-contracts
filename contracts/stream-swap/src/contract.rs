@@ -237,8 +237,6 @@ pub fn update_stream(
         if !new_distribution_balance.is_zero() {
             // decrease amount to be distributed of the stream
             stream.out_remaining = stream.out_remaining.checked_sub(new_distribution_balance)?;
-            println!("out_remaining: {:?}", stream.out_remaining);
-            println!("shares {:?}", stream.shares);
             // update distribution index. A positions share of the distribution is calculated by
             // multiplying the share by the distribution index
             stream.dist_index = stream.dist_index.checked_add(Decimal256::from_ratio(
@@ -427,7 +425,6 @@ pub fn execute_subscribe(
     // increase in supply and shares
     stream.in_supply = stream.in_supply.checked_add(in_amount)?;
     stream.shares = stream.shares.checked_add(new_shares)?;
-    println!("stream.shares: {:?}", stream.shares);
     STREAM.save(deps.storage, &stream)?;
 
     let res = Response::new()
@@ -798,7 +795,6 @@ pub fn execute_exit_stream(
     let swap_fee = Decimal::from_ratio(position.spent, Uint128::one())
         .checked_mul(factory_params.exit_fee_percent)?
         * Uint128::one();
-
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: operator_target.to_string(),
         amount: vec![Coin {
@@ -806,7 +802,6 @@ pub fn execute_exit_stream(
             amount: position.purchased,
         }],
     });
-
     stream.shares = stream.shares.checked_sub(position.shares)?;
 
     STREAM.save(deps.storage, &stream)?;
