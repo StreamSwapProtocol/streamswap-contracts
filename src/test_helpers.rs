@@ -1,8 +1,14 @@
-use cosmwasm_std::{to_json_binary, Addr, Api, Binary, BlockInfo, Querier, Storage};
-use cw_multi_test::{error::AnyResult, AppResponse, CosmosRouter, Stargate};
+use crate::contract::{execute, instantiate, query};
+use cosmwasm_std::{to_json_binary, Addr, Api, Binary, BlockInfo, Empty, Querier, Storage};
+use cw_multi_test::{
+    error::AnyResult, AppResponse, Contract, ContractWrapper, CosmosRouter, Stargate,
+};
 use osmosis_std::types::cosmos::base::v1beta1::Coin;
 use osmosis_std::types::osmosis::poolmanager::v1beta1::{NumPoolsResponse, Params, ParamsResponse};
 
+pub fn contract_streamswap() -> Box<dyn Contract<Empty>> {
+    Box::new(ContractWrapper::new(execute, instantiate, query))
+}
 pub struct MyStargateKeeper {}
 
 impl Stargate for MyStargateKeeper {
