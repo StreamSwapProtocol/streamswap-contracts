@@ -239,10 +239,12 @@ pub fn update_stream(
             stream.out_remaining = stream.out_remaining.checked_sub(new_distribution_balance)?;
             // update distribution index. A positions share of the distribution is calculated by
             // multiplying the share by the distribution index
+            println!("stream.dist_index: {}", stream.dist_index);
             stream.dist_index = stream.dist_index.checked_add(Decimal256::from_ratio(
                 new_distribution_balance,
                 stream.shares,
             ))?;
+            println!("stream.dist_index: {}", stream.dist_index);
 
             stream.current_streamed_price = Decimal::from_ratio(spent_in, new_distribution_balance)
         }
@@ -688,6 +690,7 @@ pub fn execute_finalize_stream(
         * Uint128::one();
 
     let creator_revenue = stream.spent_in.checked_sub(swap_fee)?;
+    println!("creator_revenue: {}", creator_revenue);
 
     //Creator's revenue claimed at finalize
     let revenue_msg = CosmosMsg::Bank(BankMsg::Send {
@@ -695,14 +698,6 @@ pub fn execute_finalize_stream(
         amount: vec![Coin {
             denom: stream.in_denom.clone(),
             amount: creator_revenue,
-        }],
-    });
-    //Exact fee for stream creation charged at creation but claimed at finalize
-    let creation_fee_msg = CosmosMsg::Bank(BankMsg::Send {
-        to_address: factory_params.fee_collector.to_string(),
-        amount: vec![Coin {
-            denom: factory_params.stream_creation_fee.denom,
-            amount: factory_params.stream_creation_fee.amount,
         }],
     });
 
@@ -715,11 +710,10 @@ pub fn execute_finalize_stream(
     });
 
     let mut messages = if stream.spent_in != Uint128::zero() {
-        vec![revenue_msg, creation_fee_msg, swap_fee_msg]
+        vec![revenue_msg, swap_fee_msg]
     } else {
-        vec![creation_fee_msg]
+        vec![]
     };
-
     // In case the stream is ended without any shares in it. We need to refund the remaining out tokens although that is unlikely to happen
     if stream.out_remaining > Uint128::zero() {
         let remaining_out = stream.out_remaining;

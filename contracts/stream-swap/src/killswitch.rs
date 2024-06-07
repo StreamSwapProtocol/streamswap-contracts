@@ -252,23 +252,13 @@ pub fn execute_cancel_stream(
     STREAM.save(deps.storage, &stream)?;
 
     //Refund all out tokens to stream creator(treasury)
-    let messages: Vec<CosmosMsg> = vec![
-        CosmosMsg::Bank(BankMsg::Send {
-            to_address: stream.treasury.to_string(),
-            amount: vec![Coin {
-                denom: stream.out_asset.denom,
-                amount: stream.out_asset.amount,
-            }],
-        }),
-        //Refund stream creation fee to stream creator
-        CosmosMsg::Bank(BankMsg::Send {
-            to_address: stream.treasury.to_string(),
-            amount: vec![Coin {
-                denom: factory_params.stream_creation_fee.denom,
-                amount: factory_params.stream_creation_fee.amount,
-            }],
-        }),
-    ];
+    let messages: Vec<CosmosMsg> = vec![CosmosMsg::Bank(BankMsg::Send {
+        to_address: stream.treasury.to_string(),
+        amount: vec![Coin {
+            denom: stream.out_asset.denom,
+            amount: stream.out_asset.amount,
+        }],
+    })];
 
     Ok(Response::new()
         .add_attribute("action", "cancel_stream")
