@@ -1,4 +1,5 @@
 mod create_stream;
+mod operator;
 mod subscribe;
 mod update_stream;
 mod withdraw;
