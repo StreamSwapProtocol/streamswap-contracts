@@ -2,6 +2,7 @@ mod create_stream;
 mod finalize_stream;
 mod operator;
 mod subscribe;
+mod update_position;
 mod update_stream;
 mod withdraw;
 // #[cfg(test)]

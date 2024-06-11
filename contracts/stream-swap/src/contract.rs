@@ -239,13 +239,10 @@ pub fn update_stream(
             stream.out_remaining = stream.out_remaining.checked_sub(new_distribution_balance)?;
             // update distribution index. A positions share of the distribution is calculated by
             // multiplying the share by the distribution index
-            println!("stream.dist_index: {}", stream.dist_index);
             stream.dist_index = stream.dist_index.checked_add(Decimal256::from_ratio(
                 new_distribution_balance,
                 stream.shares,
             ))?;
-            println!("stream.dist_index: {}", stream.dist_index);
-
             stream.current_streamed_price = Decimal::from_ratio(spent_in, new_distribution_balance)
         }
     }

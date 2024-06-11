@@ -190,6 +190,7 @@ mod update_stream_tests {
             .unwrap();
 
         assert_eq!(stream.in_supply + stream.spent_in, Uint128::from(100u128));
+        assert_eq!(stream.out_remaining, Uint128::from(90u128));
         assert_ne!(stream.dist_index, Decimal256::zero());
         assert_ne!(stream.spent_in, Uint128::zero());
     }

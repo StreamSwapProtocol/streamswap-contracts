@@ -64,12 +64,6 @@ mod subscibe_test {
             .unwrap();
         let stream_swap_contract_address: String = get_contract_address_from_res(res);
 
-        let stream_id: u64 = app
-            .wrap()
-            .query_wasm_smart(factory_address.clone(), &FactoryQueryMsg::LastStreamId {})
-            .unwrap();
-        assert_eq!(stream_id, 1);
-
         let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
             operator_target: None,
             operator: None,
