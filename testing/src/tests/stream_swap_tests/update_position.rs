@@ -3,25 +3,20 @@ mod update_position_tests {
 
     use std::str::FromStr;
 
+    use crate::helpers::utils::get_contract_address_from_res;
     #[cfg(test)]
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
         setup::{setup, SetupResponse},
-    };
-    use crate::{
-        helpers::utils::get_contract_address_from_res, tests::stream_swap_tests::update_position,
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128};
     use cw_multi_test::Executor;
     use cw_streamswap::{
         msg::{
             ExecuteMsg as StreamSwapExecuteMsg, PositionResponse, QueryMsg as StreamSwapQueryMsg,
-            StreamResponse,
         },
         ContractError as StreamSwapError,
     };
-    use cw_streamswap_factory::msg::QueryMsg as FactoryQueryMsg;
-    use cw_utils::PaymentError;
 
     #[test]
     fn update_position() {
@@ -72,7 +67,7 @@ mod update_position_tests {
             operator_target: None,
         };
 
-        let res = app
+        let _res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),

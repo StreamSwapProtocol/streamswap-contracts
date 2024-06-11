@@ -18,7 +18,6 @@ mod subscibe_test {
         },
         ContractError as StreamSwapError,
     };
-    use cw_streamswap_factory::msg::QueryMsg as FactoryQueryMsg;
     use cw_utils::PaymentError;
     #[test]
     fn test_first_subcription() {
