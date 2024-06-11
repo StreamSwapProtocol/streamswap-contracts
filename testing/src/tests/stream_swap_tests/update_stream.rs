@@ -40,7 +40,7 @@ mod update_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
@@ -50,7 +50,7 @@ mod update_stream_tests {
 
         let _res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(100, "out_denom")],
@@ -62,7 +62,7 @@ mod update_stream_tests {
         let update_stream_msg = StreamSwapExecuteMsg::UpdateStream {};
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &update_stream_msg,
                 &[],
@@ -105,7 +105,7 @@ mod update_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
             start_time,
@@ -115,7 +115,7 @@ mod update_stream_tests {
 
         let _res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(100, "out_denom")],
@@ -131,7 +131,7 @@ mod update_stream_tests {
 
         let _res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &subscribe_msg,
                 &[coin(100, "in_denom")],
@@ -146,7 +146,7 @@ mod update_stream_tests {
 
         let _res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &update_stream_msg,
                 &[],
@@ -174,7 +174,7 @@ mod update_stream_tests {
 
         let _res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &update_stream_msg,
                 &[],
@@ -221,7 +221,7 @@ mod update_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
             start_time,
@@ -231,7 +231,7 @@ mod update_stream_tests {
 
         let _res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(100, "out_denom")],
@@ -258,7 +258,7 @@ mod update_stream_tests {
 
         let _res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address),
                 &StreamSwapExecuteMsg::UpdateStream {},
                 &[],
@@ -295,7 +295,7 @@ mod update_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             &"Stream Swap tests".to_string(),
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(1_000, "out_denom"),
             "in_denom",
             start_time,
@@ -305,7 +305,7 @@ mod update_stream_tests {
         // Create Stream
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(1_000, "out_denom")],
@@ -337,7 +337,7 @@ mod update_stream_tests {
         // First subscription
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &subscribe_msg,
                 &[coin(1_000, "in_denom")],
@@ -354,7 +354,7 @@ mod update_stream_tests {
         let update_stream_msg = StreamSwapExecuteMsg::UpdateStream {};
         let _res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &update_stream_msg,
                 &[coin(100, "fee_denom")],
@@ -394,7 +394,7 @@ mod update_stream_tests {
         let update_stream_msg = StreamSwapExecuteMsg::UpdateStream {};
         let _res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &update_stream_msg,
                 &[coin(100, "fee_denom")],

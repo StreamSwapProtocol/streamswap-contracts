@@ -39,7 +39,7 @@ mod operator_tests {
         let create_stream_msg = get_create_stream_msg(
             &"Stream Swap tests".to_string(),
             Some("https://sample.url".to_string()),
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(1_000_000, "out_denom"),
             "in_denom",
             start_time,
@@ -49,7 +49,7 @@ mod operator_tests {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(1_000_000, "out_denom")],
@@ -120,7 +120,7 @@ mod operator_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
@@ -130,7 +130,7 @@ mod operator_tests {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(1_000_000, "out_denom")],
@@ -145,7 +145,7 @@ mod operator_tests {
         };
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &msg,
                 &[coin(100, "in_denom")],
@@ -170,7 +170,7 @@ mod operator_tests {
 
         // Operator can increase the subscription amount
         let msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: Some(test_accounts.subscriber.clone().into_string()),
+            operator_target: Some(test_accounts.subscriber_1.clone().into_string()),
             operator: None,
         };
         let _res = app
@@ -200,7 +200,7 @@ mod operator_tests {
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Withdraw {
                     cap: Some(Uint128::new(100)),
-                    operator_target: Some(test_accounts.subscriber.clone().into_string()),
+                    operator_target: Some(test_accounts.subscriber_1.clone().into_string()),
                 },
                 &[],
             )
@@ -209,7 +209,7 @@ mod operator_tests {
         assert_eq!(
             funds_in_res,
             vec![(
-                test_accounts.subscriber.clone().into_string(),
+                test_accounts.subscriber_1.clone().into_string(),
                 coin(100, "in_denom")
             )]
         );
@@ -227,7 +227,7 @@ mod operator_tests {
                 test_accounts.subscriber_2.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::ExitStream {
-                    operator_target: Some(test_accounts.subscriber.clone().into_string()),
+                    operator_target: Some(test_accounts.subscriber_1.clone().into_string()),
                 },
                 &[],
             )
@@ -236,7 +236,7 @@ mod operator_tests {
         assert_eq!(
             funds_in_res,
             vec![(
-                test_accounts.subscriber.clone().into_string(),
+                test_accounts.subscriber_1.clone().into_string(),
                 coin(100, "out_denom")
             )]
         );
@@ -266,7 +266,7 @@ mod operator_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
@@ -276,7 +276,7 @@ mod operator_tests {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(1_000_000, "out_denom")],
@@ -291,7 +291,7 @@ mod operator_tests {
         };
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &msg,
                 &[coin(100, "in_denom")],
@@ -317,7 +317,7 @@ mod operator_tests {
         };
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &msg,
                 &[coin(100, "in_denom")],
@@ -326,12 +326,12 @@ mod operator_tests {
         // withdraw
         let subscriber_1_balance_before = app
             .wrap()
-            .query_balance(test_accounts.subscriber.clone(), "in_denom")
+            .query_balance(test_accounts.subscriber_1.clone(), "in_denom")
             .unwrap();
 
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Withdraw {
                     cap: Some(Uint128::new(100)),
@@ -342,7 +342,7 @@ mod operator_tests {
             .unwrap();
         let subscriber_1_balance_after = app
             .wrap()
-            .query_balance(test_accounts.subscriber.clone(), "in_denom")
+            .query_balance(test_accounts.subscriber_1.clone(), "in_denom")
             .unwrap();
         assert_eq!(
             subscriber_1_balance_after

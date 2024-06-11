@@ -37,7 +37,7 @@ mod finalize_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             &"Stream Swap tests".to_string(),
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(1_000_000, "out_denom"),
             "in_denom",
             start_time,
@@ -46,7 +46,7 @@ mod finalize_stream_tests {
         );
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(1_000_000, "out_denom")],
@@ -65,7 +65,7 @@ mod finalize_stream_tests {
         // First subscription
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &subscribe_msg,
                 &[coin(200, "in_denom")],
@@ -79,7 +79,7 @@ mod finalize_stream_tests {
         let finalized_msg = StreamSwapExecuteMsg::FinalizeStream { new_treasury: None };
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &finalized_msg,
                 &[],
@@ -90,7 +90,7 @@ mod finalize_stream_tests {
             stream_swap_funds,
             vec![
                 (
-                    String::from(test_accounts.creator.clone()),
+                    String::from(test_accounts.creator_1.clone()),
                     Coin {
                         denom: "in_denom".to_string(),
                         amount: Uint128::new(198)
@@ -114,10 +114,10 @@ mod finalize_stream_tests {
             )
             .unwrap();
         assert_eq!(stream.status, Status::Finalized);
-        // Creator_2 does not have access to finalize stream
+        // Creator_1 can finalize the stream only once
         let _res = app
             .execute_contract(
-                test_accounts.creator_2.clone(),
+                test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &finalized_msg,
                 &[coin(150, "in_denom")],
@@ -149,7 +149,7 @@ mod finalize_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             &"Stream Swap tests".to_string(),
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(1_000_000, "out_denom"),
             "in_denom",
             start_time,
@@ -158,7 +158,7 @@ mod finalize_stream_tests {
         );
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(1_000_000, "out_denom")],
@@ -177,7 +177,7 @@ mod finalize_stream_tests {
         // First subscription
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &subscribe_msg,
                 &[coin(200, "in_denom")],
@@ -201,7 +201,7 @@ mod finalize_stream_tests {
         // Finalize with correct user that is creator
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &finalized_msg,
                 &[],
@@ -212,7 +212,7 @@ mod finalize_stream_tests {
             stream_swap_funds,
             vec![
                 (
-                    String::from(test_accounts.creator.clone()),
+                    String::from(test_accounts.creator_1.clone()),
                     Coin {
                         denom: "in_denom".to_string(),
                         amount: Uint128::new(198)
@@ -263,7 +263,7 @@ mod finalize_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             &"Stream Swap tests".to_string(),
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(1_000_000, "out_denom"),
             "in_denom",
             start_time,
@@ -272,7 +272,7 @@ mod finalize_stream_tests {
         );
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(1_000_000, "out_denom")],
@@ -291,7 +291,7 @@ mod finalize_stream_tests {
         // First subscription
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &subscribe_msg,
                 &[coin(200, "in_denom")],
@@ -305,7 +305,7 @@ mod finalize_stream_tests {
         });
         // Finalizing with wrong user with new treasury
         let finalized_msg = StreamSwapExecuteMsg::FinalizeStream {
-            new_treasury: Some(test_accounts.creator.to_string()),
+            new_treasury: Some(test_accounts.creator_1.to_string()),
         };
         app.set_block(BlockInfo {
             height: 1_100,
@@ -320,22 +320,13 @@ mod finalize_stream_tests {
                 &[],
             )
             .unwrap_err();
-        // Finalizing with subscriber with new treasury
-        let _res = app
-            .execute_contract(
-                test_accounts.subscriber.clone(),
-                Addr::unchecked(stream_swap_contract_address.clone()),
-                &finalized_msg,
-                &[],
-            )
-            .unwrap_err();
         // Finalize with correct user with new treasury as creator_2
         let finalized_msg = StreamSwapExecuteMsg::FinalizeStream {
-            new_treasury: Some(test_accounts.creator_2.to_string()),
+            new_treasury: Some(test_accounts.creator_1.to_string()),
         };
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &finalized_msg,
                 &[],
@@ -347,7 +338,7 @@ mod finalize_stream_tests {
             stream_swap_funds,
             vec![
                 (
-                    String::from(test_accounts.creator_2.clone()),
+                    String::from(test_accounts.creator_1.clone()),
                     Coin {
                         denom: "in_denom".to_string(),
                         amount: Uint128::new(198)

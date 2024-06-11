@@ -1,5 +1,5 @@
 use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Timestamp};
-use cw_multi_test::{App, BankSudo, ContractWrapper, SudoMsg};
+use cw_multi_test::{App, BankSudo, ContractWrapper, Executor, SudoMsg};
 use cw_streamswap::contract::{
     execute as streamswap_execute, instantiate as streamswap_instantiate, query as streamswap_query,
 };
@@ -16,8 +16,7 @@ pub fn setup() -> SetupResponse {
         "in_denom".to_string(),
         "wrong_denom".to_string(),
     ];
-
-    fund_accounts(&mut app, accounts.clone(), denoms.clone());
+    accounts.fund_accounts(&mut app, denoms);
     app.set_block(BlockInfo {
         chain_id: "test_1".to_string(),
         height: 1_000,
@@ -38,43 +37,29 @@ pub fn setup() -> SetupResponse {
     let stream_swap_code_id = app.store_code(stream_swap_contract);
     let stream_swap_factory_code_id = app.store_code(stream_swap_factory_contract);
 
-    let test_accounts = TestAccounts {
-        admin: accounts[0].clone(),
-        creator: accounts[1].clone(),
-        subscriber: accounts[2].clone(),
-        subscriber_2: accounts[3].clone(),
-        wrong_user: accounts[4].clone(),
-        creator_2: accounts[5].clone(),
-    };
-
     SetupResponse {
-        test_accounts,
+        test_accounts: accounts,
         stream_swap_factory_code_id,
         stream_swap_code_id,
         app,
     }
 }
 
-fn create_test_accounts() -> Vec<Addr> {
-    vec![
-        Addr::unchecked("admin"),
-        Addr::unchecked("stream_creator"),
-        Addr::unchecked("subscriber"),
-        Addr::unchecked("subscriber_2"),
-        Addr::unchecked("wrong_user"),
-        Addr::unchecked("stream_creator_2"),
-    ]
-}
+fn create_test_accounts() -> TestAccounts {
+    let admin = Addr::unchecked("admin");
+    let creator_1 = Addr::unchecked("creator_1");
+    let subscriber_1 = Addr::unchecked("subscriber_1");
+    let subscriber_2 = Addr::unchecked("subscriber_2");
+    let wrong_user = Addr::unchecked("wrong_user");
+    let creator_2 = Addr::unchecked("creator_2");
 
-fn fund_accounts(app: &mut App, accounts: Vec<Addr>, denoms: Vec<String>) {
-    for account in accounts {
-        for denom in &denoms {
-            mint_to_address(
-                app,
-                account.to_string(),
-                vec![coin(10_000_000_000_000, denom)],
-            );
-        }
+    TestAccounts {
+        admin,
+        creator_1,
+        subscriber_1,
+        subscriber_2,
+        wrong_user,
+        creator_2,
     }
 }
 
@@ -92,9 +77,32 @@ pub struct SetupResponse {
 
 pub struct TestAccounts {
     pub admin: Addr,
-    pub creator: Addr,
-    pub subscriber: Addr,
+    pub creator_1: Addr,
+    pub subscriber_1: Addr,
     pub subscriber_2: Addr,
     pub wrong_user: Addr,
     pub creator_2: Addr,
+}
+impl TestAccounts {
+    pub fn all(&self) -> Vec<Addr> {
+        vec![
+            self.admin.clone(),
+            self.creator_1.clone(),
+            self.subscriber_1.clone(),
+            self.subscriber_2.clone(),
+            self.wrong_user.clone(),
+            self.creator_2.clone(),
+        ]
+    }
+
+    pub fn fund_accounts(&self, app: &mut App, denoms: Vec<String>) {
+        // Collect all accounts
+        let accounts = self.all();
+        denoms.iter().for_each(|denom| {
+            let amount = 1_000_000_000_000_000u128;
+            accounts.iter().for_each(|account| {
+                mint_to_address(app, account.to_string(), vec![coin(amount, denom.clone())]);
+            });
+        });
+    }
 }

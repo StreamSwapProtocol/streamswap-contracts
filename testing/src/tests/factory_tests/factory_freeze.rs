@@ -32,7 +32,7 @@ fn factory_freeze() {
     let create_stream_msg = get_create_stream_msg(
         "stream",
         None,
-        &test_accounts.creator.to_string(),
+        &test_accounts.creator_1.to_string(),
         coin(100, "out_denom"),
         "in_denom",
         app.block_info().time.plus_seconds(100),
@@ -41,7 +41,7 @@ fn factory_freeze() {
     );
     let _create_stream_res = app
         .execute_contract(
-            test_accounts.creator.clone(),
+            test_accounts.creator_1.clone(),
             factory_address.clone(),
             &create_stream_msg,
             &[coin(100, "fee_denom"), coin(100, "out_denom")],
@@ -52,7 +52,7 @@ fn factory_freeze() {
     let msg = cw_streamswap_factory::msg::ExecuteMsg::Freeze {};
     let res = app
         .execute_contract(
-            test_accounts.subscriber.clone(),
+            test_accounts.subscriber_1.clone(),
             factory_address.clone(),
             &msg,
             &[],
@@ -83,7 +83,7 @@ fn factory_freeze() {
     let create_stream_msg = get_create_stream_msg(
         "stream",
         None,
-        &test_accounts.creator.to_string(),
+        &test_accounts.creator_1.to_string(),
         coin(100, "out_denom"),
         "in_denom",
         app.block_info().time.plus_seconds(100),
@@ -92,7 +92,7 @@ fn factory_freeze() {
     );
     let res = app
         .execute_contract(
-            test_accounts.creator.clone(),
+            test_accounts.creator_1.clone(),
             factory_address.clone(),
             &create_stream_msg,
             &[coin(100, "fee_denom"), coin(100, "out_denom")],

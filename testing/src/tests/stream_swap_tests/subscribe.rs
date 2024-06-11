@@ -46,7 +46,7 @@ mod subscibe_test {
         let create_stream_msg = get_create_stream_msg(
             &"Stream Swap tests".to_string(),
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(1_000_000, "out_denom"),
             "in_denom",
             start_time,
@@ -56,7 +56,7 @@ mod subscibe_test {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(1_000_000, "out_denom")],
@@ -83,7 +83,7 @@ mod subscibe_test {
         // No funds
         let res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &subscribe_msg,
                 &[],
@@ -95,7 +95,7 @@ mod subscibe_test {
         // Incorrect denom
         let res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &subscribe_msg,
                 &[coin(100, "wrong_denom")],
@@ -111,7 +111,7 @@ mod subscibe_test {
         // Subscribe
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &subscribe_msg,
                 &[coin(150, "in_denom")],
@@ -138,7 +138,7 @@ mod subscibe_test {
             .query_wasm_smart(
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapQueryMsg::Position {
-                    owner: test_accounts.subscriber.to_string(),
+                    owner: test_accounts.subscriber_1.to_string(),
                 },
             )
             .unwrap();
@@ -154,7 +154,7 @@ mod subscibe_test {
         });
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::UpdateStream {},
                 &[],
@@ -203,7 +203,7 @@ mod subscibe_test {
         let create_stream_msg = get_create_stream_msg(
             &"Stream Swap tests".to_string(),
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(1_000_000, "out_denom"),
             "in_denom",
             start_time,
@@ -213,7 +213,7 @@ mod subscibe_test {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(1_000_000, "out_denom")],
@@ -234,7 +234,7 @@ mod subscibe_test {
         // First subscription
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &subscribe_msg,
                 &[coin(150, "in_denom")],
@@ -257,7 +257,7 @@ mod subscibe_test {
             .query_wasm_smart(
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapQueryMsg::Position {
-                    owner: test_accounts.subscriber.to_string(),
+                    owner: test_accounts.subscriber_1.to_string(),
                 },
             )
             .unwrap();
@@ -271,7 +271,7 @@ mod subscibe_test {
                 test_accounts.wrong_user.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Subscribe {
-                    operator_target: Some(test_accounts.subscriber.to_string()),
+                    operator_target: Some(test_accounts.subscriber_1.to_string()),
                     operator: None,
                 },
                 &[coin(150, "in_denom")],
@@ -284,7 +284,7 @@ mod subscibe_test {
         // Subscriber increases subscription in same block_time
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Subscribe {
                     operator_target: None,
@@ -310,7 +310,7 @@ mod subscibe_test {
             .query_wasm_smart(
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapQueryMsg::Position {
-                    owner: test_accounts.subscriber.to_string(),
+                    owner: test_accounts.subscriber_1.to_string(),
                 },
             )
             .unwrap();
@@ -327,7 +327,7 @@ mod subscibe_test {
         // Subscriber increases subscription
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Subscribe {
                     operator_target: None,
@@ -356,7 +356,7 @@ mod subscibe_test {
             .query_wasm_smart(
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapQueryMsg::Position {
-                    owner: test_accounts.subscriber.to_string(),
+                    owner: test_accounts.subscriber_1.to_string(),
                 },
             )
             .unwrap();
@@ -395,7 +395,7 @@ mod subscibe_test {
         let create_stream_msg = get_create_stream_msg(
             &"Stream Swap tests".to_string(),
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(1_000_000, "out_denom"),
             "in_denom",
             start_time,
@@ -405,7 +405,7 @@ mod subscibe_test {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(1_000_000, "out_denom")],
@@ -426,7 +426,7 @@ mod subscibe_test {
         // First subscription
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &subscribe_msg,
                 &[coin(150, "in_denom")],
@@ -449,7 +449,7 @@ mod subscibe_test {
             .query_wasm_smart(
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapQueryMsg::Position {
-                    owner: test_accounts.subscriber.to_string(),
+                    owner: test_accounts.subscriber_1.to_string(),
                 },
             )
             .unwrap();
@@ -463,7 +463,7 @@ mod subscibe_test {
         });
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::UpdateStream {},
                 &[],
@@ -487,7 +487,7 @@ mod subscibe_test {
         // Subscriber increases subscription
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Subscribe {
                     operator_target: None,
@@ -542,7 +542,7 @@ mod subscibe_test {
             .unwrap();
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::UpdateStream {},
                 &[],
@@ -572,7 +572,7 @@ mod subscibe_test {
         // Update stream
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::UpdateStream {},
                 &[],
@@ -596,7 +596,7 @@ mod subscibe_test {
         // Update position
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::UpdatePosition {
                     operator_target: None,
@@ -611,7 +611,7 @@ mod subscibe_test {
             .query_wasm_smart(
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapQueryMsg::Position {
-                    owner: test_accounts.subscriber.to_string(),
+                    owner: test_accounts.subscriber_1.to_string(),
                 },
             )
             .unwrap();

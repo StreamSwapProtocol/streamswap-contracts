@@ -35,7 +35,7 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "s",
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
@@ -45,7 +45,7 @@ mod create_stream_tests {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(100, "out_denom")],
@@ -60,7 +60,7 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             &long_name,
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
@@ -70,7 +70,7 @@ mod create_stream_tests {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(100, "out_denom")],
@@ -85,7 +85,7 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "abc~ß",
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
@@ -95,7 +95,7 @@ mod create_stream_tests {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(100, "out_denom")],
@@ -111,7 +111,7 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             Some("a".to_string()),
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
@@ -121,7 +121,7 @@ mod create_stream_tests {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(100, "out_denom")],
@@ -138,7 +138,7 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             Some(long_url),
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
@@ -148,7 +148,7 @@ mod create_stream_tests {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(100, "out_denom")],
@@ -185,7 +185,7 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "invalid_in_denom",
             app.block_info().time.plus_seconds(100).into(),
@@ -194,7 +194,7 @@ mod create_stream_tests {
         );
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(100, "out_denom")],
@@ -208,7 +208,7 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "in_denom"),
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
@@ -217,7 +217,7 @@ mod create_stream_tests {
         );
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(100, "in_denom")],
@@ -232,7 +232,7 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(0, "out_denom"),
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
@@ -242,7 +242,7 @@ mod create_stream_tests {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom")],
@@ -258,7 +258,7 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
@@ -268,7 +268,7 @@ mod create_stream_tests {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom")],
@@ -289,7 +289,7 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
@@ -299,7 +299,7 @@ mod create_stream_tests {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(99, "fee_denom"), coin(100, "out_denom")],
@@ -320,7 +320,7 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
@@ -330,7 +330,7 @@ mod create_stream_tests {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[
@@ -360,7 +360,7 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
@@ -370,7 +370,7 @@ mod create_stream_tests {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(100, "out_denom")],
@@ -410,7 +410,7 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
             app.block_info().time.plus_seconds(200).into(),
@@ -419,7 +419,7 @@ mod create_stream_tests {
         );
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(100, "out_denom")],
@@ -433,7 +433,7 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
             app.block_info().time.minus_seconds(1),
@@ -443,7 +443,7 @@ mod create_stream_tests {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(100, "out_denom")],
@@ -457,7 +457,7 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
@@ -467,7 +467,7 @@ mod create_stream_tests {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(100, "out_denom")],
@@ -482,7 +482,7 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
             app.block_info().time.plus_seconds(1),
@@ -492,7 +492,7 @@ mod create_stream_tests {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(100, "out_denom")],
@@ -528,7 +528,7 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
@@ -538,7 +538,7 @@ mod create_stream_tests {
 
         let _res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(100, "out_denom")],

@@ -43,7 +43,7 @@ mod withdraw_tests {
         let create_stream_msg = get_create_stream_msg(
             &"Stream Swap tests".to_string(),
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(1_000_000, "out_denom"),
             "in_denom",
             start_time,
@@ -53,7 +53,7 @@ mod withdraw_tests {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address,
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(1_000_000, "out_denom")],
@@ -68,12 +68,12 @@ mod withdraw_tests {
         };
         let subscriber_1_balance_before = app
             .wrap()
-            .query_balance(test_accounts.subscriber.clone(), "in_denom")
+            .query_balance(test_accounts.subscriber_1.clone(), "in_denom")
             .unwrap();
 
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &subscribe_msg,
                 &[coin(1_000, "in_denom")],
@@ -81,7 +81,7 @@ mod withdraw_tests {
             .unwrap();
         let subscriber_1_balance_after = app
             .wrap()
-            .query_balance(test_accounts.subscriber.clone(), "in_denom")
+            .query_balance(test_accounts.subscriber_1.clone(), "in_denom")
             .unwrap();
         // Subscriber balance should be reduced by 1_000 after subscription
         assert_eq!(
@@ -94,7 +94,7 @@ mod withdraw_tests {
         // Update position
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::UpdatePosition {
                     operator_target: None,
@@ -109,7 +109,7 @@ mod withdraw_tests {
             .query_wasm_smart(
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapQueryMsg::Position {
-                    owner: test_accounts.subscriber.clone().into_string(),
+                    owner: test_accounts.subscriber_1.clone().into_string(),
                 },
             )
             .unwrap();
@@ -120,12 +120,12 @@ mod withdraw_tests {
         // Withdraw before start time
         let subscriber_1_balance_before = app
             .wrap()
-            .query_balance(test_accounts.subscriber.clone(), "in_denom")
+            .query_balance(test_accounts.subscriber_1.clone(), "in_denom")
             .unwrap();
 
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Withdraw {
                     cap: Some(Uint128::new(500)),
@@ -136,7 +136,7 @@ mod withdraw_tests {
             .unwrap();
         let subscriber_1_balance_after = app
             .wrap()
-            .query_balance(test_accounts.subscriber.clone(), "in_denom")
+            .query_balance(test_accounts.subscriber_1.clone(), "in_denom")
             .unwrap();
         // Subscriber balance should be increased by 1_000 after withdraw
         assert_eq!(
@@ -161,11 +161,11 @@ mod withdraw_tests {
         // Withdraw rest of the funds
         let subscriber_1_balance_before = app
             .wrap()
-            .query_balance(test_accounts.subscriber.clone(), "in_denom")
+            .query_balance(test_accounts.subscriber_1.clone(), "in_denom")
             .unwrap();
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Withdraw {
                     cap: None,
@@ -177,7 +177,7 @@ mod withdraw_tests {
 
         let subscriber_1_balance_after = app
             .wrap()
-            .query_balance(test_accounts.subscriber.clone(), "in_denom")
+            .query_balance(test_accounts.subscriber_1.clone(), "in_denom")
             .unwrap();
         // Subscriber balance should be increased by 500 after withdraw
         assert_eq!(
@@ -207,7 +207,7 @@ mod withdraw_tests {
         // Exit stream wont work because the subscriber has withdrawn all the funds
         let _err = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::ExitStream {
                     operator_target: None,
@@ -243,7 +243,7 @@ mod withdraw_tests {
         let create_stream_msg = get_create_stream_msg(
             &"Stream Swap test".to_string(),
             Some("https://sample.url".to_string()),
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(1_000_000_000_000, "out_denom"),
             "in_denom",
             start_time,
@@ -253,7 +253,7 @@ mod withdraw_tests {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address,
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(1_000_000_000_000, "out_denom")],
@@ -274,7 +274,7 @@ mod withdraw_tests {
         };
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &subscribe_msg,
                 &[coin(2_000_000_000_000, "in_denom")],
@@ -325,7 +325,7 @@ mod withdraw_tests {
         };
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &withdraw_msg,
                 &[],
@@ -351,7 +351,7 @@ mod withdraw_tests {
 
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::ExitStream {
                     operator_target: None,
@@ -397,7 +397,7 @@ mod withdraw_tests {
         let create_stream_msg = get_create_stream_msg(
             &"Stream Swap tests".to_string(),
             None,
-            &test_accounts.creator.to_string(),
+            &test_accounts.creator_1.to_string(),
             coin(1_000_000, "out_denom"),
             "in_denom",
             start_time,
@@ -407,7 +407,7 @@ mod withdraw_tests {
 
         let res = app
             .execute_contract(
-                test_accounts.creator.clone(),
+                test_accounts.creator_1.clone(),
                 factory_address,
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(1_000_000, "out_denom")],
@@ -423,7 +423,7 @@ mod withdraw_tests {
         // Subscribe to stream
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Subscribe {
                     operator_target: None,
@@ -436,12 +436,12 @@ mod withdraw_tests {
         // Withdraw with cap
         let subscriber_1_balance_before = app
             .wrap()
-            .query_balance(test_accounts.subscriber.clone(), "in_denom")
+            .query_balance(test_accounts.subscriber_1.clone(), "in_denom")
             .unwrap();
 
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Withdraw {
                     cap: Some(Uint128::new(500)),
@@ -452,7 +452,7 @@ mod withdraw_tests {
             .unwrap();
         let subscriber_1_balance_after = app
             .wrap()
-            .query_balance(test_accounts.subscriber.clone(), "in_denom")
+            .query_balance(test_accounts.subscriber_1.clone(), "in_denom")
             .unwrap();
         // Subscriber balance should be increased by 500 after withdraw
         assert_eq!(
@@ -466,7 +466,7 @@ mod withdraw_tests {
         // Withdraw amount zero
         let err = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Withdraw {
                     cap: Some(Uint128::zero()),
@@ -482,7 +482,7 @@ mod withdraw_tests {
         // Withdraw amount too high
         let err = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Withdraw {
                     cap: Some(Uint128::new(2_250_000_000_000)),
@@ -501,12 +501,12 @@ mod withdraw_tests {
         // Withdraw with valid cap
         let subscriber_1_balance_before = app
             .wrap()
-            .query_balance(test_accounts.subscriber.clone(), "in_denom")
+            .query_balance(test_accounts.subscriber_1.clone(), "in_denom")
             .unwrap();
 
         let _res = app
             .execute_contract(
-                test_accounts.subscriber.clone(),
+                test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Withdraw {
                     cap: Some(Uint128::new(500)),
@@ -517,7 +517,7 @@ mod withdraw_tests {
             .unwrap();
         let subscriber_1_balance_after = app
             .wrap()
-            .query_balance(test_accounts.subscriber.clone(), "in_denom")
+            .query_balance(test_accounts.subscriber_1.clone(), "in_denom")
             .unwrap();
         // Subscriber balance should be increased by 500 after withdraw
         assert_eq!(

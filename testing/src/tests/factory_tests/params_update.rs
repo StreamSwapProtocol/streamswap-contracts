@@ -40,7 +40,7 @@ fn params_update() {
     };
     let res = app
         .execute_contract(
-            test_accounts.subscriber.clone(),
+            test_accounts.subscriber_1.clone(),
             factory_address.clone(),
             &msg,
             &[],
