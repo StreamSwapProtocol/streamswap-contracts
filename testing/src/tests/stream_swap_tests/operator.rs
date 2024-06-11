@@ -133,7 +133,7 @@ mod operator_tests {
                 test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
-                &[coin(100, "fee_denom"), coin(1_000_000, "out_denom")],
+                &[coin(100, "fee_denom"), coin(100, "out_denom")],
             )
             .unwrap();
 
@@ -279,7 +279,7 @@ mod operator_tests {
                 test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
-                &[coin(100, "fee_denom"), coin(1_000_000, "out_denom")],
+                &[coin(100, "fee_denom"), coin(100, "out_denom")],
             )
             .unwrap();
         let stream_swap_contract_address: String = get_contract_address_from_res(res);
