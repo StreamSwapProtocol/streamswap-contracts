@@ -1,5 +1,6 @@
 mod create_stream;
 mod subscribe;
+mod update_stream;
 mod withdraw;
 // #[cfg(test)]
 // mod test_module {
