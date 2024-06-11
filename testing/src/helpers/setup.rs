@@ -44,6 +44,7 @@ pub fn setup() -> SetupResponse {
         subscriber: accounts[2].clone(),
         subscriber_2: accounts[3].clone(),
         wrong_user: accounts[4].clone(),
+        creator_2: accounts[5].clone(),
     };
 
     SetupResponse {
@@ -61,6 +62,7 @@ fn create_test_accounts() -> Vec<Addr> {
         Addr::unchecked("subscriber"),
         Addr::unchecked("subscriber_2"),
         Addr::unchecked("wrong_user"),
+        Addr::unchecked("stream_creator_2"),
     ]
 }
 
@@ -94,4 +96,5 @@ pub struct TestAccounts {
     pub subscriber: Addr,
     pub subscriber_2: Addr,
     pub wrong_user: Addr,
+    pub creator_2: Addr,
 }
