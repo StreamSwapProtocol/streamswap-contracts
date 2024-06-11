@@ -1,13 +1,11 @@
 #[cfg(test)]
 mod withdraw_tests {
 
-    use std::str::FromStr;
-
     use crate::helpers::utils::get_contract_address_from_res;
     #[cfg(test)]
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-        setup::{setup, SetupResponse},
+        setup::setup,
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128};
     use cw_multi_test::Executor;
@@ -18,8 +16,6 @@ mod withdraw_tests {
         },
         ContractError as StreamSwapError,
     };
-    use cw_streamswap_factory::msg::QueryMsg as FactoryQueryMsg;
-    use cw_utils::PaymentError;
 
     #[test]
     fn test_withdraw_pending() {
@@ -75,7 +71,7 @@ mod withdraw_tests {
             .query_balance(test_accounts.subscriber.clone(), "in_denom")
             .unwrap();
 
-        let res = app
+        let _res = app
             .execute_contract(
                 test_accounts.subscriber.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
@@ -209,7 +205,7 @@ mod withdraw_tests {
             chain_id: "test".to_string(),
         });
         // Exit stream wont work because the subscriber has withdrawn all the funds
-        let err = app
+        let _err = app
             .execute_contract(
                 test_accounts.subscriber.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
@@ -533,142 +529,3 @@ mod withdraw_tests {
         );
     }
 }
-
-//     fn test_withdraw() {
-//         let treasury = Addr::unchecked("treasury");
-//         let start = 1_000_000;
-//         let end = 5_000_000;
-//         let out_supply = Uint128::new(1_000_000_000_000);
-//         let out_denom = "out_denom";
-
-//         // instantiate
-//         let mut deps = mock_dependencies();
-//         let mut env = mock_env();
-//         env.block.height = 0;
-//         let msg = crate::msg::InstantiateMsg {
-//             min_stream_blocks: 1000,
-//             min_blocks_until_start_block: 1000,
-//             stream_creation_denom: "fee".to_string(),
-//             stream_creation_fee: Uint128::new(100),
-//             exit_fee_percent: Decimal::percent(1),
-//             fee_collector: "collector".to_string(),
-//             protocol_admin: "protocol_admin".to_string(),
-//             accepted_in_denom: "in".to_string(),
-//         };
-//         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
-
-//         // create stream
-//         let mut env = mock_env();
-//         env.block.height = 0;
-//         let info = mock_info(
-//             "creator1",
-//             &[
-//                 Coin::new(out_supply.u128(), out_denom),
-//                 Coin::new(100, "fee"),
-//             ],
-//         );
-//         execute_create_stream(
-//             deps.as_mut(),
-//             env,
-//             info,
-//             treasury.to_string(),
-//             "test".to_string(),
-//             Some("https://sample.url".to_string()),
-//             "in".to_string(),
-//             out_denom.to_string(),
-//             out_supply,
-//             start,
-//             end,
-//             None,
-//         )
-//         .unwrap();
-
-//         // first subscription
-//         let mut env = mock_env();
-//         env.block.height = start + 0;
-//         let funds = Coin::new(2_000_000_000_000, "in");
-//         let info = mock_info("creator1", &[funds.clone()]);
-//         let msg = crate::msg::ExecuteMsg::Subscribe {
-//             stream_id: 1,
-//             operator_target: None,
-//             operator: None,
-//         };
-//         let _res = execute(deps.as_mut(), env, info, msg).unwrap();
-
-//         // withdraw with cap
-//         let mut env = mock_env();
-//         env.block.height = start + 5000;
-//         let info = mock_info("creator1", &[]);
-//         // withdraw amount zero
-//         let cap = Uint128::zero();
-//         let msg = crate::msg::ExecuteMsg::Withdraw {
-//             stream_id: 1,
-//             cap: Some(cap),
-//             operator_target: None,
-//         };
-//         let res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
-//         assert_eq!(res, ContractError::InvalidWithdrawAmount {});
-//         // withdraw amount too high
-//         let cap = Uint128::new(2_250_000_000_000);
-//         let msg = crate::msg::ExecuteMsg::Withdraw {
-//             stream_id: 1,
-//             cap: Some(cap),
-//             operator_target: None,
-//         };
-//         let res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
-//         assert_eq!(
-//             res,
-//             ContractError::WithdrawAmountExceedsBalance(Uint128::new(2250000000000))
-//         );
-//         //withdraw with valid cap
-//         let cap = Uint128::new(25_000_000);
-//         let msg = crate::msg::ExecuteMsg::Withdraw {
-//             stream_id: 1,
-//             cap: Some(cap),
-//             operator_target: None,
-//         };
-//         let _res = execute(deps.as_mut(), env, info, msg).unwrap();
-//         let position =
-//             query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
-//         assert_eq!(position.in_balance, Uint128::new(1_997_475_000_000));
-//         assert_eq!(position.spent, Uint128::new(2_500_000_000));
-//         assert_eq!(position.purchased, Uint128::new(1_250_000_000));
-//         // first fund amount should be equal to in_balance + spent + cap
-//         assert_eq!(position.in_balance + position.spent + cap, funds.amount);
-
-//         let mut env = mock_env();
-//         env.block.height = start + 1_000_000;
-//         let info = mock_info("creator1", &[]);
-//         let msg = crate::msg::ExecuteMsg::Withdraw {
-//             stream_id: 1,
-//             cap: None,
-//             operator_target: None,
-//         };
-//         let res = execute(deps.as_mut(), env, info, msg).unwrap();
-//         let position =
-//             query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
-//         assert_eq!(position.in_balance, Uint128::zero());
-//         assert_eq!(position.spent, Uint128::new(499_993_773_466));
-//         assert_eq!(position.purchased, Uint128::new(249_999_999_998));
-//         assert_eq!(position.shares, Uint128::zero());
-//         let msg = res.messages.get(0).unwrap();
-//         assert_eq!(
-//             msg.msg,
-//             CosmosMsg::Bank(BankMsg::Send {
-//                 to_address: "creator1".to_string(),
-//                 amount: vec![Coin::new(1_499_981_226_534, "in")]
-//             })
-//         );
-
-//         // can't withdraw after stream ends
-//         let mut env = mock_env();
-//         env.block.height = end + 1;
-//         let info = mock_info("creator1", &[]);
-//         let msg = crate::msg::ExecuteMsg::Withdraw {
-//             stream_id: 1,
-//             cap: None,
-//             operator_target: None,
-//         };
-//         let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
-//         assert_eq!(res, ContractError::StreamEnded {});
-//     }

@@ -1,24 +1,16 @@
 #[cfg(test)]
 mod finalize_stream_tests {
-    use std::str::FromStr;
-
     use crate::helpers::utils::{get_contract_address_from_res, get_funds_from_res};
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
         setup::{setup, SetupResponse},
     };
-    use cosmwasm_std::testing::mock_env;
-    use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Decimal, Timestamp, Uint128};
+    use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Uint128};
     use cw_multi_test::Executor;
+    use cw_streamswap::state::Status;
     use cw_streamswap::{
-        msg::{
-            ExecuteMsg as StreamSwapExecuteMsg, PositionResponse, QueryMsg as StreamSwapQueryMsg,
-            StreamResponse,
-        },
+        msg::{ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg, StreamResponse},
         // ContractError as StreamSwapError,
-    };
-    use cw_streamswap::{
-        state::Status, threshold::ThresholdError, ContractError as StreamSwapError,
     };
 
     #[test]

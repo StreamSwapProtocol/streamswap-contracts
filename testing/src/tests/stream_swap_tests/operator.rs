@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod operator_tests {
 
-    use crate::helpers::utils::get_contract_address_from_res;
+    use crate::helpers::utils::{get_contract_address_from_res, get_funds_from_res};
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
         setup::{setup, SetupResponse},
@@ -9,13 +9,10 @@ mod operator_tests {
     use cosmwasm_std::{coin, Addr, BlockInfo, Uint128};
     use cw_multi_test::Executor;
     use cw_streamswap::{
-        msg::{
-            ExecuteMsg as StreamSwapExecuteMsg, PositionResponse, QueryMsg as StreamSwapQueryMsg,
-            StreamResponse,
-        },
+        msg::{ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg, StreamResponse},
         ContractError as StreamSwapError,
     };
-    use cw_streamswap_factory::msg::QueryMsg as FactoryQueryMsg;
+
     #[test]
     fn test_operator_first_subscribe() {
         let SetupResponse {
@@ -100,8 +97,6 @@ mod operator_tests {
         assert_eq!(*error, StreamSwapError::Unauthorized {});
     }
 
-    // test_operator_after_subscribe
-
     #[test]
     fn test_operator_after_subscribe() {
         let SetupResponse {
@@ -172,9 +167,80 @@ mod operator_tests {
         let err = res.source().unwrap();
         let error = err.downcast_ref::<StreamSwapError>().unwrap();
         assert_eq!(*error, StreamSwapError::Unauthorized {});
-    }
 
-    // test_update_operator
+        // Operator can increase the subscription amount
+        let msg = StreamSwapExecuteMsg::Subscribe {
+            operator_target: Some(test_accounts.subscriber.clone().into_string()),
+            operator: None,
+        };
+        let _res = app
+            .execute_contract(
+                test_accounts.subscriber_2.clone(),
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &msg,
+                &[coin(100, "in_denom")],
+            )
+            .unwrap();
+        // Query the stream
+        let query_msg = StreamSwapQueryMsg::Stream {};
+
+        let stream: StreamResponse = app
+            .wrap()
+            .query_wasm_smart(
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &query_msg,
+            )
+            .unwrap();
+        assert_eq!(stream.in_supply, Uint128::from(200u128));
+
+        // Operator can withdraw
+        let res = app
+            .execute_contract(
+                test_accounts.subscriber_2.clone(),
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &StreamSwapExecuteMsg::Withdraw {
+                    cap: Some(Uint128::new(100)),
+                    operator_target: Some(test_accounts.subscriber.clone().into_string()),
+                },
+                &[],
+            )
+            .unwrap();
+        let funds_in_res = get_funds_from_res(res);
+        assert_eq!(
+            funds_in_res,
+            vec![(
+                test_accounts.subscriber.clone().into_string(),
+                coin(100, "in_denom")
+            )]
+        );
+
+        // Operator can exit
+        // Set time to end time
+        app.set_block(BlockInfo {
+            height: 1_100,
+            time: app.block_info().time.plus_seconds(200 + 1),
+            chain_id: "test".to_string(),
+        });
+
+        let res = app
+            .execute_contract(
+                test_accounts.subscriber_2.clone(),
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &StreamSwapExecuteMsg::ExitStream {
+                    operator_target: Some(test_accounts.subscriber.clone().into_string()),
+                },
+                &[],
+            )
+            .unwrap();
+        let funds_in_res = get_funds_from_res(res);
+        assert_eq!(
+            funds_in_res,
+            vec![(
+                test_accounts.subscriber.clone().into_string(),
+                coin(100, "out_denom")
+            )]
+        );
+    }
 
     #[test]
     fn test_update_operator() {
