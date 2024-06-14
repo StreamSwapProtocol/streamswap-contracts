@@ -43,6 +43,7 @@ mod finalize_stream_tests {
             start_time,
             end_time,
             None,
+            None
         );
         let res = app
             .execute_contract(
@@ -155,6 +156,7 @@ mod finalize_stream_tests {
             start_time,
             end_time,
             None,
+            None
         );
         let res = app
             .execute_contract(
@@ -269,6 +271,7 @@ mod finalize_stream_tests {
             start_time,
             end_time,
             None,
+            None
         );
         let res = app
             .execute_contract(

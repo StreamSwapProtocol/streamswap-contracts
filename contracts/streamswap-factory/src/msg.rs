@@ -45,6 +45,7 @@ pub struct CreateStreamMsg {
     /// CreatePool Flag
     pub create_pool: Option<CreatePool>,
 }
+
 #[cw_serde]
 pub struct CreatePool {
     // amount of out tokens that will be sent to the pool

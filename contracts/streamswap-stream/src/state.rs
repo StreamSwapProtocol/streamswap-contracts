@@ -1,7 +1,6 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Timestamp, Uint128};
 use cw_storage_plus::{Item, Map};
-use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
 use std::ops::Mul;
 use streamswap_factory::msg::CreatePool;
 

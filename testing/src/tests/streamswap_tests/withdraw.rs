@@ -49,6 +49,7 @@ mod withdraw_tests {
             start_time,
             end_time,
             None,
+            None
         );
 
         let res = app
@@ -249,6 +250,7 @@ mod withdraw_tests {
             start_time,
             end_time,
             None,
+            None
         );
 
         let res = app
@@ -403,6 +405,7 @@ mod withdraw_tests {
             start_time,
             end_time,
             None,
+            None
         );
 
         let res = app
