@@ -33,6 +33,7 @@ schemars ={ workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 semver = { workspace = true }
+osmosis-std = "0.24"
 
 [dev-dependencies]
 cw-multi-test = "0.16.2"

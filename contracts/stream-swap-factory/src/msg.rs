@@ -1,5 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
+use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
+
 #[cw_serde]
 pub struct InstantiateMsg {
     pub stream_swap_code_id: u64,
@@ -10,6 +12,7 @@ pub struct InstantiateMsg {
     pub accepted_in_denoms: Vec<String>,
     pub min_stream_seconds: u64,
     pub min_seconds_until_start_time: u64,
+    pub pool_creation_denom: String,
 }
 
 #[cw_serde]
@@ -39,8 +42,16 @@ pub struct CreateStreamMsg {
     pub start_time: Timestamp,
     pub end_time: Timestamp,
     pub threshold: Option<Uint128>,
+    /// CreatePool Flag
+    pub create_pool: Option<CreatePool>,
 }
-
+#[cw_serde]
+pub struct CreatePool {
+    // amount of out tokens that will be sent to the pool
+    pub out_amount_clp: Uint128,
+    // osmosis concentration pool creation message
+    pub msg_create_pool: MsgCreateConcentratedPool,
+}
 #[cw_serde]
 pub enum QueryMsg {
     Params {},

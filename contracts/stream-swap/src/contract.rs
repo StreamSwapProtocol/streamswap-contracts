@@ -50,6 +50,7 @@ pub fn instantiate(
         out_asset,
         in_denom,
         stream_admin,
+        create_pool,
     } = msg;
 
     if start_time > end_time {
@@ -79,6 +80,7 @@ pub fn instantiate(
         start_time,
         end_time,
         start_time,
+        create_pool,
     );
     STREAM.save(deps.storage, &stream)?;
 

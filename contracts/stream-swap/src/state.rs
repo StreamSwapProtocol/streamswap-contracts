@@ -1,7 +1,10 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Timestamp, Uint128};
 use cw_storage_plus::{Item, Map};
+use cw_streamswap_factory::msg::CreatePool;
+use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
 use std::ops::Mul;
+
 #[cw_serde]
 pub struct Stream {
     /// Name of the stream.
@@ -38,6 +41,8 @@ pub struct Stream {
     pub status: Status,
     /// Block height when the stream was paused.
     pub pause_date: Option<Timestamp>,
+    /// Create Pool message
+    pub create_pool: Option<CreatePool>,
 }
 
 #[cw_serde]
@@ -49,6 +54,7 @@ pub enum Status {
     Paused,
     Cancelled,
 }
+
 #[allow(clippy::too_many_arguments)]
 impl Stream {
     pub fn new(
@@ -61,6 +67,7 @@ impl Stream {
         start_time: Timestamp,
         end_time: Timestamp,
         last_updated: Timestamp,
+        create_pool: Option<CreatePool>,
     ) -> Self {
         Stream {
             name,
@@ -80,6 +87,7 @@ impl Stream {
             shares: Uint128::zero(),
             current_streamed_price: Decimal::zero(),
             status: Status::Waiting,
+            create_pool,
         }
     }
 
@@ -174,6 +182,7 @@ fn test_compute_shares_amount() {
         Timestamp::from_seconds(0),
         Timestamp::from_seconds(100),
         Timestamp::from_seconds(0),
+        None,
     );
 
     // add new shares
