@@ -1,2 +1,2 @@
 pub mod factory_tests;
-pub mod stream_swap_tests;
+pub mod streamswap_tests;

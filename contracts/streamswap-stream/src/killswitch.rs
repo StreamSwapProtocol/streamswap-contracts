@@ -6,8 +6,8 @@ use cosmwasm_std::{
     attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult, Timestamp,
     Uint128,
 };
-use cw_streamswap_factory::state::{Params as FactoryParams, PARAMS as FACTORY_PARAMS};
 use cw_utils::maybe_addr;
+use streamswap_factory::state::{Params as FactoryParams, PARAMS as FACTORY_PARAMS};
 
 pub fn execute_withdraw_paused(
     deps: DepsMut,

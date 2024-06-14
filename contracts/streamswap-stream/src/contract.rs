@@ -12,16 +12,16 @@ use cosmwasm_std::{
     Uint128, Uint256,
 };
 use cw2::set_contract_version;
-use cw_streamswap_factory::msg::CreateStreamMsg;
-use cw_streamswap_factory::state::Params as FactoryParams;
-use cw_streamswap_factory::state::PARAMS as FACTORYPARAMS;
+use streamswap_factory::msg::CreateStreamMsg;
+use streamswap_factory::state::Params as FactoryParams;
+use streamswap_factory::state::PARAMS as FACTORYPARAMS;
 
 use crate::helpers::{check_name_and_url, get_decimals};
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay};
 
 // Version and contract info for migration
-const CONTRACT_NAME: &str = "crates.io:cw-streamswap";
+const CONTRACT_NAME: &str = "crates.io:streamswap";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -32,7 +32,7 @@ pub fn instantiate(
     msg: CreateStreamMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    let params_query_msg = cw_streamswap_factory::msg::QueryMsg::Params {};
+    let params_query_msg = streamswap_factory::msg::QueryMsg::Params {};
     let factory_params: FactoryParams = deps
         .querier
         .query_wasm_smart(info.sender.to_string(), &params_query_msg)?;

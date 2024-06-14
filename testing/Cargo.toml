@@ -19,8 +19,8 @@ cosmwasm-schema      = { workspace = true }
 cosmwasm-std = { version = "1.5.2", features = ["iterator", "staking", "stargate"] }
 cw-controllers       = { workspace = true }
 cw2                  = { workspace = true }
-cw-streamswap       = { workspace = true }
-cw-streamswap-factory       = { workspace = true }
+streamswap-stream = { workspace = true }
+streamswap-factory = { workspace = true }
 cw-storage-plus = "1.2.0"
 cw-utils = "1.0.3"
 schemars = "0.8.16"

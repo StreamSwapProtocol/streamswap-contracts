@@ -7,8 +7,8 @@ mod finalize_stream_tests {
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Uint128};
     use cw_multi_test::Executor;
-    use cw_streamswap::state::Status;
-    use cw_streamswap::{
+    use streamswap_stream::state::Status;
+    use streamswap_stream::{
         msg::{ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg, StreamResponse},
         // ContractError as StreamSwapError,
     };

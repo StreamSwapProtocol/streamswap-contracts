@@ -6,10 +6,10 @@ mod create_stream_tests {
     };
     use cosmwasm_std::{coin, Uint128};
     use cw_multi_test::Executor;
-    use cw_streamswap::{threshold::ThresholdError, ContractError as StreamSwapError};
-    use cw_streamswap_factory::{
+    use streamswap_factory::{
         error::ContractError as FactoryError, msg::QueryMsg, payment_checker::CustomPaymentError,
     };
+    use streamswap_stream::{threshold::ThresholdError, ContractError as StreamSwapError};
     #[test]
     fn create_stream_failed_name_url_checks() {
         let SetupResponse {

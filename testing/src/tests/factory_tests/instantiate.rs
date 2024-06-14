@@ -5,7 +5,7 @@ use crate::helpers::{
 };
 use cosmwasm_std::{coin, Decimal};
 use cw_multi_test::Executor;
-use cw_streamswap_factory::{msg::QueryMsg, state::Params};
+use streamswap_factory::{msg::QueryMsg, state::Params};
 
 #[test]
 fn factory_proper_instantiate() {

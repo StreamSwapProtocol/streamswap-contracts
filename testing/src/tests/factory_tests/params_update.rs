@@ -5,8 +5,8 @@ use crate::helpers::{
 };
 use cosmwasm_std::{coin, Addr, Decimal};
 use cw_multi_test::Executor;
-use cw_streamswap_factory::error::ContractError as FactoryError;
-use cw_streamswap_factory::{msg::ExecuteMsg, msg::QueryMsg, state::Params};
+use streamswap_factory::error::ContractError as FactoryError;
+use streamswap_factory::{msg::ExecuteMsg, msg::QueryMsg, state::Params};
 
 #[test]
 fn params_update() {

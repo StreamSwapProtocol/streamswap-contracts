@@ -9,7 +9,7 @@ mod withdraw_tests {
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128};
     use cw_multi_test::Executor;
-    use cw_streamswap::{
+    use streamswap_stream::{
         msg::{
             ExecuteMsg as StreamSwapExecuteMsg, PositionResponse, QueryMsg as StreamSwapQueryMsg,
             StreamResponse,

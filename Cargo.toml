@@ -24,8 +24,8 @@ serde = { version = "1.0.152", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.38" }
 semver = "1.0.16"
 osmosis-std = "0.24.0"
-cw-streamswap       = { path = "contracts/stream-swap" }
-cw-streamswap-factory = { path = "contracts/stream-swap-factory" }
+streamswap-stream = { path = "contracts/streamswap-stream" }
+streamswap-factory = { path = "contracts/streamswap-factory" }
 
 [workspace.metadata.scripts]
 optimize = """docker run --rm -v "$(pwd)":/code \

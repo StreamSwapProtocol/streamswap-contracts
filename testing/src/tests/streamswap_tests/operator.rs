@@ -8,7 +8,7 @@ mod operator_tests {
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Uint128};
     use cw_multi_test::Executor;
-    use cw_streamswap::{
+    use streamswap_stream::{
         msg::{ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg, StreamResponse},
         ContractError as StreamSwapError,
     };

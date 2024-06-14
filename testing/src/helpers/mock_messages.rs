@@ -1,6 +1,7 @@
 use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
-use cw_streamswap_factory::msg::{
-    CreateStreamMsg, ExecuteMsg as FactoryExecuteMsg, InstantiateMsg as FactoryInstantiateMsg,
+use streamswap_factory::msg::{
+    CreatePool, CreateStreamMsg, ExecuteMsg as FactoryExecuteMsg,
+    InstantiateMsg as FactoryInstantiateMsg,
 };
 
 use super::setup::TestAccounts;
@@ -21,6 +22,7 @@ pub fn get_factory_inst_msg(
         accepted_in_denoms: vec!["in_denom".to_string()],
         min_stream_seconds: 100,
         min_seconds_until_start_time: 100,
+        pool_creation_denom: "uosmo".to_string(),
     }
 }
 
@@ -32,7 +34,8 @@ pub fn get_create_stream_msg(
     in_denom: &str,
     start_time: Timestamp,
     end_time: Timestamp,
-    treshold: Option<Uint128>,
+    threshold: Option<Uint128>,
+    create_pool: Option<CreatePool>,
 ) -> FactoryExecuteMsg {
     FactoryExecuteMsg::CreateStream {
         msg: CreateStreamMsg {
@@ -44,7 +47,8 @@ pub fn get_create_stream_msg(
             in_denom: in_denom.to_string(),
             start_time,
             end_time,
-            threshold: treshold,
+            threshold,
+            create_pool,
         },
     }
 }

@@ -11,7 +11,7 @@ jobs:
           command: rustc --version; cargo --version; rustup --version
       - restore_cache:
           keys:
-            - cargocache-v2-cw-streamswap:1.64.0-{{ checksum "~/project/Cargo.lock" }}
+            - cargocache-v2-streamswap:1.64.0-{{ checksum "~/project/Cargo.lock" }}
       - run:
           name: Add rustfmt component
           command: rustup component add rustfmt
@@ -49,4 +49,4 @@ jobs:
             - target/wasm32-unknown-unknown/release/.fingerprint
             - target/wasm32-unknown-unknown/release/build
             - target/wasm32-unknown-unknown/release/deps
-          key: cargocache-v2-cw-streamswap:1.64.0-{{ checksum "~/project/Cargo.lock" }}
+          key: cargocache-v2-streamswap:1.64.0-{{ checksum "~/project/Cargo.lock" }}

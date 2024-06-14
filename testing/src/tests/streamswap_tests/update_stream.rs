@@ -10,7 +10,7 @@ mod update_stream_tests {
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal, Decimal256, Uint128};
     use cw_multi_test::Executor;
-    use cw_streamswap::{
+    use streamswap_stream::{
         msg::{ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg, StreamResponse},
         state::Status,
         ContractError,
@@ -157,7 +157,7 @@ mod update_stream_tests {
             .wrap()
             .query_wasm_smart(
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &cw_streamswap::msg::QueryMsg::Stream {},
+                &streamswap_stream::msg::QueryMsg::Stream {},
             )
             .unwrap();
 
@@ -185,7 +185,7 @@ mod update_stream_tests {
             .wrap()
             .query_wasm_smart(
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &cw_streamswap::msg::QueryMsg::Stream {},
+                &streamswap_stream::msg::QueryMsg::Stream {},
             )
             .unwrap();
 

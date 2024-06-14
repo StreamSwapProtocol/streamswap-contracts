@@ -1,7 +1,7 @@
 use crate::state::Status;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Timestamp, Uint128};
-use cw_streamswap_factory::state::Params as FactoryParams;
+use streamswap_factory::state::Params as FactoryParams;
 
 #[cw_serde]
 pub enum ExecuteMsg {

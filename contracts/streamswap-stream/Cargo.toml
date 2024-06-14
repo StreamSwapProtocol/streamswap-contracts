@@ -1,5 +1,5 @@
 [package]
-name = "cw-streamswap-factory"
+name = "streamswap-stream"
 version = { workspace = true }
 edition = { workspace = true }
 exclude = [
@@ -22,6 +22,13 @@ backtraces = ["cosmwasm-std/backtraces"]
 # use library feature to disable all instantiate/execute/query exports
 library = []
 
+[package.metadata.scripts]
+optimize = """docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.12.8
+"""
+
 [dependencies]
 cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
@@ -34,6 +41,8 @@ serde = { workspace = true }
 thiserror = { workspace = true }
 semver = { workspace = true }
 osmosis-std = "0.24"
+streamswap-factory = { path = "../streamswap-factory" }
+
 
 [dev-dependencies]
 cw-multi-test = "0.16.2"

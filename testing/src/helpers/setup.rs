@@ -1,10 +1,10 @@
 use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Timestamp};
 use cw_multi_test::{App, BankSudo, ContractWrapper, Executor, SudoMsg};
-use cw_streamswap::contract::{
-    execute as streamswap_execute, instantiate as streamswap_instantiate, query as streamswap_query,
-};
-use cw_streamswap_factory::contract::{
+use streamswap_factory::contract::{
     execute as factory_execute, instantiate as factory_instantiate, query as factory_query,
+};
+use streamswap_stream::contract::{
+    execute as streamswap_execute, instantiate as streamswap_instantiate, query as streamswap_query,
 };
 
 pub fn setup() -> SetupResponse {
