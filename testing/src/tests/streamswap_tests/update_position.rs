@@ -50,7 +50,7 @@ mod update_position_tests {
             start_time,
             end_time,
             None,
-            None
+            None,
         );
 
         let res = app

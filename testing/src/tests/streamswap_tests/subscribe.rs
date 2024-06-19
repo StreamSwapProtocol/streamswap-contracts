@@ -51,7 +51,7 @@ mod subscibe_test {
             start_time,
             end_time,
             None,
-            None
+            None,
         );
 
         let res = app
@@ -203,7 +203,7 @@ mod subscibe_test {
             start_time,
             end_time,
             None,
-            None
+            None,
         );
 
         let res = app
@@ -396,7 +396,7 @@ mod subscibe_test {
             start_time,
             end_time,
             None,
-            None
+            None,
         );
 
         let res = app
