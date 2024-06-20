@@ -25,3 +25,5 @@ cw-storage-plus = "1.2.0"
 cw-utils = "1.0.3"
 schemars = "0.8.16"
 cw-multi-test = "0.20.0"
+osmosis-std = { workspace = true }
+

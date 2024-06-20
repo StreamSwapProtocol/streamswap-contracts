@@ -1107,6 +1107,7 @@ dependencies = [
  "cw-storage-plus",
  "cw-utils",
  "cw2",
+ "osmosis-std",
  "schemars",
  "streamswap-factory",
  "streamswap-stream",

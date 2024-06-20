@@ -1,6 +1,7 @@
 mod create_stream;
 mod finalize_stream;
 mod operator;
+mod pool;
 mod subscribe;
 mod update_position;
 mod update_stream;
