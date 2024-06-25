@@ -28,8 +28,8 @@ mod pool_tests {
         let out_clp_amount = 200_000_000_000u128;
         // this is mocked by querier at test_helpers.rs
         let pool_creation_fee = 1000000;
-        let pool_creation_denom = "uosmo";
-        let stream_creation_denom = "uosmo";
+        let pool_creation_denom = "fee_denom";
+        let stream_creation_denom = "fee_denom";
         let stream_creation_fee = 100;
         let subs1_token = Coin::new(1_000_000_000, in_denom);
         let subs2_token = Coin::new(3_000_000_000, in_denom);
@@ -49,8 +49,8 @@ mod pool_tests {
             &"Stream Swap tests".to_string(),
             None,
             &test_accounts.creator_1.to_string(),
-            coin(1_000_000, "out_denom"),
-            "in_denom",
+            coin(1_000_000, out_denom),
+            in_denom,
             start_time,
             end_time,
             None,
@@ -70,7 +70,7 @@ mod pool_tests {
                 test_accounts.creator_1.clone(),
                 factory_address.clone(),
                 &create_stream_msg,
-                &[coin(100, "fee_denom"), coin(1_000_000, "out_denom")],
+                &[coin(100, stream_creation_denom), coin(1_000_000, out_denom)],
             )
             .unwrap();
         let stream_swap_contract_address: String = get_contract_address_from_res(res);

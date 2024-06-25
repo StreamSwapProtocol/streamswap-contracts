@@ -1,22 +1,41 @@
-use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Timestamp};
-use cw_multi_test::{App, BankSudo, ContractWrapper, Executor, SudoMsg};
+use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Timestamp, Api, Empty};
+use cosmwasm_std::testing::{MockApi, MockStorage};
+use cw_multi_test::{App, AppBuilder, BankKeeper, BankSudo, BasicApp, BasicAppBuilder, ContractWrapper, DistributionKeeper, Executor, FailingModule, GovFailingModule, IbcFailingModule, StakeKeeper, Stargate, StargateFailing, SudoMsg, WasmKeeper};
 use streamswap_factory::contract::{
     execute as factory_execute, instantiate as factory_instantiate, query as factory_query,
 };
 use streamswap_stream::contract::{
     execute as streamswap_execute, instantiate as streamswap_instantiate, query as streamswap_query,
 };
+use crate::helpers::stargate::MyStargateKeeper;
 
 pub fn setup() -> SetupResponse {
-    let mut app = App::default();
-    let accounts = create_test_accounts();
     let denoms = vec![
         "fee_denom".to_string(),
         "out_denom".to_string(),
         "in_denom".to_string(),
         "wrong_denom".to_string(),
     ];
-    accounts.fund_accounts(&mut app, denoms);
+    let accounts = create_test_accounts();
+    let all_accounts = accounts.all();
+    let mut app = AppBuilder::default()
+        .with_stargate(MyStargateKeeper {})
+        .build(|router,_,storage| {
+            denoms.iter().for_each(|denom| {
+                let amount = 1_000_000_000_000_000u128;
+                all_accounts.iter().for_each(|account| {
+                    router
+                        .bank
+                        .init_balance(
+                            storage,
+                            &account,
+                            vec![coin(amount, denom.clone())]
+                        )
+                        .unwrap();
+                });
+            });
+        });
+
     app.set_block(BlockInfo {
         chain_id: "test_1".to_string(),
         height: 1_000,
@@ -67,9 +86,18 @@ pub fn mint_to_address(app: &mut App, to_address: String, amount: Vec<Coin>) {
     app.sudo(SudoMsg::Bank(BankSudo::Mint { to_address, amount }))
         .unwrap();
 }
-
 pub struct SetupResponse {
-    pub app: App,
+    pub app: App<
+        BankKeeper,
+        MockApi,
+        MockStorage,
+        FailingModule<Empty, Empty, Empty>,
+        WasmKeeper<Empty, Empty>,
+        StakeKeeper,
+        DistributionKeeper,
+        IbcFailingModule,
+        GovFailingModule,
+        MyStargateKeeper>,
     pub test_accounts: TestAccounts,
     pub stream_swap_factory_code_id: u64,
     pub stream_swap_code_id: u64,
@@ -95,6 +123,7 @@ impl TestAccounts {
         ]
     }
 
+    /*
     pub fn fund_accounts(&self, app: &mut App, denoms: Vec<String>) {
         // Collect all accounts
         let accounts = self.all();
@@ -105,4 +134,5 @@ impl TestAccounts {
             });
         });
     }
+     */
 }
