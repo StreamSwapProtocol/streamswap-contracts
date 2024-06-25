@@ -1,13 +1,17 @@
-use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Timestamp, Api, Empty};
+use crate::helpers::stargate::MyStargateKeeper;
 use cosmwasm_std::testing::{MockApi, MockStorage};
-use cw_multi_test::{App, AppBuilder, BankKeeper, BankSudo, BasicApp, BasicAppBuilder, ContractWrapper, DistributionKeeper, Executor, FailingModule, GovFailingModule, IbcFailingModule, StakeKeeper, Stargate, StargateFailing, SudoMsg, WasmKeeper};
+use cosmwasm_std::{coin, Addr, Api, BlockInfo, Coin, Empty, Timestamp};
+use cw_multi_test::{
+    App, AppBuilder, BankKeeper, BankSudo, BasicApp, BasicAppBuilder, ContractWrapper,
+    DistributionKeeper, Executor, FailingModule, GovFailingModule, IbcFailingModule, StakeKeeper,
+    Stargate, StargateFailing, SudoMsg, WasmKeeper,
+};
 use streamswap_factory::contract::{
     execute as factory_execute, instantiate as factory_instantiate, query as factory_query,
 };
 use streamswap_stream::contract::{
     execute as streamswap_execute, instantiate as streamswap_instantiate, query as streamswap_query,
 };
-use crate::helpers::stargate::MyStargateKeeper;
 
 pub fn setup() -> SetupResponse {
     let denoms = vec![
@@ -20,19 +24,14 @@ pub fn setup() -> SetupResponse {
     let all_accounts = accounts.all();
     let mut app = AppBuilder::default()
         .with_stargate(MyStargateKeeper {})
-        .build(|router,_,storage| {
-            denoms.iter().for_each(|denom| {
+        .build(|router, _, storage| {
+            all_accounts.iter().for_each(|account| {
                 let amount = 1_000_000_000_000_000u128;
-                all_accounts.iter().for_each(|account| {
-                    router
-                        .bank
-                        .init_balance(
-                            storage,
-                            &account,
-                            vec![coin(amount, denom.clone())]
-                        )
-                        .unwrap();
-                });
+                let coins: Vec<Coin> = denoms
+                    .iter()
+                    .map(|denom| coin(amount, denom.clone()))
+                    .collect();
+                router.bank.init_balance(storage, &account, coins).unwrap();
             });
         });
 
@@ -97,7 +96,8 @@ pub struct SetupResponse {
         DistributionKeeper,
         IbcFailingModule,
         GovFailingModule,
-        MyStargateKeeper>,
+        MyStargateKeeper,
+    >,
     pub test_accounts: TestAccounts,
     pub stream_swap_factory_code_id: u64,
     pub stream_swap_code_id: u64,
