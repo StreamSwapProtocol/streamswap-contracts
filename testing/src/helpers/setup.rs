@@ -121,17 +121,4 @@ impl TestAccounts {
             self.creator_2.clone(),
         ]
     }
-
-    /*
-    pub fn fund_accounts(&self, app: &mut App, denoms: Vec<String>) {
-        // Collect all accounts
-        let accounts = self.all();
-        denoms.iter().for_each(|denom| {
-            let amount = 1_000_000_000_000_000u128;
-            accounts.iter().for_each(|account| {
-                mint_to_address(app, account.to_string(), vec![coin(amount, denom.clone())]);
-            });
-        });
-    }
-     */
 }
