@@ -1,15 +1,13 @@
-use cosmwasm_std::{to_json_binary, Addr, Api, Binary, BlockInfo, Empty, Querier, Storage};
-use cw_multi_test::{
-    error::AnyResult, AppResponse, Contract, ContractWrapper, CosmosRouter, Stargate,
-};
+use cosmwasm_std::{to_json_binary, Addr, Api, Binary, BlockInfo, Querier, Storage};
+use cw_multi_test::error::anyhow;
+use cw_multi_test::{error::AnyResult, AppResponse, CosmosRouter, Stargate};
+use osmosis_std::shim::Any;
 use osmosis_std::types::cosmos::base::v1beta1::Coin;
-use osmosis_std::types::cosmos::staking::v1beta1::QueryPoolResponse;
 use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
-use osmosis_std::types::osmosis::concentratedliquidity::v1beta1::{Pool, PoolsRequest};
-use osmosis_std::types::osmosis::poolmanager::v1beta1::{
-    NumPoolsResponse, Params, ParamsResponse, PoolRequest,
-};
+use osmosis_std::types::osmosis::concentratedliquidity::v1beta1::Pool;
+use osmosis_std::types::osmosis::poolmanager::v1beta1::{NumPoolsResponse, Params, ParamsResponse};
 use prost::{DecodeError, Message};
+use schemars::_serde_json::to_vec;
 
 pub struct MyStargateKeeper {}
 
@@ -48,7 +46,7 @@ impl Stargate for MyStargateKeeper {
         _querier: &dyn Querier,
         _block: &BlockInfo,
         path: String,
-        data: Binary,
+        _data: Binary,
     ) -> AnyResult<Binary> {
         match path.as_str() {
             "/osmosis.poolmanager.v1beta1.Query/Params" => {
@@ -69,8 +67,6 @@ impl Stargate for MyStargateKeeper {
                 return Ok(to_json_binary(&res)?);
             }
             "/osmosis.concentratedliquidity.v1beta1.Query/Pools" => {
-                let parsed_query: Result<PoolsRequest, DecodeError> =
-                    Message::decode(data.as_slice());
                 let key = format!("pools:");
                 let pools = storage
                     .range(Some(key.as_bytes()), None, cosmwasm_std::Order::Ascending)
@@ -83,11 +79,18 @@ impl Stargate for MyStargateKeeper {
                     .collect::<Vec<Pool>>();
                 let res =
                     osmosis_std::types::osmosis::concentratedliquidity::v1beta1::PoolsResponse {
-                        pools: pools.
+                        pools: pools
+                            .iter()
+                            .map(|p| Any {
+                                type_url: "/osmosis.concentratedliquidity.v1beta1.Pool".to_string(),
+                                value: to_vec(p).unwrap(),
+                            })
+                            .collect::<Vec<_>>(),
                         pagination: None,
                     };
+                return Ok(to_json_binary(&res)?);
             }
+            _ => Err(anyhow!("Unknown query path")),
         }
-        return Ok(to_json_binary(&res)?);
     }
 }

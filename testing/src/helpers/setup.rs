@@ -1,10 +1,9 @@
 use crate::helpers::stargate::MyStargateKeeper;
 use cosmwasm_std::testing::{MockApi, MockStorage};
-use cosmwasm_std::{coin, Addr, Api, BlockInfo, Coin, Empty, Timestamp};
+use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Empty, Timestamp};
 use cw_multi_test::{
-    App, AppBuilder, BankKeeper, BankSudo, BasicApp, BasicAppBuilder, ContractWrapper,
-    DistributionKeeper, Executor, FailingModule, GovFailingModule, IbcFailingModule, StakeKeeper,
-    Stargate, StargateFailing, SudoMsg, WasmKeeper,
+    App, AppBuilder, BankKeeper, BankSudo, ContractWrapper, DistributionKeeper, FailingModule,
+    GovFailingModule, IbcFailingModule, StakeKeeper, SudoMsg, WasmKeeper,
 };
 use streamswap_factory::contract::{
     execute as factory_execute, instantiate as factory_instantiate, query as factory_query,
