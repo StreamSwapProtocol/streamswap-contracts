@@ -49,6 +49,7 @@ mod treshold_tests {
             end_time,
             Some(threshold),
             None,
+            None,
         );
 
         let res = app
@@ -155,6 +156,7 @@ mod treshold_tests {
             start_time,
             end_time,
             Some(threshold),
+            None,
             None,
         );
 
@@ -356,6 +358,7 @@ mod treshold_tests {
             start_time,
             end_time,
             Some(threshold),
+            None,
             None,
         );
 

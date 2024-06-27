@@ -1,5 +1,6 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
+use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
 
 #[cw_serde]
@@ -44,6 +45,8 @@ pub struct CreateStreamMsg {
     pub threshold: Option<Uint128>,
     /// CreatePool Flag
     pub create_pool: Option<CreatePool>,
+    /// Vesting configuration
+    pub vesting: Option<VestingInstantiateMsg>,
 }
 
 #[cw_serde]

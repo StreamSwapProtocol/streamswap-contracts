@@ -124,6 +124,7 @@ pub fn execute_create_stream(
         threshold: _,
         url: _,
         create_pool: _,
+        vesting,
     } = msg.clone();
     let params = PARAMS.load(deps.storage)?;
     let stream_creation_fee = params.stream_creation_fee.clone();

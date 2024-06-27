@@ -50,6 +50,7 @@ mod pause_protocol_admin {
             end_time,
             None,
             None,
+            None,
         );
         let res = app
             .execute_contract(
@@ -117,6 +118,7 @@ mod pause_protocol_admin {
             "in_denom",
             start_time,
             end_time,
+            None,
             None,
             None,
         );
@@ -202,6 +204,7 @@ mod pause_protocol_admin {
             end_time,
             None,
             None,
+            None,
         );
         let res = app
             .execute_contract(
@@ -274,6 +277,7 @@ mod pause_protocol_admin {
             "in_denom",
             start_time,
             end_time,
+            None,
             None,
             None,
         );

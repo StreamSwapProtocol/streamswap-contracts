@@ -38,7 +38,8 @@ fn factory_freeze() {
         app.block_info().time.plus_seconds(100),
         app.block_info().time.plus_seconds(200),
         None,
-        None
+        None,
+        None,
     );
     let _create_stream_res = app
         .execute_contract(
@@ -90,7 +91,8 @@ fn factory_freeze() {
         app.block_info().time.plus_seconds(100),
         app.block_info().time.plus_seconds(200),
         None,
-        None
+        None,
+        None,
     );
     let res = app
         .execute_contract(

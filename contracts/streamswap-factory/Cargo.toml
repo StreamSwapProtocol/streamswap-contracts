@@ -34,6 +34,7 @@ serde = { workspace = true }
 thiserror = { workspace = true }
 semver = { workspace = true }
 osmosis-std = { workspace = true }
+cw-vesting = { workspace = true, features = ["library"]}
 
 [dev-dependencies]
 cw-multi-test = "0.16.2"

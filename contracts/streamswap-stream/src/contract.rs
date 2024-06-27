@@ -51,6 +51,7 @@ pub fn instantiate(
         in_denom,
         stream_admin,
         create_pool,
+        vesting,
     } = msg;
 
     if start_time > end_time {

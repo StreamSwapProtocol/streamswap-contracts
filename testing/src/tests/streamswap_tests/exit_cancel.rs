@@ -43,6 +43,7 @@ mod exit_cancel {
             end_time,
             Some(Uint128::from(100u128)),
             None,
+            None,
         );
 
         let _res = app
@@ -127,6 +128,7 @@ mod exit_cancel {
             start_time,
             end_time,
             Some(Uint128::from(100u128)),
+            None,
             None,
         );
 
@@ -230,6 +232,7 @@ mod exit_cancel {
             start_time,
             end_time,
             Some(Uint128::from(100u128)),
+            None,
             None,
         );
 

@@ -51,6 +51,7 @@ mod withdraw_paused_test {
             end_time,
             None,
             None,
+            None,
         );
         // create Stream
         let res = app

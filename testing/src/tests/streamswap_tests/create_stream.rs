@@ -10,6 +10,7 @@ mod create_stream_tests {
         error::ContractError as FactoryError, msg::QueryMsg, payment_checker::CustomPaymentError,
     };
     use streamswap_stream::{threshold::ThresholdError, ContractError as StreamSwapError};
+
     #[test]
     fn create_stream_failed_name_url_checks() {
         let SetupResponse {
@@ -42,6 +43,7 @@ mod create_stream_tests {
             app.block_info().time.plus_seconds(200).into(),
             None,
             None,
+            None,
         );
 
         let res = app
@@ -68,6 +70,7 @@ mod create_stream_tests {
             app.block_info().time.plus_seconds(200).into(),
             None,
             None,
+            None,
         );
 
         let res = app
@@ -92,6 +95,7 @@ mod create_stream_tests {
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
             app.block_info().time.plus_seconds(200).into(),
+            None,
             None,
             None,
         );
@@ -121,6 +125,7 @@ mod create_stream_tests {
             app.block_info().time.plus_seconds(200).into(),
             None,
             None,
+            None,
         );
 
         let res = app
@@ -148,6 +153,7 @@ mod create_stream_tests {
             app.block_info().time.plus_seconds(100).into(),
             app.block_info().time.plus_seconds(200).into(),
             Some(Uint128::from(100u128)),
+            None,
             None,
         );
 
@@ -197,6 +203,7 @@ mod create_stream_tests {
             app.block_info().time.plus_seconds(200).into(),
             None,
             None,
+            None,
         );
         let res = app
             .execute_contract(
@@ -219,6 +226,7 @@ mod create_stream_tests {
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
             app.block_info().time.plus_seconds(200).into(),
+            None,
             None,
             None,
         );
@@ -246,6 +254,7 @@ mod create_stream_tests {
             app.block_info().time.plus_seconds(200).into(),
             Some(Uint128::from(100u128)),
             None,
+            None,
         );
 
         let res = app
@@ -271,6 +280,7 @@ mod create_stream_tests {
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
             app.block_info().time.plus_seconds(200).into(),
+            None,
             None,
             None,
         );
@@ -303,7 +313,9 @@ mod create_stream_tests {
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
             app.block_info().time.plus_seconds(200).into(),
-            None, None
+            None,
+            None,
+            None,
         );
 
         let res = app
@@ -334,7 +346,9 @@ mod create_stream_tests {
             "in_denom",
             app.block_info().time.plus_seconds(100).into(),
             app.block_info().time.plus_seconds(200).into(),
-            None, None
+            None,
+            None,
+            None,
         );
 
         let res = app
@@ -375,7 +389,8 @@ mod create_stream_tests {
             app.block_info().time.plus_seconds(100).into(),
             app.block_info().time.plus_seconds(200).into(),
             Some(Uint128::from(0u128)),
-            None
+            None,
+            None,
         );
 
         let res = app
@@ -416,7 +431,6 @@ mod create_stream_tests {
             )
             .unwrap();
 
-        // End time < start time
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
@@ -426,7 +440,8 @@ mod create_stream_tests {
             app.block_info().time.plus_seconds(200).into(),
             app.block_info().time.plus_seconds(100).into(),
             None,
-            None
+            None,
+            None,
         );
         let res = app
             .execute_contract(
@@ -449,7 +464,9 @@ mod create_stream_tests {
             "in_denom",
             app.block_info().time.minus_seconds(1),
             app.block_info().time.plus_seconds(200).into(),
-            None, None
+            None,
+            None,
+            None,
         );
 
         let res = app
@@ -474,7 +491,8 @@ mod create_stream_tests {
             app.block_info().time.plus_seconds(100).into(),
             app.block_info().time.plus_seconds(101).into(),
             None,
-            None
+            None,
+            None,
         );
 
         let res = app
@@ -499,7 +517,9 @@ mod create_stream_tests {
             "in_denom",
             app.block_info().time.plus_seconds(1),
             app.block_info().time.plus_seconds(200).into(),
-            None, None
+            None,
+            None,
+            None,
         );
 
         let res = app
@@ -546,6 +566,7 @@ mod create_stream_tests {
             app.block_info().time.plus_seconds(100).into(),
             app.block_info().time.plus_seconds(200).into(),
             Some(Uint128::from(100u128)),
+            None,
             None,
         );
 

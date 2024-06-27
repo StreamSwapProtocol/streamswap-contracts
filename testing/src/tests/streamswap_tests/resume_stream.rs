@@ -51,6 +51,7 @@ mod resume_stream_test {
             end_time,
             None,
             None,
+            None,
         );
         // create stream
         let res = app

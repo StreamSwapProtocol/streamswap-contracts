@@ -43,6 +43,7 @@ mod cancel_stream {
             end_time,
             Some(Uint128::from(100u128)),
             None,
+            None,
         );
 
         let _res = app
@@ -126,6 +127,7 @@ mod cancel_stream {
             start_time,
             end_time,
             Some(Uint128::from(100u128)),
+            None,
             None,
         );
 
@@ -211,6 +213,7 @@ mod cancel_stream {
             start_time,
             end_time,
             Some(Uint128::from(100u128)),
+            None,
             None,
         );
 
@@ -310,6 +313,7 @@ mod cancel_stream {
             start_time,
             end_time,
             Some(Uint128::from(100u128)),
+            None,
             None,
         );
 
@@ -415,6 +419,7 @@ mod cancel_stream {
             start_time,
             end_time,
             Some(Uint128::from(100u128)),
+            None,
             None,
         );
 

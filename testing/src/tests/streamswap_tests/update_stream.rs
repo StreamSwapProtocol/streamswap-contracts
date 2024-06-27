@@ -8,6 +8,7 @@ mod update_stream_tests {
         setup::{setup, SetupResponse},
         utils::{get_contract_address_from_res, get_wasm_attribute_with_key},
     };
+    use cosmwasm_std::VoteOption::No;
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal, Decimal256, Uint128};
     use cw_multi_test::Executor;
     use streamswap_stream::{
@@ -46,7 +47,8 @@ mod update_stream_tests {
             app.block_info().time.plus_seconds(100).into(),
             app.block_info().time.plus_seconds(200).into(),
             Some(Uint128::from(100u128)),
-            None
+            None,
+            None,
         );
 
         let _res = app
@@ -112,7 +114,8 @@ mod update_stream_tests {
             start_time,
             end_time,
             Some(Uint128::from(100u128)),
-            None
+            None,
+            None,
         );
 
         let _res = app
@@ -230,7 +233,8 @@ mod update_stream_tests {
             start_time,
             end_time,
             Some(Uint128::from(100u128)),
-            None
+            None,
+            None,
         );
 
         let _res = app
@@ -305,7 +309,8 @@ mod update_stream_tests {
             start_time,
             end_time,
             None,
-            None
+            None,
+            None,
         );
         // Create Stream
         let res = app

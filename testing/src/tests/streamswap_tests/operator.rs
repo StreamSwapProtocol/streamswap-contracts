@@ -45,7 +45,8 @@ mod operator_tests {
             start_time,
             end_time,
             None,
-            None
+            None,
+            None,
         );
 
         let res = app
@@ -127,7 +128,8 @@ mod operator_tests {
             app.block_info().time.plus_seconds(100).into(),
             app.block_info().time.plus_seconds(200).into(),
             Some(Uint128::from(100u128)),
-            None
+            None,
+            None,
         );
 
         let res = app
@@ -274,7 +276,8 @@ mod operator_tests {
             app.block_info().time.plus_seconds(100).into(),
             app.block_info().time.plus_seconds(200).into(),
             Some(Uint128::from(100u128)),
-            None
+            None,
+            None,
         );
 
         let res = app
