@@ -187,6 +187,7 @@ fn test_compute_shares_amount() {
         Timestamp::from_seconds(100),
         Timestamp::from_seconds(0),
         None,
+        None,
     );
 
     // add new shares
