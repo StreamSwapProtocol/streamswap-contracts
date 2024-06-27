@@ -1187,6 +1187,7 @@ dependencies = [
  "cw-multi-test 0.16.5",
  "cw-storage-plus",
  "cw-utils",
+ "cw-vesting",
  "cw2",
  "osmosis-std",
  "schemars",

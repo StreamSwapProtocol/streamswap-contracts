@@ -1,6 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Timestamp, Uint128};
 use cw_storage_plus::{Item, Map};
+use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use std::ops::Mul;
 use streamswap_factory::msg::CreatePool;
 
@@ -42,6 +43,8 @@ pub struct Stream {
     pub pause_date: Option<Timestamp>,
     /// Create Pool message
     pub create_pool: Option<CreatePool>,
+    /// Vesting configuration
+    pub vesting: Option<VestingInstantiateMsg>,
 }
 
 #[cw_serde]
@@ -67,6 +70,7 @@ impl Stream {
         end_time: Timestamp,
         last_updated: Timestamp,
         create_pool: Option<CreatePool>,
+        vesting: Option<VestingInstantiateMsg>,
     ) -> Self {
         Stream {
             name,
@@ -87,6 +91,7 @@ impl Stream {
             current_streamed_price: Decimal::zero(),
             status: Status::Waiting,
             create_pool,
+            vesting,
         }
     }
 

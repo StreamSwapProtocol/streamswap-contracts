@@ -12,6 +12,7 @@ use cosmwasm_std::{
     Uint128, Uint256,
 };
 use cw2::set_contract_version;
+use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use streamswap_factory::msg::CreateStreamMsg;
 use streamswap_factory::state::Params as FactoryParams;
 use streamswap_factory::state::PARAMS as FACTORYPARAMS;
@@ -82,6 +83,7 @@ pub fn instantiate(
         end_time,
         start_time,
         create_pool,
+        vesting,
     );
     STREAM.save(deps.storage, &stream)?;
 
