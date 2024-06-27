@@ -1165,6 +1165,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
+ "cw-denom",
  "cw-multi-test 0.16.5",
  "cw-storage-plus",
  "cw-utils",
