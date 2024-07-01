@@ -28,7 +28,7 @@ mod treshold_tests {
         let end_time = app.block_info().time.plus_seconds(5_000_000).into();
         let threshold = Uint128::from(250u128);
 
-        let msg = get_factory_inst_msg(stream_swap_code_id, &test_accounts);
+        let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(
                 stream_swap_factory_code_id,
@@ -137,7 +137,7 @@ mod treshold_tests {
         let end_time = app.block_info().time.plus_seconds(5_000_000).into();
         let threshold = Uint128::from(500u128);
 
-        let msg = get_factory_inst_msg(stream_swap_code_id, &test_accounts);
+        let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(
                 stream_swap_factory_code_id,
@@ -340,7 +340,7 @@ mod treshold_tests {
         let end_time = app.block_info().time.plus_seconds(5_000_000).into();
         let threshold = Uint128::from(500u128);
 
-        let msg = get_factory_inst_msg(stream_swap_code_id, &test_accounts);
+        let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(
                 stream_swap_factory_code_id,

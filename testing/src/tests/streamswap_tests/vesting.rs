@@ -3,14 +3,14 @@ use crate::helpers::setup::{setup, SetupResponse};
 use crate::helpers::utils::{get_contract_address_from_res, get_funds_from_res};
 use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Uint128};
 use cw_multi_test::Executor;
+use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
+use cw_vesting::vesting::Schedule;
+use cw_vesting::UncheckedDenom;
 use streamswap_stream::msg::StreamResponse;
 use streamswap_stream::state::Status;
 use streamswap_stream::{
     msg::ExecuteMsg as StreamSwapExecuteMsg, msg::QueryMsg as StreamSwapQueryMsg,
 };
-use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
-use cw_vesting::UncheckedDenom;
-use cw_vesting::vesting::Schedule;
 
 #[test]
 fn test_vesting() {
@@ -23,7 +23,7 @@ fn test_vesting() {
     } = setup();
     let start_time = app.block_info().time.plus_seconds(100).into();
     let end_time = app.block_info().time.plus_seconds(200).into();
-    let msg = get_factory_inst_msg(stream_swap_code_id, &test_accounts);
+    let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
     let factory_address = app
         .instantiate_contract(
             stream_swap_factory_code_id,

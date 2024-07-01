@@ -6,6 +6,7 @@ use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated:
 #[cw_serde]
 pub struct InstantiateMsg {
     pub stream_swap_code_id: u64,
+    pub vesting_code_id: u64,
     pub protocol_admin: Option<String>,
     pub fee_collector: Option<String>,
     pub stream_creation_fee: Coin,

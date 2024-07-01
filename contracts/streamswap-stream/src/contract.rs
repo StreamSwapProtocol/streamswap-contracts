@@ -810,6 +810,24 @@ pub fn execute_exit_stream(
         vesting.recipient = operator_target.to_string();
         vesting.total = position.purchased;
 
+        /*
+        // Calculate the address of the new contract
+        let address = deps.api.addr_humanize(&cosmwasm_std::instantiate2_address(
+            factory_params,
+            salt,
+            &init_msg_bin,
+        )?)?;
+
+        // Create the instantiate message
+        let instantiate_msg = WasmMsg::Instantiate2 {
+            code_id,
+            salt: salt.to_vec(),
+            msg: init_msg_bin,
+            funds: info.funds,
+            label: None,
+            admin: None,
+        };
+
         let sub_msg = SubMsg::reply_on_success(
             CosmosMsg::Wasm(WasmMsg::Instantiate {
                 // TODO: do we want admin?
@@ -826,6 +844,8 @@ pub fn execute_exit_stream(
             REPLY_ID,
         );
         sub_msgs.push(sub_msg);
+
+         */
     } else {
         let send_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: operator_target.to_string(),

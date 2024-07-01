@@ -29,7 +29,7 @@ mod rounding_leftover {
         let start_time = Timestamp::from_seconds(1_000_000);
         let end_time = Timestamp::from_seconds(5_000_000);
 
-        let msg = get_factory_inst_msg(stream_swap_code_id, &test_accounts);
+        let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
 
         let factory_address = app
             .instantiate_contract(

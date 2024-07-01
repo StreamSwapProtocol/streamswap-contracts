@@ -13,9 +13,9 @@ license    = "Apache-2.0"
 authors = ["Orkun Külçe <orkunkl@users.noreply.github.com>", "Adnan Deniz Çorlu<adenizcorlu@gmail.com"]
 
 [workspace.dependencies]
-cosmwasm-std = "1.1.9"
-cosmwasm-schema = "1.1.9"
-cw-controllers= " 1.0.1"
+cosmwasm-std = "1.2.0"
+cosmwasm-schema = "1.2.0"
+cw-controllers = " 1.0.1"
 cw-storage-plus = "1.0.1"
 cw-utils = "1.0.1"
 cw2 = "1.0.1 "

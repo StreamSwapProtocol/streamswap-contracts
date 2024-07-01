@@ -9,10 +9,12 @@ use streamswap_factory::msg::{
 
 pub fn get_factory_inst_msg(
     stream_swap_code_id: u64,
+    vesting_code_id: u64,
     test_accounts: &TestAccounts,
 ) -> FactoryInstantiateMsg {
     FactoryInstantiateMsg {
         stream_swap_code_id,
+        vesting_code_id,
         protocol_admin: Some(test_accounts.admin.to_string()),
         fee_collector: Some(test_accounts.admin.to_string()),
         stream_creation_fee: Coin {
