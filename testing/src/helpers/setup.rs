@@ -33,15 +33,22 @@ pub fn setup() -> SetupResponse {
         streamswap_instantiate,
         streamswap_query,
     ));
+    let vesting_contract = Box::new(ContractWrapper::new(
+        cw_vesting::contract::execute,
+        cw_vesting::contract::instantiate,
+        cw_vesting::contract::query,
+    ));
 
     let stream_swap_code_id = app.store_code(stream_swap_contract);
     let stream_swap_factory_code_id = app.store_code(stream_swap_factory_contract);
+    let vesting_code_id = app.store_code(vesting_contract);
 
     SetupResponse {
         test_accounts: accounts,
         stream_swap_factory_code_id,
         stream_swap_code_id,
         app,
+        vesting_code_id,
     }
 }
 
@@ -73,6 +80,7 @@ pub struct SetupResponse {
     pub test_accounts: TestAccounts,
     pub stream_swap_factory_code_id: u64,
     pub stream_swap_code_id: u64,
+    pub vesting_code_id: u64,
 }
 
 pub struct TestAccounts {
