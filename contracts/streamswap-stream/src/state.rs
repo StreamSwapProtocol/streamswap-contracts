@@ -123,6 +123,9 @@ impl Stream {
 }
 pub const STREAM: Item<Stream> = Item::new("stream");
 
+// Vesting (owner_addr) -> (contract_addr)
+pub const VESTING: Map<Addr, Addr> = Map::new("vesting");
+
 #[cw_serde]
 pub struct Position {
     /// Creator of the position.

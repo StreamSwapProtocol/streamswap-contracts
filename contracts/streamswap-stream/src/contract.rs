@@ -3,7 +3,7 @@ use crate::msg::{
     AveragePriceResponse, ExecuteMsg, LatestStreamedPriceResponse, PositionResponse,
     PositionsResponse, QueryMsg, StreamResponse, SudoMsg,
 };
-use crate::state::{Position, Status, Stream, POSITIONS, STREAM};
+use crate::state::{Position, Status, Stream, POSITIONS, STREAM, VESTING};
 use crate::threshold::ThresholdState;
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
@@ -827,7 +827,7 @@ pub fn execute_exit_stream(
             &salt,
         )?)?;
 
-        // TODO: save vesting address
+        VESTING.save(deps.storage, operator_target.clone(), &address)?;
 
         let vesting_instantiate_msg = WasmMsg::Instantiate2 {
             admin: None,
