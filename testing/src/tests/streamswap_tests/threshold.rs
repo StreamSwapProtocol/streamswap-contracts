@@ -87,6 +87,7 @@ mod treshold_tests {
         // Threshold should be reached
         let exit_msg = StreamSwapExecuteMsg::ExitStream {
             operator_target: None,
+            salt: None,
         };
 
         let res = app
@@ -205,6 +206,7 @@ mod treshold_tests {
         // Exit should not be possible
         let exit_msg = StreamSwapExecuteMsg::ExitStream {
             operator_target: None,
+            salt: None,
         };
 
         let _res = app

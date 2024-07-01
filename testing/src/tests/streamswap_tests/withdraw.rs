@@ -214,6 +214,7 @@ mod withdraw_tests {
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::ExitStream {
                     operator_target: None,
+                    salt: None,
                 },
                 &[],
             )
@@ -361,6 +362,7 @@ mod withdraw_tests {
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::ExitStream {
                     operator_target: None,
+                    salt: None,
                 },
                 &[],
             )
@@ -372,6 +374,7 @@ mod withdraw_tests {
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::ExitStream {
                     operator_target: None,
+                    salt: None,
                 },
                 &[],
             )

@@ -440,6 +440,7 @@ mod pause_protocol_admin {
         // can't exit
         let exit_stream_msg = StreamSwapExecuteMsg::ExitStream {
             operator_target: None,
+            salt: None,
         };
         let res = app
             .execute_contract(

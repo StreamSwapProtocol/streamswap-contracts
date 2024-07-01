@@ -308,6 +308,7 @@ mod update_position_tests {
         // Exit stream
         let exit_stream_msg = StreamSwapExecuteMsg::ExitStream {
             operator_target: None,
+            salt: None,
         };
         let _res = app
             .execute_contract(

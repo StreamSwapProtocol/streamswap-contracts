@@ -7,9 +7,9 @@ use crate::state::{Position, Status, Stream, POSITIONS, STREAM};
 use crate::threshold::ThresholdState;
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
-    attr, coin, entry_point, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal,
-    Decimal256, Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdError, StdResult,
-    SubMsg, Timestamp, Uint128, Uint256, WasmMsg,
+    attr, coin, entry_point, to_json_binary, Addr, BankMsg, Binary, CodeInfoResponse, Coin,
+    CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response,
+    StdError, StdResult, SubMsg, Timestamp, Uint128, Uint256, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
@@ -173,9 +173,10 @@ pub fn execute(
         ExecuteMsg::FinalizeStream { new_treasury } => {
             execute_finalize_stream(deps, env, info, new_treasury)
         }
-        ExecuteMsg::ExitStream { operator_target } => {
-            execute_exit_stream(deps, env, info, operator_target)
-        }
+        ExecuteMsg::ExitStream {
+            operator_target,
+            salt,
+        } => execute_exit_stream(deps, env, info, operator_target, salt),
 
         ExecuteMsg::PauseStream {} => killswitch::execute_pause_stream(deps, env, info),
         ExecuteMsg::ResumeStream {} => killswitch::execute_resume_stream(deps, env, info),
@@ -758,6 +759,7 @@ pub fn execute_exit_stream(
     env: Env,
     info: MessageInfo,
     operator_target: Option<String>,
+    salt: Option<Binary>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
     let factory_params = FACTORYPARAMS.load(deps.storage)?;
@@ -800,52 +802,47 @@ pub fn execute_exit_stream(
         * Uint128::one();
 
     let mut msgs = vec![];
-    let mut sub_msgs = vec![];
     // if vesting is set, instantiate a vested release contract for user and send
     // the out tokens to the contract
     if let Some(mut vesting) = stream.vesting {
+        let salt = salt.ok_or(ContractError::InvalidSalt {})?;
+
+        // prepare vesting msg
         vesting.start_time = Some(stream.end_time);
         // TODO: check if we want an owner?
         vesting.owner = None;
         vesting.recipient = operator_target.to_string();
         vesting.total = position.purchased;
 
-        /*
+        // prepare instantiate msg msg
+        let CodeInfoResponse { checksum, .. } = deps
+            .querier
+            .query_wasm_code_info(factory_params.vesting_code_id)?;
+        let creator = deps.api.addr_canonicalize(env.contract.address.as_str())?;
+
         // Calculate the address of the new contract
         let address = deps.api.addr_humanize(&cosmwasm_std::instantiate2_address(
-            factory_params,
-            salt,
-            &init_msg_bin,
+            checksum.as_ref(),
+            &creator,
+            &salt,
         )?)?;
 
-        // Create the instantiate message
-        let instantiate_msg = WasmMsg::Instantiate2 {
-            code_id,
-            salt: salt.to_vec(),
-            msg: init_msg_bin,
-            funds: info.funds,
-            label: None,
+        // TODO: save vesting address
+
+        let vesting_instantiate_msg = WasmMsg::Instantiate2 {
             admin: None,
+            code_id: factory_params.vesting_code_id,
+            label: format!(
+                "streamswap: Stream Addr {} Released to {}",
+                env.contract.address.to_string(),
+                operator_target.to_string()
+            ),
+            msg: to_json_binary(&vesting)?,
+            funds: vec![coin(position.purchased.u128(), stream.out_asset.denom)],
+            salt,
         };
 
-        let sub_msg = SubMsg::reply_on_success(
-            CosmosMsg::Wasm(WasmMsg::Instantiate {
-                // TODO: do we want admin?
-                admin: None,
-                code_id: factory_params.stream_swap_code_id,
-                msg: to_json_binary(&vesting)?,
-                funds: vec![coin(position.purchased.u128(), stream.out_asset.denom)],
-                label: format!(
-                    "streamswap: Stream Addr {} Released to {}",
-                    env.contract.address.to_string(),
-                    operator_target.to_string()
-                ),
-            }),
-            REPLY_ID,
-        );
-        sub_msgs.push(sub_msg);
-
-         */
+        msgs.push(vesting_instantiate_msg.into());
     } else {
         let send_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: operator_target.to_string(),
@@ -878,7 +875,6 @@ pub fn execute_exit_stream(
 
     Ok(Response::new()
         .add_messages(msgs)
-        .add_submessages(sub_msgs)
         .add_attributes(attributes))
 }
 

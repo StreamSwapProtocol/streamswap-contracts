@@ -234,6 +234,7 @@ mod operator_tests {
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::ExitStream {
                     operator_target: Some(test_accounts.subscriber_1.clone().into_string()),
+                    salt: None,
                 },
                 &[],
             )
