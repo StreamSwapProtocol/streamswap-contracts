@@ -8,6 +8,9 @@ use streamswap_stream::state::Status;
 use streamswap_stream::{
     msg::ExecuteMsg as StreamSwapExecuteMsg, msg::QueryMsg as StreamSwapQueryMsg,
 };
+use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
+use cw_vesting::UncheckedDenom;
+use cw_vesting::vesting::Schedule;
 
 #[test]
 fn test_vesting() {
@@ -31,6 +34,18 @@ fn test_vesting() {
             None,
         )
         .unwrap();
+    let vesting_msg = VestingInstantiateMsg {
+        owner: None,
+        recipient: test_accounts.subscriber_1.to_string(),
+        title: "Streamswap vesting".to_string(),
+        description: None,
+        total: Uint128::new(0),
+        denom: UncheckedDenom::Native("out_denom".to_string()),
+        schedule: Schedule::SaturatingLinear,
+        start_time: None,
+        vesting_duration_seconds: 150,
+        unbonding_duration_seconds: 0,
+    };
     let create_stream_msg = get_create_stream_msg(
         &"Stream Swap tests".to_string(),
         None,
@@ -41,7 +56,7 @@ fn test_vesting() {
         end_time,
         None,
         None,
-        None,
+        Some(vesting_msg),
     );
     let res = app
         .execute_contract(
@@ -80,6 +95,7 @@ fn test_vesting() {
             &[],
         )
         .unwrap();
+
     let stream_swap_funds = get_funds_from_res(res);
     assert_eq!(
         stream_swap_funds,
