@@ -7,9 +7,9 @@ use crate::state::{Position, Status, Stream, POSITIONS, STREAM, VESTING};
 use crate::threshold::ThresholdState;
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
-    attr, coin, entry_point, to_json_binary, Addr, BankMsg, Binary, CodeInfoResponse, Coin,
-    CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response,
-    StdError, StdResult, SubMsg, Timestamp, Uint128, Uint256, WasmMsg,
+    attr, coin, entry_point, to_json_binary, Addr, Attribute, BankMsg, Binary, CodeInfoResponse,
+    Coin, CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, Fraction, MessageInfo, Order,
+    Response, StdError, StdResult, SubMsg, Timestamp, Uint128, Uint256, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
@@ -801,7 +801,9 @@ pub fn execute_exit_stream(
         .checked_mul(factory_params.exit_fee_percent)?
         * Uint128::one();
 
-    let mut msgs = vec![];
+    let mut msgs: Vec<CosmosMsg> = vec![];
+    let mut attrs: Vec<Attribute> = vec![];
+
     // if vesting is set, instantiate a vested release contract for user and send
     // the out tokens to the contract
     if let Some(mut vesting) = stream.vesting {
@@ -843,6 +845,7 @@ pub fn execute_exit_stream(
         };
 
         msgs.push(vesting_instantiate_msg.into());
+        attrs.push(attr("vesting_address", address));
     } else {
         let send_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: operator_target.to_string(),
@@ -866,16 +869,14 @@ pub fn execute_exit_stream(
         msgs.push(unspent_msg);
     }
 
-    let attributes = vec![
+    attrs.extend(vec![
         attr("action", "exit_stream"),
         attr("spent", position.spent.checked_sub(swap_fee)?),
         attr("purchased", position.purchased),
         attr("swap_fee_paid", swap_fee),
-    ];
+    ]);
 
-    Ok(Response::new()
-        .add_messages(msgs)
-        .add_attributes(attributes))
+    Ok(Response::new().add_messages(msgs).add_attributes(attrs))
 }
 
 fn check_access(

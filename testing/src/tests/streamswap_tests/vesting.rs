@@ -2,7 +2,9 @@
 mod vesting_tests {
     use crate::helpers::mock_messages::{get_create_stream_msg, get_factory_inst_msg};
     use crate::helpers::setup::{setup, SetupResponse};
-    use crate::helpers::utils::{get_contract_address_from_res, get_funds_from_res};
+    use crate::helpers::utils::{
+        get_contract_address_from_res, get_funds_from_res, get_wasm_attribute_with_key,
+    };
     use cosmwasm_std::{coin, Addr, Api, Binary, BlockInfo, Coin, Uint128};
     use cw_multi_test::Executor;
     use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
@@ -148,10 +150,6 @@ mod vesting_tests {
             operator_target: None,
             salt: Some(Binary::from_base64("salt").unwrap()),
         };
-        let addr = app
-            .api()
-            .addr_validate(test_accounts.subscriber_1.to_string().as_str())
-            .unwrap();
         let res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
@@ -160,5 +158,11 @@ mod vesting_tests {
                 &[],
             )
             .unwrap();
+
+        let vesting_addr = get_wasm_attribute_with_key(res, "vesting_address".to_string());
+        let contract_data = app.contract_data(&Addr::unchecked(vesting_addr)).unwrap();
+
+        // Not the best test :(
+        assert_eq!(contract_data.code_id, vesting_code_id);
     }
 }
