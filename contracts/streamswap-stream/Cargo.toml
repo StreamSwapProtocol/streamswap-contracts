@@ -30,7 +30,7 @@ optimize = """docker run --rm -v "$(pwd)":/code \
 """
 
 [dependencies]
-cosmwasm-std = { workspace = true, features = ["cosmwasm_1_2"] }
+cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cw-controllers= { workspace = true }
 cw-storage-plus = { workspace = true }
@@ -41,9 +41,9 @@ schemars = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 semver = { workspace = true }
-osmosis-std = "0.24"
+osmosis-std = { workspace = true }
 streamswap-factory = { path = "../streamswap-factory" }
 
 
 [dev-dependencies]
-cw-multi-test = "0.16.2"
+cw-multi-test = { workspace = true }
