@@ -3,6 +3,7 @@ mod create_stream;
 mod exit_cancel;
 mod finalize_stream;
 mod operator;
+mod pool;
 mod pause_protocol_admin;
 mod resume_protocol_admin;
 mod resume_stream;

@@ -40,7 +40,7 @@ schemars ={ workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 semver = { workspace = true }
-osmosis-std = "0.24"
+osmosis-std = { workspace = true }
 streamswap-factory = { path = "../streamswap-factory" }
 
 

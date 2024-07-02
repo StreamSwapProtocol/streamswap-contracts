@@ -26,7 +26,6 @@ pub fn instantiate(
         fee_collector,
         min_stream_seconds,
         min_seconds_until_start_time,
-        pool_creation_denom,
     } = msg;
 
     let protocol_admin = deps

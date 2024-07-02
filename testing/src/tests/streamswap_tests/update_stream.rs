@@ -46,7 +46,7 @@ mod update_stream_tests {
             app.block_info().time.plus_seconds(100).into(),
             app.block_info().time.plus_seconds(200).into(),
             Some(Uint128::from(100u128)),
-            None
+            None,
         );
 
         let _res = app
@@ -112,7 +112,7 @@ mod update_stream_tests {
             start_time,
             end_time,
             Some(Uint128::from(100u128)),
-            None
+            None,
         );
 
         let _res = app
@@ -230,7 +230,7 @@ mod update_stream_tests {
             start_time,
             end_time,
             Some(Uint128::from(100u128)),
-            None
+            None,
         );
 
         let _res = app
@@ -305,7 +305,7 @@ mod update_stream_tests {
             start_time,
             end_time,
             None,
-            None
+            None,
         );
         // Create Stream
         let res = app

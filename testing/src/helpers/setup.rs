@@ -1,5 +1,10 @@
-use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Timestamp};
-use cw_multi_test::{App, BankSudo, ContractWrapper, Executor, SudoMsg};
+use crate::helpers::stargate::MyStargateKeeper;
+use cosmwasm_std::testing::{MockApi, MockStorage};
+use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Empty, Timestamp};
+use cw_multi_test::{
+    App, AppBuilder, BankKeeper, BankSudo, ContractWrapper, DistributionKeeper, FailingModule,
+    GovFailingModule, IbcFailingModule, StakeKeeper, SudoMsg, WasmKeeper,
+};
 use streamswap_factory::contract::{
     execute as factory_execute, instantiate as factory_instantiate, query as factory_query,
 };
@@ -8,15 +13,27 @@ use streamswap_stream::contract::{
 };
 
 pub fn setup() -> SetupResponse {
-    let mut app = App::default();
-    let accounts = create_test_accounts();
     let denoms = vec![
         "fee_denom".to_string(),
         "out_denom".to_string(),
         "in_denom".to_string(),
         "wrong_denom".to_string(),
     ];
-    accounts.fund_accounts(&mut app, denoms);
+    let accounts = create_test_accounts();
+    let all_accounts = accounts.all();
+    let mut app = AppBuilder::default()
+        .with_stargate(MyStargateKeeper {})
+        .build(|router, _, storage| {
+            all_accounts.iter().for_each(|account| {
+                let amount = 1_000_000_000_000_000u128;
+                let coins: Vec<Coin> = denoms
+                    .iter()
+                    .map(|denom| coin(amount, denom.clone()))
+                    .collect();
+                router.bank.init_balance(storage, &account, coins).unwrap();
+            });
+        });
+
     app.set_block(BlockInfo {
         chain_id: "test_1".to_string(),
         height: 1_000,
@@ -67,9 +84,19 @@ pub fn mint_to_address(app: &mut App, to_address: String, amount: Vec<Coin>) {
     app.sudo(SudoMsg::Bank(BankSudo::Mint { to_address, amount }))
         .unwrap();
 }
-
 pub struct SetupResponse {
-    pub app: App,
+    pub app: App<
+        BankKeeper,
+        MockApi,
+        MockStorage,
+        FailingModule<Empty, Empty, Empty>,
+        WasmKeeper<Empty, Empty>,
+        StakeKeeper,
+        DistributionKeeper,
+        IbcFailingModule,
+        GovFailingModule,
+        MyStargateKeeper,
+    >,
     pub test_accounts: TestAccounts,
     pub stream_swap_factory_code_id: u64,
     pub stream_swap_code_id: u64,
@@ -93,16 +120,5 @@ impl TestAccounts {
             self.wrong_user.clone(),
             self.creator_2.clone(),
         ]
-    }
-
-    pub fn fund_accounts(&self, app: &mut App, denoms: Vec<String>) {
-        // Collect all accounts
-        let accounts = self.all();
-        denoms.iter().for_each(|denom| {
-            let amount = 1_000_000_000_000_000u128;
-            accounts.iter().for_each(|account| {
-                mint_to_address(app, account.to_string(), vec![coin(amount, denom.clone())]);
-            });
-        });
     }
 }
