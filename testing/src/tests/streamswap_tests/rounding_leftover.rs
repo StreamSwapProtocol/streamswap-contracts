@@ -6,7 +6,7 @@ mod rounding_leftover {
     use crate::helpers::utils::get_contract_address_from_res;
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-        setup::{setup, SetupResponse},
+        suite::{setup, SetupResponse},
     };
     use cosmwasm_std::Uint128;
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Timestamp};

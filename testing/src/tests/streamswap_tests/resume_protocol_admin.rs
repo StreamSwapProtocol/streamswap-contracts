@@ -5,7 +5,7 @@ mod resume_protocol_admin {
 
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-        setup::{setup, SetupResponse},
+        suite::{setup, SetupResponse},
         utils::{get_contract_address_from_res, get_wasm_attribute_with_key},
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal, Decimal256, Uint128};

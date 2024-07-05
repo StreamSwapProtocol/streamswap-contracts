@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod vesting_tests {
     use crate::helpers::mock_messages::{get_create_stream_msg, get_factory_inst_msg};
-    use crate::helpers::setup::{setup, SetupResponse};
+    use crate::helpers::suite::{setup, SetupResponse};
     use crate::helpers::utils::{
         get_contract_address_from_res, get_funds_from_res, get_wasm_attribute_with_key,
     };

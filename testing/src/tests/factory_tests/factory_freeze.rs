@@ -1,7 +1,7 @@
 #![cfg(test)]
 use crate::helpers::{
     mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-    setup::{setup, SetupResponse},
+    suite::{setup, SetupResponse},
 };
 use cosmwasm_std::coin;
 use cw_multi_test::Executor;

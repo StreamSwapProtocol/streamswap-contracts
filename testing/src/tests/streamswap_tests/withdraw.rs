@@ -5,7 +5,7 @@ mod withdraw_tests {
     #[cfg(test)]
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-        setup::setup,
+        suite::setup,
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128};
     use cw_multi_test::Executor;
