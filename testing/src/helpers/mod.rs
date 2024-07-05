@@ -1,4 +1,4 @@
 pub mod mock_messages;
-pub mod suite;
 mod stargate;
+pub mod suite;
 pub mod utils;
