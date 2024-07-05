@@ -1,8 +1,9 @@
 use crate::helpers::stargate::MyStargateKeeper;
 use cosmwasm_std::testing::{MockApi, MockStorage};
+use cosmwasm_std::Empty;
 use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Timestamp};
 use cw_multi_test::addons::{MockAddressGenerator, MockApiBech32};
-use cw_multi_test::{App, AppBuilder, BankKeeper, BankSudo, ContractWrapper, SudoMsg, WasmKeeper};
+use cw_multi_test::{App, AppBuilder, BankKeeper, ContractWrapper, Stargate, WasmKeeper};
 use cw_multi_test::{
     DistributionKeeper, FailingModule, GovFailingModule, IbcFailingModule, StakeKeeper,
 };
@@ -23,6 +24,7 @@ pub fn setup() -> SetupResponse {
     let mut app = AppBuilder::default()
         .with_api(api)
         .with_wasm(WasmKeeper::default().with_address_generator(MockAddressGenerator))
+        .with_stargate(MyStargateKeeper {})
         .build(|router, api, storage| {
             accounts.all().iter().for_each(|account| {
                 let coins: Vec<Coin> = denoms.iter().map(|d| coin(amount, d.clone())).collect();
@@ -86,7 +88,18 @@ fn create_test_accounts(api: &MockApiBech32) -> TestAccounts {
 }
 
 pub struct SetupResponse {
-    pub app: App<BankKeeper, MockApiBech32>,
+    pub app: App<
+        BankKeeper,
+        MockApiBech32,
+        MockStorage,
+        FailingModule<Empty, Empty, Empty>,
+        WasmKeeper<Empty, Empty>,
+        StakeKeeper,
+        DistributionKeeper,
+        IbcFailingModule,
+        GovFailingModule,
+        MyStargateKeeper,
+    >,
     pub test_accounts: TestAccounts,
     pub stream_swap_factory_code_id: u64,
     pub stream_swap_code_id: u64,
