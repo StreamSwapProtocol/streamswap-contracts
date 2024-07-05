@@ -267,6 +267,7 @@ mod create_stream_tests {
                 &[coin(100, "fee_denom")],
             )
             .unwrap_err();
+        let err = res.source().unwrap().source().unwrap();
         let error = err.downcast_ref::<StreamSwapError>().unwrap();
         assert_eq!(*error, StreamSwapError::ZeroOutSupply {});
 
