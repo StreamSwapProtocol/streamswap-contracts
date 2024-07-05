@@ -1,20 +1,18 @@
-use cosmwasm_std::testing::MockApi;
+use cosmwasm_std::testing::{MockApi, MockStorage};
 use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Timestamp};
-use cw_multi_test::addons::{MockAddressGenerator, MockApiBech32};
 use cw_multi_test::{
-    no_init, App, AppBuilder, BankKeeper, BankSudo, ContractWrapper, Executor, SudoMsg, WasmKeeper,
+    App, AppBuilder, BankKeeper, BankSudo, ContractWrapper, SudoMsg, WasmKeeper,
 };
-use streamswap_factory::contract::{
-    execute as factory_execute, instantiate as factory_instantiate, query as factory_query,
-};
-use streamswap_stream::contract::{
-    execute as streamswap_execute, instantiate as streamswap_instantiate, query as streamswap_query,
-};
+use cw_multi_test::addons::{MockAddressGenerator, MockApiBech32};
+use crate::helpers::stargate::MyStargateKeeper;
+use cw_multi_test::{DistributionKeeper, FailingModule, GovFailingModule, IbcFailingModule, StakeKeeper};
+
 
 pub const PREFIX: &str = "cosmwasm";
 
 pub fn setup() -> SetupResponse {
     let accounts = create_test_accounts();
+=======
     let denoms = vec![
         "fee_denom".to_string(),
         "out_denom".to_string(),
@@ -29,8 +27,6 @@ pub fn setup() -> SetupResponse {
             accounts.all().iter().for_each(|account| {
                 let coins = denoms.iter().map(|d| coin(amount, d.clone())).collect();
                 router.bank.init_balance(storage, account, coins).unwrap();
-            });
-        });
 
     app.set_block(BlockInfo {
         chain_id: "test_1".to_string(),

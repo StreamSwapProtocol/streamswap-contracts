@@ -1048,6 +1048,8 @@ dependencies = [
  "cw-utils",
  "cw-vesting",
  "cw2",
+ "osmosis-std",
+ "prost 0.12.6",
  "schemars",
  "streamswap-factory",
  "streamswap-stream",

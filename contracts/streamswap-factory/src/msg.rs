@@ -14,7 +14,6 @@ pub struct InstantiateMsg {
     pub accepted_in_denoms: Vec<String>,
     pub min_stream_seconds: u64,
     pub min_seconds_until_start_time: u64,
-    pub pool_creation_denom: String,
 }
 
 #[cw_serde]
