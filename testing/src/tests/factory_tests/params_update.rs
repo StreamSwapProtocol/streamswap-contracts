@@ -158,7 +158,7 @@ fn params_update() {
         stream_creation_fee: None,
         exit_fee_percent: None,
         accepted_in_denoms: None,
-        fee_collector: Some("new_fee_collector".to_string()),
+        fee_collector: test_accounts.admin_2.to_string().into(),
         min_seconds_until_start_time: None,
         min_stream_seconds: None,
     };

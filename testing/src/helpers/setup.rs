@@ -1,18 +1,16 @@
+use crate::helpers::stargate::MyStargateKeeper;
 use cosmwasm_std::testing::{MockApi, MockStorage};
 use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Timestamp};
-use cw_multi_test::{
-    App, AppBuilder, BankKeeper, BankSudo, ContractWrapper, SudoMsg, WasmKeeper,
-};
 use cw_multi_test::addons::{MockAddressGenerator, MockApiBech32};
-use crate::helpers::stargate::MyStargateKeeper;
-use cw_multi_test::{DistributionKeeper, FailingModule, GovFailingModule, IbcFailingModule, StakeKeeper};
-
+use cw_multi_test::{App, AppBuilder, BankKeeper, BankSudo, ContractWrapper, SudoMsg, WasmKeeper};
+use cw_multi_test::{
+    DistributionKeeper, FailingModule, GovFailingModule, IbcFailingModule, StakeKeeper,
+};
 
 pub const PREFIX: &str = "cosmwasm";
 
 pub fn setup() -> SetupResponse {
     let accounts = create_test_accounts();
-=======
     let denoms = vec![
         "fee_denom".to_string(),
         "out_denom".to_string(),
@@ -20,13 +18,16 @@ pub fn setup() -> SetupResponse {
         "wrong_denom".to_string(),
     ];
     let amount = 1_000_000_000_000_000u128;
+
     let mut app = AppBuilder::default()
         .with_api(MockApiBech32::new(PREFIX))
         .with_wasm(WasmKeeper::default().with_address_generator(MockAddressGenerator))
         .build(|router, api, storage| {
             accounts.all().iter().for_each(|account| {
-                let coins = denoms.iter().map(|d| coin(amount, d.clone())).collect();
+                let coins: Vec<Coin> = denoms.iter().map(|d| coin(amount, d.clone())).collect();
                 router.bank.init_balance(storage, account, coins).unwrap();
+            });
+        });
 
     app.set_block(BlockInfo {
         chain_id: "test_1".to_string(),
@@ -35,14 +36,14 @@ pub fn setup() -> SetupResponse {
     });
 
     let stream_swap_factory_contract = Box::new(ContractWrapper::new(
-        factory_execute,
-        factory_instantiate,
-        factory_query,
+        streamswap_factory::contract::execute,
+        streamswap_factory::contract::instantiate,
+        streamswap_factory::contract::query,
     ));
     let stream_swap_contract = Box::new(ContractWrapper::new(
-        streamswap_execute,
-        streamswap_instantiate,
-        streamswap_query,
+        streamswap_stream::contract::execute,
+        streamswap_stream::contract::instantiate,
+        streamswap_stream::contract::query,
     ));
     let vesting_contract = Box::new(ContractWrapper::new(
         cw_vesting::contract::execute,
@@ -65,6 +66,7 @@ pub fn setup() -> SetupResponse {
 
 fn create_test_accounts() -> TestAccounts {
     let admin = Addr::unchecked("cosmwasm1txtvsrrlxjx6w8u0txlkyrgr5pryppy0qxurhf");
+    let admin_2 = Addr::unchecked("cosmwasm2txtvsrrlxjx6w8u0txlkyrgr5pryppy0qxurhf");
     let creator_1 = Addr::unchecked("cosmwasm1cr3y8u3e4s8cvdcmzsc3npamqnlrfm3laq5knl");
     let subscriber_1 = Addr::unchecked("cosmwasm1a3tg0fs480c2lgv3ter6gr48rvs44y5gyxs6fc");
     let subscriber_2 = Addr::unchecked("cosmwasm1x59j93fhlmu3hvr62seczznmjfhpgcfm8ytjhk");
@@ -73,6 +75,7 @@ fn create_test_accounts() -> TestAccounts {
 
     TestAccounts {
         admin,
+        admin_2,
         creator_1,
         subscriber_1,
         subscriber_2,
@@ -91,12 +94,14 @@ pub struct SetupResponse {
 
 pub struct TestAccounts {
     pub admin: Addr,
+    pub admin_2: Addr,
     pub creator_1: Addr,
     pub subscriber_1: Addr,
     pub subscriber_2: Addr,
     pub wrong_user: Addr,
     pub creator_2: Addr,
 }
+
 impl TestAccounts {
     pub fn all(&self) -> Vec<Addr> {
         vec![

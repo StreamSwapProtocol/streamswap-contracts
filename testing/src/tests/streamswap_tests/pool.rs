@@ -16,6 +16,7 @@ mod pool_tests {
             test_accounts,
             stream_swap_code_id,
             stream_swap_factory_code_id,
+            vesting_code_id,
         } = setup();
 
         let start_time = app.block_info().time.plus_seconds(1_000_000).into();
@@ -34,7 +35,7 @@ mod pool_tests {
         let subs1_token = Coin::new(1_000_000_000, in_denom);
         let subs2_token = Coin::new(3_000_000_000, in_denom);
 
-        let msg = get_factory_inst_msg(stream_swap_code_id, &test_accounts);
+        let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(
                 stream_swap_factory_code_id,
@@ -64,6 +65,7 @@ mod pool_tests {
                     spread_factor: "10".to_string(),
                 },
             }),
+            None,
         );
         let res = app
             .execute_contract(

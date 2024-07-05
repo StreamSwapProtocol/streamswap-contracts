@@ -25,6 +25,7 @@ pub fn get_factory_inst_msg(
         accepted_in_denoms: vec!["in_denom".to_string()],
         min_stream_seconds: 100,
         min_seconds_until_start_time: 100,
+        pool_creation_denom: "fee_denom".to_string(),
     }
 }
 
