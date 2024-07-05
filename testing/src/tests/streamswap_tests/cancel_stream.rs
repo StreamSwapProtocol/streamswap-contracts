@@ -2,7 +2,7 @@
 mod cancel_stream {
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-        suite::{setup, SetupResponse},
+        suite::{setup, Suite},
         utils::{get_contract_address_from_res, get_funds_from_res, get_wasm_attribute_with_key},
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Uint128};
@@ -11,7 +11,7 @@ mod cancel_stream {
 
     #[test]
     fn cancel_stream_error_unauthorized() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
@@ -97,7 +97,7 @@ mod cancel_stream {
 
     #[test]
     fn cancel_steam_error_without_pause() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
@@ -183,7 +183,7 @@ mod cancel_stream {
 
     #[test]
     fn cancel_stream_happy_path() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
@@ -285,7 +285,7 @@ mod cancel_stream {
 
     #[test]
     fn cancel_stream_error_already_cancelled() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
@@ -391,7 +391,7 @@ mod cancel_stream {
 
     #[test]
     fn cancel_stream_after_end_time() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,

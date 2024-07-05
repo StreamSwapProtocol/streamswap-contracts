@@ -4,7 +4,7 @@ mod operator_tests {
     use crate::helpers::utils::{get_contract_address_from_res, get_funds_from_res};
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-        suite::{setup, SetupResponse},
+        suite::{setup, Suite},
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Uint128};
     use cw_multi_test::Executor;
@@ -15,7 +15,7 @@ mod operator_tests {
 
     #[test]
     fn test_operator_first_subscribe() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
@@ -102,7 +102,7 @@ mod operator_tests {
 
     #[test]
     fn test_operator_after_subscribe() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
@@ -251,7 +251,7 @@ mod operator_tests {
 
     #[test]
     fn test_update_operator() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,

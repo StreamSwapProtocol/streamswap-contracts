@@ -5,7 +5,7 @@ mod pause_protocol_admin {
 
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-        suite::{setup, SetupResponse},
+        suite::{setup, Suite},
         utils::{get_contract_address_from_res, get_wasm_attribute_with_key},
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal, Decimal256, Uint128};
@@ -20,7 +20,7 @@ mod pause_protocol_admin {
 
     #[test]
     fn test_cant_pause_before_start() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
@@ -91,7 +91,7 @@ mod pause_protocol_admin {
 
     #[test]
     fn test_cant_pause_after_end() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
@@ -176,7 +176,7 @@ mod pause_protocol_admin {
 
     #[test]
     fn pause_stream_auth_checks() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
@@ -252,7 +252,7 @@ mod pause_protocol_admin {
     }
     #[test]
     fn test_pause_happy_path() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,

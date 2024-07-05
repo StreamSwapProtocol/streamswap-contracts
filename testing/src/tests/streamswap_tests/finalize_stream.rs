@@ -3,7 +3,7 @@ mod finalize_stream_tests {
     use crate::helpers::utils::{get_contract_address_from_res, get_funds_from_res};
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-        suite::{setup, SetupResponse},
+        suite::{setup, Suite},
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Uint128};
     use cw_multi_test::Executor;
@@ -15,7 +15,7 @@ mod finalize_stream_tests {
 
     #[test]
     fn test_recurring_finalize_stream_calls() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
@@ -130,7 +130,7 @@ mod finalize_stream_tests {
 
     #[test]
     fn test_finalize_authorizations() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
@@ -247,7 +247,7 @@ mod finalize_stream_tests {
 
     #[test]
     fn test_finalize_with_new_treasury() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,

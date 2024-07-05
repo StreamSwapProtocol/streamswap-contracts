@@ -5,7 +5,7 @@ mod update_stream_tests {
 
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-        suite::{setup, SetupResponse},
+        suite::{setup, Suite},
         utils::{get_contract_address_from_res, get_wasm_attribute_with_key},
     };
     use cosmwasm_std::VoteOption::No;
@@ -19,7 +19,7 @@ mod update_stream_tests {
 
     #[test]
     fn update_stream_without_subscription() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
@@ -84,7 +84,7 @@ mod update_stream_tests {
 
     #[test]
     fn update_stream_during_bootstraping_period() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
@@ -204,7 +204,7 @@ mod update_stream_tests {
 
     #[test]
     fn update_stream_error_stream_paused() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
@@ -283,7 +283,7 @@ mod update_stream_tests {
     }
     #[test]
     fn test_price_feed() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,

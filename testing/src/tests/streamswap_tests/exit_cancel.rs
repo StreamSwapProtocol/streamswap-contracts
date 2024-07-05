@@ -2,7 +2,7 @@
 mod exit_cancel {
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-        suite::{setup, SetupResponse},
+        suite::{setup, Suite},
         utils::{get_contract_address_from_res, get_funds_from_res},
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Uint128};
@@ -11,7 +11,7 @@ mod exit_cancel {
 
     #[test]
     fn exit_without_stream_cancelled() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
@@ -98,7 +98,7 @@ mod exit_cancel {
 
     #[test]
     fn exit_with_random_operator() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
@@ -203,7 +203,7 @@ mod exit_cancel {
 
     #[test]
     fn exit_cancel_happy_path() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,

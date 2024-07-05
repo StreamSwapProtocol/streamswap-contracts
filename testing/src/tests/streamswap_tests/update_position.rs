@@ -7,7 +7,7 @@ mod update_position_tests {
     #[cfg(test)]
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-        suite::{setup, SetupResponse},
+        suite::{setup, Suite},
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128};
     use cw_multi_test::Executor;
@@ -20,7 +20,7 @@ mod update_position_tests {
 
     #[test]
     fn update_position() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,

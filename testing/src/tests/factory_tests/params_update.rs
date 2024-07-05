@@ -1,7 +1,7 @@
 #![cfg(test)]
 use crate::helpers::{
     mock_messages::get_factory_inst_msg,
-    suite::{setup, SetupResponse},
+    suite::{setup, Suite},
 };
 use cosmwasm_std::{coin, Addr, Decimal};
 use cw_multi_test::Executor;
@@ -10,7 +10,7 @@ use streamswap_factory::{msg::ExecuteMsg, msg::QueryMsg, state::Params};
 
 #[test]
 fn params_update() {
-    let SetupResponse {
+    let Suite {
         mut app,
         test_accounts,
         stream_swap_code_id,

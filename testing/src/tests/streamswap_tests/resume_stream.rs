@@ -6,7 +6,7 @@ mod resume_stream_test {
     use crate::helpers::utils::{get_contract_address_from_res, get_funds_from_res};
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-        suite::{setup, SetupResponse},
+        suite::{setup, Suite},
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Decimal256, Uint128};
     use cw_multi_test::Executor;
@@ -21,7 +21,7 @@ mod resume_stream_test {
 
     #[test]
     fn test_resume() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,

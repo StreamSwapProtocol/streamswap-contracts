@@ -5,7 +5,7 @@ mod resume_protocol_admin {
 
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-        suite::{setup, SetupResponse},
+        suite::{setup, Suite},
         utils::{get_contract_address_from_res, get_wasm_attribute_with_key},
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal, Decimal256, Uint128};
@@ -20,7 +20,7 @@ mod resume_protocol_admin {
     };
     #[test]
     fn resume_protocol() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
@@ -194,7 +194,7 @@ mod resume_protocol_admin {
 
     #[test]
     fn resume_failed_checks() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,

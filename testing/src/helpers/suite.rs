@@ -10,7 +10,7 @@ use cw_multi_test::{
 
 pub const PREFIX: &str = "cosmwasm";
 
-pub fn setup() -> SetupResponse {
+pub fn setup() -> Suite {
     let denoms = vec![
         "fee_denom".to_string(),
         "out_denom".to_string(),
@@ -58,7 +58,7 @@ pub fn setup() -> SetupResponse {
     let stream_swap_factory_code_id = app.store_code(stream_swap_factory_contract);
     let vesting_code_id = app.store_code(vesting_contract);
 
-    SetupResponse {
+    Suite {
         test_accounts: accounts,
         stream_swap_factory_code_id,
         stream_swap_code_id,
@@ -87,7 +87,7 @@ fn create_test_accounts(api: &MockApiBech32) -> TestAccounts {
     }
 }
 
-pub struct SetupResponse {
+pub(crate) struct Suite {
     pub app: App<
         BankKeeper,
         MockApiBech32,
@@ -105,7 +105,16 @@ pub struct SetupResponse {
     pub stream_swap_code_id: u64,
     pub vesting_code_id: u64,
 }
+/*
+pub(crate) struct Suite {
+    app: App,
+    pub owner: Option<Addr>,
+    pub receiver: Addr,
+    pub vesting: Addr,
+    pub total: Uint128,
+}
 
+ */
 pub struct TestAccounts {
     pub admin: Addr,
     pub admin_2: Addr,

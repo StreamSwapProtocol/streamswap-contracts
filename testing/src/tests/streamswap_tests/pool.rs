@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod pool_tests {
     use crate::helpers::mock_messages::{get_create_stream_msg, get_factory_inst_msg};
-    use crate::helpers::suite::{setup, SetupResponse};
+    use crate::helpers::suite::{setup, Suite};
     use crate::helpers::utils::get_contract_address_from_res;
     use cosmwasm_std::{coin, Addr, Coin};
     use cw_multi_test::Executor;
@@ -11,7 +11,7 @@ mod pool_tests {
 
     #[test]
     fn test_pool_creation() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,

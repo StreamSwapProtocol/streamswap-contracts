@@ -2,7 +2,7 @@
 mod create_stream_tests {
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-        suite::{setup, SetupResponse},
+        suite::{setup, Suite},
     };
     use cosmwasm_std::{coin, Uint128};
     use cw_multi_test::Executor;
@@ -13,7 +13,7 @@ mod create_stream_tests {
 
     #[test]
     fn create_stream_failed_name_url_checks() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
@@ -174,7 +174,7 @@ mod create_stream_tests {
 
     #[test]
     fn create_stream_failed_fund_checks() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
@@ -411,7 +411,7 @@ mod create_stream_tests {
 
     #[test]
     fn create_stream_failed_duration_checks() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
@@ -538,7 +538,7 @@ mod create_stream_tests {
 
     #[test]
     fn create_stream_happy_path() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
