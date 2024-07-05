@@ -208,7 +208,6 @@ pub fn execute_update_params(
     exit_fee_percent: Option<Decimal>,
 ) -> Result<Response, ContractError> {
     let mut params = PARAMS.load(deps.storage)?;
-
     if info.sender != params.protocol_admin {
         return Err(ContractError::Unauthorized {});
     }
@@ -226,7 +225,6 @@ pub fn execute_update_params(
     if let Some(fee_collector) = fee_collector {
         params.fee_collector = deps.api.addr_validate(&fee_collector)?;
     }
-
     if let Some(accepted_in_denoms) = accepted_in_denoms {
         params.accepted_in_denoms = accepted_in_denoms;
     }
