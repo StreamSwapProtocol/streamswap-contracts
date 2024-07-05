@@ -177,7 +177,7 @@ fn params_update() {
         .query_wasm_smart(factory_address.clone(), &QueryMsg::Params {})
         .unwrap();
 
-    assert_eq!(res.fee_collector, Addr::unchecked("new_fee_collector"));
+    assert_eq!(res.fee_collector, test_accounts.admin_2);
 
     // Update min stream seconds
     let msg = ExecuteMsg::UpdateParams {

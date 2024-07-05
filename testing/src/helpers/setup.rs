@@ -10,7 +10,6 @@ use cw_multi_test::{
 pub const PREFIX: &str = "cosmwasm";
 
 pub fn setup() -> SetupResponse {
-    let accounts = create_test_accounts();
     let denoms = vec![
         "fee_denom".to_string(),
         "out_denom".to_string(),
@@ -19,8 +18,10 @@ pub fn setup() -> SetupResponse {
     ];
     let amount = 1_000_000_000_000_000u128;
 
+    let api = MockApiBech32::new(PREFIX);
+    let accounts = create_test_accounts(&api);
     let mut app = AppBuilder::default()
-        .with_api(MockApiBech32::new(PREFIX))
+        .with_api(api)
         .with_wasm(WasmKeeper::default().with_address_generator(MockAddressGenerator))
         .build(|router, api, storage| {
             accounts.all().iter().for_each(|account| {
@@ -64,14 +65,14 @@ pub fn setup() -> SetupResponse {
     }
 }
 
-fn create_test_accounts() -> TestAccounts {
-    let admin = Addr::unchecked("cosmwasm1txtvsrrlxjx6w8u0txlkyrgr5pryppy0qxurhf");
-    let admin_2 = Addr::unchecked("cosmwasm2txtvsrrlxjx6w8u0txlkyrgr5pryppy0qxurhf");
-    let creator_1 = Addr::unchecked("cosmwasm1cr3y8u3e4s8cvdcmzsc3npamqnlrfm3laq5knl");
-    let subscriber_1 = Addr::unchecked("cosmwasm1a3tg0fs480c2lgv3ter6gr48rvs44y5gyxs6fc");
-    let subscriber_2 = Addr::unchecked("cosmwasm1x59j93fhlmu3hvr62seczznmjfhpgcfm8ytjhk");
-    let wrong_user = Addr::unchecked("cosmwasm1g9ezj6tasvnvxx4y9a7mv2k4pzl57dzs0s6k5q");
-    let creator_2 = Addr::unchecked("cosmwasm13j0qnl00r0rl42mezg3ntc3syzaswgnvrzlmx6");
+fn create_test_accounts(api: &MockApiBech32) -> TestAccounts {
+    let admin = api.addr_make("admin");
+    let admin_2 = api.addr_make("admin_2");
+    let creator_1 = api.addr_make("creator_1");
+    let creator_2 = api.addr_make("creator_2");
+    let subscriber_1 = api.addr_make("subscriber_1");
+    let subscriber_2 = api.addr_make("subscriber_2");
+    let wrong_user = api.addr_make("wrong_user");
 
     TestAccounts {
         admin,

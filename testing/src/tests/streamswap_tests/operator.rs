@@ -61,7 +61,7 @@ mod operator_tests {
         let stream_swap_contract_address: String = get_contract_address_from_res(res);
 
         let test_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: Some("subscriber_1".to_string()),
+            operator_target: Some(test_accounts.subscriber_1.to_string()),
             operator: None,
         };
         app.set_block(BlockInfo {
@@ -84,8 +84,8 @@ mod operator_tests {
 
         // Random cannot make the first subscription on behalf of user even if defined as operator in message
         let msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: Some("subscriber_1".to_string()),
-            operator: Some("wrong_user".to_string()),
+            operator_target: Some(test_accounts.subscriber_1.to_string()),
+            operator: Some(test_accounts.wrong_user.to_string()),
         };
         let res = app
             .execute_contract(
@@ -147,7 +147,7 @@ mod operator_tests {
         // Set operator as subscriber_2
         let msg = StreamSwapExecuteMsg::Subscribe {
             operator_target: None,
-            operator: Some("subscriber_2".to_string()),
+            operator: Some(test_accounts.subscriber_2.to_string()),
         };
         let _res = app
             .execute_contract(
@@ -159,7 +159,7 @@ mod operator_tests {
             .unwrap();
         // random targeting subscriber_1 it should fail
         let msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: Some("subscriber_1".to_string()),
+            operator_target: Some(test_accounts.subscriber_1.to_string()),
             operator: None,
         };
         let res = app
@@ -297,7 +297,7 @@ mod operator_tests {
         // Set operator as subscriber_2
         let msg = StreamSwapExecuteMsg::Subscribe {
             operator_target: None,
-            operator: Some("subscriber_2".to_string()),
+            operator: Some(test_accounts.subscriber_2.to_string()),
         };
         let _res = app
             .execute_contract(
@@ -310,7 +310,7 @@ mod operator_tests {
 
         // test update operator to subscriber_1 by random
         let msg = StreamSwapExecuteMsg::UpdateOperator {
-            new_operator: Some("subscriber_1".to_string()),
+            new_operator: Some(test_accounts.subscriber_1.to_string()),
         };
         let _res = app
             .execute_contract(
@@ -323,7 +323,7 @@ mod operator_tests {
 
         // test update operator to subscibe 1
         let msg = StreamSwapExecuteMsg::UpdateOperator {
-            new_operator: Some("subscriber_1".to_string()),
+            new_operator: Some(test_accounts.subscriber_1.to_string()),
         };
         let _res = app
             .execute_contract(
