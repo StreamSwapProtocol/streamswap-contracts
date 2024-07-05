@@ -1,12 +1,10 @@
 #[cfg(test)]
 mod withdraw_tests {
 
-    use crate::helpers::utils::get_contract_address_from_res;
     #[cfg(test)]
-    use crate::helpers::{
-        mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-        suite::setup,
-    };
+    use crate::helpers::mock_messages::{get_create_stream_msg, get_factory_inst_msg};
+    use crate::helpers::suite::{Suite, SuiteBuilder};
+    use crate::helpers::utils::get_contract_address_from_res;
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128};
     use cw_multi_test::Executor;
     use streamswap_stream::{
@@ -19,14 +17,14 @@ mod withdraw_tests {
 
     #[test]
     fn test_withdraw_pending() {
-        let setup_res = setup();
-        let test_accounts = setup_res.test_accounts;
-        let mut app = setup_res.app;
+        let suite = SuiteBuilder::default().build();
+        let test_accounts = suite.test_accounts;
+        let mut app = suite.app;
 
         // Instantiate stream swap
-        let stream_swap_code_id = setup_res.stream_swap_code_id;
-        let stream_swap_factory_code_id = setup_res.stream_swap_factory_code_id;
-        let vesting_code_id = setup_res.vesting_code_id;
+        let stream_swap_code_id = suite.stream_swap_code_id;
+        let stream_swap_factory_code_id = suite.stream_swap_factory_code_id;
+        let vesting_code_id = suite.vesting_code_id;
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(
@@ -223,14 +221,14 @@ mod withdraw_tests {
 
     #[test]
     fn test_withdraw_all_before_exit_case() {
-        let setup_res = setup();
-        let test_accounts = setup_res.test_accounts;
-        let mut app = setup_res.app;
+        let suite = SuiteBuilder::default().build();
+        let test_accounts = suite.test_accounts;
+        let mut app = suite.app;
 
         // Instantiate stream swap
-        let stream_swap_code_id = setup_res.stream_swap_code_id;
-        let stream_swap_factory_code_id = setup_res.stream_swap_factory_code_id;
-        let vesting_code_id = setup_res.vesting_code_id;
+        let stream_swap_code_id = suite.stream_swap_code_id;
+        let stream_swap_factory_code_id = suite.stream_swap_factory_code_id;
+        let vesting_code_id = suite.vesting_code_id;
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(
@@ -382,14 +380,14 @@ mod withdraw_tests {
     }
     #[test]
     fn test_withdraw() {
-        let setup_res = setup();
-        let test_accounts = setup_res.test_accounts;
-        let mut app = setup_res.app;
+        let suite = SuiteBuilder::default().build();
+        let test_accounts = suite.test_accounts;
+        let mut app = suite.app;
 
         // Instantiate stream swap
-        let stream_swap_code_id = setup_res.stream_swap_code_id;
-        let stream_swap_factory_code_id = setup_res.stream_swap_factory_code_id;
-        let vesting_code_id = setup_res.vesting_code_id;
+        let stream_swap_code_id = suite.stream_swap_code_id;
+        let stream_swap_factory_code_id = suite.stream_swap_factory_code_id;
+        let vesting_code_id = suite.vesting_code_id;
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(

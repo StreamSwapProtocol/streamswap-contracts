@@ -97,6 +97,7 @@ impl SuiteBuilder {
     }
 }
 
+/*
 pub fn setup() -> Suite {
     let denoms = vec![
         "fee_denom".to_string(),
@@ -153,6 +154,8 @@ pub fn setup() -> Suite {
         app,
     }
 }
+
+ */
 
 fn create_test_accounts(api: &MockApiBech32) -> TestAccounts {
     let admin = api.addr_make("admin");

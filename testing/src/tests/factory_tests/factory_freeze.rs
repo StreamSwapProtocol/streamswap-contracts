@@ -1,7 +1,8 @@
 #![cfg(test)]
+use crate::helpers::suite::SuiteBuilder;
 use crate::helpers::{
     mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-    suite::{setup, Suite},
+    suite::Suite,
 };
 use cosmwasm_std::coin;
 use cw_multi_test::Executor;
@@ -16,7 +17,7 @@ fn factory_freeze() {
         stream_swap_code_id,
         stream_swap_factory_code_id,
         vesting_code_id,
-    } = setup();
+    } = SuiteBuilder::default().build();
 
     let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
     let factory_address = app

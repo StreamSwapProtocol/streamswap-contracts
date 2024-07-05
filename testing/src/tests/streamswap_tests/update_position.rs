@@ -3,11 +3,12 @@ mod update_position_tests {
 
     use std::str::FromStr;
 
+    use crate::helpers::suite::SuiteBuilder;
     use crate::helpers::utils::get_contract_address_from_res;
     #[cfg(test)]
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-        suite::{setup, Suite},
+        suite::Suite,
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128};
     use cw_multi_test::Executor;
@@ -26,7 +27,7 @@ mod update_position_tests {
             stream_swap_code_id,
             stream_swap_factory_code_id,
             vesting_code_id,
-        } = setup();
+        } = SuiteBuilder::default().build();
         let start_time = app.block_info().time.plus_seconds(100).into();
         let end_time = app.block_info().time.plus_seconds(200).into();
 
