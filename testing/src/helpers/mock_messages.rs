@@ -1,4 +1,4 @@
-use super::setup::TestAccounts;
+use super::suite::TestAccounts;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{coin, Coin, Decimal, Timestamp, Uint128};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;

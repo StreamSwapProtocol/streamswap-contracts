@@ -3,9 +3,10 @@ mod resume_protocol_admin {
 
     use std::str::FromStr;
 
+    use crate::helpers::suite::SuiteBuilder;
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-        setup::{setup, SetupResponse},
+        suite::Suite,
         utils::{get_contract_address_from_res, get_wasm_attribute_with_key},
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal, Decimal256, Uint128};
@@ -18,15 +19,16 @@ mod resume_protocol_admin {
         },
         ContractError as StreamSwapError,
     };
+
     #[test]
     fn resume_protocol() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
             stream_swap_factory_code_id,
             vesting_code_id,
-        } = setup();
+        } = SuiteBuilder::default().build();
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(
@@ -194,13 +196,13 @@ mod resume_protocol_admin {
 
     #[test]
     fn resume_failed_checks() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
             stream_swap_factory_code_id,
             vesting_code_id,
-        } = setup();
+        } = SuiteBuilder::default().build();
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(

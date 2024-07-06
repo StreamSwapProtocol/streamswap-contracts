@@ -1,8 +1,9 @@
 #[cfg(test)]
 mod create_stream_tests {
+    use crate::helpers::suite::SuiteBuilder;
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-        setup::{setup, SetupResponse},
+        suite::Suite,
     };
     use cosmwasm_std::{coin, Uint128};
     use cw_multi_test::Executor;
@@ -13,13 +14,13 @@ mod create_stream_tests {
 
     #[test]
     fn create_stream_failed_name_url_checks() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
             stream_swap_factory_code_id,
             vesting_code_id,
-        } = setup();
+        } = SuiteBuilder::default().build();
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
@@ -174,13 +175,13 @@ mod create_stream_tests {
 
     #[test]
     fn create_stream_failed_fund_checks() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
             stream_swap_factory_code_id,
             vesting_code_id,
-        } = setup();
+        } = SuiteBuilder::default().build();
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
@@ -412,13 +413,13 @@ mod create_stream_tests {
 
     #[test]
     fn create_stream_failed_duration_checks() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
             stream_swap_factory_code_id,
             vesting_code_id,
-        } = setup();
+        } = SuiteBuilder::default().build();
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
@@ -539,13 +540,13 @@ mod create_stream_tests {
 
     #[test]
     fn create_stream_happy_path() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
             stream_swap_factory_code_id,
             vesting_code_id,
-        } = setup();
+        } = SuiteBuilder::default().build();
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app

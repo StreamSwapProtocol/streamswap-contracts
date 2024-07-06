@@ -1,8 +1,6 @@
 #![cfg(test)]
-use crate::helpers::{
-    mock_messages::get_factory_inst_msg,
-    setup::{setup, SetupResponse},
-};
+use crate::helpers::suite::SuiteBuilder;
+use crate::helpers::{mock_messages::get_factory_inst_msg, suite::Suite};
 use cosmwasm_std::{coin, Addr, Decimal};
 use cw_multi_test::Executor;
 use streamswap_factory::error::ContractError as FactoryError;
@@ -10,13 +8,13 @@ use streamswap_factory::{msg::ExecuteMsg, msg::QueryMsg, state::Params};
 
 #[test]
 fn params_update() {
-    let SetupResponse {
+    let Suite {
         mut app,
         test_accounts,
         stream_swap_code_id,
         stream_swap_factory_code_id,
         vesting_code_id,
-    } = setup();
+    } = SuiteBuilder::default().build();
 
     let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
     let factory_address = app

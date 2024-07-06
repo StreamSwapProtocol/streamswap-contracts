@@ -1,10 +1,11 @@
 #[cfg(test)]
 mod operator_tests {
 
+    use crate::helpers::suite::SuiteBuilder;
     use crate::helpers::utils::{get_contract_address_from_res, get_funds_from_res};
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
-        setup::{setup, SetupResponse},
+        suite::Suite,
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Uint128};
     use cw_multi_test::Executor;
@@ -15,13 +16,13 @@ mod operator_tests {
 
     #[test]
     fn test_operator_first_subscribe() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
             stream_swap_factory_code_id,
             vesting_code_id,
-        } = setup();
+        } = SuiteBuilder::default().build();
         let start_time = app.block_info().time.plus_seconds(100).into();
         let end_time = app.block_info().time.plus_seconds(200).into();
 
@@ -102,13 +103,13 @@ mod operator_tests {
 
     #[test]
     fn test_operator_after_subscribe() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
             stream_swap_factory_code_id,
             vesting_code_id,
-        } = setup();
+        } = SuiteBuilder::default().build();
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(
@@ -251,13 +252,13 @@ mod operator_tests {
 
     #[test]
     fn test_update_operator() {
-        let SetupResponse {
+        let Suite {
             mut app,
             test_accounts,
             stream_swap_code_id,
             stream_swap_factory_code_id,
             vesting_code_id,
-        } = setup();
+        } = SuiteBuilder::default().build();
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
