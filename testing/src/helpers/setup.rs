@@ -1,16 +1,14 @@
 use crate::helpers::stargate::MyStargateKeeper;
 use cosmwasm_std::testing::{MockApi, MockStorage};
-use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Empty, Timestamp};
+use cosmwasm_std::Empty;
+use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Timestamp};
+use cw_multi_test::addons::{MockAddressGenerator, MockApiBech32};
+use cw_multi_test::{App, AppBuilder, BankKeeper, ContractWrapper, Stargate, WasmKeeper};
 use cw_multi_test::{
-    App, AppBuilder, BankKeeper, BankSudo, ContractWrapper, DistributionKeeper, FailingModule,
-    GovFailingModule, IbcFailingModule, StakeKeeper, SudoMsg, WasmKeeper,
+    DistributionKeeper, FailingModule, GovFailingModule, IbcFailingModule, StakeKeeper,
 };
-use streamswap_factory::contract::{
-    execute as factory_execute, instantiate as factory_instantiate, query as factory_query,
-};
-use streamswap_stream::contract::{
-    execute as streamswap_execute, instantiate as streamswap_instantiate, query as streamswap_query,
-};
+
+pub const PREFIX: &str = "cosmwasm";
 
 pub fn setup() -> SetupResponse {
     let denoms = vec![
@@ -19,18 +17,18 @@ pub fn setup() -> SetupResponse {
         "in_denom".to_string(),
         "wrong_denom".to_string(),
     ];
-    let accounts = create_test_accounts();
-    let all_accounts = accounts.all();
+    let amount = 1_000_000_000_000_000u128;
+
+    let api = MockApiBech32::new(PREFIX);
+    let accounts = create_test_accounts(&api);
     let mut app = AppBuilder::default()
+        .with_api(api)
+        .with_wasm(WasmKeeper::default().with_address_generator(MockAddressGenerator))
         .with_stargate(MyStargateKeeper {})
-        .build(|router, _, storage| {
-            all_accounts.iter().for_each(|account| {
-                let amount = 1_000_000_000_000_000u128;
-                let coins: Vec<Coin> = denoms
-                    .iter()
-                    .map(|denom| coin(amount, denom.clone()))
-                    .collect();
-                router.bank.init_balance(storage, &account, coins).unwrap();
+        .build(|router, api, storage| {
+            accounts.all().iter().for_each(|account| {
+                let coins: Vec<Coin> = denoms.iter().map(|d| coin(amount, d.clone())).collect();
+                router.bank.init_balance(storage, account, coins).unwrap();
             });
         });
 
@@ -41,37 +39,46 @@ pub fn setup() -> SetupResponse {
     });
 
     let stream_swap_factory_contract = Box::new(ContractWrapper::new(
-        factory_execute,
-        factory_instantiate,
-        factory_query,
+        streamswap_factory::contract::execute,
+        streamswap_factory::contract::instantiate,
+        streamswap_factory::contract::query,
     ));
     let stream_swap_contract = Box::new(ContractWrapper::new(
-        streamswap_execute,
-        streamswap_instantiate,
-        streamswap_query,
+        streamswap_stream::contract::execute,
+        streamswap_stream::contract::instantiate,
+        streamswap_stream::contract::query,
+    ));
+    let vesting_contract = Box::new(ContractWrapper::new(
+        cw_vesting::contract::execute,
+        cw_vesting::contract::instantiate,
+        cw_vesting::contract::query,
     ));
 
     let stream_swap_code_id = app.store_code(stream_swap_contract);
     let stream_swap_factory_code_id = app.store_code(stream_swap_factory_contract);
+    let vesting_code_id = app.store_code(vesting_contract);
 
     SetupResponse {
         test_accounts: accounts,
         stream_swap_factory_code_id,
         stream_swap_code_id,
+        vesting_code_id,
         app,
     }
 }
 
-fn create_test_accounts() -> TestAccounts {
-    let admin = Addr::unchecked("admin");
-    let creator_1 = Addr::unchecked("creator_1");
-    let subscriber_1 = Addr::unchecked("subscriber_1");
-    let subscriber_2 = Addr::unchecked("subscriber_2");
-    let wrong_user = Addr::unchecked("wrong_user");
-    let creator_2 = Addr::unchecked("creator_2");
+fn create_test_accounts(api: &MockApiBech32) -> TestAccounts {
+    let admin = api.addr_make("admin");
+    let admin_2 = api.addr_make("admin_2");
+    let creator_1 = api.addr_make("creator_1");
+    let creator_2 = api.addr_make("creator_2");
+    let subscriber_1 = api.addr_make("subscriber_1");
+    let subscriber_2 = api.addr_make("subscriber_2");
+    let wrong_user = api.addr_make("wrong_user");
 
     TestAccounts {
         admin,
+        admin_2,
         creator_1,
         subscriber_1,
         subscriber_2,
@@ -80,14 +87,10 @@ fn create_test_accounts() -> TestAccounts {
     }
 }
 
-pub fn mint_to_address(app: &mut App, to_address: String, amount: Vec<Coin>) {
-    app.sudo(SudoMsg::Bank(BankSudo::Mint { to_address, amount }))
-        .unwrap();
-}
 pub struct SetupResponse {
     pub app: App<
         BankKeeper,
-        MockApi,
+        MockApiBech32,
         MockStorage,
         FailingModule<Empty, Empty, Empty>,
         WasmKeeper<Empty, Empty>,
@@ -100,16 +103,19 @@ pub struct SetupResponse {
     pub test_accounts: TestAccounts,
     pub stream_swap_factory_code_id: u64,
     pub stream_swap_code_id: u64,
+    pub vesting_code_id: u64,
 }
 
 pub struct TestAccounts {
     pub admin: Addr,
+    pub admin_2: Addr,
     pub creator_1: Addr,
     pub subscriber_1: Addr,
     pub subscriber_2: Addr,
     pub wrong_user: Addr,
     pub creator_2: Addr,
 }
+
 impl TestAccounts {
     pub fn all(&self) -> Vec<Addr> {
         vec![

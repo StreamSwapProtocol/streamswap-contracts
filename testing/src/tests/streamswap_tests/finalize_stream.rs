@@ -20,10 +20,11 @@ mod finalize_stream_tests {
             test_accounts,
             stream_swap_code_id,
             stream_swap_factory_code_id,
+            vesting_code_id,
         } = setup();
         let start_time = app.block_info().time.plus_seconds(100).into();
         let end_time = app.block_info().time.plus_seconds(200).into();
-        let msg = get_factory_inst_msg(stream_swap_code_id, &test_accounts);
+        let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(
                 stream_swap_factory_code_id,
@@ -42,6 +43,7 @@ mod finalize_stream_tests {
             "in_denom",
             start_time,
             end_time,
+            None,
             None,
             None,
         );
@@ -133,10 +135,11 @@ mod finalize_stream_tests {
             test_accounts,
             stream_swap_code_id,
             stream_swap_factory_code_id,
+            vesting_code_id,
         } = setup();
         let start_time = app.block_info().time.plus_seconds(100).into();
         let end_time = app.block_info().time.plus_seconds(200).into();
-        let msg = get_factory_inst_msg(stream_swap_code_id, &test_accounts);
+        let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(
                 stream_swap_factory_code_id,
@@ -155,6 +158,7 @@ mod finalize_stream_tests {
             "in_denom",
             start_time,
             end_time,
+            None,
             None,
             None,
         );
@@ -248,10 +252,11 @@ mod finalize_stream_tests {
             test_accounts,
             stream_swap_code_id,
             stream_swap_factory_code_id,
+            vesting_code_id,
         } = setup();
         let start_time = app.block_info().time.plus_seconds(100).into();
         let end_time = app.block_info().time.plus_seconds(200).into();
-        let msg = get_factory_inst_msg(stream_swap_code_id, &test_accounts);
+        let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(
                 stream_swap_factory_code_id,
@@ -270,6 +275,7 @@ mod finalize_stream_tests {
             "in_denom",
             start_time,
             end_time,
+            None,
             None,
             None,
         );

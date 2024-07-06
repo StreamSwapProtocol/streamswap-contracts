@@ -26,7 +26,8 @@ mod withdraw_tests {
         // Instantiate stream swap
         let stream_swap_code_id = setup_res.stream_swap_code_id;
         let stream_swap_factory_code_id = setup_res.stream_swap_factory_code_id;
-        let msg = get_factory_inst_msg(stream_swap_code_id, &test_accounts);
+        let vesting_code_id = setup_res.vesting_code_id;
+        let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(
                 stream_swap_factory_code_id,
@@ -48,6 +49,7 @@ mod withdraw_tests {
             "in_denom",
             start_time,
             end_time,
+            None,
             None,
             None,
         );
@@ -212,6 +214,7 @@ mod withdraw_tests {
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::ExitStream {
                     operator_target: None,
+                    salt: None,
                 },
                 &[],
             )
@@ -227,7 +230,8 @@ mod withdraw_tests {
         // Instantiate stream swap
         let stream_swap_code_id = setup_res.stream_swap_code_id;
         let stream_swap_factory_code_id = setup_res.stream_swap_factory_code_id;
-        let msg = get_factory_inst_msg(stream_swap_code_id, &test_accounts);
+        let vesting_code_id = setup_res.vesting_code_id;
+        let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(
                 stream_swap_factory_code_id,
@@ -249,6 +253,7 @@ mod withdraw_tests {
             "in_denom",
             start_time,
             end_time,
+            None,
             None,
             None,
         );
@@ -357,6 +362,7 @@ mod withdraw_tests {
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::ExitStream {
                     operator_target: None,
+                    salt: None,
                 },
                 &[],
             )
@@ -368,6 +374,7 @@ mod withdraw_tests {
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::ExitStream {
                     operator_target: None,
+                    salt: None,
                 },
                 &[],
             )
@@ -382,7 +389,8 @@ mod withdraw_tests {
         // Instantiate stream swap
         let stream_swap_code_id = setup_res.stream_swap_code_id;
         let stream_swap_factory_code_id = setup_res.stream_swap_factory_code_id;
-        let msg = get_factory_inst_msg(stream_swap_code_id, &test_accounts);
+        let vesting_code_id = setup_res.vesting_code_id;
+        let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(
                 stream_swap_factory_code_id,
@@ -404,6 +412,7 @@ mod withdraw_tests {
             "in_denom",
             start_time,
             end_time,
+            None,
             None,
             None,
         );

@@ -25,8 +25,9 @@ mod resume_protocol_admin {
             test_accounts,
             stream_swap_code_id,
             stream_swap_factory_code_id,
+            vesting_code_id,
         } = setup();
-        let msg = get_factory_inst_msg(stream_swap_code_id, &test_accounts);
+        let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(
                 stream_swap_factory_code_id,
@@ -50,6 +51,7 @@ mod resume_protocol_admin {
             end_time,
             None,
             None,
+            None,
         );
         let res = app
             .execute_contract(
@@ -62,7 +64,7 @@ mod resume_protocol_admin {
         let stream_swap_contract_address: String = get_contract_address_from_res(res);
         let msg = StreamSwapExecuteMsg::Subscribe {
             operator_target: None,
-            operator: Some("subscriber_1".to_string()),
+            operator: Some(test_accounts.subscriber_1.to_string()),
         };
         let _res = app
             .execute_contract(
@@ -115,7 +117,7 @@ mod resume_protocol_admin {
         });
         let msg = StreamSwapExecuteMsg::Subscribe {
             operator_target: None,
-            operator: Some("subscriber_2".to_string()),
+            operator: Some(test_accounts.subscriber_2.to_string()),
         };
         let res = app
             .execute_contract(
@@ -197,8 +199,9 @@ mod resume_protocol_admin {
             test_accounts,
             stream_swap_code_id,
             stream_swap_factory_code_id,
+            vesting_code_id,
         } = setup();
-        let msg = get_factory_inst_msg(stream_swap_code_id, &test_accounts);
+        let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(
                 stream_swap_factory_code_id,
@@ -222,6 +225,7 @@ mod resume_protocol_admin {
             end_time,
             None,
             None,
+            None,
         );
         let res = app
             .execute_contract(
@@ -234,7 +238,7 @@ mod resume_protocol_admin {
         let stream_swap_contract_address: String = get_contract_address_from_res(res);
         let msg = StreamSwapExecuteMsg::Subscribe {
             operator_target: None,
-            operator: Some("subscriber_1".to_string()),
+            operator: Some(test_accounts.subscriber_1.to_string()),
         };
         let _res = app
             .execute_contract(

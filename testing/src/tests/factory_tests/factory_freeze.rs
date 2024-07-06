@@ -15,9 +15,10 @@ fn factory_freeze() {
         test_accounts,
         stream_swap_code_id,
         stream_swap_factory_code_id,
+        vesting_code_id,
     } = setup();
 
-    let msg = get_factory_inst_msg(stream_swap_code_id, &test_accounts);
+    let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
     let factory_address = app
         .instantiate_contract(
             stream_swap_factory_code_id,
@@ -37,6 +38,7 @@ fn factory_freeze() {
         "in_denom",
         app.block_info().time.plus_seconds(100),
         app.block_info().time.plus_seconds(200),
+        None,
         None,
         None,
     );
@@ -89,6 +91,7 @@ fn factory_freeze() {
         "in_denom",
         app.block_info().time.plus_seconds(100),
         app.block_info().time.plus_seconds(200),
+        None,
         None,
         None,
     );

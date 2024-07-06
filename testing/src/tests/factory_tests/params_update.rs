@@ -15,9 +15,10 @@ fn params_update() {
         test_accounts,
         stream_swap_code_id,
         stream_swap_factory_code_id,
+        vesting_code_id,
     } = setup();
 
-    let msg = get_factory_inst_msg(stream_swap_code_id, &test_accounts);
+    let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
     let factory_address = app
         .instantiate_contract(
             stream_swap_factory_code_id,
@@ -157,7 +158,7 @@ fn params_update() {
         stream_creation_fee: None,
         exit_fee_percent: None,
         accepted_in_denoms: None,
-        fee_collector: Some("new_fee_collector".to_string()),
+        fee_collector: test_accounts.admin_2.to_string().into(),
         min_seconds_until_start_time: None,
         min_stream_seconds: None,
     };
@@ -176,7 +177,7 @@ fn params_update() {
         .query_wasm_smart(factory_address.clone(), &QueryMsg::Params {})
         .unwrap();
 
-    assert_eq!(res.fee_collector, Addr::unchecked("new_fee_collector"));
+    assert_eq!(res.fee_collector, test_accounts.admin_2);
 
     // Update min stream seconds
     let msg = ExecuteMsg::UpdateParams {
