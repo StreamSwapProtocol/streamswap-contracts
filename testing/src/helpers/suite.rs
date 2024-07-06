@@ -97,66 +97,6 @@ impl SuiteBuilder {
     }
 }
 
-/*
-pub fn setup() -> Suite {
-    let denoms = vec![
-        "fee_denom".to_string(),
-        "out_denom".to_string(),
-        "in_denom".to_string(),
-        "wrong_denom".to_string(),
-    ];
-    let amount = 1_000_000_000_000_000u128;
-
-    let api = MockApiBech32::new(PREFIX);
-    let accounts = create_test_accounts(&api);
-    let mut app = AppBuilder::default()
-        .with_api(api)
-        .with_wasm(WasmKeeper::default().with_address_generator(MockAddressGenerator))
-        .with_stargate(MyStargateKeeper {})
-        .build(|router, api, storage| {
-            accounts.all().iter().for_each(|account| {
-                let coins: Vec<Coin> = denoms.iter().map(|d| coin(amount, d.clone())).collect();
-                router.bank.init_balance(storage, account, coins).unwrap();
-            });
-        });
-
-    app.set_block(BlockInfo {
-        chain_id: "test_1".to_string(),
-        height: 1_000,
-        time: Timestamp::from_seconds(1_000),
-    });
-
-    let stream_swap_factory_contract = Box::new(ContractWrapper::new(
-        streamswap_factory::contract::execute,
-        streamswap_factory::contract::instantiate,
-        streamswap_factory::contract::query,
-    ));
-    let stream_swap_contract = Box::new(ContractWrapper::new(
-        streamswap_stream::contract::execute,
-        streamswap_stream::contract::instantiate,
-        streamswap_stream::contract::query,
-    ));
-    let vesting_contract = Box::new(ContractWrapper::new(
-        cw_vesting::contract::execute,
-        cw_vesting::contract::instantiate,
-        cw_vesting::contract::query,
-    ));
-
-    let stream_swap_code_id = app.store_code(stream_swap_contract);
-    let stream_swap_factory_code_id = app.store_code(stream_swap_factory_contract);
-    let vesting_code_id = app.store_code(vesting_contract);
-
-    Suite {
-        test_accounts: accounts,
-        stream_swap_factory_code_id,
-        stream_swap_code_id,
-        vesting_code_id,
-        app,
-    }
-}
-
- */
-
 fn create_test_accounts(api: &MockApiBech32) -> TestAccounts {
     let admin = api.addr_make("admin");
     let admin_2 = api.addr_make("admin_2");
