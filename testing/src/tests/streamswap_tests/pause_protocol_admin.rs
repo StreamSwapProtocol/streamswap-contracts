@@ -1,22 +1,15 @@
 #[cfg(test)]
 mod pause_protocol_admin {
-
-    use std::str::FromStr;
-
     use crate::helpers::suite::SuiteBuilder;
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
         suite::Suite,
-        utils::{get_contract_address_from_res, get_wasm_attribute_with_key},
+        utils::get_contract_address_from_res,
     };
-    use cosmwasm_std::{coin, Addr, BlockInfo, Decimal, Decimal256, Uint128};
+    use cosmwasm_std::{coin, Addr, BlockInfo, Uint128};
     use cw_multi_test::Executor;
     use streamswap_stream::{
-        msg::{
-            self, ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg,
-            StreamResponse,
-        },
-        ContractError as StreamSwapError,
+        msg::ExecuteMsg as StreamSwapExecuteMsg, ContractError as StreamSwapError,
     };
 
     #[test]
@@ -68,7 +61,7 @@ mod pause_protocol_admin {
             time: start_time.plus_seconds(100),
             chain_id: "test".to_string(),
         });
-        let pause_stream_msg = StreamSwapExecuteMsg::PauseStream {};
+        let _pause_stream_msg = StreamSwapExecuteMsg::PauseStream {};
 
         //can't pause before start time
         app.set_block(BlockInfo {
@@ -153,7 +146,7 @@ mod pause_protocol_admin {
             time: start_time.plus_seconds(100),
             chain_id: "test".to_string(),
         });
-        let pause_stream_msg = StreamSwapExecuteMsg::PauseStream {};
+        let _pause_stream_msg = StreamSwapExecuteMsg::PauseStream {};
 
         //can't pause after end time
         app.set_block(BlockInfo {
@@ -312,7 +305,7 @@ mod pause_protocol_admin {
             time: start_time.plus_seconds(103),
             chain_id: "test".to_string(),
         });
-        let pause_stream_msg = StreamSwapExecuteMsg::PauseStream {};
+        let _pause_stream_msg = StreamSwapExecuteMsg::PauseStream {};
 
         //protocol admin can pause
         let pause_stream_msg = StreamSwapExecuteMsg::PauseStream {};

@@ -5,7 +5,7 @@ mod vesting_tests {
     use crate::helpers::utils::{
         get_contract_address_from_res, get_funds_from_res, get_wasm_attribute_with_key,
     };
-    use cosmwasm_std::{coin, Addr, Api, Binary, BlockInfo, Coin, Uint128};
+    use cosmwasm_std::{coin, Addr, Binary, Coin, Uint128};
     use cw_multi_test::Executor;
     use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
     use cw_vesting::vesting::Schedule;
@@ -13,7 +13,7 @@ mod vesting_tests {
     use streamswap_stream::msg::StreamResponse;
     use streamswap_stream::state::Status;
     use streamswap_stream::{
-        msg::ExecuteMsg as StreamSwapExecuteMsg, msg::QueryMsg as StreamSwapQueryMsg, ContractError,
+        msg::ExecuteMsg as StreamSwapExecuteMsg, msg::QueryMsg as StreamSwapQueryMsg,
     };
 
     #[test]
@@ -136,7 +136,7 @@ mod vesting_tests {
             operator_target: None,
             salt: None,
         };
-        let res = app
+        let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),

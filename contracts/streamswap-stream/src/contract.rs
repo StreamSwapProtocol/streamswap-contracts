@@ -9,10 +9,9 @@ use crate::{killswitch, ContractError};
 use cosmwasm_std::{
     attr, coin, entry_point, to_json_binary, Addr, Attribute, BankMsg, Binary, CodeInfoResponse,
     Coin, CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, Fraction, MessageInfo, Order,
-    Response, StdError, StdResult, SubMsg, Timestamp, Uint128, Uint256, WasmMsg,
+    Response, StdError, StdResult, Timestamp, Uint128, Uint256, WasmMsg,
 };
 use cw2::set_contract_version;
-use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use streamswap_factory::msg::CreateStreamMsg;
 use streamswap_factory::state::Params as FactoryParams;
 use streamswap_factory::state::PARAMS as FACTORYPARAMS;
@@ -27,8 +26,6 @@ use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
 // Version and contract info for migration
 const CONTRACT_NAME: &str = "crates.io:streamswap";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-
-const REPLY_ID: u64 = 1337;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -66,7 +63,7 @@ pub fn instantiate(
     if env.block.time > start_time {
         return Err(ContractError::StreamInvalidStartTime {});
     }
-    if &in_denom == &out_asset.denom {
+    if in_denom == out_asset.denom {
         return Err(ContractError::SameDenomOnEachSide {});
     }
     if out_asset.amount.is_zero() {
@@ -871,8 +868,7 @@ pub fn execute_exit_stream(
             code_id: factory_params.vesting_code_id,
             label: format!(
                 "streamswap: Stream Addr {} Released to {}",
-                env.contract.address.to_string(),
-                operator_target.to_string()
+                env.contract.address, operator_target
             ),
             msg: to_json_binary(&vesting)?,
             funds: vec![coin(position.purchased.u128(), stream.out_asset.denom)],
@@ -922,7 +918,7 @@ fn check_access(
     if position_owner.as_ref() != info.sender
         && position_operator
             .as_ref()
-            .map_or(true, |o| o != &info.sender)
+            .map_or(true, |o| o != info.sender)
     {
         return Err(ContractError::Unauthorized {});
     }

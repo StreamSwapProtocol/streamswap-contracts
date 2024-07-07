@@ -31,6 +31,7 @@ impl<'a> ThresholdState<'a> {
     pub fn new() -> Self {
         ThresholdState(Item::new(THRESHOLDS_STATE_KEY))
     }
+
     pub fn set_threshold_if_any(
         &self,
         threshold: Option<Uint128>,
@@ -89,6 +90,12 @@ impl<'a> ThresholdState<'a> {
     pub fn get_threshold(&self, storage: &dyn Storage) -> Result<Option<Threshold>, StdError> {
         let threshold = self.0.may_load(storage)?;
         Ok(threshold)
+    }
+}
+
+impl<'a> Default for ThresholdState<'a> {
+    fn default() -> Self {
+        ThresholdState::new()
     }
 }
 

@@ -23,15 +23,15 @@ mod pool_tests {
         let end_time = app.block_info().time.plus_seconds(5_000_000).into();
 
         let in_denom = "in_denom";
-        let out_supply = 1_000_000_000_000u128;
+        let _out_supply = 1_000_000_000_000u128;
         let out_denom = "out_denom";
         // %20 of out_supply will go to pool
         let out_clp_amount = 200_000_000_000u128;
         // this is mocked by querier at test_helpers.rs
-        let pool_creation_fee = 1000000;
-        let pool_creation_denom = "fee_denom";
+        let _pool_creation_fee = 1000000;
+        let _pool_creation_denom = "fee_denom";
         let stream_creation_denom = "fee_denom";
-        let stream_creation_fee = 100;
+        let _stream_creation_fee = 100;
         let subs1_token = Coin::new(1_000_000_000, in_denom);
         let subs2_token = Coin::new(3_000_000_000, in_denom);
 
