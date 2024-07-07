@@ -17,16 +17,16 @@ backtraces = ["cosmwasm-std/backtraces"]
 workspace = true
 
 [dependencies]
-cosmwasm-schema      = { workspace = true }
+cosmwasm-schema = { workspace = true }
 cosmwasm-std = { workspace = true }
-cw-controllers       = { workspace = true }
-cw2                  = { workspace = true }
-streamswap-stream = { workspace = true }
-streamswap-factory = { workspace = true }
-cw-storage-plus = { workspace = true }
-cw-utils = {workspace = true}
-cw-vesting = { workspace = true }
-schemars = { workspace = true }
+cw-controllers = { workspace = true }
 cw-multi-test = { workspace = true }
+cw-storage-plus = { workspace = true }
+cw-utils = { workspace = true }
+cw-vesting = { workspace = true }
+cw2 = { workspace = true }
 osmosis-std = { workspace = true }
 prost = { workspace = true }
+schemars = { workspace = true }
+streamswap-factory = { workspace = true }
+streamswap-stream = { workspace = true }
