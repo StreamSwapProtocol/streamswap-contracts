@@ -1,12 +1,12 @@
 use super::suite::TestAccounts;
-use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{coin, Coin, Decimal, Timestamp, Uint128};
+use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use streamswap_factory::msg::{
     CreatePool, CreateStreamMsg, ExecuteMsg as FactoryExecuteMsg,
     InstantiateMsg as FactoryInstantiateMsg,
 };
 
+#[allow(dead_code)]
 pub fn get_factory_inst_msg(
     stream_swap_code_id: u64,
     vesting_code_id: u64,
@@ -25,7 +25,6 @@ pub fn get_factory_inst_msg(
         accepted_in_denoms: vec!["in_denom".to_string()],
         min_stream_seconds: 100,
         min_seconds_until_start_time: 100,
-        pool_creation_denom: "fee_denom".to_string(),
     }
 }
 
@@ -131,6 +130,7 @@ impl CreateStreamMsgBuilder {
 
  */
 
+#[allow(dead_code)]
 pub fn get_create_stream_msg(
     name: &str,
     url: Option<String>,
@@ -144,7 +144,7 @@ pub fn get_create_stream_msg(
     vesting: Option<VestingInstantiateMsg>,
 ) -> FactoryExecuteMsg {
     FactoryExecuteMsg::CreateStream {
-        msg: CreateStreamMsg {
+        msg: Box::new(CreateStreamMsg {
             treasury: treasury.to_string(),
             stream_admin: treasury.to_string(),
             name: name.to_string(),
@@ -156,6 +156,6 @@ pub fn get_create_stream_msg(
             threshold,
             create_pool,
             vesting,
-        },
+        }),
     }
 }

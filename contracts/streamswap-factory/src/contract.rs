@@ -26,7 +26,6 @@ pub fn instantiate(
         fee_collector,
         min_stream_seconds,
         min_seconds_until_start_time,
-        pool_creation_denom,
         vesting_code_id,
     } = msg;
 
@@ -51,8 +50,8 @@ pub fn instantiate(
         vesting_code_id,
         accepted_in_denoms,
         fee_collector,
-        min_stream_seconds: min_stream_seconds.into(),
-        min_seconds_until_start_time: min_seconds_until_start_time.into(),
+        min_stream_seconds,
+        min_seconds_until_start_time,
         protocol_admin: protocol_admin.clone(),
     };
     PARAMS.save(deps.storage, &params)?;
@@ -101,7 +100,7 @@ pub fn execute(
             accepted_in_denoms,
             exit_fee_percent,
         ),
-        ExecuteMsg::CreateStream { msg } => execute_create_stream(deps, env, info, msg),
+        ExecuteMsg::CreateStream { msg } => execute_create_stream(deps, env, info, *msg),
         ExecuteMsg::Freeze {} => execute_freeze(deps, info),
     }
 }
@@ -126,7 +125,7 @@ pub fn execute_create_stream(
         threshold: _,
         url: _,
         create_pool: _,
-        vesting,
+        vesting: _,
     } = msg.clone();
     let params = PARAMS.load(deps.storage)?;
     let stream_creation_fee = params.stream_creation_fee.clone();

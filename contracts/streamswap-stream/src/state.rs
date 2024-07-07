@@ -57,7 +57,6 @@ pub enum Status {
     Cancelled,
 }
 
-#[allow(clippy::too_many_arguments)]
 impl Stream {
     pub fn new(
         name: String,

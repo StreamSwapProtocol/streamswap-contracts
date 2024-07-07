@@ -60,14 +60,14 @@ impl Stargate for MyStargateKeeper {
                         authorized_quote_denoms: vec![],
                     }),
                 };
-                return Ok(to_json_binary(&params)?);
+                Ok(to_json_binary(&params)?)
             }
             "/osmosis.poolmanager.v1beta1.Query/NumPools" => {
                 let res = NumPoolsResponse { num_pools: 1 };
-                return Ok(to_json_binary(&res)?);
+                Ok(to_json_binary(&res)?)
             }
             "/osmosis.concentratedliquidity.v1beta1.Query/Pools" => {
-                let key = format!("pools:");
+                let key = "pools:".to_string();
                 let pools = storage
                     .range(Some(key.as_bytes()), None, cosmwasm_std::Order::Ascending)
                     .map(|item| {
@@ -88,7 +88,7 @@ impl Stargate for MyStargateKeeper {
                             .collect::<Vec<_>>(),
                         pagination: None,
                     };
-                return Ok(to_json_binary(&res)?);
+                Ok(to_json_binary(&res)?)
             }
             _ => Err(anyhow!("Unknown query path")),
         }

@@ -12,6 +12,9 @@ repository = ""
 license    = "Apache-2.0"
 authors = ["Orkun Külçe <orkunkl@users.noreply.github.com>", "Adnan Deniz Çorlu<adenizcorlu@gmail.com"]
 
+[workspace.lints.clippy]
+too_many_arguments = "allow"
+
 [workspace.dependencies]
 cosmwasm-std = { version = "1.5.5",  features = ["iterator", "staking", "stargate", "cosmwasm_1_2"] }
 cosmwasm-schema = "1.2.0"
@@ -29,6 +32,7 @@ semver = "1.0.16"
 osmosis-std = "0.24.0"
 streamswap-stream = { path = "contracts/streamswap-stream" }
 streamswap-factory = { path = "contracts/streamswap-factory" }
+prost = {version = "0.12.3", default-features = false, features = ["prost-derive"]}
 
 [workspace.metadata.scripts]
 optimize = """docker run --rm -v "$(pwd)":/code \

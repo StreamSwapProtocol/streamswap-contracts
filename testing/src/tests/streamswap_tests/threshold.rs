@@ -69,7 +69,7 @@ mod treshold_tests {
             operator: None,
         };
 
-        let res = app
+        let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
@@ -443,7 +443,7 @@ mod treshold_tests {
         // Creator can cancel stream
         let cancel_msg = StreamSwapExecuteMsg::CancelStreamWithThreshold {};
 
-        let res = app
+        let _res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),

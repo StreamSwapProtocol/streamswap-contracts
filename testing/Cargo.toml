@@ -13,6 +13,8 @@ doctest = false
 # for more explicit tests, cargo test --features=backtraces
 backtraces = ["cosmwasm-std/backtraces"]
 
+[lints]
+workspace = true
 
 [dependencies]
 cosmwasm-schema      = { workspace = true }
@@ -21,10 +23,10 @@ cw-controllers       = { workspace = true }
 cw2                  = { workspace = true }
 streamswap-stream = { workspace = true }
 streamswap-factory = { workspace = true }
-cw-storage-plus = "1.2.0"
-cw-utils = "1.0.3"
+cw-storage-plus = { workspace = true }
+cw-utils = {workspace = true}
 cw-vesting = { workspace = true }
-schemars = "0.8.16"
+schemars = { workspace = true }
 cw-multi-test = { workspace = true }
 osmosis-std = { workspace = true }
-prost = {version = "0.12.3", default-features = false, features = ["prost-derive"]}
+prost = { workspace = true }
