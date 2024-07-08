@@ -1,4 +1,7 @@
-name: release wasm
+name: Release Contracts
+
+permissions:
+  contents: write
 
 on:
   release:
