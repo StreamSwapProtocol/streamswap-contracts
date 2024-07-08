@@ -1,38 +1,36 @@
 [workspace]
-members = [
-    "contracts/*", "testing"
-]
+members = ["contracts/*", "testing"]
 resolver = "2"
 
 [workspace.package]
-version    = "0.1.0"
+authors = ["Orkun Külçe <orkunkl@users.noreply.github.com>", "Adnan Deniz Çorlu<adenizcorlu@gmail.com"]
 edition    = "2021"
 homepage   = ""
-repository = ""
 license    = "Apache-2.0"
-authors = ["Orkun Külçe <orkunkl@users.noreply.github.com>", "Adnan Deniz Çorlu<adenizcorlu@gmail.com"]
+repository = ""
+version    = "0.1.0"
 
 [workspace.dependencies]
-cosmwasm-std = { version = "1.5.5",  features = ["iterator", "staking", "stargate", "cosmwasm_1_2"] }
 cosmwasm-schema = "1.5.5"
+cosmwasm-std = { version = "1.5.5", features = ["iterator", "staking", "stargate", "cosmwasm_1_2"] }
 cw-controllers = " 1.1.2"
-cw-storage-plus = "1.2.0"
-cw-multi-test = { version = "0.20.1", features = ["cosmwasm_1_2"]}
 cw-denom = "2.3.0"
+cw-multi-test = { version = "0.20.1", features = ["cosmwasm_1_2"] }
+cw-storage-plus = "1.2.0"
 cw-utils = "1.0.3"
-cw2 = "1.1.2"
 cw-vesting = { version = "2.3.0", features = ["library"] }
-schemars = "0.8.21"
-serde = { version = "1.0.203", default-features = false, features = ["derive"] }
-thiserror = { version = "1.0.61" }
-semver = "1.0.23"
+cw2 = "1.1.2"
 osmosis-std = "0.25.0"
-streamswap-stream = { path = "contracts/streamswap-stream" }
+schemars = "0.8.21"
+semver = "1.0.23"
+serde = { version = "1.0.203", default-features = false, features = ["derive"] }
 streamswap-factory = { path = "contracts/streamswap-factory" }
+streamswap-stream = { path = "contracts/streamswap-stream" }
+thiserror = { version = "1.0.61" }
 
 [workspace.metadata.scripts]
 optimize = """docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/workspace-optimizer:0.12.8
+  cosmwasm/workspace-optimizer:0.16.0
 """
