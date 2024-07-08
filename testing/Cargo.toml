@@ -30,3 +30,4 @@ prost = { workspace = true }
 schemars = { workspace = true }
 streamswap-factory = { workspace = true }
 streamswap-stream = { workspace = true }
+streamswap-types = { workspace = true }

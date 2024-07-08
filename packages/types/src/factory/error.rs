@@ -1,9 +1,9 @@
 use cosmwasm_std::{ConversionOverflowError, DivideByZeroError, OverflowError, StdError};
+use cw_denom::DenomError;
 use cw_utils::PaymentError;
 use std::convert::Infallible;
+use streamswap_utils::payment_checker::CustomPaymentError;
 use thiserror::Error;
-
-use crate::payment_checker::CustomPaymentError;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
@@ -29,7 +29,7 @@ pub enum ContractError {
     ConversionOverflowError(#[from] ConversionOverflowError),
 
     #[error("{0}")]
-    DenomError(#[from] cw_denom::DenomError),
+    DenomError(#[from] DenomError),
 
     #[error("Invalid exit fee percent")]
     InvalidExitFeePercent {},

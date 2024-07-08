@@ -1,9 +1,10 @@
+use crate::helpers::{check_name_and_url, get_decimals};
 use crate::killswitch::execute_cancel_stream_with_threshold;
 use crate::msg::{
     AveragePriceResponse, ExecuteMsg, LatestStreamedPriceResponse, PositionResponse,
     PositionsResponse, QueryMsg, StreamResponse, SudoMsg,
 };
-use crate::state::{Position, Status, Stream, POSITIONS, STREAM, VESTING};
+use crate::state::{Position, Status, Stream, FACTORY_PARAMS, POSITIONS, STREAM, VESTING};
 use crate::threshold::ThresholdState;
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
@@ -12,16 +13,14 @@ use cosmwasm_std::{
     Response, StdError, StdResult, Timestamp, Uint128, Uint256, WasmMsg,
 };
 use cw2::set_contract_version;
-use streamswap_factory::msg::CreateStreamMsg;
-use streamswap_factory::state::Params as FactoryParams;
-use streamswap_factory::state::PARAMS as FACTORYPARAMS;
-
-use crate::helpers::{check_name_and_url, get_decimals};
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay};
 use osmosis_std::types::cosmos::base;
 use osmosis_std::types::osmosis::concentratedliquidity::v1beta1::MsgCreatePosition;
 use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
+
+use streamswap_types::factory::CreateStreamMsg;
+use streamswap_types::factory::Params as FactoryParams;
 
 // Version and contract info for migration
 const CONTRACT_NAME: &str = "crates.io:streamswap";
@@ -35,13 +34,13 @@ pub fn instantiate(
     msg: CreateStreamMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    let params_query_msg = streamswap_factory::msg::QueryMsg::Params {};
+    let params_query_msg = QueryMsg::Params {};
     let factory_params: FactoryParams = deps
         .querier
         .query_wasm_smart(info.sender.to_string(), &params_query_msg)?;
     // Factory parameters are collected at the time of stream creation
     // Any changes to factory parameters will not affect the stream
-    FACTORYPARAMS.save(deps.storage, &factory_params)?;
+    FACTORY_PARAMS.save(deps.storage, &factory_params)?;
 
     let CreateStreamMsg {
         start_time,
@@ -686,7 +685,7 @@ pub fn execute_finalize_stream(
 
     STREAM.save(deps.storage, &stream)?;
 
-    let factory_params = FACTORYPARAMS.load(deps.storage)?;
+    let factory_params = FACTORY_PARAMS.load(deps.storage)?;
     let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or_else(|| stream.treasury.clone());
 
     //Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
@@ -794,7 +793,7 @@ pub fn execute_exit_stream(
     salt: Option<Binary>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
-    let factory_params = FACTORYPARAMS.load(deps.storage)?;
+    let factory_params = FACTORY_PARAMS.load(deps.storage)?;
     // check if stream is paused
     if stream.is_killswitch_active() {
         return Err(ContractError::StreamKillswitchActive {});
@@ -971,7 +970,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     }
 }
 pub fn query_params(deps: Deps) -> StdResult<FactoryParams> {
-    let factory_params = FACTORYPARAMS.load(deps.storage)?;
+    let factory_params = FACTORY_PARAMS.load(deps.storage)?;
     Ok(factory_params)
 }
 

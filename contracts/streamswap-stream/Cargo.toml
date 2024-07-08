@@ -44,7 +44,7 @@ osmosis-std = { workspace = true }
 schemars = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }
-streamswap-factory = { path = "../streamswap-factory" }
+streamswap-types = { workspace = true }
 thiserror = { workspace = true }
 
 

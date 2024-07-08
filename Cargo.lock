@@ -986,6 +986,7 @@ dependencies = [
  "semver",
  "serde",
  "streamswap-types",
+ "streamswap-utils",
  "thiserror",
 ]
 
@@ -1005,7 +1006,7 @@ dependencies = [
  "schemars",
  "semver",
  "serde",
- "streamswap-factory",
+ "streamswap-types",
  "thiserror",
 ]
 
@@ -1014,6 +1015,23 @@ name = "streamswap-types"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-denom",
+ "cw-utils",
+ "cw-vesting",
+ "osmosis-std",
+ "streamswap-utils",
+ "thiserror",
+]
+
+[[package]]
+name = "streamswap-utils"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-utils",
+ "thiserror",
 ]
 
 [[package]]
@@ -1061,6 +1079,7 @@ dependencies = [
  "schemars",
  "streamswap-factory",
  "streamswap-stream",
+ "streamswap-types",
 ]
 
 [[package]]

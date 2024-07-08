@@ -3,7 +3,9 @@ use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Timestamp, Uint128};
 use cw_storage_plus::{Item, Map};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use std::ops::Mul;
-use streamswap_factory::msg::CreatePool;
+use streamswap_types::factory::{CreatePool, Params};
+
+pub const FACTORY_PARAMS: Item<Params> = Item::new("params");
 
 #[cw_serde]
 pub struct Stream {

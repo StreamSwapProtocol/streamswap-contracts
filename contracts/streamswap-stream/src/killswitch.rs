@@ -1,5 +1,5 @@
 use crate::contract::{update_position, update_stream};
-use crate::state::{Status, Stream, POSITIONS, STREAM};
+use crate::state::{Status, Stream, FACTORY_PARAMS, POSITIONS, STREAM};
 use crate::threshold::{ThresholdError, ThresholdState};
 use crate::ContractError;
 use cosmwasm_std::{
@@ -7,7 +7,7 @@ use cosmwasm_std::{
     Uint128,
 };
 use cw_utils::maybe_addr;
-use streamswap_factory::state::{Params as FactoryParams, PARAMS as FACTORY_PARAMS};
+use streamswap_types::factory::Params;
 
 pub fn execute_withdraw_paused(
     deps: DepsMut,
@@ -204,7 +204,7 @@ pub fn execute_resume_stream(
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
-    let factory_params: FactoryParams = FACTORY_PARAMS.load(deps.storage)?;
+    let factory_params: Params = FACTORY_PARAMS.load(deps.storage)?;
     //Cancelled can't be resumed
     if stream.is_cancelled() {
         return Err(ContractError::StreamIsCancelled {});
@@ -235,7 +235,7 @@ pub fn execute_cancel_stream(
     _env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
-    let factory_params: FactoryParams = FACTORY_PARAMS.load(deps.storage)?;
+    let factory_params: Params = FACTORY_PARAMS.load(deps.storage)?;
 
     if factory_params.protocol_admin != info.sender {
         return Err(ContractError::Unauthorized {});
@@ -379,7 +379,7 @@ pub fn sudo_resume_stream(deps: DepsMut, env: Env) -> Result<Response, ContractE
 
 pub fn sudo_cancel_stream(deps: DepsMut, _env: Env) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
-    let factory_params: FactoryParams = FACTORY_PARAMS.load(deps.storage)?;
+    let factory_params: Params = FACTORY_PARAMS.load(deps.storage)?;
     if stream.is_cancelled() {
         return Err(ContractError::StreamIsCancelled {});
     }

@@ -1,6 +1,6 @@
 [package]
-name          = "streamswap-types"
-description   = "Messages and types for StreamSwap smart contracts"
+name          = "streamswap-utils"
+description   = "Helpers and utilities for StreamSwap smart contracts"
 version       = { workspace = true }
 authors       = { workspace = true }
 edition       = { workspace = true }
@@ -16,9 +16,5 @@ backtraces = ["cosmwasm-std/backtraces"]
 [dependencies]
 cosmwasm-schema = { workspace = true }
 cosmwasm-std = { workspace = true }
-cw-vesting = { workspace = true, features = ["library"] }
-cw-denom = { workspace = true }
 cw-utils = { workspace = true }
-osmosis-std = { workspace = true }
-streamswap-utils = { workspace = true }
 thiserror = { workspace = true }

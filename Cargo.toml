@@ -2,7 +2,8 @@
 members = [
     "contracts/*",
     "packages/types",
-    "testing"]
+    "testing"
+]
 resolver = "2"
 
 [workspace.package]
@@ -37,6 +38,7 @@ thiserror = { version = "1.0.38" }
 
 # packages
 streamswap-types = { path = "./packages/types" }
+streamswap-utils= { path = "./packages/utils" }
 
 [workspace.metadata.scripts]
 optimize = """docker run --rm -v "$(pwd)":/code \

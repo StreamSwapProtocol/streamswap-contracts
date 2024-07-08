@@ -1,9 +1,9 @@
 use super::suite::TestAccounts;
 use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
-use streamswap_factory::msg::{
-    CreatePool, CreateStreamMsg, ExecuteMsg as FactoryExecuteMsg,
-    InstantiateMsg as FactoryInstantiateMsg,
+use streamswap_types::factory::{CreatePool, CreateStreamMsg};
+use streamswap_types::factory::{
+    ExecuteMsg as FactoryExecuteMsg, InstantiateMsg as FactoryInstantiateMsg,
 };
 
 #[allow(dead_code)]
