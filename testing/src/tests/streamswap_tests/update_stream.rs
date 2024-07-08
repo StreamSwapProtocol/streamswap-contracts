@@ -9,7 +9,7 @@ mod update_stream_tests {
         suite::Suite,
         utils::{get_contract_address_from_res, get_wasm_attribute_with_key},
     };
-    use cosmwasm_std::VoteOption::No;
+
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal, Decimal256, Uint128};
     use cw_multi_test::Executor;
     use streamswap_stream::{

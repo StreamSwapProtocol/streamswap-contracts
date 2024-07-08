@@ -3,7 +3,7 @@ mod withdraw_tests {
 
     #[cfg(test)]
     use crate::helpers::mock_messages::{get_create_stream_msg, get_factory_inst_msg};
-    use crate::helpers::suite::{Suite, SuiteBuilder};
+    use crate::helpers::suite::SuiteBuilder;
     use crate::helpers::utils::get_contract_address_from_res;
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128};
     use cw_multi_test::Executor;

@@ -1,7 +1,7 @@
 #![cfg(test)]
 use crate::helpers::suite::SuiteBuilder;
 use crate::helpers::{mock_messages::get_factory_inst_msg, suite::Suite};
-use cosmwasm_std::{coin, Addr, Decimal};
+use cosmwasm_std::{coin, Decimal};
 use cw_multi_test::Executor;
 use streamswap_factory::error::ContractError as FactoryError;
 use streamswap_factory::{msg::ExecuteMsg, msg::QueryMsg, state::Params};

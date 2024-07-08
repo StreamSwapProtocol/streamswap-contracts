@@ -26,7 +26,7 @@ pub fn get_decimals(value: Decimal256) -> Result<Decimal256, ContractError> {
     }
 }
 
-pub fn check_name_and_url(name: &String, url: &Option<String>) -> Result<(), ContractError> {
+pub fn check_name_and_url(name: &str, url: &Option<String>) -> Result<(), ContractError> {
     if name.len() < MIN_NAME_LENGTH {
         return Err(ContractError::StreamNameTooShort {});
     }

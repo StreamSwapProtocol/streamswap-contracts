@@ -1,22 +1,17 @@
 #[cfg(test)]
 mod resume_protocol_admin {
 
-    use std::str::FromStr;
-
     use crate::helpers::suite::SuiteBuilder;
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
         suite::Suite,
         utils::{get_contract_address_from_res, get_wasm_attribute_with_key},
     };
-    use cosmwasm_std::{coin, Addr, BlockInfo, Decimal, Decimal256, Uint128};
+    use cosmwasm_std::{coin, Addr, BlockInfo};
     use cw_multi_test::Executor;
     use streamswap_stream::state::Status;
     use streamswap_stream::{
-        msg::{
-            self, ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg,
-            StreamResponse,
-        },
+        msg::{ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg, StreamResponse},
         ContractError as StreamSwapError,
     };
 

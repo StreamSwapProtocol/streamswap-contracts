@@ -3,6 +3,8 @@ use std::str::FromStr;
 use cosmwasm_std::{Coin, Uint128};
 use cw_multi_test::AppResponse;
 
+#[allow(dead_code)]
+
 pub fn get_contract_address_from_res(res: AppResponse) -> String {
     res.events
         .iter()
@@ -16,6 +18,7 @@ pub fn get_contract_address_from_res(res: AppResponse) -> String {
         .clone()
 }
 
+#[allow(dead_code)]
 pub fn get_funds_from_res(res: AppResponse) -> Vec<(String, Coin)> {
     let mut funds = Vec::new();
 
@@ -50,6 +53,7 @@ pub fn get_funds_from_res(res: AppResponse) -> Vec<(String, Coin)> {
     funds
 }
 
+#[cfg(test)]
 pub fn get_wasm_attribute_with_key(res: AppResponse, key: String) -> String {
     if let Some(_non_empty_key) = key.chars().next() {
         res.events

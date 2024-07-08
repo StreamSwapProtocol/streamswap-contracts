@@ -1,44 +1,48 @@
 use crate::helpers::stargate::MyStargateKeeper;
-use cosmwasm_std::testing::{MockApi, MockStorage};
+use cosmwasm_std::testing::MockStorage;
+use cosmwasm_std::Empty;
 use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Timestamp};
-use cosmwasm_std::{Decimal, Empty};
 use cw_multi_test::addons::{MockAddressGenerator, MockApiBech32};
-use cw_multi_test::{App, AppBuilder, BankKeeper, ContractWrapper, Stargate, WasmKeeper};
+use cw_multi_test::{App, AppBuilder, BankKeeper, ContractWrapper, WasmKeeper};
 use cw_multi_test::{
     DistributionKeeper, FailingModule, GovFailingModule, IbcFailingModule, StakeKeeper,
 };
-use streamswap_factory::msg::InstantiateMsg as FactoryInstantiateMsg;
+
+#[allow(dead_code)]
 
 pub const PREFIX: &str = "cosmwasm";
 
+#[allow(dead_code)]
+
+type AppType = App<
+    BankKeeper,
+    MockApiBech32,
+    MockStorage,
+    FailingModule<Empty, Empty, Empty>,
+    WasmKeeper<Empty, Empty>,
+    StakeKeeper,
+    DistributionKeeper,
+    IbcFailingModule,
+    GovFailingModule,
+    MyStargateKeeper,
+>;
+
+#[allow(dead_code)]
+
 pub(crate) struct Suite {
-    pub app: App<
-        BankKeeper,
-        MockApiBech32,
-        MockStorage,
-        FailingModule<Empty, Empty, Empty>,
-        WasmKeeper<Empty, Empty>,
-        StakeKeeper,
-        DistributionKeeper,
-        IbcFailingModule,
-        GovFailingModule,
-        MyStargateKeeper,
-    >,
+    pub app: AppType,
     pub test_accounts: TestAccounts,
     pub stream_swap_factory_code_id: u64,
     pub stream_swap_code_id: u64,
     pub vesting_code_id: u64,
 }
 
+#[derive(Default)]
 pub(crate) struct SuiteBuilder {}
 
-impl Default for SuiteBuilder {
-    fn default() -> Self {
-        SuiteBuilder {}
-    }
-}
-
 impl SuiteBuilder {
+    #[allow(dead_code)]
+
     pub fn build(self) -> Suite {
         let denoms = vec![
             "fee_denom".to_string(),
@@ -49,12 +53,12 @@ impl SuiteBuilder {
         let amount = 1_000_000_000_000_000u128;
 
         let api = MockApiBech32::new(PREFIX);
-        let accounts = create_test_accounts(&api);
+        let accounts = TestAccounts::new(&api);
         let mut app = AppBuilder::default()
             .with_api(api)
             .with_wasm(WasmKeeper::default().with_address_generator(MockAddressGenerator))
             .with_stargate(MyStargateKeeper {})
-            .build(|router, api, storage| {
+            .build(|router, _api, storage| {
                 accounts.all().iter().for_each(|account| {
                     let coins: Vec<Coin> = denoms.iter().map(|d| coin(amount, d.clone())).collect();
                     router.bank.init_balance(storage, account, coins).unwrap();
@@ -97,25 +101,7 @@ impl SuiteBuilder {
     }
 }
 
-fn create_test_accounts(api: &MockApiBech32) -> TestAccounts {
-    let admin = api.addr_make("admin");
-    let admin_2 = api.addr_make("admin_2");
-    let creator_1 = api.addr_make("creator_1");
-    let creator_2 = api.addr_make("creator_2");
-    let subscriber_1 = api.addr_make("subscriber_1");
-    let subscriber_2 = api.addr_make("subscriber_2");
-    let wrong_user = api.addr_make("wrong_user");
-
-    TestAccounts {
-        admin,
-        admin_2,
-        creator_1,
-        subscriber_1,
-        subscriber_2,
-        wrong_user,
-        creator_2,
-    }
-}
+#[allow(dead_code)]
 
 pub struct TestAccounts {
     pub admin: Addr,
@@ -128,6 +114,26 @@ pub struct TestAccounts {
 }
 
 impl TestAccounts {
+    #[allow(dead_code)]
+    pub fn new(api: &MockApiBech32) -> TestAccounts {
+        let admin = api.addr_make("admin");
+        let admin_2 = api.addr_make("admin_2");
+        let creator_1 = api.addr_make("creator_1");
+        let creator_2 = api.addr_make("creator_2");
+        let subscriber_1 = api.addr_make("subscriber_1");
+        let subscriber_2 = api.addr_make("subscriber_2");
+        let wrong_user = api.addr_make("wrong_user");
+
+        TestAccounts {
+            admin,
+            admin_2,
+            creator_1,
+            subscriber_1,
+            subscriber_2,
+            wrong_user,
+            creator_2,
+        }
+    }
     pub fn all(&self) -> Vec<Addr> {
         vec![
             self.admin.clone(),
