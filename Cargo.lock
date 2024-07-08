@@ -1081,6 +1081,7 @@ dependencies = [
  "streamswap-factory",
  "streamswap-stream",
  "streamswap-types",
+ "streamswap-utils",
 ]
 
 [[package]]

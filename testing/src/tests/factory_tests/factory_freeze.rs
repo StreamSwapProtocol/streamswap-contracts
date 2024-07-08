@@ -7,7 +7,7 @@ use crate::helpers::{
 use cosmwasm_std::coin;
 use cw_multi_test::Executor;
 use streamswap_factory::error::ContractError as FactoryError;
-use streamswap_factory::msg::QueryMsg;
+use streamswap_types::factory::QueryMsg;
 
 #[test]
 fn factory_freeze() {
@@ -53,7 +53,7 @@ fn factory_freeze() {
         .unwrap();
 
     // Non-admin cannot freeze factory
-    let msg = streamswap_factory::msg::ExecuteMsg::Freeze {};
+    let msg = streamswap_types::factory::ExecuteMsg::Freeze {};
     let res = app
         .execute_contract(
             test_accounts.subscriber_1.clone(),
@@ -67,7 +67,7 @@ fn factory_freeze() {
     assert_eq!(*error, FactoryError::Unauthorized {});
 
     // Admin can freeze factory
-    let msg = streamswap_factory::msg::ExecuteMsg::Freeze {};
+    let msg = streamswap_types::factory::ExecuteMsg::Freeze {};
     app.execute_contract(
         test_accounts.admin.clone(),
         factory_address.clone(),

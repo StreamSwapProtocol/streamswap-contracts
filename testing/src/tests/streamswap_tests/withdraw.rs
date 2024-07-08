@@ -8,7 +8,7 @@ mod withdraw_tests {
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128};
     use cw_multi_test::Executor;
     use streamswap_stream::ContractError as StreamSwapError;
-    use streamswap_types::stream::msg::{
+    use streamswap_types::stream::{
         ExecuteMsg as StreamSwapExecuteMsg, PositionResponse, QueryMsg as StreamSwapQueryMsg,
         StreamResponse,
     };

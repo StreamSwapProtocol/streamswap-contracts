@@ -7,11 +7,11 @@ mod create_stream_tests {
     };
     use cosmwasm_std::{coin, Uint128};
     use cw_multi_test::Executor;
-    use streamswap_factory::{
-        error::ContractError as FactoryError, msg::QueryMsg, payment_checker::CustomPaymentError,
-    };
+    use streamswap_factory::error::ContractError as FactoryError;
     use streamswap_stream::ContractError as StreamSwapError;
-    use streamswap_types::stream::error::ThresholdError;
+    use streamswap_types::factory::QueryMsg;
+    use streamswap_types::stream::ThresholdError;
+    use streamswap_utils::payment_checker::CustomPaymentError;
 
     #[test]
     fn create_stream_failed_name_url_checks() {

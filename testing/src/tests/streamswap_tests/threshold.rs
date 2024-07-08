@@ -11,9 +11,9 @@ mod treshold_tests {
     use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Decimal, Decimal256, Timestamp, Uint128};
     use cw_multi_test::Executor;
     use streamswap_stream::ContractError as StreamSwapError;
-    use streamswap_stream::Status;
     use streamswap_types::stream::{
         ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg, StreamResponse,
+        ThresholdError,
     };
     use streamswap_types::stream::{Status, Stream, ThresholdState};
 
@@ -275,7 +275,7 @@ mod treshold_tests {
         let error = err.downcast::<StreamSwapError>().unwrap();
         assert_eq!(
             error,
-            StreamSwapError::ThresholdError(error::ThresholdError::ThresholdNotReached {})
+            StreamSwapError::ThresholdError(ThresholdError::ThresholdNotReached {})
         );
 
         // Subscriber one executes exit cancelled before creator cancels stream

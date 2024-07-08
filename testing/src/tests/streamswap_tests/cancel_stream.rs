@@ -9,7 +9,7 @@ mod cancel_stream {
     use cosmwasm_std::{coin, Addr, BlockInfo, Uint128};
     use cw_multi_test::Executor;
     use streamswap_stream::ContractError;
-    use streamswap_types::stream::msg::ExecuteMsg as StreamSwapExecuteMsg;
+    use streamswap_types::stream::ExecuteMsg as StreamSwapExecuteMsg;
 
     #[test]
     fn cancel_stream_error_unauthorized() {

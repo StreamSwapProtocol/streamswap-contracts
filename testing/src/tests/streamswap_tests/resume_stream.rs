@@ -11,7 +11,7 @@ mod resume_stream_test {
     use cw_multi_test::Executor;
 
     use streamswap_stream::ContractError as StreamSwapError;
-    use streamswap_types::stream::msg::{
+    use streamswap_types::stream::{
         ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg, StreamResponse,
     };
 

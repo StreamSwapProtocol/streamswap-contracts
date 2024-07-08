@@ -14,7 +14,8 @@ mod subscibe_test {
     use cw_multi_test::Executor;
     use cw_utils::PaymentError;
     use streamswap_stream::ContractError as StreamSwapError;
-    use streamswap_types::stream::msg::{
+    use streamswap_types::stream::Status;
+    use streamswap_types::stream::{
         ExecuteMsg as StreamSwapExecuteMsg, PositionResponse, QueryMsg as StreamSwapQueryMsg,
         StreamResponse,
     };
@@ -123,7 +124,7 @@ mod subscibe_test {
             )
             .unwrap();
         // First subscription should set the stream to active
-        assert_eq!(stream.status, streamswap_stream::state::Status::Active);
+        assert_eq!(stream.status, streamswap_types::stream::Status::Active);
         // Dist index should be zero because no distribution has been made until last update
         assert_eq!(stream.dist_index, Decimal256::zero());
         // In supply should be updated
@@ -248,7 +249,7 @@ mod subscibe_test {
                 &StreamSwapQueryMsg::Stream {},
             )
             .unwrap();
-        assert_eq!(stream.status, streamswap_stream::state::Status::Active);
+        assert_eq!(stream.status, streamswap_types::stream::Status::Active);
         assert_eq!(stream.dist_index, Decimal256::zero());
         assert_eq!(stream.in_supply, Uint128::new(150));
         let position: PositionResponse = app
@@ -443,7 +444,7 @@ mod subscibe_test {
                 &StreamSwapQueryMsg::Stream {},
             )
             .unwrap();
-        assert_eq!(stream.status, streamswap_stream::state::Status::Waiting);
+        assert_eq!(stream.status, Status::Waiting);
         assert_eq!(stream.dist_index, Decimal256::zero());
         assert_eq!(stream.in_supply, Uint128::new(150));
         let position: PositionResponse = app

@@ -11,7 +11,7 @@ mod withdraw_paused_test {
     use cw_multi_test::Executor;
 
     use streamswap_stream::ContractError as StreamSwapError;
-    use streamswap_types::stream::msg::{
+    use streamswap_types::stream::{
         ExecuteMsg as StreamSwapExecuteMsg, PositionResponse, QueryMsg as StreamSwapQueryMsg,
         StreamResponse,
     };

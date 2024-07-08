@@ -3,7 +3,8 @@ use crate::helpers::suite::SuiteBuilder;
 use crate::helpers::{mock_messages::get_factory_inst_msg, suite::Suite};
 use cosmwasm_std::{coin, Decimal};
 use cw_multi_test::Executor;
-use streamswap_factory::{msg::QueryMsg, state::Params};
+use streamswap_types::factory::Params;
+use streamswap_types::factory::QueryMsg;
 
 #[test]
 fn factory_proper_instantiate() {

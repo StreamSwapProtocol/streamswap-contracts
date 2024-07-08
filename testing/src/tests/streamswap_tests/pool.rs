@@ -6,8 +6,8 @@ mod pool_tests {
     use cosmwasm_std::{coin, Addr, Coin};
     use cw_multi_test::Executor;
     use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
-    use streamswap_factory::msg::CreatePool;
-    use streamswap_types::stream::msg::ExecuteMsg;
+    use streamswap_types::factory::CreatePool;
+    use streamswap_types::stream::ExecuteMsg;
 
     #[test]
     fn test_pool_creation() {
