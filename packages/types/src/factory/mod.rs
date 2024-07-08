@@ -1,7 +1,5 @@
-mod error;
 mod msg;
-mod types;
+mod params;
 
-pub use error::*;
 pub use msg::*;
-pub use types::*;
+pub use params::*;

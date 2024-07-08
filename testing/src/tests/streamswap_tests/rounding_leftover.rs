@@ -12,10 +12,10 @@ mod rounding_leftover {
     use cosmwasm_std::Uint128;
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Timestamp};
     use cw_multi_test::Executor;
-    use streamswap_stream::msg::{
+    use streamswap_types::stream::msg::{
         ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg,
     };
-    use streamswap_stream::msg::{PositionResponse, StreamResponse};
+    use streamswap_types::stream::msg::{PositionResponse, StreamResponse};
 
     #[test]
     fn test_rounding_leftover() {

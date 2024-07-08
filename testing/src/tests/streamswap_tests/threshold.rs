@@ -7,15 +7,57 @@ mod treshold_tests {
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
         suite::Suite,
     };
-    use cosmwasm_std::{coin, Addr, BlockInfo, Uint128};
+    use cosmwasm_std::testing::MockStorage;
+    use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Decimal, Decimal256, Timestamp, Uint128};
     use cw_multi_test::Executor;
-    use streamswap_stream::state::Status;
-    use streamswap_stream::threshold;
-    use streamswap_stream::{
-        msg::{ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg, StreamResponse},
-        ContractError as StreamSwapError,
+    use streamswap_stream::ContractError as StreamSwapError;
+    use streamswap_stream::Status;
+    use streamswap_types::stream::{
+        ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg, StreamResponse,
     };
+    use streamswap_types::stream::{Status, Stream, ThresholdState};
 
+    #[test]
+    fn test_thresholds_state() {
+        let mut storage = MockStorage::new();
+        let thresholds = ThresholdState::new();
+        let mut stream = Stream {
+            out_asset: Coin {
+                denom: "uluna".to_string(),
+                amount: Uint128::new(1000),
+            },
+            in_supply: Uint128::new(1000),
+            start_time: Timestamp::from_seconds(0),
+            end_time: Timestamp::from_seconds(1000),
+            last_updated: Timestamp::from_seconds(0),
+            pause_date: None,
+            current_streamed_price: Decimal::percent(100),
+            dist_index: Decimal256::one(),
+            in_denom: "uusd".to_string(),
+            name: "test".to_string(),
+            url: Some("test".to_string()),
+            out_remaining: Uint128::new(1000),
+            shares: Uint128::new(0),
+            spent_in: Uint128::new(0),
+            status: Status::Active,
+            treasury: Addr::unchecked("treasury"),
+            stream_admin: Addr::unchecked("admin"),
+            create_pool: None,
+            vesting: None,
+        };
+        let threshold = Uint128::new(1_500_000_000_000);
+
+        thresholds
+            .set_threshold_if_any(Some(threshold), &mut storage)
+            .unwrap();
+
+        stream.spent_in = Uint128::new(1_500_000_000_000 - 1);
+        let result = thresholds.error_if_not_reached(&storage, &stream.clone());
+        assert_eq!(result.is_err(), true);
+        stream.spent_in = Uint128::new(1_500_000_000_000);
+        let result = thresholds.error_if_not_reached(&storage, &stream.clone());
+        assert_eq!(result.is_err(), false);
+    }
     #[test]
     fn test_threshold_reached() {
         let Suite {
@@ -233,7 +275,7 @@ mod treshold_tests {
         let error = err.downcast::<StreamSwapError>().unwrap();
         assert_eq!(
             error,
-            StreamSwapError::ThresholdError(threshold::ThresholdError::ThresholdNotReached {})
+            StreamSwapError::ThresholdError(error::ThresholdError::ThresholdNotReached {})
         );
 
         // Subscriber one executes exit cancelled before creator cancels stream

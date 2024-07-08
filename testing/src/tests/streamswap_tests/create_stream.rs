@@ -10,7 +10,8 @@ mod create_stream_tests {
     use streamswap_factory::{
         error::ContractError as FactoryError, msg::QueryMsg, payment_checker::CustomPaymentError,
     };
-    use streamswap_stream::{threshold::ThresholdError, ContractError as StreamSwapError};
+    use streamswap_stream::ContractError as StreamSwapError;
+    use streamswap_types::stream::error::ThresholdError;
 
     #[test]
     fn create_stream_failed_name_url_checks() {

@@ -1,10 +1,9 @@
+use crate::error::ContractError;
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
     Response, StdResult, WasmMsg,
 };
-use streamswap_types::factory::{
-    ContractError, CreateStreamMsg, ExecuteMsg, InstantiateMsg, Params, QueryMsg,
-};
+use streamswap_types::factory::{CreateStreamMsg, ExecuteMsg, InstantiateMsg, Params, QueryMsg};
 use streamswap_utils::payment_checker::check_payment;
 
 use crate::state::{FREEZESTATE, LAST_STREAM_ID, PARAMS};

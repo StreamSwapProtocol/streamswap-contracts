@@ -12,11 +12,9 @@ mod update_position_tests {
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128};
     use cw_multi_test::Executor;
-    use streamswap_stream::{
-        msg::{
-            ExecuteMsg as StreamSwapExecuteMsg, PositionResponse, QueryMsg as StreamSwapQueryMsg,
-        },
-        ContractError as StreamSwapError,
+    use streamswap_stream::ContractError as StreamSwapError;
+    use streamswap_types::stream::msg::{
+        ExecuteMsg as StreamSwapExecuteMsg, PositionResponse, QueryMsg as StreamSwapQueryMsg,
     };
 
     #[test]

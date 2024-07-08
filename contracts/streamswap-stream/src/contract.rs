@@ -1,11 +1,5 @@
 use crate::helpers::{check_name_and_url, get_decimals};
 use crate::killswitch::execute_cancel_stream_with_threshold;
-use crate::msg::{
-    AveragePriceResponse, ExecuteMsg, LatestStreamedPriceResponse, PositionResponse,
-    PositionsResponse, QueryMsg, StreamResponse, SudoMsg,
-};
-use crate::state::{Position, Status, Stream, FACTORY_PARAMS, POSITIONS, STREAM, VESTING};
-use crate::threshold::ThresholdState;
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
     attr, coin, entry_point, to_json_binary, Addr, Attribute, BankMsg, Binary, CodeInfoResponse,
@@ -18,9 +12,16 @@ use cw_utils::{maybe_addr, must_pay};
 use osmosis_std::types::cosmos::base;
 use osmosis_std::types::osmosis::concentratedliquidity::v1beta1::MsgCreatePosition;
 use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
+use streamswap_types::stream::ThresholdState;
+use streamswap_types::stream::{
+    AveragePriceResponse, ExecuteMsg, LatestStreamedPriceResponse, PositionResponse,
+    PositionsResponse, QueryMsg, StreamResponse, SudoMsg,
+};
 
+use crate::state::{FACTORY_PARAMS, POSITIONS, STREAM, VESTING};
 use streamswap_types::factory::CreateStreamMsg;
 use streamswap_types::factory::Params as FactoryParams;
+use streamswap_types::stream::{Position, Status, Stream};
 
 // Version and contract info for migration
 const CONTRACT_NAME: &str = "crates.io:streamswap";

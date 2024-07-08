@@ -9,9 +9,9 @@ mod operator_tests {
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Uint128};
     use cw_multi_test::Executor;
-    use streamswap_stream::{
-        msg::{ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg, StreamResponse},
-        ContractError as StreamSwapError,
+    use streamswap_stream::ContractError as StreamSwapError;
+    use streamswap_types::stream::msg::{
+        ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg, StreamResponse,
     };
 
     #[test]

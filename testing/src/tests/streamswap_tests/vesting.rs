@@ -10,10 +10,9 @@ mod vesting_tests {
     use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
     use cw_vesting::vesting::Schedule;
     use cw_vesting::UncheckedDenom;
-    use streamswap_stream::msg::StreamResponse;
     use streamswap_stream::state::Status;
-    use streamswap_stream::{
-        msg::ExecuteMsg as StreamSwapExecuteMsg, msg::QueryMsg as StreamSwapQueryMsg,
+    use streamswap_types::stream::msg::{
+        ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg, StreamResponse,
     };
 
     #[test]

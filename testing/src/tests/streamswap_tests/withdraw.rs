@@ -7,12 +7,10 @@ mod withdraw_tests {
     use crate::helpers::utils::get_contract_address_from_res;
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128};
     use cw_multi_test::Executor;
-    use streamswap_stream::{
-        msg::{
-            ExecuteMsg as StreamSwapExecuteMsg, PositionResponse, QueryMsg as StreamSwapQueryMsg,
-            StreamResponse,
-        },
-        ContractError as StreamSwapError,
+    use streamswap_stream::ContractError as StreamSwapError;
+    use streamswap_types::stream::msg::{
+        ExecuteMsg as StreamSwapExecuteMsg, PositionResponse, QueryMsg as StreamSwapQueryMsg,
+        StreamResponse,
     };
 
     #[test]

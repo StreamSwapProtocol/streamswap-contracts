@@ -8,7 +8,8 @@ mod exit_cancel {
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Uint128};
     use cw_multi_test::Executor;
-    use streamswap_stream::{msg::ExecuteMsg as StreamSwapExecuteMsg, ContractError};
+    use streamswap_stream::ContractError;
+    use streamswap_types::stream::msg::ExecuteMsg as StreamSwapExecuteMsg;
 
     #[test]
     fn exit_without_stream_cancelled() {

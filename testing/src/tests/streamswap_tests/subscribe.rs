@@ -13,12 +13,10 @@ mod subscibe_test {
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128};
     use cw_multi_test::Executor;
     use cw_utils::PaymentError;
-    use streamswap_stream::{
-        msg::{
-            ExecuteMsg as StreamSwapExecuteMsg, PositionResponse, QueryMsg as StreamSwapQueryMsg,
-            StreamResponse,
-        },
-        ContractError as StreamSwapError,
+    use streamswap_stream::ContractError as StreamSwapError;
+    use streamswap_types::stream::msg::{
+        ExecuteMsg as StreamSwapExecuteMsg, PositionResponse, QueryMsg as StreamSwapQueryMsg,
+        StreamResponse,
     };
 
     #[test]

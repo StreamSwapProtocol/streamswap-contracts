@@ -8,9 +8,8 @@ mod pause_protocol_admin {
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Uint128};
     use cw_multi_test::Executor;
-    use streamswap_stream::{
-        msg::ExecuteMsg as StreamSwapExecuteMsg, ContractError as StreamSwapError,
-    };
+    use streamswap_stream::ContractError as StreamSwapError;
+    use streamswap_types::stream::msg::ExecuteMsg as StreamSwapExecuteMsg;
 
     #[test]
     fn test_cant_pause_before_start() {

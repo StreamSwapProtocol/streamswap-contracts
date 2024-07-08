@@ -19,6 +19,7 @@ cosmwasm-std = { workspace = true }
 cw-vesting = { workspace = true, features = ["library"] }
 cw-denom = { workspace = true }
 cw-utils = { workspace = true }
+cw-storage-plus = { workspace = true }
 osmosis-std = { workspace = true }
 streamswap-utils = { workspace = true }
 thiserror = { workspace = true }

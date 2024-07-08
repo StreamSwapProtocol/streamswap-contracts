@@ -7,7 +7,7 @@ mod pool_tests {
     use cw_multi_test::Executor;
     use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
     use streamswap_factory::msg::CreatePool;
-    use streamswap_stream::msg::ExecuteMsg;
+    use streamswap_types::stream::msg::ExecuteMsg;
 
     #[test]
     fn test_pool_creation() {

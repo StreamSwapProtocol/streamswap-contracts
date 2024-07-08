@@ -1,6 +1,5 @@
 use crate::contract::{update_position, update_stream};
-use crate::state::{Status, Stream, FACTORY_PARAMS, POSITIONS, STREAM};
-use crate::threshold::{ThresholdError, ThresholdState};
+use crate::state::{FACTORY_PARAMS, POSITIONS, STREAM};
 use crate::ContractError;
 use cosmwasm_std::{
     attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult, Timestamp,
@@ -8,6 +7,8 @@ use cosmwasm_std::{
 };
 use cw_utils::maybe_addr;
 use streamswap_types::factory::Params;
+use streamswap_types::stream::ThresholdState;
+use streamswap_types::stream::{Status, Stream, ThresholdError};
 
 pub fn execute_withdraw_paused(
     deps: DepsMut,

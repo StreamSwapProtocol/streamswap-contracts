@@ -8,6 +8,7 @@ mod pool;
 mod resume_protocol_admin;
 mod resume_stream;
 mod rounding_leftover;
+mod shares;
 mod subscribe;
 mod threshold;
 mod update_position;

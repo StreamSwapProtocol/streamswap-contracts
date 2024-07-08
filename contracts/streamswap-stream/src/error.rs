@@ -6,7 +6,7 @@ use cw_utils::PaymentError;
 use std::convert::Infallible;
 use thiserror::Error;
 
-use crate::threshold::ThresholdError;
+use streamswap_types::stream::ThresholdError;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {

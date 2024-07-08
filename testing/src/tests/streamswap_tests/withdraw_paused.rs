@@ -10,12 +10,10 @@ mod withdraw_paused_test {
     use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Uint128};
     use cw_multi_test::Executor;
 
-    use streamswap_stream::{
-        msg::{
-            ExecuteMsg as StreamSwapExecuteMsg, PositionResponse, QueryMsg as StreamSwapQueryMsg,
-            StreamResponse,
-        },
-        ContractError as StreamSwapError,
+    use streamswap_stream::ContractError as StreamSwapError;
+    use streamswap_types::stream::msg::{
+        ExecuteMsg as StreamSwapExecuteMsg, PositionResponse, QueryMsg as StreamSwapQueryMsg,
+        StreamResponse,
     };
 
     #[test]
