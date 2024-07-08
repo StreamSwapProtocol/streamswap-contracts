@@ -1,8 +1,4 @@
-use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
-use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
-use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
-
+use cosmwasm_schema::{cw_serde, QueryResponses};
 #[cw_serde]
 pub struct InstantiateMsg {
     pub stream_swap_code_id: u64,

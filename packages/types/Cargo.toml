@@ -1,0 +1,12 @@
+[package]
+name          = "streamswap-types"
+description   = "Messages and types for StreamSwap smart contracts"
+version       = { workspace = true }
+authors       = { workspace = true }
+edition       = { workspace = true }
+license       = { workspace = true }
+repository    = { workspace = true }
+homepage      = { workspace = true }
+
+[dependencies]
+cosmwasm-schema = { workspace = true }

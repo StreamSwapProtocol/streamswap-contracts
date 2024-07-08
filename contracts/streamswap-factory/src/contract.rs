@@ -5,7 +5,6 @@ use cosmwasm_std::{
 
 use crate::{
     error::ContractError,
-    msg::{CreateStreamMsg, ExecuteMsg, InstantiateMsg, QueryMsg},
     payment_checker::check_payment,
     state::{Params, FREEZESTATE, LAST_STREAM_ID, PARAMS},
 };

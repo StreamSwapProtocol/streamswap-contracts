@@ -39,6 +39,7 @@ schemars = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
+streamswap-types = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }

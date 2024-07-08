@@ -1,5 +1,8 @@
 [workspace]
-members = ["contracts/*", "testing"]
+members = [
+    "contracts/*",
+    "packages/types",
+    "testing"]
 resolver = "2"
 
 [workspace.package]
@@ -31,6 +34,9 @@ serde = { version = "1.0.152", default-features = false, features = ["derive"] }
 streamswap-factory = { path = "contracts/streamswap-factory" }
 streamswap-stream = { path = "contracts/streamswap-stream" }
 thiserror = { version = "1.0.38" }
+
+# packages
+streamswap-types = { path = "./packages/types" }
 
 [workspace.metadata.scripts]
 optimize = """docker run --rm -v "$(pwd)":/code \
