@@ -1011,6 +1011,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "streamswap-tests"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw-vesting",
+ "cw2",
+ "osmosis-std",
+ "prost 0.12.6",
+ "schemars",
+ "streamswap-factory",
+ "streamswap-stream",
+ "streamswap-types",
+ "streamswap-utils",
+]
+
+[[package]]
 name = "streamswap-types"
 version = "0.1.0"
 dependencies = [
@@ -1061,27 +1082,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
-]
-
-[[package]]
-name = "testing"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-controllers",
- "cw-multi-test",
- "cw-storage-plus",
- "cw-utils",
- "cw-vesting",
- "cw2",
- "osmosis-std",
- "prost 0.12.6",
- "schemars",
- "streamswap-factory",
- "streamswap-stream",
- "streamswap-types",
- "streamswap-utils",
 ]
 
 [[package]]

@@ -2,18 +2,12 @@
 name = "streamswap-stream"
 version = { workspace = true }
 edition = { workspace = true }
+
 exclude = [
   # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
   "contract.wasm",
   "hash.txt",
 ]
-
-[package.metadata.scripts]
-optimize = """docker run --rm -v "$(pwd)":/code \
-  --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
-  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/rust-optimizer:0.12.8
-"""
 
 [profile.release]
 overflow-checks = true
@@ -33,20 +27,19 @@ backtraces = ["cosmwasm-std/backtraces"]
 library = []
 
 [dependencies]
-cosmwasm-schema = { workspace = true }
-cosmwasm-std = { workspace = true }
-cw-controllers= { workspace = true }
-cw-storage-plus = { workspace = true }
-cw-utils = { workspace = true }
-cw-vesting = { workspace = true, features = ["library"] }
-cw2 = { workspace = true }
-osmosis-std = { workspace = true }
-schemars = { workspace = true }
-semver = { workspace = true }
-serde = { workspace = true }
+cosmwasm-schema  = { workspace = true }
+cosmwasm-std     = { workspace = true }
+cw-controllers   = { workspace = true }
+cw-storage-plus  = { workspace = true }
+cw-utils         = { workspace = true }
+cw-vesting       = { workspace = true, features = ["library"] }
+cw2              = { workspace = true }
+osmosis-std      = { workspace = true }
+schemars         = { workspace = true }
+semver           = { workspace = true }
+serde            = { workspace = true }
 streamswap-types = { workspace = true }
-thiserror = { workspace = true }
-
+thiserror        = { workspace = true }
 
 [dev-dependencies]
-cw-multi-test = { workspace = true }
+cw-multi-test    = { workspace = true }

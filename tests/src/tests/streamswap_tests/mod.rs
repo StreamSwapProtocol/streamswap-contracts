@@ -29,7 +29,7 @@ mod withdraw_paused;
 //     use crate::state::{Status, Stream};
 //     use crate::threshold::ThresholdError;
 //     use crate::ContractError;
-//     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+//     use cosmwasm_std::tests::{mock_dependencies, mock_env, mock_info};
 //     use cosmwasm_std::StdError::{self};
 //     use cosmwasm_std::{
 //         attr, coin, Addr, BankMsg, Coin, CosmosMsg, Decimal, Decimal256, Response, SubMsg,
@@ -1594,7 +1594,7 @@ mod withdraw_paused;
 //         assert_eq!(position.purchased, stream.out_supply);
 //     }
 
-//     // this is for testing the leftover amount with bigger values
+//     // this is for tests the leftover amount with bigger values
 //     #[test]
 //     fn test_rounding_leftover() {
 //         let treasury = Addr::unchecked("treasury");
