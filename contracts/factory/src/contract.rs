@@ -3,10 +3,16 @@ use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
     Response, StdResult, WasmMsg,
 };
-use streamswap_types::factory::{CreateStreamMsg, ExecuteMsg, InstantiateMsg, Params, QueryMsg};
+use cw2::ensure_from_older_version;
+use streamswap_types::factory::{
+    CreateStreamMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, Params, QueryMsg,
+};
 use streamswap_utils::payment_checker::check_payment;
 
 use crate::state::{FREEZESTATE, LAST_STREAM_ID, PARAMS};
+
+const CONTRACT_NAME: &str = "crates.io:streamswap-factory";
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -102,6 +108,7 @@ pub fn execute(
         ExecuteMsg::Freeze {} => execute_freeze(deps, info),
     }
 }
+
 pub fn execute_create_stream(
     deps: DepsMut,
     env: Env,
@@ -255,4 +262,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Freezestate {} => to_json_binary(&FREEZESTATE.load(deps.storage)?),
         QueryMsg::LastStreamId {} => to_json_binary(&LAST_STREAM_ID.load(deps.storage)?),
     }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    Ok(Response::default())
 }

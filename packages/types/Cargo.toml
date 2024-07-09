@@ -12,6 +12,7 @@ homepage      = { workspace = true }
 # for quicker tests, cargo test --lib
 # for more explicit tests, cargo test --features=backtraces
 backtraces = ["cosmwasm-std/backtraces"]
+interface = ["dep:cw-orch"]
 
 [dependencies]
 cosmwasm-schema  = { workspace = true }
@@ -20,6 +21,7 @@ cw-vesting       = { workspace = true, features = ["library"] }
 cw-denom         = { workspace = true }
 cw-utils         = { workspace = true }
 cw-storage-plus  = { workspace = true }
+cw-orch          = { workspace = true, optional = true }
 osmosis-std      = { workspace = true }
 streamswap-utils = { workspace = true }
 thiserror        = { workspace = true }
