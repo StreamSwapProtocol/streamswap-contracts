@@ -1342,7 +1342,6 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-utils",
- "semver",
  "thiserror",
 ]
 
