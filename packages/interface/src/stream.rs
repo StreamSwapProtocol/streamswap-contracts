@@ -1,7 +1,7 @@
 use cw_orch::{interface, prelude::*};
-use streamswap_types::stream::{ExecuteMsg, QueryMsg, MigrateMsg};
-use streamswap_types::factory::CreateStreamMsg as InstantiateMsg;
 use streamswap_factory::contract::{execute, instantiate, migrate, query};
+use streamswap_types::factory::CreateStreamMsg as InstantiateMsg;
+use streamswap_types::stream::{ExecuteMsg, MigrateMsg, QueryMsg};
 
 pub const CONTRACT_ID: &str = "streamswap_stream";
 
@@ -17,13 +17,6 @@ impl<Chain> Uploadable for StreamSwapStreamContract<Chain> {
     }
     /// Returns a CosmWasm contract wrapper
     fn wrapper() -> Box<dyn MockContract<Empty>> {
-        Box::new(
-            ContractWrapper::new_with_empty(
-                execute,
-                instantiate,
-                query,
-            )
-                .with_migrate(migrate)
-        )
+        Box::new(ContractWrapper::new_with_empty(execute, instantiate, query).with_migrate(migrate))
     }
 }

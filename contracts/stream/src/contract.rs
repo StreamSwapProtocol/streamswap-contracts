@@ -19,8 +19,8 @@ use streamswap_types::stream::{
 };
 
 use crate::state::{FACTORY_PARAMS, POSITIONS, STREAM, VESTING};
-use streamswap_types::factory::{CreateStreamMsg, MigrateMsg};
 use streamswap_types::factory::Params as FactoryParams;
+use streamswap_types::factory::{CreateStreamMsg, MigrateMsg};
 use streamswap_types::stream::{Position, Status, Stream};
 
 // Version and contract info for migration

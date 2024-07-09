@@ -4,7 +4,9 @@ use cosmwasm_std::{
     Response, StdResult, WasmMsg,
 };
 use cw2::ensure_from_older_version;
-use streamswap_types::factory::{CreateStreamMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, Params, QueryMsg};
+use streamswap_types::factory::{
+    CreateStreamMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, Params, QueryMsg,
+};
 use streamswap_utils::payment_checker::check_payment;
 
 use crate::state::{FREEZESTATE, LAST_STREAM_ID, PARAMS};
