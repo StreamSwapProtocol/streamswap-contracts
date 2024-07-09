@@ -1,7 +1,8 @@
-use cosmwasm_schema::cw_serde;
+use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
+use crate::factory::Params as FactoryParams;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -17,6 +18,7 @@ pub struct InstantiateMsg {
 }
 
 #[cw_serde]
+#[cfg_attr(feature = "interface", derive(cw_orch::ExecuteFns))]
 pub enum ExecuteMsg {
     UpdateParams {
         min_stream_seconds: Option<u64>,
@@ -57,8 +59,18 @@ pub struct CreatePool {
     pub msg_create_pool: MsgCreateConcentratedPool,
 }
 #[cw_serde]
+#[derive(QueryResponses)]
+#[cfg_attr(feature = "interface", derive(cw_orch::QueryFns))]
 pub enum QueryMsg {
+    #[returns(FactoryParams)]
     Params {},
+    #[returns(bool)]
     Freezestate {},
+    #[returns(u64)]
     LastStreamId {},
 }
+
+#[cw_serde]
+#[cfg_attr(feature = "interface", derive(cw_orch::MigrateFns))]
+pub enum MigrateMsg{}
+

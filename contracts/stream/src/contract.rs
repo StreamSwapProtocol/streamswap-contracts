@@ -6,7 +6,7 @@ use cosmwasm_std::{
     Coin, CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, Fraction, MessageInfo, Order,
     Response, StdError, StdResult, Timestamp, Uint128, Uint256, WasmMsg,
 };
-use cw2::set_contract_version;
+use cw2::{ensure_from_older_version, set_contract_version};
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay};
 use osmosis_std::types::cosmos::base;
@@ -19,12 +19,12 @@ use streamswap_types::stream::{
 };
 
 use crate::state::{FACTORY_PARAMS, POSITIONS, STREAM, VESTING};
-use streamswap_types::factory::CreateStreamMsg;
+use streamswap_types::factory::{CreateStreamMsg, MigrateMsg};
 use streamswap_types::factory::Params as FactoryParams;
 use streamswap_types::stream::{Position, Status, Stream};
 
 // Version and contract info for migration
-const CONTRACT_NAME: &str = "crates.io:streamswap";
+const CONTRACT_NAME: &str = "crates.io:streamswap-stream";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -934,24 +934,11 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
     }
 }
 
-// #[cfg_attr(not(feature = "library"), entry_point)]
-// pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-//     let contract_info = get_contract_version(deps.storage)?;
-//     let storage_contract_name: String = contract_info.contract;
-//     let storage_version: Version = contract_info.version.parse().map_err(from_semver)?;
-//     let version: Version = CONTRACT_VERSION.parse().map_err(from_semver)?;
-
-//     if storage_contract_name != CONTRACT_NAME {
-//         return Err(ContractError::CannotMigrate {
-//             previous_contract: storage_contract_name,
-//         });
-//     }
-//     if storage_version < version {
-//         set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-//         // Code to facilitate state change goes here
-//     }
-//     Ok(Response::default())
-// }
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    Ok(Response::default())
+}
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {

@@ -18,3 +18,4 @@ cosmwasm-schema = { workspace = true }
 cosmwasm-std = { workspace = true }
 cw-utils = { workspace = true }
 thiserror = { workspace = true }
+semver = "1.0.23"
