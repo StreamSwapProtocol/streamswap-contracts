@@ -1,0 +1,27 @@
+[package]
+name          = "streamswap-types"
+description   = "Messages and types for StreamSwap smart contracts"
+version       = { workspace = true }
+authors       = { workspace = true }
+edition       = { workspace = true }
+license       = { workspace = true }
+repository    = { workspace = true }
+homepage      = { workspace = true }
+
+[features]
+# for quicker tests, cargo test --lib
+# for more explicit tests, cargo test --features=backtraces
+backtraces = ["cosmwasm-std/backtraces"]
+interface = ["dep:cw-orch"]
+
+[dependencies]
+cosmwasm-schema  = { workspace = true }
+cosmwasm-std     = { workspace = true }
+cw-vesting       = { workspace = true, features = ["library"] }
+cw-denom         = { workspace = true }
+cw-utils         = { workspace = true }
+cw-storage-plus  = { workspace = true }
+cw-orch          = { workspace = true, optional = true }
+osmosis-std      = { workspace = true }
+streamswap-utils = { workspace = true }
+thiserror        = { workspace = true }

@@ -1,9 +1,14 @@
 [workspace]
-members = ["contracts/*", "testing"]
+members = [
+    "contracts/*",
+    "packages/interface",
+    "packages/types",
+    "tests"
+]
 resolver = "2"
 
 [workspace.package]
-authors = ["Orkun Külçe <orkunkl@users.noreply.github.com>", "Adnan Deniz Çorlu<adenizcorlu@gmail.com"]
+authors =  ["Orkun Külçe <orkunkl@users.noreply.github.com>", "Adnan Deniz Çorlu<adenizcorlu@gmail.com"]
 edition    = "2021"
 homepage   = ""
 license    = "Apache-2.0"
@@ -15,22 +20,34 @@ too_many_arguments = "allow"
 
 [workspace.dependencies]
 cosmwasm-schema = "1.2.0"
-cosmwasm-std = { version = "1.5.5", features = ["iterator", "staking", "stargate", "cosmwasm_1_2"] }
-cw-controllers = " 1.0.1"
-cw-denom = "2.3.0"
-cw-multi-test= { version = "0.20.1", features = ["cosmwasm_1_2"] }
+cosmwasm-std    = { version = "1.5.5", features = ["iterator", "staking", "stargate", "cosmwasm_1_2"] }
+cw-controllers  = " 1.0.1"
+cw-denom        = "2.3.0"
+cw-multi-test   = { version = "0.20.1", features = ["cosmwasm_1_2"] }
 cw-storage-plus = "1.0.1"
-cw-utils = "1.0.1"
-cw-vesting = { version = "2.3.0", features = ["library"] }
-cw2 = "1.0.1"
-osmosis-std = "0.24.0"
-prost = { version = "0.12.3", default-features = false, features = ["prost-derive"] }
-schemars = "0.8.11"
-semver = "1.0.16"
-serde = { version = "1.0.152", default-features = false, features = ["derive"] }
-streamswap-factory = { path = "contracts/streamswap-factory" }
-streamswap-stream = { path = "contracts/streamswap-stream" }
-thiserror = { version = "1.0.38" }
+cw-utils        = "1.0.1"
+cw-vesting      = { version = "2.3.0", features = ["library"] }
+cw-orch         = { version = "0.23.0" }
+cw2             = "1.0.1"
+osmosis-std     = "0.24.0"
+prost           = { version = "0.12.3", default-features = false, features = ["prost-derive"] }
+schemars        = "0.8.11"
+semver          = "1.0.16"
+serde           = { version = "1.0.152", default-features = false, features = ["derive"] }
+thiserror       = { version = "1.0.38" }
+
+# contracts
+streamswap-factory = { path = "./contracts/factory" }
+streamswap-stream  = { path = "./contracts/stream" }
+
+# packages
+streamswap-types = { path = "./packages/types" }
+streamswap-utils = { path = "./packages/utils" }
+
+# interface
+streamswap-interface = { path = "./packages/interface" }
+
+# tests
 
 [workspace.metadata.scripts]
 optimize = """docker run --rm -v "$(pwd)":/code \
