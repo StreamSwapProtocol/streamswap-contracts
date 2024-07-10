@@ -1,4 +1,3 @@
-use crate::factory::Params as FactoryParams;
 use crate::stream::Status;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary, Coin, Decimal, Decimal256, Timestamp, Uint128};
@@ -71,7 +70,7 @@ pub enum ExecuteMsg {
 #[cfg_attr(feature = "interface", derive(cw_orch::QueryFns))]
 pub enum QueryMsg {
     /// Returns current configuration.
-    #[returns(FactoryParams)]
+    #[returns(crate::factory::Params)]
     Params {},
     /// Returns a stream's current state.
     #[returns(StreamResponse)]
