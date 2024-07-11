@@ -16,3 +16,6 @@
 
 # tarpaulin-docs
 /tarpaulin-docs
+
+# ts-codegen
+ts/node_modules
