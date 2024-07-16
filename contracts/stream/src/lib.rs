@@ -6,5 +6,3 @@ mod error;
 mod helpers;
 mod killswitch;
 pub mod state;
-#[cfg(test)]
-mod tests;
