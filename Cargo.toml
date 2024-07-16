@@ -15,17 +15,6 @@ license    = "Apache-2.0"
 repository = ""
 version    = "0.1.0"
 
-[profile.release]
-codegen-units    = 1
-debug            = false
-debug-assertions = false
-incremental      = false
-lto              = true
-overflow-checks  = true
-opt-level        = 3
-panic            = "abort"
-rpath            = false
-
 [workspace.lints.clippy]
 too_many_arguments = "allow"
 module_inception = "allow"

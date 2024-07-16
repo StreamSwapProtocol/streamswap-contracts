@@ -38,8 +38,6 @@ pub struct Stream {
     pub current_streamed_price: Decimal,
     /// Status of the stream. Can be `Waiting`, `Active`, `Finalized`, `Paused` or `Canceled` for kill switch.
     pub status: Status,
-    /// Block height when the stream was paused.
-    pub pause_date: Option<Timestamp>,
     /// Create Pool message
     pub create_pool: Option<CreatePool>,
     /// Vesting configuration
@@ -78,7 +76,6 @@ impl Stream {
             last_updated,
             start_time,
             end_time,
-            pause_date: None,
             out_asset: out_asset.clone(),
             out_remaining: out_asset.amount,
             in_denom,

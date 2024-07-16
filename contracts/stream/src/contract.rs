@@ -15,7 +15,7 @@ use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
 use streamswap_types::stream::ThresholdState;
 use streamswap_types::stream::{
     AveragePriceResponse, ExecuteMsg, LatestStreamedPriceResponse, PositionResponse,
-    PositionsResponse, QueryMsg, StreamResponse, SudoMsg,
+    PositionsResponse, QueryMsg, StreamResponse,
 };
 
 use crate::state::{FACTORY_PARAMS, POSITIONS, STREAM, VESTING};
@@ -920,15 +920,6 @@ fn check_access(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractError> {
-    match msg {
-        SudoMsg::PauseStream {} => killswitch::sudo_pause_stream(deps, env),
-        SudoMsg::CancelStream {} => killswitch::sudo_cancel_stream(deps, env),
-        SudoMsg::ResumeStream {} => killswitch::sudo_resume_stream(deps, env),
-    }
-}
-
-#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     Ok(Response::default())
@@ -971,7 +962,6 @@ pub fn query_stream(deps: Deps, _env: Env) -> StdResult<StreamResponse> {
         in_supply: stream.in_supply,
         shares: stream.shares,
         status: stream.status,
-        pause_date: stream.pause_date,
         url: stream.url,
         current_streamed_price: stream.current_streamed_price,
         stream_admin: stream.stream_admin.into_string(),
