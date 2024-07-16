@@ -178,13 +178,7 @@ pub fn execute(
             salt,
         } => execute_exit_stream(deps, env, info, operator_target, salt),
 
-        ExecuteMsg::PauseStream {} => killswitch::execute_pause_stream(deps, env, info),
-        ExecuteMsg::ResumeStream {} => killswitch::execute_resume_stream(deps, env, info),
         ExecuteMsg::CancelStream {} => killswitch::execute_cancel_stream(deps, env, info),
-        ExecuteMsg::WithdrawPaused {
-            cap,
-            operator_target,
-        } => killswitch::execute_withdraw_paused(deps, env, info, cap, operator_target),
         ExecuteMsg::ExitCancelled { operator_target } => {
             killswitch::execute_exit_cancelled(deps, env, info, operator_target)
         }
@@ -199,8 +193,8 @@ pub fn execute(
 pub fn execute_update_stream(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
 
-    if stream.is_paused() {
-        return Err(ContractError::StreamPaused {});
+    if stream.is_killswitch_active() {
+        return Err(ContractError::StreamIsCancelled {});
     }
     let (_, dist_amount) = update_stream(env.block.time, &mut stream)?;
     STREAM.save(deps.storage, &stream)?;
@@ -290,8 +284,8 @@ pub fn execute_update_position(
 
     let mut stream = STREAM.load(deps.storage)?;
     // check if stream is paused
-    if stream.is_paused() {
-        return Err(ContractError::StreamPaused {});
+    if stream.is_killswitch_active() {
+        return Err(ContractError::StreamIsCancelled {});
     }
 
     // sync stream

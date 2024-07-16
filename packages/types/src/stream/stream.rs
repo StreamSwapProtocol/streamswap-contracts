@@ -52,7 +52,6 @@ pub enum Status {
     Waiting,
     Active,
     Finalized,
-    Paused,
     Cancelled,
 }
 
@@ -107,15 +106,12 @@ impl Stream {
         shares
     }
 
-    pub fn is_paused(&self) -> bool {
-        self.status == Status::Paused
-    }
-
     pub fn is_cancelled(&self) -> bool {
         self.status == Status::Cancelled
     }
 
+    // TODO: rename
     pub fn is_killswitch_active(&self) -> bool {
-        self.status == Status::Cancelled || self.status == Status::Paused
+        self.status == Status::Cancelled
     }
 }

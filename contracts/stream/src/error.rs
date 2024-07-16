@@ -111,14 +111,8 @@ pub enum ContractError {
     #[error("Invalid decimals")]
     InvalidDecimals {},
 
-    #[error("Stream paused")]
-    StreamPaused {},
-
     #[error("Stream is already paused")]
     StreamAlreadyPaused {},
-
-    #[error("Stream not paused")]
-    StreamNotPaused {},
 
     #[error("Stream not cancelled")]
     StreamNotCancelled {},

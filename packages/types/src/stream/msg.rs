@@ -47,20 +47,11 @@ pub enum ExecuteMsg {
     //
     // Killswitch features
     //
-    /// PauseStream pauses the stream. Only protocol admin and governance can pause the stream.
-    PauseStream {},
-    /// WithdrawPaused is used to withdraw unspent position funds during pause.
-    WithdrawPaused {
-        cap: Option<Uint128>,
-        // operator_target is the address of operator targets to execute on behalf of the user.
-        operator_target: Option<String>,
-    },
     /// ExitCancelled returns the whole balance user put in the stream, both spent and unspent.
     ExitCancelled {
         /// Operator_target is the address of operator targets to execute on behalf of the user.
         operator_target: Option<String>,
     },
-    ResumeStream {},
     CancelStream {},
     CancelStreamWithThreshold {},
 }

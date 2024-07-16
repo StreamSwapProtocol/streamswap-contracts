@@ -171,15 +171,6 @@ mod exit_cancel {
             .execute_contract(
                 test_accounts.admin.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::PauseStream {},
-                &[],
-            )
-            .unwrap();
-
-        let _res = app
-            .execute_contract(
-                test_accounts.admin.clone(),
-                Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::CancelStream {},
                 &[],
             )
@@ -270,15 +261,6 @@ mod exit_cancel {
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &subscribe_msg,
                 &[subscribe_amount.clone()],
-            )
-            .unwrap();
-
-        let _res = app
-            .execute_contract(
-                test_accounts.admin.clone(),
-                Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::PauseStream {},
-                &[],
             )
             .unwrap();
 
