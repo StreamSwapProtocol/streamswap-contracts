@@ -1,5 +1,5 @@
-use crate::factory::Params as FactoryParams;
 use cosmwasm_schema::{cw_serde, QueryResponses};
+use crate::factory::Params as FactoryParams;
 use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
@@ -62,7 +62,7 @@ pub struct CreatePool {
 #[derive(QueryResponses)]
 #[cfg_attr(feature = "interface", derive(cw_orch::QueryFns))]
 pub enum QueryMsg {
-    #[returns(FactoryParams)]
+    #[returns(crate::factory::Params)]
     Params {},
     #[returns(bool)]
     Freezestate {},
