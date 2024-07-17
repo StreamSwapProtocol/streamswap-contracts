@@ -1,0 +1,36 @@
+[package]
+authors    = ["Adnan Deniz Corlu <adenizcorlu@gmail.com>"]
+name       = "streamswap-integration-tests"
+edition    = { workspace = true }
+version    = { workspace = true }
+homepage   = { workspace = true }
+repository = { workspace = true }
+license    = { workspace = true }
+
+[lib]
+doctest = false
+[features]
+# for more explicit tests, cargo test --features=backtraces
+backtraces = ["cosmwasm-std/backtraces"]
+
+[lints]
+workspace = true
+
+[dependencies]
+cosmwasm-schema    = { workspace = true }
+cosmwasm-std       = { workspace = true }
+cw-controllers     = { workspace = true }
+cw-storage-plus    = { workspace = true }
+cw-utils           = { workspace = true }
+cw-vesting         = { workspace = true }
+cw2                = { workspace = true }
+osmosis-std        = { workspace = true }
+prost              = { workspace = true }
+schemars           = { workspace = true }
+streamswap-factory = { workspace = true }
+streamswap-stream  = { workspace = true }
+streamswap-types   = { workspace = true }
+streamswap-utils   = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+cw-multi-test      = { workspace = true }

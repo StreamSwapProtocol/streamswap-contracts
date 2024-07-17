@@ -3,6 +3,8 @@ members = [
     "contracts/*",
     "packages/interface",
     "packages/types",
+    "packages/utils",
+    "integration-tests",
     "tests"
 ]
 resolver = "2"
@@ -49,6 +51,7 @@ streamswap-utils = { path = "./packages/utils" }
 streamswap-interface = { path = "./packages/interface" }
 
 # tests
+streamswap-integration-tests = { path = "./integration-tests" }
 
 [workspace.metadata.scripts]
 optimize = """docker run --rm -v "$(pwd)":/code \
