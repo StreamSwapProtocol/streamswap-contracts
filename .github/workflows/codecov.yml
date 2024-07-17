@@ -1,0 +1,35 @@
+# From: https://github.com/codecov/example-rust/blob/main/.github/workflows/rust.yml
+name: coverage
+
+on:
+  push:
+    branches: [ "main", "v2", "development"]
+  pull_request:
+    branches: [ "main", "v2", "development"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: llvm-tools-preview
+      - name: cargo install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov
+      - name: cargo llvm-cov
+        run: cargo llvm-cov --workspace --lcov --output-path lcov.info
+      - name: codecov
+        uses: codecov/codecov-action@v3
+        with:
+          # Repository upload token - get it from codecov.io.
+          token: ${{ secrets.CODECOV_TOKEN }}
+          # Specify whether the Codecov output should be verbose
+          verbose: true
+          fail_ci_if_error: true
