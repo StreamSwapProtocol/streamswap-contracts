@@ -41,6 +41,7 @@ pub struct CreateStreamMsg {
     pub url: Option<String>,
     pub out_asset: Coin,
     pub in_denom: String,
+    pub bootstraping_start_time: Timestamp,
     pub start_time: Timestamp,
     pub end_time: Timestamp,
     pub threshold: Option<Uint128>,

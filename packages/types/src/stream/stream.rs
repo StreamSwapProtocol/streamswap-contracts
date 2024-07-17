@@ -1,6 +1,6 @@
 use crate::factory::CreatePool;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Timestamp, Uint128};
+use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Fraction, Timestamp, Uint128};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use std::ops::Mul;
 
@@ -56,10 +56,12 @@ pub struct StreamStatus {
     pub bootstraping_start_time: Timestamp,
     pub start_time: Timestamp,
     pub end_time: Timestamp,
+    pub last_updated: Timestamp,
 }
 
 impl StreamStatus {
     pub fn new(
+        now: Timestamp,
         bootstraping_start_time: Timestamp,
         start_time: Timestamp,
         end_time: Timestamp,
@@ -69,6 +71,8 @@ impl StreamStatus {
             bootstraping_start_time,
             start_time,
             end_time,
+            // TODO: check if this is correct
+            last_updated: now,
         }
     }
     pub fn update_status(&mut self, now: Timestamp) {
@@ -93,6 +97,7 @@ impl StreamStatus {
 
 impl Stream {
     pub fn new(
+        now: Timestamp,
         name: String,
         treasury: Addr,
         stream_admin: Addr,
@@ -120,7 +125,7 @@ impl Stream {
             spent_in: Uint128::zero(),
             shares: Uint128::zero(),
             current_streamed_price: Decimal::zero(),
-            status: StreamStatus::new(boothstraping_start_time, start_time, end_time),
+            status: StreamStatus::new(now, boothstraping_start_time, start_time, end_time),
             create_pool,
             vesting,
         }
@@ -142,5 +147,56 @@ impl Stream {
 
     pub fn update_status(&mut self, now: Timestamp) {
         self.status.update_status(now);
+    }
+
+    pub fn update(&mut self, now: Timestamp) {
+        let diff = calculate_diff(self.status.end_time, self.last_updated, now);
+
+        let mut new_distribution_balance = Uint128::zero();
+
+        // if no in balance in the contract, no need to update
+        // if diff not changed this means either stream not started or no in balance so far
+
+        if !self.shares.is_zero() && !diff.is_zero() {
+            // new distribution balance is the amount of in tokens that has been distributed since last update
+            // distribution is linear for now.
+            new_distribution_balance = self
+                .out_remaining
+                .multiply_ratio(diff.numerator(), diff.denominator());
+            // spent in tokens is the amount of in tokens that has been spent since last update
+            // spending is linear and goes to zero at the end of the stream
+            let spent_in = self
+                .in_supply
+                .multiply_ratio(diff.numerator(), diff.denominator());
+
+            // increase total spent_in of the stream
+            self.spent_in += spent_in;
+            // decrease in_supply of the steam
+            self.in_supply -= spent_in;
+
+            // if no new distribution balance, no need to update the price, out_remaining and dist_index
+            if !new_distribution_balance.is_zero() {
+                // decrease amount to be distributed of the stream
+                self.out_remaining -= new_distribution_balance;
+                // update distribution index. A positions share of the distribution is calculated by
+                // multiplying the share by the distribution index
+                self.dist_index += Decimal256::from_ratio(new_distribution_balance, self.shares);
+                self.current_streamed_price =
+                    Decimal::from_ratio(spent_in, new_distribution_balance)
+            }
+        }
+    }
+}
+
+fn calculate_diff(end_time: Timestamp, last_updated: Timestamp, now: Timestamp) -> Decimal {
+    // diff = (now - last_updated) / (end_time - last_updated)
+    let now = if now > end_time { end_time } else { now };
+    let numerator = now.nanos().saturating_sub(last_updated.nanos());
+    let denominator = end_time.nanos().saturating_sub(last_updated.nanos());
+
+    if denominator == 0 || numerator == 0 {
+        Decimal::zero()
+    } else {
+        Decimal::from_ratio(numerator, denominator)
     }
 }

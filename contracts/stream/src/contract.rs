@@ -44,6 +44,7 @@ pub fn instantiate(
     FACTORY_PARAMS.save(deps.storage, &factory_params)?;
 
     let CreateStreamMsg {
+        bootstraping_start_time,
         start_time,
         end_time,
         treasury,
@@ -75,12 +76,14 @@ pub fn instantiate(
     check_name_and_url(&name, &url)?;
 
     let stream = Stream::new(
+        env.block.time,
         name.clone(),
         treasury.clone(),
         stream_admin,
         url.clone(),
         out_asset.clone(),
         in_denom.clone(),
+        bootstraping_start_time,
         start_time,
         end_time,
         start_time,
@@ -125,50 +128,53 @@ pub fn execute(
             operator,
         } => {
             let stream = STREAM.load(deps.storage)?;
-            if stream.start_time > env.block.time {
-                Ok(execute_subscribe_pending(
-                    deps.branch(),
-                    env,
-                    info,
-                    operator,
-                    operator_target,
-                    stream,
-                )?)
-            } else {
-                Ok(execute_subscribe(
-                    deps,
-                    env,
-                    info,
-                    operator,
-                    operator_target,
-                    stream,
-                )?)
-            }
+            execute_subscribe(deps, env, info, operator, operator_target, stream)
         }
+        // let stream = STREAM.load(deps.storage)?;
+        // if stream.start_time > env.block.time {
+        //     Ok(execute_subscribe_pending(
+        //         deps.branch(),
+        //         env,
+        //         info,
+        //         operator,
+        //         operator_target,
+        //         stream,
+        //     )?)
+        // } else {
+        //     Ok(execute_subscribe(
+        //         deps,
+        //         env,
+        //         info,
+        //         operator,
+        //         operator_target,
+        //         stream,
+        //     )?)
+        // }
         ExecuteMsg::Withdraw {
             cap,
             operator_target,
         } => {
             let stream = STREAM.load(deps.storage)?;
-            if stream.start_time > env.block.time {
-                Ok(execute_withdraw_pending(
-                    deps.branch(),
-                    env,
-                    info,
-                    stream,
-                    cap,
-                    operator_target,
-                )?)
-            } else {
-                Ok(execute_withdraw(
-                    deps,
-                    env,
-                    info,
-                    stream,
-                    cap,
-                    operator_target,
-                )?)
-            }
+            execute_withdraw(deps, env, info, stream, cap, operator_target)
+            // if stream.start_time > env.block.time {
+            //     Ok(execute_withdraw_pending(
+            //         deps.branch(),
+            //         env,
+            //         info,
+            //         stream,
+            //         cap,
+            //         operator_target,
+            //     )?)
+            // } else {
+            //     Ok(execute_withdraw(
+            //         deps,
+            //         env,
+            //         info,
+            //         stream,
+            //         cap,
+            //         operator_target,
+            //     )?)
+            // }
         }
         ExecuteMsg::FinalizeStream { new_treasury } => {
             execute_finalize_stream(deps, env, info, new_treasury)
@@ -192,83 +198,16 @@ pub fn execute(
 /// Updates stream to calculate released distribution and spent amount
 pub fn execute_update_stream(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
-
-    if stream.is_killswitch_active() {
-        return Err(ContractError::StreamIsCancelled {});
-    }
-    let (_, dist_amount) = update_stream(env.block.time, &mut stream)?;
+    stream.update(env.block.time);
     STREAM.save(deps.storage, &stream)?;
 
     let attrs = vec![
         attr("action", "update_stream"),
-        attr("new_distribution_amount", dist_amount),
+        // attr("new_distribution_amount", dist_amount),
         attr("dist_index", stream.dist_index.to_string()),
     ];
     let res = Response::new().add_attributes(attrs);
     Ok(res)
-}
-
-pub fn update_stream(
-    now: Timestamp,
-    stream: &mut Stream,
-) -> Result<(Decimal, Uint128), ContractError> {
-    let diff = calculate_diff(stream.end_time, stream.last_updated, now);
-
-    let mut new_distribution_balance = Uint128::zero();
-
-    // if no in balance in the contract, no need to update
-    // if diff not changed this means either stream not started or no in balance so far
-    if !stream.shares.is_zero() && !diff.is_zero() {
-        // new distribution balance is the amount of in tokens that has been distributed since last update
-        // distribution is linear for now.
-        new_distribution_balance = stream
-            .out_remaining
-            .multiply_ratio(diff.numerator(), diff.denominator());
-        // spent in tokens is the amount of in tokens that has been spent since last update
-        // spending is linear and goes to zero at the end of the stream
-        let spent_in = stream
-            .in_supply
-            .multiply_ratio(diff.numerator(), diff.denominator());
-
-        // increase total spent_in of the stream
-        stream.spent_in = stream.spent_in.checked_add(spent_in)?;
-        // decrease in_supply of the steam
-        stream.in_supply = stream.in_supply.checked_sub(spent_in)?;
-
-        // if no new distribution balance, no need to update the price, out_remaining and dist_index
-        if !new_distribution_balance.is_zero() {
-            // decrease amount to be distributed of the stream
-            stream.out_remaining = stream.out_remaining.checked_sub(new_distribution_balance)?;
-            // update distribution index. A positions share of the distribution is calculated by
-            // multiplying the share by the distribution index
-            stream.dist_index = stream.dist_index.checked_add(Decimal256::from_ratio(
-                new_distribution_balance,
-                stream.shares,
-            ))?;
-            stream.current_streamed_price = Decimal::from_ratio(spent_in, new_distribution_balance)
-        }
-    }
-
-    stream.last_updated = if now < stream.start_time {
-        stream.start_time
-    } else {
-        now
-    };
-
-    Ok((diff, new_distribution_balance))
-}
-
-fn calculate_diff(end_time: Timestamp, last_updated: Timestamp, now: Timestamp) -> Decimal {
-    // diff = (now - last_updated) / (end_time - last_updated)
-    let now = if now > end_time { end_time } else { now };
-    let numerator = now.nanos().saturating_sub(last_updated.nanos());
-    let denominator = end_time.nanos().saturating_sub(last_updated.nanos());
-
-    if denominator == 0 || numerator == 0 {
-        Decimal::zero()
-    } else {
-        Decimal::from_ratio(numerator, denominator)
-    }
 }
 
 pub fn execute_update_position(
