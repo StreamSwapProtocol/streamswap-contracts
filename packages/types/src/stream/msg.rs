@@ -47,20 +47,11 @@ pub enum ExecuteMsg {
     //
     // Killswitch features
     //
-    /// PauseStream pauses the stream. Only protocol admin and governance can pause the stream.
-    PauseStream {},
-    /// WithdrawPaused is used to withdraw unspent position funds during pause.
-    WithdrawPaused {
-        cap: Option<Uint128>,
-        // operator_target is the address of operator targets to execute on behalf of the user.
-        operator_target: Option<String>,
-    },
     /// ExitCancelled returns the whole balance user put in the stream, both spent and unspent.
     ExitCancelled {
         /// Operator_target is the address of operator targets to execute on behalf of the user.
         operator_target: Option<String>,
     },
-    ResumeStream {},
     CancelStream {},
     CancelStreamWithThreshold {},
 }
@@ -149,8 +140,6 @@ pub struct StreamResponse {
     pub current_streamed_price: Decimal,
     /// Status of the stream. Can be `Waiting`, `Active`, `Finalzed`, `Paused` or `Canceled` for kill switch.
     pub status: Status,
-    /// second height when the stream was paused.
-    pub pause_date: Option<Timestamp>,
     /// Address of the stream admin.
     pub stream_admin: String,
 }
@@ -194,13 +183,6 @@ pub struct AveragePriceResponse {
 #[cw_serde]
 pub struct LatestStreamedPriceResponse {
     pub current_streamed_price: Decimal,
-}
-
-#[cw_serde]
-pub enum SudoMsg {
-    PauseStream {},
-    CancelStream {},
-    ResumeStream {},
 }
 
 #[cw_serde]

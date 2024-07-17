@@ -30,7 +30,6 @@ mod treshold_tests {
             start_time: Timestamp::from_seconds(0),
             end_time: Timestamp::from_seconds(1000),
             last_updated: Timestamp::from_seconds(0),
-            pause_date: None,
             current_streamed_price: Decimal::percent(100),
             dist_index: Decimal256::one(),
             in_denom: "uusd".to_string(),
