@@ -21,23 +21,32 @@ version    = "0.1.0"
 too_many_arguments = "allow"
 module_inception = "allow"
 
+[profile.release]
+overflow-checks = true
+
+[profile.dev]
+incremental = true
+
 [workspace.dependencies]
-cosmwasm-schema = "1.2.0"
-cosmwasm-std    = { version = "1.5.5", features = ["iterator", "staking", "stargate", "cosmwasm_1_2"] }
-cw-controllers  = " 1.0.1"
-cw-denom        = "2.3.0"
-cw-multi-test   = { version = "0.20.1", features = ["cosmwasm_1_2"] }
-cw-storage-plus = "1.0.1"
-cw-utils        = "1.0.1"
-cw-vesting      = { version = "2.3.0", features = ["library"] }
-cw-orch         = { version = "0.23.0" }
-cw2             = "1.0.1"
-osmosis-std     = "0.24.0"
-prost           = { version = "0.12.3", default-features = false, features = ["prost-derive"] }
-schemars        = "0.8.11"
-semver          = "1.0.16"
-serde           = { version = "1.0.152", default-features = false, features = ["derive"] }
-thiserror       = { version = "1.0.38" }
+cosmwasm-schema           = "1.2.0"
+cosmwasm-std              = { version = "1.5.5", features = ["iterator", "staking", "stargate", "cosmwasm_1_2"] }
+cw-controllers            = " 1.0.1"
+cw-denom                  = "2.3.0"
+cw-multi-test             = { version = "0.20.1", features = ["cosmwasm_1_2"] }
+cw-storage-plus           = "1.0.1"
+cw-utils                  = "1.0.1"
+cw-vesting                = { version = "2.3.0", features = ["library"] }
+cw-orch                   = { version = "0.23.0" }
+cw-orch-osmosis-test-tube = "0.3.0"
+cw2                       = "1.0.1"
+osmosis-std               = "0.24.0"
+prost                     = { version = "0.12.3", default-features = false, features = ["prost-derive"] }
+schemars                  = "0.8.11"
+semver                    = "1.0.16"
+serde                     = { version = "1.0.152", default-features = false, features = ["derive"] }
+thiserror                 = { version = "1.0.38" }
+osmosis-test-tube         = "25.0.0"
+
 
 # contracts
 streamswap-factory = { path = "./contracts/factory" }
@@ -57,5 +66,5 @@ streamswap-integration-tests = { path = "./integration-tests" }
 optimize = """docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/workspace-optimizer:0.16.0
+  cosmwasm/optimizer:0.16.0
 """

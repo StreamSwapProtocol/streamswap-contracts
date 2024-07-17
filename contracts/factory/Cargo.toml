@@ -41,6 +41,3 @@ serde            = { workspace = true }
 streamswap-types = { workspace = true }
 streamswap-utils = { workspace = true }
 thiserror        = { workspace = true }
-
-[dev-dependencies]
-cw-multi-test    = { workspace = true }
