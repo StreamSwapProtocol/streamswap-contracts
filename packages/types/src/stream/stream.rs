@@ -150,8 +150,12 @@ impl Stream {
     }
 
     pub fn update(&mut self, now: Timestamp) {
-        let diff = calculate_diff(self.status.end_time, self.last_updated, now);
-
+        let diff = calculate_diff(
+            self.status.start_time,
+            self.status.end_time,
+            self.last_updated,
+            now,
+        );
         let mut new_distribution_balance = Uint128::zero();
 
         // if no in balance in the contract, no need to update
@@ -185,11 +189,41 @@ impl Stream {
                     Decimal::from_ratio(spent_in, new_distribution_balance)
             }
         }
+
+        self.last_updated = now;
+
+        // update status of the stream
+        self.update_status(now);
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.status.status == Status::Active
+    }
+
+    pub fn is_finalized(&self) -> bool {
+        self.status.status == Status::Ended
+    }
+
+    pub fn is_waiting(&self) -> bool {
+        self.status.status == Status::Waiting
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.status.status == Status::Cancelled
     }
 }
 
-fn calculate_diff(end_time: Timestamp, last_updated: Timestamp, now: Timestamp) -> Decimal {
+fn calculate_diff(
+    start_time: Timestamp,
+    end_time: Timestamp,
+    last_updated: Timestamp,
+    now: Timestamp,
+) -> Decimal {
     // diff = (now - last_updated) / (end_time - last_updated)
+    // -------Waiting-------|----Boothstarapping----|-------Active-------|-------Ended-------|
+    if now < start_time || last_updated >= end_time {
+        return Decimal::zero();
+    }
     let now = if now > end_time { end_time } else { now };
     let numerator = now.nanos().saturating_sub(last_updated.nanos());
     let denominator = end_time.nanos().saturating_sub(last_updated.nanos());
