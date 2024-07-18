@@ -440,6 +440,7 @@ pub fn execute_update_operator(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
+    // TODO: REMOVE OPERATOR. IT IS NOT NEEDED.
     operator: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut position = POSITIONS.load(deps.storage, &info.sender)?;

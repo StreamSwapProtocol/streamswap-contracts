@@ -36,6 +36,7 @@ mod withdraw_tests {
             .unwrap();
         let start_time = app.block_info().time.plus_seconds(100).into();
         let end_time = app.block_info().time.plus_seconds(200).into();
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50).into();
 
         let create_stream_msg = get_create_stream_msg(
             &"Stream Swap tests".to_string(),
@@ -43,6 +44,7 @@ mod withdraw_tests {
             &test_accounts.creator_1.to_string(),
             coin(1_000_000, "out_denom"),
             "in_denom",
+            bootstrapping_start_time,
             start_time,
             end_time,
             None,
@@ -240,6 +242,7 @@ mod withdraw_tests {
             .unwrap();
         let start_time = app.block_info().time.plus_seconds(1000).into();
         let end_time = app.block_info().time.plus_seconds(5000).into();
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(500).into();
 
         let create_stream_msg = get_create_stream_msg(
             &"Stream Swap test".to_string(),
@@ -247,6 +250,7 @@ mod withdraw_tests {
             &test_accounts.creator_1.to_string(),
             coin(1_000_000_000_000, "out_denom"),
             "in_denom",
+            bootstrapping_start_time,
             start_time,
             end_time,
             None,
@@ -399,6 +403,7 @@ mod withdraw_tests {
             .unwrap();
         let start_time = app.block_info().time.plus_seconds(100).into();
         let end_time = app.block_info().time.plus_seconds(200).into();
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50).into();
 
         let create_stream_msg = get_create_stream_msg(
             &"Stream Swap tests".to_string(),
@@ -406,6 +411,7 @@ mod withdraw_tests {
             &test_accounts.creator_1.to_string(),
             coin(1_000_000, "out_denom"),
             "in_denom",
+            bootstrapping_start_time,
             start_time,
             end_time,
             None,

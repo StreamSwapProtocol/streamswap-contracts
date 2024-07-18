@@ -156,6 +156,7 @@ impl Stream {
             self.last_updated,
             now,
         );
+
         let mut new_distribution_balance = Uint128::zero();
 
         // If no in balance in the contract, no need to update.
@@ -228,6 +229,8 @@ fn calculate_diff(
 ) -> Decimal {
     // diff = (now - last_updated) / (end_time - last_updated)
     // -------Waiting-------|----Bootstrapping----|-------Active-------|-------Ended-------|
+
+    // TODO - More readable
     if now < start_time || last_updated >= end_time {
         return Decimal::zero();
     }
@@ -237,6 +240,7 @@ fn calculate_diff(
     }
 
     let now = if now > end_time { end_time } else { now };
+
     let numerator = now.nanos().saturating_sub(last_updated.nanos());
     let denominator = end_time.nanos().saturating_sub(last_updated.nanos());
 
@@ -245,4 +249,6 @@ fn calculate_diff(
     } else {
         Decimal::from_ratio(numerator, denominator)
     }
+
+    // Add Stream creation validate fuction
 }

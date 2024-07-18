@@ -31,6 +31,7 @@ mod subscibe_test {
         } = SuiteBuilder::default().build();
         let start_time = app.block_info().time.plus_seconds(100).into();
         let end_time = app.block_info().time.plus_seconds(200).into();
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50).into();
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
@@ -50,6 +51,7 @@ mod subscibe_test {
             &test_accounts.creator_1.to_string(),
             coin(1_000_000, "out_denom"),
             "in_denom",
+            bootstrapping_start_time,
             start_time,
             end_time,
             None,
@@ -185,6 +187,7 @@ mod subscibe_test {
         } = SuiteBuilder::default().build();
         let start_time = app.block_info().time.plus_seconds(100).into();
         let end_time = app.block_info().time.plus_seconds(200).into();
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50).into();
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
@@ -204,6 +207,7 @@ mod subscibe_test {
             &test_accounts.creator_1.to_string(),
             coin(1_000_000, "out_denom"),
             "in_denom",
+            bootstrapping_start_time,
             start_time,
             end_time,
             None,
@@ -380,6 +384,7 @@ mod subscibe_test {
         } = SuiteBuilder::default().build();
         let start_time = app.block_info().time.plus_seconds(100).into();
         let end_time = app.block_info().time.plus_seconds(200).into();
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50).into();
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
@@ -399,6 +404,7 @@ mod subscibe_test {
             &test_accounts.creator_1.to_string(),
             coin(1_000_000, "out_denom"),
             "in_denom",
+            bootstrapping_start_time,
             start_time,
             end_time,
             None,

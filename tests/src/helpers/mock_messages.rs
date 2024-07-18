@@ -137,6 +137,7 @@ pub fn get_create_stream_msg(
     treasury: &str,
     out_asset: Coin,
     in_denom: &str,
+    bootstrapping_start_time: Timestamp,
     start_time: Timestamp,
     end_time: Timestamp,
     threshold: Option<Uint128>,
@@ -145,7 +146,7 @@ pub fn get_create_stream_msg(
 ) -> FactoryExecuteMsg {
     FactoryExecuteMsg::CreateStream {
         msg: Box::new(CreateStreamMsg {
-            bootstraping_start_time: start_time.minus_nanos(1_000_000),
+            bootstraping_start_time: bootstrapping_start_time,
             treasury: treasury.to_string(),
             stream_admin: treasury.to_string(),
             name: name.to_string(),

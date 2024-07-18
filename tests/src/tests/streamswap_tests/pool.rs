@@ -21,6 +21,7 @@ mod pool_tests {
 
         let start_time = app.block_info().time.plus_seconds(1_000_000).into();
         let end_time = app.block_info().time.plus_seconds(5_000_000).into();
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(500_000).into();
 
         let in_denom = "in_denom";
         let _out_supply = 1_000_000_000_000u128;
@@ -52,6 +53,7 @@ mod pool_tests {
             &test_accounts.creator_1.to_string(),
             coin(1_000_000, out_denom),
             in_denom,
+            bootstrapping_start_time,
             start_time,
             end_time,
             None,

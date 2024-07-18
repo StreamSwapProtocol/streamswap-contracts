@@ -35,6 +35,7 @@ mod exit_cancel {
 
         let start_time = app.block_info().time.plus_seconds(100).into();
         let end_time = app.block_info().time.plus_seconds(200).into();
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50).into();
 
         let create_stream_msg = get_create_stream_msg(
             "stream",
@@ -42,6 +43,7 @@ mod exit_cancel {
             &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
+            bootstrapping_start_time,
             start_time,
             end_time,
             None,
@@ -122,6 +124,7 @@ mod exit_cancel {
 
         let start_time = app.block_info().time.plus_seconds(100).into();
         let end_time = app.block_info().time.plus_seconds(200).into();
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50).into();
 
         let create_stream_msg = get_create_stream_msg(
             "stream",
@@ -129,6 +132,7 @@ mod exit_cancel {
             &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
+            bootstrapping_start_time,
             start_time,
             end_time,
             Some(Uint128::from(100u128)),
@@ -218,6 +222,7 @@ mod exit_cancel {
 
         let start_time = app.block_info().time.plus_seconds(100).into();
         let end_time = app.block_info().time.plus_seconds(200).into();
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50).into();
 
         let create_stream_msg = get_create_stream_msg(
             "stream",
@@ -225,6 +230,7 @@ mod exit_cancel {
             &test_accounts.creator_1.to_string(),
             coin(100, "out_denom"),
             "in_denom",
+            bootstrapping_start_time,
             start_time,
             end_time,
             Some(Uint128::from(100u128)),
