@@ -1,3 +1,5 @@
+use core::str;
+
 use crate::helpers::{check_name_and_url, get_decimals};
 use crate::killswitch::execute_cancel_stream_with_threshold;
 use crate::{killswitch, ContractError};
@@ -461,13 +463,13 @@ pub fn execute_withdraw(
     cap: Option<Uint128>,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
-    // check if stream is paused
-    if stream.is_killswitch_active() {
-        return Err(ContractError::StreamKillswitchActive {});
-    }
-    // can't withdraw after stream ended
-    if env.block.time >= stream.end_time {
-        return Err(ContractError::StreamEnded {});
+    // // check if stream is paused
+    // if stream.is_killswitch_active() {
+    //     return Err(ContractError::StreamKillswitchActive {});
+    // }
+    stream.update_status(env.block.time);
+    if !stream.is_active() || !stream.is_bootstrapping() {
+        return Err(ContractError::StreamNotStarted {});
     }
 
     let operator_target =
@@ -475,7 +477,8 @@ pub fn execute_withdraw(
     let mut position = POSITIONS.load(deps.storage, &operator_target)?;
     check_access(&info, &position.owner, &position.operator)?;
 
-    update_stream(env.block.time, &mut stream)?;
+    //update_stream(env.block.time, &mut stream)?;
+    stream.update(env.block.time);
     update_position(
         stream.dist_index,
         stream.shares,
@@ -529,64 +532,64 @@ pub fn execute_withdraw(
     Ok(res)
 }
 
-pub fn execute_withdraw_pending(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    mut stream: Stream,
-    cap: Option<Uint128>,
-    operator_target: Option<String>,
-) -> Result<Response, ContractError> {
-    // check if stream is paused
-    let operator_target =
-        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let mut position = POSITIONS.load(deps.storage, &operator_target)?;
-    check_access(&info, &position.owner, &position.operator)?;
+// pub fn execute_withdraw_pending(
+//     deps: DepsMut,
+//     _env: Env,
+//     info: MessageInfo,
+//     mut stream: Stream,
+//     cap: Option<Uint128>,
+//     operator_target: Option<String>,
+// ) -> Result<Response, ContractError> {
+//     // check if stream is paused
+//     let operator_target =
+//         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
+//     let mut position = POSITIONS.load(deps.storage, &operator_target)?;
+//     check_access(&info, &position.owner, &position.operator)?;
 
-    let withdraw_amount = cap.unwrap_or(position.in_balance);
-    // if amount to withdraw more then deduced buy balance throw error
-    if withdraw_amount > position.in_balance {
-        return Err(ContractError::WithdrawAmountExceedsBalance(withdraw_amount));
-    }
+//     let withdraw_amount = cap.unwrap_or(position.in_balance);
+//     // if amount to withdraw more then deduced buy balance throw error
+//     if withdraw_amount > position.in_balance {
+//         return Err(ContractError::WithdrawAmountExceedsBalance(withdraw_amount));
+//     }
 
-    if withdraw_amount.is_zero() {
-        return Err(ContractError::InvalidWithdrawAmount {});
-    }
+//     if withdraw_amount.is_zero() {
+//         return Err(ContractError::InvalidWithdrawAmount {});
+//     }
 
-    // decrease in supply and shares
-    let shares_amount = if withdraw_amount == position.in_balance {
-        position.shares
-    } else {
-        stream.compute_shares_amount(withdraw_amount, true)
-    };
+//     // decrease in supply and shares
+//     let shares_amount = if withdraw_amount == position.in_balance {
+//         position.shares
+//     } else {
+//         stream.compute_shares_amount(withdraw_amount, true)
+//     };
 
-    stream.in_supply = stream.in_supply.checked_sub(withdraw_amount)?;
-    stream.shares = stream.shares.checked_sub(shares_amount)?;
-    position.in_balance = position.in_balance.checked_sub(withdraw_amount)?;
-    position.shares = position.shares.checked_sub(shares_amount)?;
+//     stream.in_supply = stream.in_supply.checked_sub(withdraw_amount)?;
+//     stream.shares = stream.shares.checked_sub(shares_amount)?;
+//     position.in_balance = position.in_balance.checked_sub(withdraw_amount)?;
+//     position.shares = position.shares.checked_sub(shares_amount)?;
 
-    STREAM.save(deps.storage, &stream)?;
-    POSITIONS.save(deps.storage, &position.owner, &position)?;
+//     STREAM.save(deps.storage, &stream)?;
+//     POSITIONS.save(deps.storage, &position.owner, &position)?;
 
-    let attributes = vec![
-        attr("action", "withdraw_pending"),
-        attr("operator_target", operator_target.clone()),
-        attr("withdraw_amount", withdraw_amount),
-    ];
+//     let attributes = vec![
+//         attr("action", "withdraw_pending"),
+//         attr("operator_target", operator_target.clone()),
+//         attr("withdraw_amount", withdraw_amount),
+//     ];
 
-    // send funds to withdraw address or to the sender
-    let res = Response::new()
-        .add_message(CosmosMsg::Bank(BankMsg::Send {
-            to_address: operator_target.to_string(),
-            amount: vec![Coin {
-                denom: stream.in_denom,
-                amount: withdraw_amount,
-            }],
-        }))
-        .add_attributes(attributes);
+//     // send funds to withdraw address or to the sender
+//     let res = Response::new()
+//         .add_message(CosmosMsg::Bank(BankMsg::Send {
+//             to_address: operator_target.to_string(),
+//             amount: vec![Coin {
+//                 denom: stream.in_denom,
+//                 amount: withdraw_amount,
+//             }],
+//         }))
+//         .add_attributes(attributes);
 
-    Ok(res)
-}
+//     Ok(res)
+// }
 
 pub fn execute_finalize_stream(
     deps: DepsMut,
@@ -596,25 +599,25 @@ pub fn execute_finalize_stream(
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
     // check if the stream is already finalized
-    if stream.status == Status::Finalized {
+    if stream.is_finalized() {
         return Err(ContractError::StreamAlreadyFinalized {});
     }
     // check if killswitch is active
-    if stream.is_killswitch_active() {
+    if stream.is_cancelled() {
+        // TODO: create a new error for this
         return Err(ContractError::StreamKillswitchActive {});
     }
     if stream.treasury != info.sender {
         return Err(ContractError::Unauthorized {});
     }
-    if env.block.time <= stream.end_time {
+    stream.update_status(env.block.time);
+    if !stream.is_ended() {
         return Err(ContractError::StreamNotEnded {});
     }
-    if stream.last_updated < stream.end_time {
-        update_stream(env.block.time, &mut stream)?;
-    }
-    if stream.status == Status::Active {
-        stream.status = Status::Finalized
-    }
+    stream.update(env.block.time);
+
+    stream.status.status = Status::Finalized;
+
     // If threshold is set and not reached, finalize will fail
     // Creator should execute cancel_stream_with_threshold to cancel the stream
     // Only returns error if threshold is set and not reached
