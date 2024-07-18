@@ -6,6 +6,7 @@ mod shares {
     #[test]
     fn test_compute_shares_amount() {
         let mut stream = Stream::new(
+            Timestamp::from_seconds(0),
             "test".to_string(),
             Addr::unchecked("treasury"),
             Addr::unchecked("stream_admin"),
@@ -18,8 +19,9 @@ mod shares {
             Timestamp::from_seconds(0),
             Timestamp::from_seconds(100),
             Timestamp::from_seconds(0),
+            Timestamp::from_seconds(0),
             None,
-            None,
+            None, // Add the missing argument for the `None` parameter
         );
 
         // add new shares

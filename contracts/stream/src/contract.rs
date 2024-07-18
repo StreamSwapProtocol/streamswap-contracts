@@ -736,15 +736,15 @@ pub fn execute_exit_stream(
     let mut stream = STREAM.load(deps.storage)?;
     let factory_params = FACTORY_PARAMS.load(deps.storage)?;
     // check if stream is paused
-    if stream.is_killswitch_active() {
+    if stream.is_cancelled() {
         return Err(ContractError::StreamKillswitchActive {});
     }
-    if env.block.time <= stream.end_time {
+    stream.update_status(env.block.time);
+
+    if !stream.is_ended() {
         return Err(ContractError::StreamNotEnded {});
     }
-    if stream.last_updated < stream.end_time {
-        update_stream(env.block.time, &mut stream)?;
-    }
+    stream.update(env.block.time);
 
     let threshold_state = ThresholdState::new();
 
@@ -782,7 +782,7 @@ pub fn execute_exit_stream(
         let salt = salt.ok_or(ContractError::InvalidSalt {})?;
 
         // prepare vesting msg
-        vesting.start_time = Some(stream.end_time);
+        vesting.start_time = Some(stream.status.end_time);
         // TODO: check if we want an owner?
         vesting.owner = None;
         vesting.recipient = operator_target.to_string();
@@ -899,15 +899,15 @@ pub fn query_stream(deps: Deps, _env: Env) -> StdResult<StreamResponse> {
         treasury: stream.treasury.to_string(),
         in_denom: stream.in_denom,
         out_asset: stream.out_asset,
-        start_time: stream.start_time,
-        end_time: stream.end_time,
+        start_time: stream.status.start_time,
+        end_time: stream.status.end_time,
         last_updated: stream.last_updated,
         spent_in: stream.spent_in,
         dist_index: stream.dist_index,
         out_remaining: stream.out_remaining,
         in_supply: stream.in_supply,
         shares: stream.shares,
-        status: stream.status,
+        status: stream.status.status,
         url: stream.url,
         current_streamed_price: stream.current_streamed_price,
         stream_admin: stream.stream_admin.into_string(),

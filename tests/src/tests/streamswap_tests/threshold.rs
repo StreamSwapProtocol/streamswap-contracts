@@ -21,29 +21,65 @@ mod treshold_tests {
     fn test_thresholds_state() {
         let mut storage = MockStorage::new();
         let thresholds = ThresholdState::new();
-        let mut stream = Stream {
-            out_asset: Coin {
-                denom: "uluna".to_string(),
-                amount: Uint128::new(1000),
+        // let mut stream = Stream::new(
+        //     Timestamp::from_seconds(0),
+        //     "test".to_string(),
+        //     Addr::unchecked("treasury"),
+        //     Addr::unchecked("stream_admin"),
+        //     Some("url".to_string()),
+        //     Coin {
+        //         denom: "out_denom".to_string(),
+        //         amount: Uint128::from(100u128),
+        //     },
+        //     "in_denom".to_string(),
+        //     Timestamp::from_seconds(0),
+        //     Timestamp::from_seconds(100),
+        //     Timestamp::from_seconds(0),
+        //     Timestamp::from_seconds(0),
+        //     None,
+        //     None, // Add the missing argument for the `None` parameter
+        // );
+        // let mut stream = Stream {
+        //     out_asset: Coin {
+        //         denom: "uluna".to_string(),
+        //         amount: Uint128::new(1000),
+        //     },
+        //     in_supply: Uint128::new(1000),
+        //     start_time: Timestamp::from_seconds(0),
+        //     end_time: Timestamp::from_seconds(1000),
+        //     last_updated: Timestamp::from_seconds(0),
+        //     current_streamed_price: Decimal::percent(100),
+        //     dist_index: Decimal256::one(),
+        //     in_denom: "uusd".to_string(),
+        //     name: "test".to_string(),
+        //     url: Some("test".to_string()),
+        //     out_remaining: Uint128::new(1000),
+        //     shares: Uint128::new(0),
+        //     spent_in: Uint128::new(0),
+        //     status: Status::Active,
+        //     treasury: Addr::unchecked("treasury"),
+        //     stream_admin: Addr::unchecked("admin"),
+        //     create_pool: None,
+        //     vesting: None,
+        // };
+        let mut stream = Stream::new(
+            Timestamp::from_seconds(0),
+            "test".to_string(),
+            Addr::unchecked("treasury"),
+            Addr::unchecked("stream_admin"),
+            Some("url".to_string()),
+            Coin {
+                denom: "out_denom".to_string(),
+                amount: Uint128::from(100u128),
             },
-            in_supply: Uint128::new(1000),
-            start_time: Timestamp::from_seconds(0),
-            end_time: Timestamp::from_seconds(1000),
-            last_updated: Timestamp::from_seconds(0),
-            current_streamed_price: Decimal::percent(100),
-            dist_index: Decimal256::one(),
-            in_denom: "uusd".to_string(),
-            name: "test".to_string(),
-            url: Some("test".to_string()),
-            out_remaining: Uint128::new(1000),
-            shares: Uint128::new(0),
-            spent_in: Uint128::new(0),
-            status: Status::Active,
-            treasury: Addr::unchecked("treasury"),
-            stream_admin: Addr::unchecked("admin"),
-            create_pool: None,
-            vesting: None,
-        };
+            "in_denom".to_string(),
+            Timestamp::from_seconds(0),
+            Timestamp::from_seconds(100),
+            Timestamp::from_seconds(0),
+            Timestamp::from_seconds(0),
+            None,
+            None,
+        );
         let threshold = Uint128::new(1_500_000_000_000);
 
         thresholds

@@ -145,6 +145,7 @@ pub fn get_create_stream_msg(
 ) -> FactoryExecuteMsg {
     FactoryExecuteMsg::CreateStream {
         msg: Box::new(CreateStreamMsg {
+            bootstraping_start_time: Timestamp::from_seconds(0),
             treasury: treasury.to_string(),
             stream_admin: treasury.to_string(),
             name: name.to_string(),
