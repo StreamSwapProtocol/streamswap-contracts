@@ -44,7 +44,7 @@ mod exit_cancel {
             "in_denom",
             start_time,
             end_time,
-            Some(Uint128::from(100u128)),
+            None,
             None,
             None,
         );

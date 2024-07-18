@@ -150,6 +150,11 @@ mod operator_tests {
             operator_target: None,
             operator: Some(test_accounts.subscriber_2.to_string()),
         };
+        app.set_block(BlockInfo {
+            height: 1_100,
+            time: app.block_info().time.plus_seconds(100),
+            chain_id: "test".to_string(),
+        });
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
@@ -158,6 +163,7 @@ mod operator_tests {
                 &[coin(100, "in_denom")],
             )
             .unwrap();
+
         // random targeting subscriber_1 it should fail
         let msg = StreamSwapExecuteMsg::Subscribe {
             operator_target: Some(test_accounts.subscriber_1.to_string()),

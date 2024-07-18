@@ -112,7 +112,7 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    mut deps: DepsMut,
+    deps: DepsMut,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -313,7 +313,7 @@ pub fn execute_subscribe(
     // Update stream status
     stream.update_status(env.block.time);
 
-    if !stream.is_active() || !stream.is_bootstrapping() {
+    if !(stream.is_active() || stream.is_bootstrapping()) {
         // TODO: create a new error for this
         return Err(ContractError::StreamNotStarted {});
     }
@@ -468,7 +468,8 @@ pub fn execute_withdraw(
     //     return Err(ContractError::StreamKillswitchActive {});
     // }
     stream.update_status(env.block.time);
-    if !stream.is_active() || !stream.is_bootstrapping() {
+    if !(stream.is_active() || stream.is_bootstrapping()) {
+        // TODO: create a new error for this
         return Err(ContractError::StreamNotStarted {});
     }
 
