@@ -3,8 +3,8 @@ use crate::killswitch::execute_cancel_stream_with_threshold;
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
     attr, coin, entry_point, to_json_binary, Addr, Attribute, BankMsg, Binary, CodeInfoResponse,
-    Coin, CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, Fraction, MessageInfo, Order,
-    Response, StdError, StdResult, Timestamp, Uint128, Uint256, WasmMsg,
+    Coin, CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, MessageInfo, Order, Response,
+    StdError, StdResult, Timestamp, Uint128, Uint256, WasmMsg,
 };
 use cw2::{ensure_from_older_version, set_contract_version};
 use cw_storage_plus::Bound;
@@ -308,14 +308,17 @@ pub fn execute_subscribe(
     if stream.is_cancelled() {
         return Err(ContractError::StreamKillswitchActive {});
     }
+    // Update stream status
+    stream.update_status(env.block.time);
 
-    if env.block.time >= stream.end_time {
-        return Err(ContractError::StreamEnded {});
+    if !stream.is_active() || !stream.is_bootstrapping() {
+        // TODO: create a new error for this
+        return Err(ContractError::StreamNotStarted {});
     }
-    // On first subscibe change status to Active
-    if stream.status == Status::Waiting {
-        stream.status = Status::Active
-    }
+    // // On first subscibe change status to Active
+    // if stream.status == Status::Waiting {
+    //     stream.status = Status::Active
+    // }
 
     let in_amount = must_pay(&info, &stream.in_denom)?;
     let new_shares;
@@ -330,7 +333,8 @@ pub fn execute_subscribe(
             if operator_target != info.sender {
                 return Err(ContractError::Unauthorized {});
             }
-            update_stream(env.block.time, &mut stream)?;
+            // incoming tokens should not participate in prev distribution
+            stream.update(env.block.time);
             new_shares = stream.compute_shares_amount(in_amount, false);
             // new positions do not update purchase as it has no effect on distribution
             let new_position = Position::new(
@@ -346,7 +350,7 @@ pub fn execute_subscribe(
         Some(mut position) => {
             check_access(&info, &position.owner, &position.operator)?;
             // incoming tokens should not participate in prev distribution
-            update_stream(env.block.time, &mut stream)?;
+            stream.update(env.block.time);
             new_shares = stream.compute_shares_amount(in_amount, false);
             update_position(
                 stream.dist_index,
