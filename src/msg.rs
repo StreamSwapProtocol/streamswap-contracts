@@ -1,6 +1,6 @@
 use crate::state::Status;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, Decimal256, Timestamp, Uint128, Uint256, Uint64};
+use cosmwasm_std::{Addr, Decimal256, Timestamp, Uint128, Uint256, Uint64};
 
 #[cw_serde]
 pub struct InstantiateMsg {

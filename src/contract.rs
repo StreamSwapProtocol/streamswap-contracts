@@ -1,4 +1,5 @@
 use crate::killswitch::execute_cancel_stream_with_threshold;
+use crate::migrate_v0_2_1::migrate_v0_2_1;
 use crate::msg::{
     AveragePriceResponse, ConfigResponse, ExecuteMsg, InstantiateMsg, LatestStreamedPriceResponse,
     MigrateMsg, PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse,
@@ -1126,6 +1127,10 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
         set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
         // Code to facilitate state change goes here
     }
+
+    // migrate v0.2.0 -> v0.2.1
+    migrate_v0_2_1(deps.storage)?;
+
     Ok(Response::default())
 }
 

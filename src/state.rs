@@ -1,6 +1,6 @@
 use crate::ContractError;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Decimal, Decimal256, Storage, Timestamp, Uint128, Uint256, Uint64};
+use cosmwasm_std::{Addr, Decimal256, Storage, Timestamp, Uint128, Uint256, Uint64};
 use cw_storage_plus::{Item, Map};
 use std::ops::Mul;
 
@@ -145,7 +145,7 @@ impl Stream {
         self.status == Status::Cancelled || self.status == Status::Paused
     }
 }
-type StreamId = u64;
+pub type StreamId = u64;
 pub const STREAMS: Map<StreamId, Stream> = Map::new("stream");
 const STREAM_ID_COUNTER: Item<StreamId> = Item::new("stream_id_counter");
 pub fn next_stream_id(store: &mut dyn Storage) -> Result<u64, ContractError> {
@@ -205,7 +205,6 @@ pub const POSITIONS: Map<(StreamId, &Addr), Position> = Map::new("positions");
 
 mod tests {
     use super::*;
-    use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::{Addr, Decimal, Uint128};
 
     // Test compute_shares_amount
