@@ -755,7 +755,7 @@ pub fn execute_withdraw(
         attr("withdraw_amount", withdraw_amount),
     ];
     // TODO: This might be a problem if the withdraw amount is too large but unlikely
-    let withdraw_amount_128: Uint128 = withdraw_amount.to_string().parse().unwrap();
+    let withdraw_amount: Uint128 = Uint128::try_from(withdraw_amount)?;
 
     // send funds to withdraw address or to the sender
     let res = Response::new()
@@ -763,7 +763,7 @@ pub fn execute_withdraw(
             to_address: operator_target.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
-                amount: Uint128::from(withdraw_amount_128),
+                amount: Uint128::from(withdraw_amount),
             }],
         }))
         .add_attributes(attributes);
@@ -818,7 +818,7 @@ pub fn execute_withdraw_pending(
         attr("withdraw_amount", withdraw_amount),
     ];
 
-    let withdraw_amount_128: Uint128 = withdraw_amount.to_string().parse().unwrap();
+    let withdraw_amount: Uint128 = Uint128::try_from(withdraw_amount)?;
 
     // send funds to withdraw address or to the sender
     let res = Response::new()
@@ -826,7 +826,7 @@ pub fn execute_withdraw_pending(
             to_address: operator_target.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
-                amount: withdraw_amount_128,
+                amount: withdraw_amount,
             }],
         }))
         .add_attributes(attributes);
@@ -879,14 +879,14 @@ pub fn execute_finalize_stream(
         * Uint256::one();
 
     let creator_revenue = stream.spent_in.checked_sub(swap_fee)?;
-    let creator_revenue_128: Uint128 = creator_revenue.to_string().parse().unwrap();
+    let creator_revenue_u128: Uint128 = Uint128::try_from(creator_revenue)?;
 
     //Creator's revenue claimed at finalize
     let revenue_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: treasury.to_string(),
         amount: vec![Coin {
             denom: stream.in_denom.clone(),
-            amount: creator_revenue_128,
+            amount: creator_revenue_u128,
         }],
     });
     //Exact fee for stream creation charged at creation but claimed at finalize
@@ -898,7 +898,7 @@ pub fn execute_finalize_stream(
         }],
     });
 
-    let swap_fee_128: Uint128 = swap_fee.to_string().parse().unwrap();
+    let swap_fee_128: Uint128 = Uint128::try_from(swap_fee)?;
     let swap_fee_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: config.fee_collector.to_string(),
         amount: vec![Coin {
@@ -915,13 +915,12 @@ pub fn execute_finalize_stream(
 
     // In case the stream is ended without any shares in it. We need to refund the remaining out tokens although that is unlikely to happen
     if stream.out_remaining > Uint256::zero() {
-        let remaining_out = stream.out_remaining;
-        let remaining_out_128: Uint128 = remaining_out.to_string().parse().unwrap();
+        let remaining_out: Uint128 = Uint128::try_from(stream.out_remaining)?;
         let remaining_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: treasury.to_string(),
             amount: vec![Coin {
                 denom: stream.out_denom,
-                amount: remaining_out_128,
+                amount: remaining_out,
             }],
         });
         messages.push(remaining_msg);
@@ -986,12 +985,13 @@ pub fn execute_exit_stream(
         .checked_mul(stream.stream_exit_fee_percent)?
         * Uint256::one();
 
-    let purchased_uint128 = position.purchased.to_string().parse().unwrap();
+    let purchased = Uint128::try_from(position.purchased)?;
+
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: operator_target.to_string(),
         amount: vec![Coin {
             denom: stream.out_denom.to_string(),
-            amount: purchased_uint128,
+            amount: purchased,
         }],
     });
 
@@ -1007,14 +1007,13 @@ pub fn execute_exit_stream(
         attr("purchased", position.purchased),
         attr("swap_fee_paid", swap_fee),
     ];
-    let unspent_128: Uint128 = position.in_balance.to_string().parse().unwrap();
     if !position.in_balance.is_zero() {
-        let unspent = position.in_balance;
+        let unspent: Uint128 = Uint128::try_from(position.in_balance)?;
         let unspent_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: operator_target.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
-                amount: unspent_128,
+                amount: unspent,
             }],
         });
 
@@ -1125,11 +1124,9 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
     }
     if storage_version < version {
         set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-        // Code to facilitate state change goes here
+        // migrate v0.2.0 -> v0.2.1
+        migrate_v0_2_1(deps.storage)?;
     }
-
-    // migrate v0.2.0 -> v0.2.1
-    migrate_v0_2_1(deps.storage)?;
 
     Ok(Response::default())
 }

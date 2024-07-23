@@ -1,4 +1,4 @@
-use cosmwasm_std::{StdError, Storage, Uint128, Uint256};
+use cosmwasm_std::{StdError, Storage, Uint256};
 use cw_storage_plus::Map;
 use thiserror::Error;
 
