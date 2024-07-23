@@ -1,6 +1,6 @@
 use crate::ContractError;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Decimal, Decimal256, Storage, Timestamp, Uint128, Uint64};
+use cosmwasm_std::{Addr, Decimal, Decimal256, Storage, Timestamp, Uint128, Uint256, Uint64};
 use cw_storage_plus::{Item, Map};
 use std::ops::Mul;
 
@@ -41,17 +41,17 @@ pub struct Stream {
     /// denom of the `token_out`.
     pub out_denom: String,
     /// total number of `token_out` to be sold during the continuous stream.
-    pub out_supply: Uint128,
+    pub out_supply: Uint256,
     /// total number of remaining out tokens at the time of update.
-    pub out_remaining: Uint128,
+    pub out_remaining: Uint256,
     /// denom of the `token_in`.
     pub in_denom: String,
     /// total number of `token_in` on the buy side at latest state.
-    pub in_supply: Uint128,
+    pub in_supply: Uint256,
     /// total number of `token_in` spent at latest state.
-    pub spent_in: Uint128,
+    pub spent_in: Uint256,
     /// total number of shares minted.
-    pub shares: Uint128,
+    pub shares: Uint256,
     /// start time when the token emission starts. in nanos.
     pub start_time: Timestamp,
     /// end time when the token emission ends.
@@ -86,7 +86,7 @@ impl Stream {
         treasury: Addr,
         url: Option<String>,
         out_denom: String,
-        out_supply: Uint128,
+        out_supply: Uint256,
         in_denom: String,
         start_time: Timestamp,
         end_time: Timestamp,
@@ -105,9 +105,9 @@ impl Stream {
             out_supply,
             out_remaining: out_supply,
             in_denom,
-            in_supply: Uint128::zero(),
-            spent_in: Uint128::zero(),
-            shares: Uint128::zero(),
+            in_supply: Uint256::zero(),
+            spent_in: Uint256::zero(),
+            shares: Uint256::zero(),
             start_time,
             end_time,
             current_streamed_price: Decimal::zero(),
@@ -120,15 +120,15 @@ impl Stream {
     }
 
     // compute amount of shares that should be minted for a new subscription amount
-    pub fn compute_shares_amount(&self, amount_in: Uint128, round_up: bool) -> Uint128 {
+    pub fn compute_shares_amount(&self, amount_in: Uint256, round_up: bool) -> Uint256 {
         if self.shares.is_zero() || amount_in.is_zero() {
-            return amount_in;
+            return amount_in.into();
         }
         let mut shares = self.shares.mul(amount_in);
         if round_up {
-            shares = (shares + self.in_supply - Uint128::one()) / self.in_supply;
+            shares = (shares + self.in_supply - Uint256::one()) / self.in_supply;
         } else {
-            shares /= self.in_supply;
+            shares /= self.in_supply
         }
         shares
     }
@@ -199,3 +199,62 @@ impl Position {
 
 // Position (stream_id, owner_addr) -> Position
 pub const POSITIONS: Map<(StreamId, &Addr), Position> = Map::new("positions");
+
+// Testing module
+#[cfg(test)]
+
+mod tests {
+    use super::*;
+    use cosmwasm_std::testing::mock_dependencies;
+    use cosmwasm_std::{Addr, Decimal, Uint128};
+
+    // Test compute_shares_amount
+    #[test]
+    fn test_compute_shares_amount() {
+        // - current_streamed_price: "0"
+        // dist_index: "0"
+        // end_time: "1722009600000000000"
+        // exit_fee_percent: "0.042"
+        // id: 1
+        // in_denom: inj
+        // in_supply: "312458028446265623240"
+        // last_updated: "1722006000000000000"
+        // out_denom: factory/inj1a6xdezq7a94qwamec6n6cnup02nvewvjtz6h6e/SYN
+        // out_remaining: "79000000000"
+        // out_supply: "79000000000"
+        // pause_date: null
+        // shares: "312458028446265623240"
+        // spent_in: "0"
+        // start_time: "1722006000000000000"
+        // status: waiting
+        // stream_creation_fee: "150000000000000000000"
+        // treasury: inj1p654uqxsr7w7ylnrzw75hffj67aj3ksy4nlsu0
+        // url: https://www.galacticsyndicate.org/
+
+        let stream = Stream {
+            name: "test".to_string(),
+            treasury: Addr::unchecked("inj1p654uqxsr7w7ylnrzw75hffj67aj3ksy4nlsu0"),
+            url: Some("https://www.galacticsyndicate.org/".to_string()),
+            dist_index: Decimal256::zero(),
+            last_updated: Timestamp::from_nanos(1722006000000000000),
+            out_denom: "factory/inj1a6xdezq7a94qwamec6n6cnup02nvewvjtz6h6e/SYN".to_string(),
+            out_supply: Uint256::from(79000000000u128),
+            out_remaining: Uint256::from(79000000000u128),
+            in_denom: "inj".to_string(),
+            in_supply: Uint256::from(312458028446265623240u128),
+            spent_in: Uint256::zero(),
+            shares: Uint256::from(312458028446265623240u128),
+            start_time: Timestamp::from_nanos(1722006000000000000),
+            end_time: Timestamp::from_nanos(1722009600000000000),
+            current_streamed_price: Decimal::zero(),
+            status: Status::Waiting,
+            pause_date: None,
+            stream_creation_denom: "inj".to_string(),
+            stream_creation_fee: Uint128::from(150000000000000000000u128),
+            stream_exit_fee_percent: Decimal::percent(1),
+        };
+
+        // Test when shares is zero
+        let shares = stream.compute_shares_amount(Uint256::from(2000000000000000000u128), false);
+    }
+}
