@@ -15,7 +15,7 @@ use cosmwasm_std::{
 use cw2::{get_contract_version, set_contract_version};
 use semver::Version;
 
-use crate::helpers::{check_name_and_url, from_semver, get_decimals};
+use crate::helpers::{check_name_and_url, from_semver, get_decimals, to_uint256};
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay};
 
@@ -32,7 +32,7 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     // exit fee percent can not be equal to or greater than 1, or smaller than 0
-    if msg.exit_fee_percent >= Decimal::one() || msg.exit_fee_percent < Decimal::zero() {
+    if msg.exit_fee_percent >= Decimal256::one() || msg.exit_fee_percent < Decimal256::zero() {
         return Err(ContractError::InvalidExitFeePercent {});
     }
 
@@ -220,7 +220,7 @@ pub fn execute_create_stream(
     url: Option<String>,
     in_denom: String,
     out_denom: String,
-    out_supply: Uint128,
+    out_supply: Uint256,
     start_time: Timestamp,
     end_time: Timestamp,
     threshold: Option<Uint128>,
@@ -248,7 +248,7 @@ pub fn execute_create_stream(
         return Err(ContractError::SameDenomOnEachSide {});
     }
 
-    if out_supply < Uint128::from(1u128) {
+    if out_supply < Uint256::from(1u128) {
         return Err(ContractError::ZeroOutSupply {});
     }
 
@@ -259,7 +259,7 @@ pub fn execute_create_stream(
             .find(|p| p.denom == config.stream_creation_denom)
             .ok_or(ContractError::NoFundsSent {})?;
 
-        if total_funds.amount != config.stream_creation_fee + out_supply {
+        if to_uint256(total_funds.amount) != to_uint256(config.stream_creation_fee) + out_supply {
             return Err(ContractError::StreamOutSupplyFundsRequired {});
         }
         // check for extra funds sent in msg
@@ -273,7 +273,7 @@ pub fn execute_create_stream(
             .find(|p| p.denom == out_denom)
             .ok_or(ContractError::NoFundsSent {})?;
 
-        if funds.amount != out_supply {
+        if to_uint256(funds.amount) != out_supply {
             return Err(ContractError::StreamOutSupplyFundsRequired {});
         }
 
@@ -379,10 +379,10 @@ pub fn execute_update_stream(
 pub fn update_stream(
     now: Timestamp,
     stream: &mut Stream,
-) -> Result<(Decimal, Uint128), ContractError> {
+) -> Result<(Decimal, Uint256), ContractError> {
     let diff = calculate_diff(stream.end_time, stream.last_updated, now);
 
-    let mut new_distribution_balance = Uint128::zero();
+    let mut new_distribution_balance = Uint256::zero();
 
     // if no in balance in the contract, no need to update
     // if diff not changed this means either stream not started or no in balance so far
@@ -413,7 +413,8 @@ pub fn update_stream(
                 new_distribution_balance,
                 stream.shares,
             ))?;
-            stream.current_streamed_price = Decimal::from_ratio(spent_in, new_distribution_balance)
+            stream.current_streamed_price =
+                Decimal256::from_ratio(spent_in, new_distribution_balance)
         }
     }
 
@@ -484,16 +485,16 @@ pub fn execute_update_position(
 // returns purchased out amount and spent in amount
 pub fn update_position(
     stream_dist_index: Decimal256,
-    stream_shares: Uint128,
+    stream_shares: Uint256,
     stream_last_updated: Timestamp,
-    stream_in_supply: Uint128,
+    stream_in_supply: Uint256,
     position: &mut Position,
-) -> Result<(Uint128, Uint128), ContractError> {
+) -> Result<(Uint256, Uint256), ContractError> {
     // index difference represents the amount of distribution that has been received since last update
     let index_diff = stream_dist_index.checked_sub(position.index)?;
 
-    let mut spent = Uint128::zero();
-    let mut purchased_uint128 = Uint128::zero();
+    let mut spent = Uint256::zero();
+    let mut purchased_uint128 = Uint256::zero();
 
     // if no shares available, means no distribution and no spent
     if !stream_shares.is_zero() {
@@ -550,6 +551,7 @@ pub fn execute_subscribe(
     }
 
     let in_amount = must_pay(&info, &stream.in_denom)?;
+    let in_amount_uint256 = to_uint256(in_amount);
     let new_shares;
 
     let operator = maybe_addr(deps.api, operator)?;
@@ -563,11 +565,11 @@ pub fn execute_subscribe(
                 return Err(ContractError::Unauthorized {});
             }
             update_stream(env.block.time, &mut stream)?;
-            new_shares = stream.compute_shares_amount(in_amount, false);
+            new_shares = stream.compute_shares_amount(in_amount_uint256, false);
             // new positions do not update purchase as it has no effect on distribution
             let new_position = Position::new(
                 info.sender,
-                in_amount,
+                in_amount_uint256,
                 new_shares,
                 Some(stream.dist_index),
                 env.block.time,
@@ -580,7 +582,7 @@ pub fn execute_subscribe(
 
             // incoming tokens should not participate in prev distribution
             update_stream(env.block.time, &mut stream)?;
-            new_shares = stream.compute_shares_amount(in_amount, false);
+            new_shares = stream.compute_shares_amount(in_amount_uint256, false);
             update_position(
                 stream.dist_index,
                 stream.shares,
@@ -589,14 +591,14 @@ pub fn execute_subscribe(
                 &mut position,
             )?;
 
-            position.in_balance = position.in_balance.checked_add(in_amount)?;
+            position.in_balance = position.in_balance.checked_add(in_amount_uint256)?;
             position.shares = position.shares.checked_add(new_shares)?;
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &position)?;
         }
     }
 
     // increase in supply and shares
-    stream.in_supply = stream.in_supply.checked_add(in_amount)?;
+    stream.in_supply = stream.in_supply.checked_add(in_amount_uint256)?;
     stream.shares = stream.shares.checked_add(new_shares)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
@@ -624,7 +626,8 @@ pub fn execute_subscribe_pending(
         return Err(ContractError::StreamKillswitchActive {});
     }
     let in_amount = must_pay(&info, &stream.in_denom)?;
-    let new_shares = stream.compute_shares_amount(in_amount, false);
+    let in_amount_uint256 = to_uint256(in_amount);
+    let new_shares = stream.compute_shares_amount(in_amount_uint256, false);
 
     let operator = maybe_addr(deps.api, operator)?;
     let operator_target =
@@ -638,7 +641,7 @@ pub fn execute_subscribe_pending(
             }
             let new_position = Position::new(
                 info.sender,
-                in_amount,
+                in_amount_uint256,
                 new_shares,
                 Some(stream.dist_index),
                 env.block.time,
@@ -649,12 +652,12 @@ pub fn execute_subscribe_pending(
         Some(mut position) => {
             check_access(&info, &position.owner, &position.operator)?;
             // if subscibed already, we wont update its position but just increase its in_balance and shares
-            position.in_balance = position.in_balance.checked_add(in_amount)?;
+            position.in_balance = position.in_balance.checked_add(in_amount_uint256)?;
             position.shares = position.shares.checked_add(new_shares)?;
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &position)?;
         }
     }
-    stream.in_supply = stream.in_supply.checked_add(in_amount)?;
+    stream.in_supply = stream.in_supply.checked_add(in_amount_uint256)?;
     stream.shares = stream.shares.checked_add(new_shares)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
@@ -693,7 +696,7 @@ pub fn execute_withdraw(
     info: MessageInfo,
     stream_id: u64,
     mut stream: Stream,
-    cap: Option<Uint128>,
+    cap: Option<Uint256>,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     // check if stream is paused
@@ -750,6 +753,8 @@ pub fn execute_withdraw(
         attr("operator_target", operator_target.clone()),
         attr("withdraw_amount", withdraw_amount),
     ];
+    // TODO: This might be a problem if the withdraw amount is too large but unlikely
+    let withdraw_amount_128: Uint128 = withdraw_amount.to_string().parse().unwrap();
 
     // send funds to withdraw address or to the sender
     let res = Response::new()
@@ -757,7 +762,7 @@ pub fn execute_withdraw(
             to_address: operator_target.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
-                amount: withdraw_amount,
+                amount: Uint128::from(withdraw_amount_128),
             }],
         }))
         .add_attributes(attributes);
@@ -771,7 +776,7 @@ pub fn execute_withdraw_pending(
     info: MessageInfo,
     stream_id: u64,
     mut stream: Stream,
-    cap: Option<Uint128>,
+    cap: Option<Uint256>,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     // check if stream is paused
@@ -812,13 +817,15 @@ pub fn execute_withdraw_pending(
         attr("withdraw_amount", withdraw_amount),
     ];
 
+    let withdraw_amount_128: Uint128 = withdraw_amount.to_string().parse().unwrap();
+
     // send funds to withdraw address or to the sender
     let res = Response::new()
         .add_message(CosmosMsg::Bank(BankMsg::Send {
             to_address: operator_target.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
-                amount: withdraw_amount,
+                amount: withdraw_amount_128,
             }],
         }))
         .add_attributes(attributes);
@@ -866,18 +873,19 @@ pub fn execute_finalize_stream(
     let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or_else(|| stream.treasury.clone());
 
     //Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
-    let swap_fee = Decimal::from_ratio(stream.spent_in, Uint128::one())
+    let swap_fee = Decimal256::from_ratio(stream.spent_in, Uint256::one())
         .checked_mul(stream.stream_exit_fee_percent)?
-        * Uint128::one();
+        * Uint256::one();
 
     let creator_revenue = stream.spent_in.checked_sub(swap_fee)?;
+    let creator_revenue_128: Uint128 = creator_revenue.to_string().parse().unwrap();
 
     //Creator's revenue claimed at finalize
     let revenue_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: treasury.to_string(),
         amount: vec![Coin {
             denom: stream.in_denom.clone(),
-            amount: creator_revenue,
+            amount: creator_revenue_128,
         }],
     });
     //Exact fee for stream creation charged at creation but claimed at finalize
@@ -889,28 +897,30 @@ pub fn execute_finalize_stream(
         }],
     });
 
+    let swap_fee_128: Uint128 = swap_fee.to_string().parse().unwrap();
     let swap_fee_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: config.fee_collector.to_string(),
         amount: vec![Coin {
             denom: stream.in_denom,
-            amount: swap_fee,
+            amount: swap_fee_128,
         }],
     });
 
-    let mut messages = if stream.spent_in != Uint128::zero() {
+    let mut messages = if stream.spent_in != Uint256::zero() {
         vec![revenue_msg, creation_fee_msg, swap_fee_msg]
     } else {
         vec![creation_fee_msg]
     };
 
     // In case the stream is ended without any shares in it. We need to refund the remaining out tokens although that is unlikely to happen
-    if stream.out_remaining > Uint128::zero() {
+    if stream.out_remaining > Uint256::zero() {
         let remaining_out = stream.out_remaining;
+        let remaining_out_128: Uint128 = remaining_out.to_string().parse().unwrap();
         let remaining_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: treasury.to_string(),
             amount: vec![Coin {
                 denom: stream.out_denom,
-                amount: remaining_out,
+                amount: remaining_out_128,
             }],
         });
         messages.push(remaining_msg);
@@ -971,15 +981,16 @@ pub fn execute_exit_stream(
         &mut position,
     )?;
     // Swap fee = fixed_rate*position.spent_in this calculation is only for execution reply attributes
-    let swap_fee = Decimal::from_ratio(position.spent, Uint128::one())
+    let swap_fee = Decimal256::from_ratio(position.spent, Uint256::one())
         .checked_mul(stream.stream_exit_fee_percent)?
-        * Uint128::one();
+        * Uint256::one();
 
+    let purchased_uint128 = position.purchased.to_string().parse().unwrap();
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: operator_target.to_string(),
         amount: vec![Coin {
             denom: stream.out_denom.to_string(),
-            amount: position.purchased,
+            amount: purchased_uint128,
         }],
     });
 
@@ -995,13 +1006,14 @@ pub fn execute_exit_stream(
         attr("purchased", position.purchased),
         attr("swap_fee_paid", swap_fee),
     ];
+    let unspent_128: Uint128 = position.in_balance.to_string().parse().unwrap();
     if !position.in_balance.is_zero() {
         let unspent = position.in_balance;
         let unspent_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: operator_target.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
-                amount: unspent,
+                amount: unspent_128,
             }],
         });
 
@@ -1027,7 +1039,7 @@ pub fn execute_update_config(
     stream_creation_fee: Option<Uint128>,
     fee_collector: Option<String>,
     accepted_in_denom: Option<String>,
-    exit_fee_percent: Option<Decimal>,
+    exit_fee_percent: Option<Decimal256>,
 ) -> Result<Response, ContractError> {
     let mut cfg = CONFIG.load(deps.storage)?;
 
@@ -1042,7 +1054,7 @@ pub fn execute_update_config(
     }
     // exit fee percent can not be equal to or greater than 1, or smaller than 0
     if let Some(exit_fee_percent) = exit_fee_percent {
-        if exit_fee_percent >= Decimal::one() || exit_fee_percent < Decimal::zero() {
+        if exit_fee_percent >= Decimal256::one() || exit_fee_percent < Decimal256::zero() {
             return Err(ContractError::InvalidExitFeePercent {});
         }
     }
@@ -1293,7 +1305,7 @@ pub fn query_average_price(
 ) -> StdResult<AveragePriceResponse> {
     let stream = STREAMS.load(deps.storage, stream_id)?;
     let total_purchased = stream.out_supply - stream.out_remaining;
-    let average_price = Decimal::from_ratio(stream.spent_in, total_purchased);
+    let average_price = Decimal256::from_ratio(stream.spent_in, total_purchased);
     Ok(AveragePriceResponse { average_price })
 }
 

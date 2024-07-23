@@ -17,7 +17,7 @@ pub struct Config {
     /// Stream creation fee amount
     pub stream_creation_fee: Uint128,
     /// in/buy token exit fee in percent
-    pub exit_fee_percent: Decimal,
+    pub exit_fee_percent: Decimal256,
     /// Address of the fee collector
     pub fee_collector: Addr,
     /// protocol admin can pause streams in case of emergency.
@@ -57,7 +57,7 @@ pub struct Stream {
     /// end time when the token emission ends.
     pub end_time: Timestamp,
     /// price at when latest distribution is triggered.
-    pub current_streamed_price: Decimal,
+    pub current_streamed_price: Decimal256,
     /// Status of the stream. Can be `Waiting`, `Active`, `Finalized`, `Paused` or `Canceled` for kill switch.
     pub status: Status,
     /// Date when the stream was paused.
@@ -67,7 +67,7 @@ pub struct Stream {
     /// Stream creation fee amount. Saved under here to avoid any changes in config to efect existing streams.
     pub stream_creation_fee: Uint128,
     /// Stream swap fee in percent. Saved under here to avoid any changes in config to efect existing streams.
-    pub stream_exit_fee_percent: Decimal,
+    pub stream_exit_fee_percent: Decimal256,
 }
 
 #[cw_serde]
@@ -93,7 +93,7 @@ impl Stream {
         last_updated: Timestamp,
         stream_creation_denom: String,
         stream_creation_fee: Uint128,
-        stream_exit_fee_percent: Decimal,
+        stream_exit_fee_percent: Decimal256,
     ) -> Self {
         Stream {
             name,
@@ -110,7 +110,7 @@ impl Stream {
             shares: Uint256::zero(),
             start_time,
             end_time,
-            current_streamed_price: Decimal::zero(),
+            current_streamed_price: Decimal256::zero(),
             status: Status::Waiting,
             pause_date: None,
             stream_creation_denom,

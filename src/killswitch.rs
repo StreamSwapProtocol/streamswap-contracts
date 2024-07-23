@@ -13,7 +13,7 @@ pub fn execute_withdraw_paused(
     _env: Env,
     info: MessageInfo,
     stream_id: u64,
-    cap: Option<Uint128>,
+    cap: Option<Uint256>,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;

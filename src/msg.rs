@@ -13,7 +13,7 @@ pub struct InstantiateMsg {
     /// Stream creation fee amount
     pub stream_creation_fee: Uint128,
     /// in/buy token exit fee in percent
-    pub exit_fee_percent: Decimal,
+    pub exit_fee_percent: Decimal256,
     /// Address of the fee collector
     pub fee_collector: String,
     /// protocol admin can pause streams in case of emergency.
@@ -132,7 +132,7 @@ pub enum ExecuteMsg {
         stream_creation_fee: Option<Uint128>,
         fee_collector: Option<String>,
         accepted_in_denom: Option<String>,
-        exit_fee_percent: Option<Decimal>,
+        exit_fee_percent: Option<Decimal256>,
     },
     ResumeStream {
         stream_id: u64,
@@ -190,7 +190,7 @@ pub struct ConfigResponse {
     /// Creation fee amount.
     pub stream_creation_fee: Uint128,
     /// This percentage represents the fee that will be collected from the investors.
-    pub exit_fee_percent: Decimal,
+    pub exit_fee_percent: Decimal256,
     /// Address of the fee collector.
     pub fee_collector: String,
     /// Address of the protocol admin.
@@ -227,13 +227,13 @@ pub struct StreamResponse {
     /// end time when the token emission ends.
     pub end_time: Timestamp,
     /// price at when latest distribution is triggered.
-    pub current_streamed_price: Decimal,
+    pub current_streamed_price: Decimal256,
     /// Status of the stream. Can be `Waiting`, `Active`, `Finalzed`, `Paused` or `Canceled` for kill switch.
     pub status: Status,
     /// Date when the stream was paused.
     pub pause_date: Option<Timestamp>,
     /// Exit fee percent.
-    pub exit_fee_percent: Decimal,
+    pub exit_fee_percent: Decimal256,
     /// Creation fee amount.
     pub stream_creation_fee: Uint128,
 }
@@ -271,12 +271,12 @@ pub struct PositionsResponse {
 
 #[cw_serde]
 pub struct AveragePriceResponse {
-    pub average_price: Decimal,
+    pub average_price: Decimal256,
 }
 
 #[cw_serde]
 pub struct LatestStreamedPriceResponse {
-    pub current_streamed_price: Decimal,
+    pub current_streamed_price: Decimal256,
 }
 
 #[cw_serde]
