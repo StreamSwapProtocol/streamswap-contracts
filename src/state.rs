@@ -159,17 +159,17 @@ pub struct Position {
     /// creator of the position.
     pub owner: Addr,
     /// current amount of tokens in buy pool
-    pub in_balance: Uint128,
-    pub shares: Uint128,
+    pub in_balance: Uint256,
+    pub shares: Uint256,
     // index is used to calculate the distribution a position has
     pub index: Decimal256,
     pub last_updated: Timestamp,
     // total amount of `token_out` purchased in tokens at latest calculation
-    pub purchased: Uint128,
+    pub purchased: Uint256,
     // pending purchased accumulates purchases after decimal truncation
     pub pending_purchase: Decimal256,
     // total amount of `token_in` spent tokens at latest calculation
-    pub spent: Uint128,
+    pub spent: Uint256,
     // operator can update position
     pub operator: Option<Addr>,
 }
@@ -177,8 +177,8 @@ pub struct Position {
 impl Position {
     pub fn new(
         owner: Addr,
-        in_balance: Uint128,
-        shares: Uint128,
+        in_balance: Uint256,
+        shares: Uint256,
         index: Option<Decimal256>,
         last_updated: Timestamp,
         operator: Option<Addr>,
@@ -189,9 +189,9 @@ impl Position {
             shares,
             index: index.unwrap_or_default(),
             last_updated,
-            purchased: Uint128::zero(),
+            purchased: Uint256::zero(),
             pending_purchase: Decimal256::zero(),
-            spent: Uint128::zero(),
+            spent: Uint256::zero(),
             operator,
         }
     }
