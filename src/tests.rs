@@ -46,7 +46,7 @@ mod test_module {
 
         // add new shares
         stream.shares += stream.compute_shares_amount(Uint256::from(100u128), false);
-        stream.in_supply += Uint128::from(100u128);
+        stream.in_supply += Uint256::from(100u128);
         assert_eq!(stream.shares, Uint256::from(200u128));
 
         // add new shares
@@ -1693,9 +1693,9 @@ mod test_module {
             position.index,
             Decimal256::from_str("202.813614449380587585").unwrap()
         );
-        assert_eq!(position.purchased, Uint128::new(202_813_614_449));
-        assert_eq!(position.spent, Uint128::new(749_993_750));
-        assert_eq!(position.in_balance, Uint128::new(250_006_250));
+        assert_eq!(position.purchased, Uint256::from(202_813_614_449u128));
+        assert_eq!(position.spent, Uint256::from(749_993_750u128));
+        assert_eq!(position.in_balance, Uint256::from(250_006_250u128));
         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
         assert_eq!(
             stream.dist_index,
@@ -1714,9 +1714,9 @@ mod test_module {
             position.index,
             Decimal256::from_str("238.074595237060799266").unwrap()
         );
-        assert_eq!(position.purchased, Uint128::new(655672748445));
-        assert_eq!(position.spent, Uint128::new(2673076923));
-        assert_eq!(position.in_balance, Uint128::new(326923077));
+        assert_eq!(position.purchased, Uint256::from(655672748445u128));
+        assert_eq!(position.spent, Uint256::from(2673076923u128));
+        assert_eq!(position.in_balance, Uint256::from(326923077u128));
         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
         assert_eq!(
             stream.dist_index,
@@ -1733,14 +1733,14 @@ mod test_module {
             stream.dist_index,
             Decimal256::from_str("264.137059297637397644").unwrap()
         );
-        assert_eq!(stream.in_supply, Uint128::zero());
+        assert_eq!(stream.in_supply, Uint256::zero());
         let position1 = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
         assert_eq!(
             position1.index,
             Decimal256::from_str("264.137059297637397644").unwrap()
         );
-        assert_eq!(position1.spent, Uint128::new(1_000_000_000));
-        assert_eq!(position1.in_balance, Uint128::zero());
+        assert_eq!(position1.spent, Uint256::from(1_000_000_000u128));
+        assert_eq!(position1.in_balance, Uint256::zero());
 
         // update position after stream ends
         let mut env = mock_env();
@@ -1752,23 +1752,23 @@ mod test_module {
             stream.dist_index,
             Decimal256::from_str("264.137059297637397644").unwrap()
         );
-        assert_eq!(stream.in_supply, Uint128::zero());
+        assert_eq!(stream.in_supply, Uint256::zero());
         let position2 = query_position(deps.as_ref(), env, 1, "creator2".to_string()).unwrap();
         assert_eq!(
             position2.index,
             Decimal256::from_str("264.137059297637397644").unwrap()
         );
-        assert_eq!(position2.spent, Uint128::new(3_000_000_000));
-        assert_eq!(position2.in_balance, Uint128::zero());
+        assert_eq!(position2.spent, Uint256::from(3_000_000_000u128));
+        assert_eq!(position2.in_balance, Uint256::zero());
 
-        assert_eq!(stream.out_remaining, Uint128::zero());
+        assert_eq!(stream.out_remaining, Uint256::zero());
         assert_eq!(
             position1
                 .purchased
                 .checked_add(position2.purchased)
                 .unwrap(),
             // 1 difference due to rounding
-            stream.out_supply.sub(Uint128::new(1u128))
+            stream.out_supply.sub(Uint256::from(1u128))
         );
     }
 
@@ -1777,7 +1777,7 @@ mod test_module {
         let treasury = Addr::unchecked("treasury");
         let start = Timestamp::from_seconds(1_000_000);
         let end = Timestamp::from_seconds(5_000_000);
-        let out_supply = Uint128::new(1_000_000_000_000);
+        let out_supply = Uint256::from(1_000_000_000_000u128);
         let out_denom = "out_denom";
 
         // instantiate
@@ -1839,7 +1839,7 @@ mod test_module {
         env.block.time = start.plus_seconds(5000);
         let info = mock_info("creator1", &[]);
         // withdraw amount zero
-        let cap = Uint128::zero();
+        let cap = Uint256::zero();
         let msg = crate::msg::ExecuteMsg::Withdraw {
             stream_id: 1,
             cap: Some(cap),
@@ -1848,7 +1848,7 @@ mod test_module {
         let res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
         assert_eq!(res, ContractError::InvalidWithdrawAmount {});
         // withdraw amount too high
-        let cap = Uint128::new(2_250_000_000_000);
+        let cap = Uint256::from(2_250_000_000_000u128);
         let msg = crate::msg::ExecuteMsg::Withdraw {
             stream_id: 1,
             cap: Some(cap),
@@ -1857,10 +1857,10 @@ mod test_module {
         let res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
         assert_eq!(
             res,
-            ContractError::WithdrawAmountExceedsBalance(Uint128::new(2250000000000))
+            ContractError::WithdrawAmountExceedsBalance(Uint256::from(2250000000000u128))
         );
         //withdraw with valid cap
-        let cap = Uint128::new(25_000_000);
+        let cap = Uint256::from(25_000_000u128);
         let msg = crate::msg::ExecuteMsg::Withdraw {
             stream_id: 1,
             cap: Some(cap),
@@ -1869,11 +1869,14 @@ mod test_module {
         let _res = execute(deps.as_mut(), env, info, msg).unwrap();
         let position =
             query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
-        assert_eq!(position.in_balance, Uint128::new(1_997_475_000_000));
-        assert_eq!(position.spent, Uint128::new(2_500_000_000));
-        assert_eq!(position.purchased, Uint128::new(1_250_000_000));
+        assert_eq!(position.in_balance, Uint256::from(1_997_475_000_000u128));
+        assert_eq!(position.spent, Uint256::from(2_500_000_000u128));
+        assert_eq!(position.purchased, Uint256::from(1_250_000_000u128));
         // first fund amount should be equal to in_balance + spent + cap
-        assert_eq!(position.in_balance + position.spent + cap, funds.amount);
+        assert_eq!(
+            position.in_balance + position.spent + cap,
+            Uint256::from_str(funds.amount.to_string().as_str()).unwrap()
+        );
 
         let mut env = mock_env();
         env.block.time = start.plus_seconds(1_000_000);
@@ -1886,10 +1889,10 @@ mod test_module {
         let res = execute(deps.as_mut(), env, info, msg).unwrap();
         let position =
             query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
-        assert_eq!(position.in_balance, Uint128::zero());
-        assert_eq!(position.spent, Uint128::new(499_993_773_466));
-        assert_eq!(position.purchased, Uint128::new(249_999_999_998));
-        assert_eq!(position.shares, Uint128::zero());
+        assert_eq!(position.in_balance, Uint256::zero());
+        assert_eq!(position.spent, Uint256::from(499_993_773_466u128));
+        assert_eq!(position.purchased, Uint256::from(249_999_999_998u128));
+        assert_eq!(position.shares, Uint256::zero());
         let msg = res.messages.get(0).unwrap();
         assert_eq!(
             msg.msg,
@@ -1917,7 +1920,7 @@ mod test_module {
         let treasury = Addr::unchecked("treasury");
         let start = Timestamp::from_seconds(1_000_000);
         let end = Timestamp::from_seconds(5_000_000);
-        let out_supply = Uint128::new(1_000_000_000_000);
+        let out_supply = Uint256::from(1_000_000_000_000u128);
         let out_denom = "out_denom";
 
         // instantiate
@@ -2042,7 +2045,7 @@ mod test_module {
         let malicious_treasury = Addr::unchecked("treasury");
         let start = Timestamp::from_seconds(10);
         let end = Timestamp::from_seconds(110);
-        let out_supply = Uint128::new(1000);
+        let out_supply = Uint256::from(1000u128);
         let out_denom = "myToken";
         let in_denom = "uosmo";
         // instantiate
@@ -2143,7 +2146,7 @@ mod test_module {
         let treasury = Addr::unchecked("treasury");
         let start = Timestamp::from_seconds(1_000_000);
         let end = Timestamp::from_seconds(5_000_000);
-        let out_supply = Uint128::new(1_000_000_000_000);
+        let out_supply = Uint256::from(1_000_000_000_000u128);
         let out_denom = "out_denom";
 
         // instantiate
@@ -2247,7 +2250,7 @@ mod test_module {
         let treasury = Addr::unchecked("treasury");
         let start = Timestamp::from_seconds(1_000_000);
         let end = Timestamp::from_seconds(5_000_000);
-        let out_supply = Uint128::new(1_000_000_000_000);
+        let out_supply = Uint256::from(1_000_000_000_000u128);
         let out_denom = "out_denom";
 
         // instantiate
@@ -2420,7 +2423,7 @@ mod test_module {
         let mut env = mock_env();
         env.block.time = start.plus_seconds(2_000_000);
         let res = query_last_streamed_price(deps.as_ref(), env, 1).unwrap();
-        assert_eq!(res.current_streamed_price, Decimal::new(Uint128::new(0)));
+        assert_eq!(res.current_streamed_price, Decimal256::zero());
 
         //check current streamed price after update
         let mut env = mock_env();
@@ -2430,7 +2433,7 @@ mod test_module {
         //approx 1000/333333
         assert_eq!(
             res.current_streamed_price,
-            Decimal::from_str("0.002997002997002997").unwrap()
+            Decimal256::from_str("0.002997002997002997").unwrap()
         );
         // second subscription
         let mut env = mock_env();
@@ -2450,7 +2453,7 @@ mod test_module {
         let res = query_last_streamed_price(deps.as_ref(), env, 1).unwrap();
         assert_eq!(
             res.current_streamed_price,
-            Decimal::from_str("0.002997002997002997").unwrap()
+            Decimal256::from_str("0.002997002997002997").unwrap()
         );
 
         //check current streamed price after update
@@ -2461,7 +2464,7 @@ mod test_module {
         //approx 2000/333333
         assert_eq!(
             res.current_streamed_price,
-            Decimal::from_str("0.0045000045000045").unwrap()
+            Decimal256::from_str("0.0045000045000045").unwrap()
         );
 
         //check average streamed price
@@ -2471,7 +2474,7 @@ mod test_module {
         //approx 2500/333333
         assert_eq!(
             res.average_price,
-            Decimal::from_str("0.003748503748503748").unwrap()
+            Decimal256::from_str("0.003748503748503748").unwrap()
         );
 
         //withdraw creator 1
@@ -2487,7 +2490,7 @@ mod test_module {
         let res = query_last_streamed_price(deps.as_ref(), mock_env(), 1).unwrap();
         assert_eq!(
             res.current_streamed_price,
-            Decimal::from_str("0.004499991000017999").unwrap()
+            Decimal256::from_str("0.004499991000017999").unwrap()
         );
 
         //test price after withdraw
@@ -2498,7 +2501,7 @@ mod test_module {
         //approx 2500/333333
         assert_eq!(
             res.current_streamed_price,
-            Decimal::from_str("0.001500006000024000").unwrap()
+            Decimal256::from_str("0.001500006000024000").unwrap()
         );
     }
 
@@ -2575,7 +2578,7 @@ mod test_module {
             stream_creation_fee: Some(Uint128::new(200)),
             fee_collector: Some("collector2".to_string()),
             accepted_in_denom: Some("new_denom".to_string()),
-            exit_fee_percent: Some(Decimal::percent(2)),
+            exit_fee_percent: Some(Decimal256::percent(2)),
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
         assert_eq!(res, ContractError::Unauthorized {});
@@ -2591,7 +2594,7 @@ mod test_module {
             stream_creation_fee: Some(Uint128::new(0)),
             fee_collector: Some("collector2".to_string()),
             accepted_in_denom: Some("new_denom".to_string()),
-            exit_fee_percent: Some(Decimal::percent(2)),
+            exit_fee_percent: Some(Decimal256::percent(2)),
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
         assert_eq!(res, ContractError::InvalidStreamCreationFee {});
@@ -2607,7 +2610,7 @@ mod test_module {
             stream_creation_fee: Some(Uint128::new(200)),
             fee_collector: Some("collector2".to_string()),
             accepted_in_denom: Some("new_denom".to_string()),
-            exit_fee_percent: Some(Decimal::percent(101)),
+            exit_fee_percent: Some(Decimal256::percent(101)),
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
         assert_eq!(res, ContractError::InvalidExitFeePercent {});
@@ -2623,7 +2626,7 @@ mod test_module {
             stream_creation_fee: Some(Uint128::new(200)),
             fee_collector: Some("collector2".to_string()),
             accepted_in_denom: Some("new_denom".to_string()),
-            exit_fee_percent: Some(Decimal::percent(2)),
+            exit_fee_percent: Some(Decimal256::percent(2)),
         };
         execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -2640,10 +2643,10 @@ mod test_module {
         assert_eq!(config_response.fee_collector, "collector2".to_string());
         assert_eq!(config_response.protocol_admin, "protocol_admin".to_string());
         assert_eq!(config_response.accepted_in_denom, "new_denom".to_string());
-        assert_eq!(config_response.exit_fee_percent, Decimal::percent(2));
+        assert_eq!(config_response.exit_fee_percent, Decimal256::percent(2));
 
         // create stream
-        let out_supply = Uint128::new(1000);
+        let out_supply = Uint256::from(1000u128);
         let out_denom = "out";
         let start = Timestamp::from_seconds(10000);
         let end = Timestamp::from_seconds(1000000);
@@ -2684,7 +2687,7 @@ mod test_module {
             stream_creation_fee: Some(Uint128::new(300)),
             fee_collector: Some("collector3".to_string()),
             accepted_in_denom: Some("new_denom2".to_string()),
-            exit_fee_percent: Some(Decimal::percent(5)),
+            exit_fee_percent: Some(Decimal256::percent(5)),
         };
         execute(deps.as_mut(), env, info, msg).unwrap();
         //query config
@@ -2700,13 +2703,13 @@ mod test_module {
         assert_eq!(config_response.fee_collector, "collector3".to_string());
         assert_eq!(config_response.protocol_admin, "protocol_admin".to_string());
         assert_eq!(config_response.accepted_in_denom, "new_denom2".to_string());
-        assert_eq!(config_response.exit_fee_percent, Decimal::percent(5));
+        assert_eq!(config_response.exit_fee_percent, Decimal256::percent(5));
 
         // check stream
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(100000);
         let stream_response = query_stream(deps.as_ref(), env, 1).unwrap();
-        assert_eq!(stream_response.exit_fee_percent, Decimal::percent(2));
+        assert_eq!(stream_response.exit_fee_percent, Decimal256::percent(2));
         assert_eq!(stream_response.stream_creation_fee, Uint128::new(200));
     }
 
@@ -2726,7 +2729,7 @@ mod test_module {
             let treasury = Addr::unchecked("treasury");
             let start = Timestamp::from_seconds(1_000_000);
             let end = Timestamp::from_seconds(5_000_000);
-            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_supply = Uint256::from(1_000_000_000_000u128);
             let out_denom = "out_denom";
 
             // instantiate
@@ -2889,7 +2892,7 @@ mod test_module {
             let treasury = Addr::unchecked("treasury");
             let start = Timestamp::from_seconds(1_000_000);
             let end = Timestamp::from_seconds(5_000_000);
-            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_supply = Uint256::from(1_000_000_000_000u128);
             let out_denom = "out_denom";
 
             // instantiate
@@ -3032,7 +3035,7 @@ mod test_module {
             let treasury = Addr::unchecked("treasury");
             let start = Timestamp::from_seconds(1_000_000);
             let end = Timestamp::from_seconds(5_000_000);
-            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_supply = Uint256::from(1_000_000_000_000u128);
             let out_denom = "out_denom";
 
             // instantiate
@@ -3158,7 +3161,7 @@ mod test_module {
             let treasury = Addr::unchecked("treasury");
             let start = Timestamp::from_seconds(1_000_000);
             let end = Timestamp::from_seconds(5_000_000);
-            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_supply = Uint256::from(1_000_000_000_000u128);
             let out_denom = "out_denom";
 
             // instantiate
@@ -3219,7 +3222,7 @@ mod test_module {
             let mut env = mock_env();
             env.block.time = start.plus_seconds(5000);
             let info = mock_info("creator1", &[]);
-            let cap = Uint128::new(25_000_000);
+            let cap = Uint256::from(25_000_000u128);
             let msg = crate::msg::ExecuteMsg::Withdraw {
                 stream_id: 1,
                 cap: Some(cap),
@@ -3229,11 +3232,14 @@ mod test_module {
 
             let position =
                 query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
-            assert_eq!(position.in_balance, Uint128::new(1_997_475_000_000));
-            assert_eq!(position.spent, Uint128::new(2_500_000_000));
-            assert_eq!(position.purchased, Uint128::new(1_250_000_000));
+            assert_eq!(position.in_balance, Uint256::from(1_997_475_000_000u128));
+            assert_eq!(position.spent, Uint256::from(2_500_000_000u128));
+            assert_eq!(position.purchased, Uint256::from(1_250_000_000u128));
             // first fund amount should be equal to in_balance + spent + cap
-            assert_eq!(position.in_balance + position.spent + cap, funds.amount);
+            assert_eq!(
+                position.in_balance + position.spent + cap,
+                Uint256::from_str(funds.amount.to_string().as_str()).unwrap()
+            );
 
             // can't withdraw pause
             let mut env = mock_env();
@@ -3275,20 +3281,20 @@ mod test_module {
                 env,
                 info,
                 1,
-                Some(Uint128::new(2_000_000_000_000 + 1)),
+                Some(Uint256::from(2_000_000_000_000u128 + 1u128)),
                 None,
             )
             .unwrap_err();
             assert_eq!(
                 res,
-                ContractError::WithdrawAmountExceedsBalance(Uint128::new(2_000_000_000_001))
+                ContractError::WithdrawAmountExceedsBalance(Uint256::from(2_000_000_000_001u128))
             );
             // Withdraw cap is zero
             let mut env = mock_env();
             env.block.time = start.plus_seconds(7000);
             let info = mock_info("creator1", &[]);
             let res =
-                execute_withdraw_paused(deps.as_mut(), env, info, 1, Some(Uint128::zero()), None)
+                execute_withdraw_paused(deps.as_mut(), env, info, 1, Some(Uint256::zero()), None)
                     .unwrap_err();
             assert_eq!(res, ContractError::InvalidWithdrawAmount {});
 
@@ -3296,7 +3302,7 @@ mod test_module {
             let mut env = mock_env();
             env.block.time = start.plus_seconds(7000);
             let info = mock_info("creator1", &[]);
-            let cap = Uint128::new(25_000_000);
+            let cap = Uint256::from(25_000_000u128);
             execute_withdraw_paused(deps.as_mut(), env, info, 1, Some(cap), None).unwrap();
 
             // withdraw after pause
@@ -3327,8 +3333,8 @@ mod test_module {
             let stream1_new = query_stream(deps.as_ref(), env, 1).unwrap();
             // dist_index not updated
             assert_eq!(stream1_old.dist_index, stream1_new.dist_index);
-            assert_eq!(stream1_new.in_supply, Uint128::zero());
-            assert_eq!(stream1_new.shares, Uint128::zero());
+            assert_eq!(stream1_new.in_supply, Uint256::zero());
+            assert_eq!(stream1_new.shares, Uint256::zero());
 
             // position updated
             let mut env = mock_env();
@@ -3336,10 +3342,10 @@ mod test_module {
             let position =
                 query_position(deps.as_ref(), mock_env(), 1, "creator1".to_string()).unwrap();
             // in_balance updated
-            assert_eq!(position.in_balance, Uint128::new(0));
-            assert_eq!(position.spent, Uint128::new(2_999_993_742));
-            assert_eq!(position.purchased, Uint128::new(1_499_999_998));
-            assert_eq!(position.shares, Uint128::new(0));
+            assert_eq!(position.in_balance, Uint256::zero());
+            assert_eq!(position.spent, Uint256::from(2_999_993_742u128));
+            assert_eq!(position.purchased, Uint256::from(1_499_999_998u128));
+            assert_eq!(position.shares, Uint256::zero());
         }
 
         #[test]
@@ -3347,7 +3353,7 @@ mod test_module {
             let treasury = Addr::unchecked("treasury");
             let start = Timestamp::from_seconds(1_000_000);
             let end = Timestamp::from_seconds(5_000_000);
-            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_supply = Uint256::from(1_000_000_000_000u128);
             let out_denom = "out_denom";
 
             // instantiate
@@ -3434,7 +3440,7 @@ mod test_module {
             let treasury = Addr::unchecked("treasury");
             let start = Timestamp::from_seconds(1_000_000);
             let end = Timestamp::from_seconds(5_000_000);
-            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_supply = Uint256::from(1_000_000_000_000u128);
             let out_denom = "out_denom";
 
             // instantiate
@@ -3608,7 +3614,7 @@ mod test_module {
             let treasury = Addr::unchecked("treasury");
             let start = Timestamp::from_seconds(1_000_000);
             let end = Timestamp::from_seconds(5_000_000);
-            let out_supply = Uint128::new(1_000_000_000_000);
+            let out_supply = Uint256::from(1_000_000_000_000u128);
             let out_denom = "out_denom";
 
             // instantiate
@@ -3758,7 +3764,7 @@ mod test_module {
             let treasury = Addr::unchecked("treasury");
             let start = Timestamp::from_seconds(1_000_000);
             let end = Timestamp::from_seconds(5_000_000);
-            let out_supply = Uint128::new(500);
+            let out_supply = Uint256::from(500u128);
             let out_denom = "out_denom";
             let in_denom = "in_denom";
 
@@ -3802,7 +3808,7 @@ mod test_module {
                 out_supply,
                 start,
                 end,
-                Some(Uint128::from(250u128)),
+                Some(Uint256::from(250u128)),
             )
             .unwrap();
 
@@ -3869,7 +3875,7 @@ mod test_module {
             let treasury = Addr::unchecked("treasury");
             let start = Timestamp::from_seconds(1_000_000);
             let end = Timestamp::from_seconds(5_000_000);
-            let out_supply = Uint128::new(500);
+            let out_supply = Uint256::from(500u128);
             let out_denom = "out_denom";
             let in_denom = "in_denom";
 
@@ -4014,7 +4020,7 @@ mod test_module {
             let treasury = Addr::unchecked("treasury");
             let start = Timestamp::from_seconds(1_000_000);
             let end = Timestamp::from_seconds(5_000_000);
-            let out_supply = Uint128::new(500);
+            let out_supply = Uint256::from(500u128);
             let out_denom = "out_denom";
             let in_denom = "in_denom";
 
