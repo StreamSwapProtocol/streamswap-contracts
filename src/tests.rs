@@ -28,36 +28,36 @@ mod test_module {
             Addr::unchecked("treasury"),
             Some("url".to_string()),
             "out_denom".to_string(),
-            Uint128::from(100u128),
+            Uint256::from(100u128),
             "in_denom".to_string(),
             Timestamp::from_seconds(0),
             Timestamp::from_seconds(100),
             Timestamp::from_seconds(0),
             "fee".to_string(),
             Uint128::from(100u128),
-            Decimal::percent(10),
+            Decimal256::percent(10),
         );
 
         // add new shares
         let shares = stream.compute_shares_amount(Uint256::from(100u128), false);
-        assert_eq!(shares, Uint128::from(100u128));
-        stream.in_supply = Uint128::from(100u128);
+        assert_eq!(shares, Uint256::from(100u128));
+        stream.in_supply = Uint256::from(100u128);
         stream.shares = shares;
 
         // add new shares
-        stream.shares += stream.compute_shares_amount(Uint128::from(100u128), false);
+        stream.shares += stream.compute_shares_amount(Uint256::from(100u128), false);
         stream.in_supply += Uint128::from(100u128);
-        assert_eq!(stream.shares, Uint128::from(200u128));
+        assert_eq!(stream.shares, Uint256::from(200u128));
 
         // add new shares
-        stream.shares += stream.compute_shares_amount(Uint128::from(250u128), false);
-        assert_eq!(stream.shares, Uint128::from(450u128));
-        stream.in_supply += Uint128::from(250u128);
+        stream.shares += stream.compute_shares_amount(Uint256::from(250u128), false);
+        assert_eq!(stream.shares, Uint256::from(450u128));
+        stream.in_supply += Uint256::from(250u128);
 
         // remove shares
-        stream.shares -= stream.compute_shares_amount(Uint128::from(100u128), true);
-        assert_eq!(stream.shares, Uint128::from(350u128));
-        stream.in_supply -= Uint128::from(100u128);
+        stream.shares -= stream.compute_shares_amount(Uint256::from(100u128), true);
+        assert_eq!(stream.shares, Uint256::from(350u128));
+        stream.in_supply -= Uint256::from(100u128);
     }
 
     #[test]
@@ -69,7 +69,7 @@ mod test_module {
             min_seconds_until_start_time: Uint64::new(1000),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
-            exit_fee_percent: Decimal::percent(101),
+            exit_fee_percent: Decimal256::percent(101),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -84,7 +84,7 @@ mod test_module {
             min_seconds_until_start_time: Uint64::new(1000),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::zero(),
-            exit_fee_percent: Decimal::percent(1),
+            exit_fee_percent: Decimal256::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -98,7 +98,7 @@ mod test_module {
             min_seconds_until_start_time: Uint64::new(1000),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
-            exit_fee_percent: Decimal::percent(1),
+            exit_fee_percent: Decimal256::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -111,7 +111,7 @@ mod test_module {
         let url = "https://sample.url";
         let start_time = Timestamp::from_seconds(3000);
         let end_time = Timestamp::from_seconds(100000);
-        let out_supply = Uint128::new(50_000_000);
+        let out_supply = Uint256::from(50_000_000u128);
         let out_denom = "out_denom";
         let in_denom = "random";
 
@@ -139,7 +139,7 @@ mod test_module {
         let url = "https://sample.url";
         let start_time = Timestamp::from_seconds(1000);
         let end_time = Timestamp::from_seconds(10);
-        let out_supply = Uint128::new(50_000_000);
+        let out_supply = Uint256::from(50_000_000u128);
         let out_denom = "out_denom";
         let in_denom = "in";
 
@@ -264,7 +264,7 @@ mod test_module {
             Some(url.to_string()),
             in_denom.to_string(),
             out_denom.to_string(),
-            Uint128::new(0),
+            Uint256::zero(),
             start_time,
             end_time,
             None,
@@ -285,7 +285,7 @@ mod test_module {
                 },
                 Coin {
                     denom: out_denom.to_string(),
-                    amount: out_supply,
+                    amount: out_supply.to_string().parse().unwrap(),
                 },
             ],
         );
@@ -301,7 +301,7 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
-            Some(Uint128::new(0)),
+            Some(Uint256::zero()),
         )
         .unwrap_err();
         assert_eq!(
@@ -357,7 +357,7 @@ mod test_module {
         let info = mock_info(
             "creator1",
             &[
-                Coin::new(out_supply.u128(), "out_denom"),
+                Coin::new(out_supply.to_string().parse().unwrap(), "out_denom"),
                 Coin::new(99, "fee"),
             ],
         );
@@ -380,7 +380,13 @@ mod test_module {
         // no creation fee case
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(1);
-        let info = mock_info("creator1", &[Coin::new(out_supply.u128(), "out_denom")]);
+        let info = mock_info(
+            "creator1",
+            &[Coin::new(
+                out_supply.to_string().parse().unwrap(),
+                "out_denom",
+            )],
+        );
         let res = execute_create_stream(
             deps.as_mut(),
             env,
@@ -400,7 +406,13 @@ mod test_module {
         // mismatch creation fee case
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(1);
-        let info = mock_info("creator1", &[Coin::new(out_supply.u128(), "out_denom")]);
+        let info = mock_info(
+            "creator1",
+            &[Coin::new(
+                out_supply.to_string().parse().unwrap(),
+                "out_denom",
+            )],
+        );
         let res = execute_create_stream(
             deps.as_mut(),
             env,
@@ -440,7 +452,17 @@ mod test_module {
         // same denom case, sufficient total
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(1);
-        let info = mock_info("creator1", &[Coin::new(out_supply.u128() + 100, "fee")]);
+        let info = mock_info(
+            "creator1",
+            &[Coin::new(
+                out_supply
+                    .strict_add(Uint256::from(100u128))
+                    .to_string()
+                    .parse()
+                    .unwrap(),
+                "fee",
+            )],
+        );
         execute_create_stream(
             deps.as_mut(),
             env,
@@ -460,7 +482,17 @@ mod test_module {
         // same tokens extra funds sent
         let info = mock_info(
             "creator1",
-            &[coin(out_supply.u128() + 100, "fee"), coin(15, "random")],
+            &[
+                coin(
+                    out_supply
+                        .strict_add(Uint256::from(100u128))
+                        .to_string()
+                        .parse()
+                        .unwrap(),
+                    "fee",
+                ),
+                coin(15, "random"),
+            ],
         );
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(1);
@@ -485,7 +517,7 @@ mod test_module {
         let info = mock_info(
             "creator1",
             &[
-                coin(out_supply.u128(), "different_denom"),
+                coin(out_supply.to_string().parse().unwrap(), "different_denom"),
                 coin(Uint128::new(100).u128(), "fee"),
                 coin(15, "random"),
             ],
@@ -515,7 +547,7 @@ mod test_module {
         let info = mock_info(
             "creator1",
             &[
-                Coin::new(out_supply.u128(), "out_denom"),
+                Coin::new(out_supply.to_string().parse().unwrap(), "out_denom"),
                 Coin::new(100, "fee"),
             ],
         );
@@ -576,7 +608,7 @@ mod test_module {
         let info = mock_info(
             "creator1",
             &[
-                Coin::new(out_supply.u128(), "out_denom"),
+                Coin::new(out_supply.to_string().parse().unwrap(), "out_denom"),
                 Coin::new(100, "fee"),
             ],
         );
@@ -638,7 +670,7 @@ mod test_module {
         let info = mock_info(
             "creator1",
             &[
-                Coin::new(out_supply.u128(), "out_denom"),
+                Coin::new(out_supply.to_string().parse().unwrap(), "out_denom"),
                 Coin::new(100, "fee"),
             ],
         );
@@ -669,7 +701,7 @@ mod test_module {
         let treasury = Addr::unchecked("treasury");
         let start = Timestamp::from_seconds(2000);
         let end = Timestamp::from_seconds(1_000_000);
-        let out_supply = Uint128::new(1_000_000);
+        let out_supply = Uint256::from(1_000_000u128);
         let out_denom = "out_denom";
 
         // instantiate
@@ -681,7 +713,7 @@ mod test_module {
             min_seconds_until_start_time: Uint64::new(1000),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
-            exit_fee_percent: Decimal::percent(1),
+            exit_fee_percent: Decimal256::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -694,7 +726,7 @@ mod test_module {
         let info = mock_info(
             "creator1",
             &[
-                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                 Coin::new(100, "fee"),
             ],
         );
@@ -771,10 +803,10 @@ mod test_module {
         assert_eq!(stream.dist_index, Decimal256::zero());
         //see that the status is updated
         assert_eq!(stream.status, Status::Active);
-        assert_eq!(stream.in_supply, Uint128::new(1000000));
+        assert_eq!(stream.in_supply, Uint256::from(1000000u128));
         let position = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
         assert_eq!(position.index, Decimal256::zero());
-        assert_eq!(position.in_balance, Uint128::new(1000000));
+        assert_eq!(position.in_balance, Uint256::from(1000000u128));
         // unauthorized subscription increase
         let mut env = mock_env();
         env.block.time = start.plus_seconds(200);
@@ -803,7 +835,7 @@ mod test_module {
         // dist index updated, position reduced and increased
         let position = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
         assert_eq!(position.index, Decimal256::from_str("0.0001").unwrap());
-        assert_eq!(position.in_balance, Uint128::new(1999900));
+        assert_eq!(position.in_balance, Uint256::from(1999900u128));
     }
 
     #[test]
@@ -812,7 +844,7 @@ mod test_module {
         let treasury = Addr::unchecked("treasury");
         let start = Timestamp::from_seconds(5_000);
         let end = Timestamp::from_seconds(10_000);
-        let out_supply = Uint128::new(1_000_000);
+        let out_supply = Uint256::from(1_000_000u128);
         let out_denom = "out_denom";
 
         // instantiate
@@ -824,7 +856,7 @@ mod test_module {
             min_seconds_until_start_time: Uint64::new(1000),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
-            exit_fee_percent: Decimal::percent(1),
+            exit_fee_percent: Decimal256::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -837,7 +869,7 @@ mod test_module {
         let info = mock_info(
             "creator1",
             &[
-                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                 Coin::new(100, "fee"),
             ],
         );
@@ -875,8 +907,8 @@ mod test_module {
         env.block.time = Timestamp::from_seconds(350);
         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
         assert_eq!(stream.status, Status::Waiting);
-        assert_eq!(stream.in_supply, Uint128::new(1000000));
-        assert_eq!(stream.shares, Uint128::new(1000000));
+        assert_eq!(stream.in_supply, Uint256::from(1000000u128));
+        assert_eq!(stream.shares, Uint256::from(1000000u128));
 
         // second subscribe still waiting
         let mut env = mock_env();
@@ -896,7 +928,7 @@ mod test_module {
         env.block.time = Timestamp::from_seconds(450);
         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
         assert_eq!(stream.status, Status::Waiting);
-        assert_eq!(stream.in_supply, Uint128::new(2000000));
+        assert_eq!(stream.in_supply, Uint256::from(2000000u128));
 
         // Before stream start time 2 subscriptions have been made and the stream is pending
         // After stream start time plus 1000 seconds one subscription is made and the stream is active
@@ -934,15 +966,15 @@ mod test_module {
         let info = mock_info("creator1", &[]);
         let _res = execute(deps.as_mut(), env.clone(), info, update_msg).unwrap();
         let position = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
-        assert_eq!(position.spent, Uint128::new(400000));
+        assert_eq!(position.spent, Uint256::from(400000u128));
 
         // query stream
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(6000);
         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
         assert_eq!(stream.status, Status::Active);
-        assert_eq!(stream.in_supply, Uint128::new(3000000 - 400000));
-        assert_eq!(stream.spent_in, Uint128::new(400000));
+        assert_eq!(stream.in_supply, Uint256::from(3000000u128 - 400000u128));
+        assert_eq!(stream.spent_in, Uint256::from(400000u128));
 
         // update creator 1 position at 3500
         let mut env = mock_env();
@@ -956,8 +988,8 @@ mod test_module {
 
         // query position
         let res = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
-        assert_eq!(res.purchased, Uint128::new(184615 + 200000));
-        assert_eq!(res.spent, Uint128::new(2000000 / 2));
+        assert_eq!(res.purchased, Uint256::from(184615u128 + 200000u128));
+        assert_eq!(res.spent, Uint256::from(2000000u128 / 2u128));
 
         // update creator 2 position at 3500
         let mut env = mock_env();
@@ -971,16 +1003,16 @@ mod test_module {
 
         // query position
         let res = query_position(deps.as_ref(), env, 1, "creator2".to_string()).unwrap();
-        assert_eq!(res.purchased, Uint128::new(115384));
+        assert_eq!(res.purchased, Uint256::from(115384u128));
         // spent =  in_supply * (now-last_updated) / (end-last_updated)
-        assert_eq!(res.spent, Uint128::new(1000000 * 1500 / 4000));
+        assert_eq!(res.spent, Uint256::from(1000000u128 * 1500u128 / 4000u128));
         // query stream
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(3500);
         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
         assert_eq!(stream.status, Status::Active);
         // in supply = 3000000 - (positions.spent summed)
-        assert_eq!(stream.in_supply, Uint128::new(1625000));
+        assert_eq!(stream.in_supply, Uint256::from(1625000u128));
     }
 
     #[test]
@@ -989,7 +1021,7 @@ mod test_module {
         let treasury = Addr::unchecked("treasury");
         let start = Timestamp::from_seconds(2000);
         let end = Timestamp::from_seconds(1_000_000);
-        let out_supply = Uint128::new(1_000_000);
+        let out_supply = Uint256::from(1_000_000u128);
         let out_denom = "out_denom";
 
         // instantiate
@@ -1001,7 +1033,7 @@ mod test_module {
             min_seconds_until_start_time: Uint64::new(1000),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
-            exit_fee_percent: Decimal::percent(1),
+            exit_fee_percent: Decimal256::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -1014,7 +1046,7 @@ mod test_module {
         let info = mock_info(
             "creator1",
             &[
-                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                 Coin::new(100, "fee"),
             ],
         );
@@ -1070,9 +1102,9 @@ mod test_module {
         assert_eq!(stream.id, 1);
         assert_eq!(stream.dist_index, Decimal256::zero());
         assert_eq!(stream.last_updated, Timestamp::from_seconds(2000));
-        assert_eq!(stream.in_supply, Uint128::new(1_000_000));
-        assert_eq!(stream.spent_in, Uint128::zero());
-        assert_eq!(stream.shares, Uint128::new(1_000_000));
+        assert_eq!(stream.in_supply, Uint256::from(1_000_000u128));
+        assert_eq!(stream.spent_in, Uint256::zero());
+        assert_eq!(stream.shares, Uint256::from(1_000_000u128));
 
         // withdraw before start time
         let mut env = mock_env();
@@ -1080,7 +1112,7 @@ mod test_module {
         let info = mock_info("creator1", &[]);
         let msg = crate::msg::ExecuteMsg::Withdraw {
             stream_id: 1,
-            cap: Some(Uint128::new(500_000)),
+            cap: Some(Uint256::from(500_000u128)),
             operator_target: None,
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap();
@@ -1103,9 +1135,9 @@ mod test_module {
         assert_eq!(stream.id, 1);
         assert_eq!(stream.dist_index, Decimal256::zero());
         assert_eq!(stream.last_updated, Timestamp::from_seconds(2000));
-        assert_eq!(stream.in_supply, Uint128::new(500_000));
-        assert_eq!(stream.spent_in, Uint128::zero());
-        assert_eq!(stream.shares, Uint128::new(500_000));
+        assert_eq!(stream.in_supply, Uint256::from(500_000u128));
+        assert_eq!(stream.spent_in, Uint256::zero());
+        assert_eq!(stream.shares, Uint256::from(500_000u128));
 
         // withdraw after start time
         let mut env = mock_env();
@@ -1113,7 +1145,7 @@ mod test_module {
         let info = mock_info("creator1", &[]);
         let msg = crate::msg::ExecuteMsg::Withdraw {
             stream_id: 1,
-            cap: Some(Uint128::new(400_000)),
+            cap: Some(Uint256::from(400_000u128)),
             operator_target: None,
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap();
@@ -1140,7 +1172,7 @@ mod test_module {
         let treasury = Addr::unchecked("treasury");
         let start = Timestamp::from_seconds(1_590_797_419);
         let end = Timestamp::from_seconds(5_571_797_419);
-        let out_supply = Uint128::new(1_000_000);
+        let out_supply = Uint256::from(1_000_000u128);
         let out_denom = "out_denom";
 
         // instantiate
@@ -1152,7 +1184,7 @@ mod test_module {
             min_seconds_until_start_time: Uint64::new(1),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
-            exit_fee_percent: Decimal::percent(1),
+            exit_fee_percent: Decimal256::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -1164,7 +1196,7 @@ mod test_module {
         let info = mock_info(
             "creator",
             &[
-                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                 Coin::new(100, "fee"),
             ],
         );
@@ -1382,7 +1414,7 @@ mod test_module {
         let treasury = Addr::unchecked("treasury");
         let start = Timestamp::from_seconds(1_000_000);
         let end = Timestamp::from_seconds(5_000_000);
-        let out_supply = Uint128::new(1_000_000);
+        let out_supply = Uint256::from(1_000_000u128);
         let out_denom = "out_denom";
 
         // instantiate
@@ -1394,7 +1426,7 @@ mod test_module {
             min_seconds_until_start_time: Uint64::new(1000),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
-            exit_fee_percent: Decimal::percent(1),
+            exit_fee_percent: Decimal256::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -1407,7 +1439,7 @@ mod test_module {
         let info = mock_info(
             "creator",
             &[
-                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                 Coin::new(100, "fee"),
             ],
         );
@@ -1473,7 +1505,7 @@ mod test_module {
         let treasury = Addr::unchecked("treasury");
         let start = Timestamp::from_seconds(1_000_000);
         let end = Timestamp::from_seconds(5_000_000);
-        let out_supply = Uint128::new(1_000_000);
+        let out_supply = Uint256::from(1_000_000u128);
         let out_denom = "out_denom";
 
         // instantiate
@@ -1485,7 +1517,7 @@ mod test_module {
             min_seconds_until_start_time: Uint64::new(1000),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
-            exit_fee_percent: Decimal::percent(1),
+            exit_fee_percent: Decimal256::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -1498,7 +1530,7 @@ mod test_module {
         let info = mock_info(
             "creator",
             &[
-                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                 Coin::new(100, "fee"),
             ],
         );
@@ -1550,9 +1582,9 @@ mod test_module {
             position.index,
             Decimal256::from_str("0.749993000000000000").unwrap()
         );
-        assert_eq!(position.purchased, Uint128::new(749_993));
-        assert_eq!(position.spent, Uint128::new(749_993));
-        assert_eq!(position.in_balance, Uint128::new(250_007));
+        assert_eq!(position.purchased, Uint256::from(749_993u128));
+        assert_eq!(position.spent, Uint256::from(749_993u128));
+        assert_eq!(position.in_balance, Uint256::from(250_007u128));
         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
         assert_eq!(
             stream.dist_index,
@@ -1566,13 +1598,13 @@ mod test_module {
         execute_update_position(deps.as_mut(), env.clone(), info, 1, None).unwrap();
         let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
         assert_eq!(stream.dist_index, Decimal256::from_str("1").unwrap());
-        assert_eq!(stream.in_supply, Uint128::zero());
+        assert_eq!(stream.in_supply, Uint256::zero());
         let position = query_position(deps.as_ref(), env, 1, "creator1".to_string()).unwrap();
         assert_eq!(position.index, Decimal256::from_str("1").unwrap());
-        assert_eq!(position.spent, Uint128::new(1_000_000));
-        assert_eq!(position.in_balance, Uint128::zero());
+        assert_eq!(position.spent, Uint256::from(1_000_000u128));
+        assert_eq!(position.in_balance, Uint256::zero());
 
-        assert_eq!(stream.out_supply, Uint128::new(1_000_000));
+        assert_eq!(stream.out_supply, Uint256::from(1_000_000u128));
         assert_eq!(position.purchased, stream.out_supply);
     }
 
@@ -1582,7 +1614,7 @@ mod test_module {
         let treasury = Addr::unchecked("treasury");
         let start = Timestamp::from_seconds(1_000_000);
         let end = Timestamp::from_seconds(5_000_000);
-        let out_supply = Uint128::new(1_000_000_000_000);
+        let out_supply = Uint256::from(1_000_000_000_000u128);
         let out_denom = "out_denom";
 
         // instantiate
@@ -1594,7 +1626,7 @@ mod test_module {
             min_seconds_until_start_time: Uint64::new(1000),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
-            exit_fee_percent: Decimal::percent(1),
+            exit_fee_percent: Decimal256::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -1607,7 +1639,7 @@ mod test_module {
         let info = mock_info(
             "creator",
             &[
-                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                 Coin::new(100, "fee"),
             ],
         );
@@ -1757,7 +1789,7 @@ mod test_module {
             min_seconds_until_start_time: Uint64::new(0),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
-            exit_fee_percent: Decimal::percent(1),
+            exit_fee_percent: Decimal256::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -1770,7 +1802,7 @@ mod test_module {
         let info = mock_info(
             "creator1",
             &[
-                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                 Coin::new(100, "fee"),
             ],
         );
@@ -1897,7 +1929,7 @@ mod test_module {
             min_seconds_until_start_time: Uint64::new(0),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
-            exit_fee_percent: Decimal::percent(1),
+            exit_fee_percent: Decimal256::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -1910,7 +1942,7 @@ mod test_module {
         let info = mock_info(
             "creator1",
             &[
-                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                 Coin::new(100, "fee"),
             ],
         );
@@ -2022,7 +2054,7 @@ mod test_module {
             min_seconds_until_start_time: Uint64::new(0),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
-            exit_fee_percent: Decimal::percent(1),
+            exit_fee_percent: Decimal256::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: in_denom.to_string(),
@@ -2034,7 +2066,7 @@ mod test_module {
         let info = mock_info(
             malicious_treasury.as_str(),
             &[
-                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                 Coin::new(100, "fee"),
             ],
         );
@@ -2123,7 +2155,7 @@ mod test_module {
             min_seconds_until_start_time: Uint64::new(0),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
-            exit_fee_percent: Decimal::percent(1),
+            exit_fee_percent: Decimal256::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -2136,7 +2168,7 @@ mod test_module {
         let info = mock_info(
             "creator1",
             &[
-                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                 Coin::new(100, "fee"),
             ],
         );
@@ -2227,7 +2259,7 @@ mod test_module {
             min_seconds_until_start_time: Uint64::new(0),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
-            exit_fee_percent: Decimal::percent(1),
+            exit_fee_percent: Decimal256::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -2240,7 +2272,7 @@ mod test_module {
         let info = mock_info(
             "creator1",
             &[
-                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                 Coin::new(100, "fee"),
             ],
         );
@@ -2327,7 +2359,7 @@ mod test_module {
         let treasury = Addr::unchecked("treasury");
         let start = Timestamp::from_seconds(1_000_000);
         let end = Timestamp::from_seconds(5_000_000);
-        let out_supply = Uint128::new(1_000_000);
+        let out_supply = Uint256::from(1_000_000u128);
         let out_denom = "out_denom";
 
         // instantiate
@@ -2339,7 +2371,7 @@ mod test_module {
             min_seconds_until_start_time: Uint64::new(0),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
-            exit_fee_percent: Decimal::percent(1),
+            exit_fee_percent: Decimal256::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -2352,7 +2384,7 @@ mod test_module {
         let info = mock_info(
             "creator1",
             &[
-                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                 Coin::new(100, "fee"),
             ],
         );
@@ -2481,7 +2513,7 @@ mod test_module {
             min_seconds_until_start_time: Uint64::new(0),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
-            exit_fee_percent: Decimal::percent(1),
+            exit_fee_percent: Decimal256::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -2514,7 +2546,7 @@ mod test_module {
             min_seconds_until_start_time: Uint64::new(0),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
-            exit_fee_percent: Decimal::percent(1),
+            exit_fee_percent: Decimal256::percent(1),
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
@@ -2621,7 +2653,7 @@ mod test_module {
         let info = mock_info(
             "creator1",
             &[
-                Coin::new(out_supply.u128(), out_denom),
+                Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                 Coin::new(200, "fee2"),
             ],
         );
@@ -2706,7 +2738,7 @@ mod test_module {
                 min_seconds_until_start_time: Uint64::new(0),
                 stream_creation_denom: "fee".to_string(),
                 stream_creation_fee: Uint128::new(100),
-                exit_fee_percent: Decimal::percent(1),
+                exit_fee_percent: Decimal256::percent(1),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
@@ -2719,7 +2751,7 @@ mod test_module {
             let info = mock_info(
                 "creator1",
                 &[
-                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                     Coin::new(100, "fee"),
                 ],
             );
@@ -2869,7 +2901,7 @@ mod test_module {
                 min_seconds_until_start_time: Uint64::new(0),
                 stream_creation_denom: "fee".to_string(),
                 stream_creation_fee: Uint128::new(100),
-                exit_fee_percent: Decimal::percent(1),
+                exit_fee_percent: Decimal256::percent(1),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
@@ -2882,7 +2914,7 @@ mod test_module {
             let info = mock_info(
                 "creator1",
                 &[
-                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                     Coin::new(100, "fee"),
                 ],
             );
@@ -3012,7 +3044,7 @@ mod test_module {
                 min_seconds_until_start_time: Uint64::new(0),
                 stream_creation_denom: "fee".to_string(),
                 stream_creation_fee: Uint128::new(100),
-                exit_fee_percent: Decimal::percent(1),
+                exit_fee_percent: Decimal256::percent(1),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
@@ -3025,7 +3057,7 @@ mod test_module {
             let info = mock_info(
                 "creator1",
                 &[
-                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                     Coin::new(100, "fee"),
                 ],
             );
@@ -3138,7 +3170,7 @@ mod test_module {
                 min_seconds_until_start_time: Uint64::new(0),
                 stream_creation_denom: "fee".to_string(),
                 stream_creation_fee: Uint128::new(100),
-                exit_fee_percent: Decimal::percent(1),
+                exit_fee_percent: Decimal256::percent(1),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
@@ -3151,7 +3183,7 @@ mod test_module {
             let info = mock_info(
                 "creator1",
                 &[
-                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                     Coin::new(100, "fee"),
                 ],
             );
@@ -3327,7 +3359,7 @@ mod test_module {
                 min_seconds_until_start_time: Uint64::new(0),
                 stream_creation_denom: "fee".to_string(),
                 stream_creation_fee: Uint128::new(100),
-                exit_fee_percent: Decimal::percent(1),
+                exit_fee_percent: Decimal256::percent(1),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
@@ -3340,7 +3372,7 @@ mod test_module {
             let info = mock_info(
                 "creator1",
                 &[
-                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                     Coin::new(100, "fee"),
                 ],
             );
@@ -3414,7 +3446,7 @@ mod test_module {
                 min_seconds_until_start_time: Uint64::new(0),
                 stream_creation_denom: "fee".to_string(),
                 stream_creation_fee: Uint128::new(100),
-                exit_fee_percent: Decimal::percent(1),
+                exit_fee_percent: Decimal256::percent(1),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
@@ -3427,7 +3459,7 @@ mod test_module {
             let info = mock_info(
                 "creator1",
                 &[
-                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                     Coin::new(100, "fee"),
                 ],
             );
@@ -3480,7 +3512,7 @@ mod test_module {
             let treasury = Addr::unchecked("treasury");
             let start = Timestamp::from_seconds(2000);
             let end = Timestamp::from_seconds(1_000_000);
-            let out_supply = Uint128::new(1_000_000);
+            let out_supply = Uint256::from(1_000_000u128);
             let out_denom = "out_denom";
 
             // instantiate
@@ -3492,7 +3524,7 @@ mod test_module {
                 min_seconds_until_start_time: Uint64::new(1000),
                 stream_creation_denom: "fee".to_string(),
                 stream_creation_fee: Uint128::new(100),
-                exit_fee_percent: Decimal::percent(1),
+                exit_fee_percent: Decimal256::percent(1),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
@@ -3505,7 +3537,7 @@ mod test_module {
             let info = mock_info(
                 "creator1",
                 &[
-                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                     Coin::new(100, "fee"),
                 ],
             );
@@ -3588,7 +3620,7 @@ mod test_module {
                 min_seconds_until_start_time: Uint64::new(0),
                 stream_creation_denom: "fee".to_string(),
                 stream_creation_fee: Uint128::new(100),
-                exit_fee_percent: Decimal::percent(1),
+                exit_fee_percent: Decimal256::percent(1),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
@@ -3601,7 +3633,7 @@ mod test_module {
             let info = mock_info(
                 "creator1",
                 &[
-                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                     Coin::new(100, "fee"),
                 ],
             );
@@ -3741,7 +3773,7 @@ mod test_module {
                 min_seconds_until_start_time: Uint64::new(0),
                 stream_creation_denom: "fee".to_string(),
                 stream_creation_fee: Uint128::new(100),
-                exit_fee_percent: Decimal::percent(1),
+                exit_fee_percent: Decimal256::percent(1),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: in_denom.to_string(),
@@ -3754,7 +3786,7 @@ mod test_module {
             let info = mock_info(
                 "creator",
                 &[
-                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                     Coin::new(100, "fee"),
                 ],
             );
@@ -3852,7 +3884,7 @@ mod test_module {
                 min_seconds_until_start_time: Uint64::new(0),
                 stream_creation_denom: "fee".to_string(),
                 stream_creation_fee: Uint128::new(100),
-                exit_fee_percent: Decimal::percent(1),
+                exit_fee_percent: Decimal256::percent(1),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: in_denom.to_string(),
@@ -3865,7 +3897,7 @@ mod test_module {
             let info = mock_info(
                 "creator",
                 &[
-                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                     Coin::new(100, "fee"),
                 ],
             );
@@ -3997,7 +4029,7 @@ mod test_module {
                 min_seconds_until_start_time: Uint64::new(0),
                 stream_creation_denom: "fee".to_string(),
                 stream_creation_fee: Uint128::new(100),
-                exit_fee_percent: Decimal::percent(1),
+                exit_fee_percent: Decimal256::percent(1),
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: in_denom.to_string(),
@@ -4010,7 +4042,7 @@ mod test_module {
             let info = mock_info(
                 "creator",
                 &[
-                    Coin::new(out_supply.u128(), out_denom),
+                    Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
                     Coin::new(100, "fee"),
                 ],
             );
