@@ -223,7 +223,7 @@ pub fn execute_create_stream(
     out_supply: Uint256,
     start_time: Timestamp,
     end_time: Timestamp,
-    threshold: Option<Uint128>,
+    threshold: Option<Uint256>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     if end_time < start_time {
@@ -1324,7 +1324,7 @@ pub fn query_threshold_state(
     deps: Deps,
     _env: Env,
     stream_id: u64,
-) -> Result<Option<Uint128>, StdError> {
+) -> Result<Option<Uint256>, StdError> {
     let threshold_state = ThresholdState::new();
     let threshold = threshold_state.get_threshold(stream_id, deps.storage)?;
     Ok(threshold)

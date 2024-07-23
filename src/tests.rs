@@ -15,7 +15,7 @@ mod test_module {
     use cosmwasm_std::StdError::{self};
     use cosmwasm_std::{
         attr, coin, Addr, BankMsg, Coin, CosmosMsg, Decimal, Decimal256, Response, SubMsg,
-        Timestamp, Uint128, Uint64,
+        Timestamp, Uint128, Uint256, Uint64,
     };
     use cw_utils::PaymentError;
     use std::ops::Sub;
@@ -39,7 +39,7 @@ mod test_module {
         );
 
         // add new shares
-        let shares = stream.compute_shares_amount(Uint128::from(100u128), false);
+        let shares = stream.compute_shares_amount(Uint256::from(100u128), false);
         assert_eq!(shares, Uint128::from(100u128));
         stream.in_supply = Uint128::from(100u128);
         stream.shares = shares;

@@ -46,7 +46,7 @@ pub enum ExecuteMsg {
         /// Unix timestamp when the stream ends. Calculations in nano sec precision.
         end_time: Timestamp,
         /// Minimum amount of `spent_in` for a stream to be finalized.
-        threshold: Option<Uint128>,
+        threshold: Option<Uint256>,
     },
     /// Update stream and calculates distribution state.
     UpdateStream {

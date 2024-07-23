@@ -246,12 +246,12 @@ mod tests {
             shares: Uint256::from(312458028446265623240u128),
             start_time: Timestamp::from_nanos(1722006000000000000),
             end_time: Timestamp::from_nanos(1722009600000000000),
-            current_streamed_price: Decimal::zero(),
+            current_streamed_price: Decimal256::zero(),
             status: Status::Waiting,
             pause_date: None,
             stream_creation_denom: "inj".to_string(),
             stream_creation_fee: Uint128::from(150000000000000000000u128),
-            stream_exit_fee_percent: Decimal::percent(1),
+            stream_exit_fee_percent: Decimal256::percent(1),
         };
 
         // Test when shares is zero
