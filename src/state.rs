@@ -205,41 +205,21 @@ pub const POSITIONS: Map<(StreamId, &Addr), Position> = Map::new("positions");
 
 mod tests {
     use super::*;
-    use cosmwasm_std::{Addr, Decimal, Uint128};
+    use cosmwasm_std::{Addr, Uint128};
 
     // Test compute_shares_amount
     #[test]
     fn test_compute_shares_amount() {
-        // - current_streamed_price: "0"
-        // dist_index: "0"
-        // end_time: "1722009600000000000"
-        // exit_fee_percent: "0.042"
-        // id: 1
-        // in_denom: inj
-        // in_supply: "312458028446265623240"
-        // last_updated: "1722006000000000000"
-        // out_denom: factory/inj1a6xdezq7a94qwamec6n6cnup02nvewvjtz6h6e/SYN
-        // out_remaining: "79000000000"
-        // out_supply: "79000000000"
-        // pause_date: null
-        // shares: "312458028446265623240"
-        // spent_in: "0"
-        // start_time: "1722006000000000000"
-        // status: waiting
-        // stream_creation_fee: "150000000000000000000"
-        // treasury: inj1p654uqxsr7w7ylnrzw75hffj67aj3ksy4nlsu0
-        // url: https://www.galacticsyndicate.org/
-
         let stream = Stream {
             name: "test".to_string(),
-            treasury: Addr::unchecked("inj1p654uqxsr7w7ylnrzw75hffj67aj3ksy4nlsu0"),
-            url: Some("https://www.galacticsyndicate.org/".to_string()),
+            treasury: Addr::unchecked("Addr"),
+            url: None,
             dist_index: Decimal256::zero(),
             last_updated: Timestamp::from_nanos(1722006000000000000),
-            out_denom: "factory/inj1a6xdezq7a94qwamec6n6cnup02nvewvjtz6h6e/SYN".to_string(),
+            out_denom: "out_denom".to_string(),
             out_supply: Uint256::from(79000000000u128),
             out_remaining: Uint256::from(79000000000u128),
-            in_denom: "inj".to_string(),
+            in_denom: "in_denom".to_string(),
             in_supply: Uint256::from(312458028446265623240u128),
             spent_in: Uint256::zero(),
             shares: Uint256::from(312458028446265623240u128),
@@ -248,12 +228,13 @@ mod tests {
             current_streamed_price: Decimal256::zero(),
             status: Status::Waiting,
             pause_date: None,
-            stream_creation_denom: "inj".to_string(),
+            stream_creation_denom: "fee_denom".to_string(),
             stream_creation_fee: Uint128::from(150000000000000000000u128),
             stream_exit_fee_percent: Decimal256::percent(1),
         };
 
         // Test when shares is zero
         let shares = stream.compute_shares_amount(Uint256::from(2000000000000000000u128), false);
+        assert_eq!(shares, Uint256::from(2000000000000000000u128));
     }
 }

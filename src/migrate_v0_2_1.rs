@@ -137,14 +137,16 @@ pub fn migrate_v0_2_1(storage: &mut dyn Storage) -> StdResult<()> {
 
 #[cfg(test)]
 mod test_migrate {
+    use crate::migrate_v0_2_1::{
+        migrate_v0_2_1, PositionV0_2_0, StreamV0_2_0, OLD_POSITIONS, OLD_STREAMS,
+    };
+    use crate::state::{Status, POSITIONS, STREAMS};
     use cosmwasm_std::{Addr, Decimal, Decimal256, StdResult, Timestamp, Uint128};
-    use crate::migrate_v0_2_1::{migrate_v0_2_1, OLD_POSITIONS, OLD_STREAMS, PositionV0_2_0, StreamV0_2_0};
-    use crate::state::{POSITIONS, Status, STREAMS};
 
     #[test]
     fn test_migrate_v0_2_1() {
-        use std::str::FromStr;
         use cosmwasm_std::testing::mock_dependencies;
+        use std::str::FromStr;
 
         // Create a mock DepsMut instance
         let mut deps = mock_dependencies();
@@ -168,7 +170,8 @@ mod test_migrate {
                     shares: Uint128::new(200100238743948046562),
                     start_time: Timestamp::from_nanos(1721759440000000000),
                     end_time: Timestamp::from_nanos(1721769440000000000),
-                    current_streamed_price: Decimal::from_str("2544566918.67091152427620297").unwrap(),
+                    current_streamed_price: Decimal::from_str("2544566918.67091152427620297")
+                        .unwrap(),
                     status: Status::Active,
                     pause_date: None,
                     stream_creation_denom: "stream_creation_denom".to_string(),
@@ -233,6 +236,5 @@ mod test_migrate {
             )
             .collect();
         assert_eq!(new_positions.unwrap().len(), old_positions.len());
-
     }
 }
