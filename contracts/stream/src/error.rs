@@ -152,4 +152,7 @@ pub enum ContractError {
 
     #[error("Invalid Bootstrapping start time")]
     StreamInvalidBootstrappingStartTime {},
+
+    #[error("Stream Bootstrapping starts too soon")]
+    StreamBootstrappingStartsTooSoon {},
 }

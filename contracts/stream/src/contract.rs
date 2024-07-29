@@ -1,7 +1,7 @@
 use core::str;
 use std::env;
 
-use crate::helpers::{check_name_and_url, get_decimals};
+use crate::helpers::{check_name_and_url, get_decimals, validate_stream_times};
 use crate::killswitch::execute_cancel_stream_with_threshold;
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
@@ -61,24 +61,22 @@ pub fn instantiate(
         vesting,
     } = msg;
 
-    if start_time > end_time {
-        return Err(ContractError::StreamInvalidEndTime {});
-    }
-    if env.block.time > start_time {
-        return Err(ContractError::StreamInvalidStartTime {});
-    }
-    if bootstraping_start_time > start_time {
-        return Err(ContractError::StreamInvalidBootstrappingStartTime {});
-    }
-    if env.block.time > bootstraping_start_time {
-        return Err(ContractError::StreamInvalidBootstrappingStartTime {});
-    }
+    validate_stream_times(
+        env.block.time,
+        bootstraping_start_time,
+        start_time,
+        end_time,
+        &factory_params,
+    )?;
+
     if in_denom == out_asset.denom {
         return Err(ContractError::SameDenomOnEachSide {});
     }
+
     if out_asset.amount.is_zero() {
         return Err(ContractError::ZeroOutSupply {});
     }
+
     let stream_admin = deps.api.addr_validate(&stream_admin)?;
     let treasury = deps.api.addr_validate(&treasury)?;
 
@@ -139,51 +137,12 @@ pub fn execute(
             let stream = STREAM.load(deps.storage)?;
             execute_subscribe(deps, env, info, operator, operator_target, stream)
         }
-        // let stream = STREAM.load(deps.storage)?;
-        // if stream.start_time > env.block.time {
-        //     Ok(execute_subscribe_pending(
-        //         deps.branch(),
-        //         env,
-        //         info,
-        //         operator,
-        //         operator_target,
-        //         stream,
-        //     )?)
-        // } else {
-        //     Ok(execute_subscribe(
-        //         deps,
-        //         env,
-        //         info,
-        //         operator,
-        //         operator_target,
-        //         stream,
-        //     )?)
-        // }
         ExecuteMsg::Withdraw {
             cap,
             operator_target,
         } => {
             let stream = STREAM.load(deps.storage)?;
             execute_withdraw(deps, env, info, stream, cap, operator_target)
-            // if stream.start_time > env.block.time {
-            //     Ok(execute_withdraw_pending(
-            //         deps.branch(),
-            //         env,
-            //         info,
-            //         stream,
-            //         cap,
-            //         operator_target,
-            //     )?)
-            // } else {
-            //     Ok(execute_withdraw(
-            //         deps,
-            //         env,
-            //         info,
-            //         stream,
-            //         cap,
-            //         operator_target,
-            //     )?)
-            // }
         }
         ExecuteMsg::FinalizeStream { new_treasury } => {
             execute_finalize_stream(deps, env, info, new_treasury)

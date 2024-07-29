@@ -14,7 +14,7 @@ mod withdraw_tests {
     };
 
     #[test]
-    fn test_withdraw_boothstapping() {
+    fn test_withdraw_bootstapping() {
         let suite = SuiteBuilder::default().build();
         let test_accounts = suite.test_accounts;
         let mut app = suite.app;
