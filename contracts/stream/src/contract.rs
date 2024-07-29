@@ -601,7 +601,6 @@ pub fn execute_finalize_stream(
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
     // check if the stream is already finalized
-    println!("stream.status.status: {:?}", stream.status.status);
     if stream.is_finalized() {
         return Err(ContractError::StreamAlreadyFinalized {});
     }
@@ -745,7 +744,7 @@ pub fn execute_exit_stream(
     }
     stream.update_status(env.block.time);
 
-    if !stream.is_ended() {
+    if !(stream.is_ended() || stream.is_finalized()) {
         return Err(ContractError::StreamNotEnded {});
     }
     stream.update(env.block.time);
