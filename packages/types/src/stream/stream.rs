@@ -202,7 +202,7 @@ impl Stream {
     }
 
     pub fn is_finalized(&self) -> bool {
-        self.status.status == Status::Ended
+        self.status.status == Status::Finalized
     }
 
     pub fn is_waiting(&self) -> bool {

@@ -106,6 +106,12 @@ mod treshold_tests {
             operator_target: None,
             operator: None,
         };
+        // Set time to start of the stream
+        app.set_block(BlockInfo {
+            time: start_time,
+            height: 1_000,
+            chain_id: "test".to_string(),
+        });
 
         let _res = app
             .execute_contract(
