@@ -66,6 +66,13 @@ mod update_position_tests {
             .unwrap();
         let stream_swap_contract_address: String = get_contract_address_from_res(res);
 
+        // Set time to start time
+        app.set_block(BlockInfo {
+            height: 1_000,
+            time: start_time,
+            chain_id: "test".to_string(),
+        });
+
         // Update position without any subscription
         let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {
             operator_target: None,
