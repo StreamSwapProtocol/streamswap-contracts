@@ -72,11 +72,6 @@ pub fn instantiate(
     if in_denom == out_asset.denom {
         return Err(ContractError::SameDenomOnEachSide {});
     }
-
-    if out_asset.amount.is_zero() {
-        return Err(ContractError::ZeroOutSupply {});
-    }
-
     let stream_admin = deps.api.addr_validate(&stream_admin)?;
     let treasury = deps.api.addr_validate(&treasury)?;
 
@@ -159,6 +154,9 @@ pub fn execute(
 
         ExecuteMsg::CancelStreamWithThreshold {} => {
             execute_cancel_stream_with_threshold(deps, env, info)
+        }
+        ExecuteMsg::StreamAdminCancel {} => {
+            killswitch::execute_stream_admin_cancel(deps, env, info)
         }
     }
 }

@@ -113,7 +113,7 @@ pub fn execute(
 
 pub fn execute_create_stream(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     msg: CreateStreamMsg,
 ) -> Result<Response, ContractError> {

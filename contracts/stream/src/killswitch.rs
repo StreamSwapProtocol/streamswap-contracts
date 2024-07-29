@@ -163,3 +163,34 @@ pub fn execute_cancel_stream_with_threshold(
         .add_messages(messages)
         .add_attribute("status", "cancelled"))
 }
+pub fn execute_stream_admin_cancel(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    let mut stream = STREAM.load(deps.storage)?;
+    stream.update_status(env.block.time);
+    // In order for stream admin to cancel the stream, the stream should be waiting
+    if !stream.is_waiting() {
+        return Err(ContractError::StreamNotWaiting {});
+    }
+    if info.sender != stream.stream_admin {
+        return Err(ContractError::Unauthorized {});
+    }
+    stream.status.status = Status::Cancelled;
+    STREAM.save(deps.storage, &stream)?;
+
+    //Refund all out tokens to stream creator(treasury)
+    let messages: Vec<CosmosMsg> = vec![CosmosMsg::Bank(BankMsg::Send {
+        to_address: stream.treasury.to_string(),
+        amount: vec![Coin {
+            denom: stream.out_asset.denom,
+            amount: stream.out_asset.amount,
+        }],
+    })];
+
+    Ok(Response::new()
+        .add_attribute("action", "cancel_stream")
+        .add_messages(messages)
+        .add_attribute("status", "cancelled"))
+}

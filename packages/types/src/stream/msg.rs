@@ -54,6 +54,7 @@ pub enum ExecuteMsg {
     },
     CancelStream {},
     CancelStreamWithThreshold {},
+    StreamAdminCancel {},
 }
 
 #[cw_serde]
