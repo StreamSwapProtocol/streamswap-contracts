@@ -20,6 +20,7 @@ use streamswap_types::stream::{
     AveragePriceResponse, ExecuteMsg, LatestStreamedPriceResponse, PositionResponse,
     PositionsResponse, QueryMsg, StreamResponse,
 };
+use streamswap_utils::payment_checker::check_payment;
 
 use crate::state::{FACTORY_PARAMS, POSITIONS, STREAM, VESTING};
 use streamswap_types::factory::Params as FactoryParams;
@@ -60,6 +61,9 @@ pub fn instantiate(
         create_pool,
         vesting,
     } = msg;
+    // Check if out asset is provided
+    // TODO: This might be unnecessary as we are checking this at factory level
+    check_payment(&info.funds, &[out_asset.clone()])?;
 
     validate_stream_times(
         env.block.time,

@@ -4,6 +4,7 @@ use cosmwasm_std::{
 };
 use cw_utils::PaymentError;
 use std::convert::Infallible;
+use streamswap_utils::payment_checker::CustomPaymentError;
 use thiserror::Error;
 
 use streamswap_types::stream::ThresholdError;
@@ -27,6 +28,9 @@ pub enum ContractError {
 
     #[error("{0}")]
     ThresholdError(#[from] ThresholdError),
+
+    #[error("{0}")]
+    CustomPayment(#[from] CustomPaymentError),
 
     #[error("{0}")]
     ConversionOverflowError(#[from] ConversionOverflowError),

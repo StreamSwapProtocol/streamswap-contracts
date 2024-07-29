@@ -150,8 +150,10 @@ pub fn execute_create_stream(
 
     let expected_funds = vec![stream_creation_fee.clone(), out_asset.clone()];
     check_payment(&info.funds, &expected_funds)?;
+
     let last_stream_id = LAST_STREAM_ID.load(deps.storage)?;
     let stream_id = last_stream_id + 1;
+    LAST_STREAM_ID.save(deps.storage, &stream_id)?;
 
     let mut funds: Vec<Coin> = vec![];
     funds.push(out_asset.clone());
@@ -164,7 +166,6 @@ pub fn execute_create_stream(
         msg: to_json_binary(&msg)?,
         funds,
     });
-    LAST_STREAM_ID.save(deps.storage, &stream_id)?;
 
     // TODO: If stream cration fee is zero this will fail
     let fund_transfer_message: CosmosMsg = CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {

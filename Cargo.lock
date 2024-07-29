@@ -1295,6 +1295,7 @@ dependencies = [
  "semver",
  "serde",
  "streamswap-types",
+ "streamswap-utils",
  "thiserror",
 ]
 
