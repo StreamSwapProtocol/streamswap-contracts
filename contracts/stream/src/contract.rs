@@ -1,4 +1,5 @@
 use core::str;
+use std::env;
 
 use crate::helpers::{check_name_and_url, get_decimals};
 use crate::killswitch::execute_cancel_stream_with_threshold;
@@ -65,6 +66,12 @@ pub fn instantiate(
     }
     if env.block.time > start_time {
         return Err(ContractError::StreamInvalidStartTime {});
+    }
+    if bootstraping_start_time > start_time {
+        return Err(ContractError::StreamInvalidBootstrappingStartTime {});
+    }
+    if env.block.time > bootstraping_start_time {
+        return Err(ContractError::StreamInvalidBootstrappingStartTime {});
     }
     if in_denom == out_asset.denom {
         return Err(ContractError::SameDenomOnEachSide {});

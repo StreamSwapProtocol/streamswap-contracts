@@ -12,4 +12,5 @@ pub struct Params {
     pub accepted_in_denoms: Vec<String>,
     pub min_stream_seconds: u64,
     pub min_seconds_until_start_time: u64,
+    pub min_seconds_until_bootstrapping_start_time: u64,
 }

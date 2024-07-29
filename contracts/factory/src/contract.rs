@@ -31,6 +31,7 @@ pub fn instantiate(
         min_stream_seconds,
         min_seconds_until_start_time,
         vesting_code_id,
+        min_seconds_until_bootstrapping_start_time,
     } = msg;
 
     let protocol_admin = deps
@@ -57,6 +58,7 @@ pub fn instantiate(
         min_stream_seconds,
         min_seconds_until_start_time,
         protocol_admin: protocol_admin.clone(),
+        min_seconds_until_bootstrapping_start_time,
     };
     PARAMS.save(deps.storage, &params)?;
 
@@ -116,9 +118,11 @@ pub fn execute_create_stream(
     msg: CreateStreamMsg,
 ) -> Result<Response, ContractError> {
     let is_frozen = FREEZESTATE.load(deps.storage)?;
+
     if is_frozen {
         return Err(ContractError::ContractIsFrozen {});
     }
+
     let CreateStreamMsg {
         treasury,
         name,
@@ -131,26 +135,21 @@ pub fn execute_create_stream(
         url: _,
         create_pool: _,
         vesting: _,
-        bootstraping_start_time: _,
+        bootstraping_start_time,
     } = msg.clone();
     let params = PARAMS.load(deps.storage)?;
     let stream_creation_fee = params.stream_creation_fee.clone();
+
     let accepted_in_denoms = params.accepted_in_denoms.clone();
     if !accepted_in_denoms.contains(&in_denom) {
         return Err(ContractError::InDenomIsNotAccepted {});
     }
+
     let expected_funds = vec![stream_creation_fee.clone(), out_asset.clone()];
     check_payment(&info.funds, &expected_funds)?;
     let last_stream_id = LAST_STREAM_ID.load(deps.storage)?;
     let stream_id = last_stream_id + 1;
 
-    if start_time > end_time {
-        return Err(ContractError::StreamInvalidEndTime {});
-    }
-    if start_time < env.block.time {
-        return Err(ContractError::StreamInvalidStartTime {});
-    }
-    // Explicitly handle the Option returned by checked_sub
     let stream_duration = end_time
         .seconds()
         .checked_sub(start_time.seconds())
@@ -159,19 +158,27 @@ pub fn execute_create_stream(
     if stream_duration < params.min_stream_seconds {
         return Err(ContractError::StreamDurationTooShort {});
     }
+
     let time_until_start = start_time
         .seconds()
         .checked_sub(env.block.time.seconds())
         .ok_or(ContractError::StreamInvalidStartTime {})?;
+
+    let time_until_bootstrapping_start = bootstraping_start_time
+        .seconds()
+        .checked_sub(env.block.time.seconds())
+        .ok_or(ContractError::StreamInvalidBootstrappingStartTime {})?;
+
+    if time_until_bootstrapping_start < params.min_seconds_until_bootstrapping_start_time {
+        return Err(ContractError::StreamBootstrappingStartsTooSoon {});
+    }
+
     if time_until_start < params.min_seconds_until_start_time {
         return Err(ContractError::StreamStartsTooSoon {});
     }
-    // let funds if out_asset is not 0
-    let funds: Vec<Coin> = if out_asset.amount.is_zero() {
-        vec![]
-    } else {
-        vec![out_asset.clone()]
-    };
+
+    let mut funds: Vec<Coin> = vec![];
+    funds.push(out_asset.clone());
 
     let stream_swap_inst_message: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: params.stream_swap_code_id,
@@ -182,6 +189,7 @@ pub fn execute_create_stream(
         funds,
     });
     LAST_STREAM_ID.save(deps.storage, &stream_id)?;
+
     // TODO: If stream cration fee is zero this will fail
     let fund_transfer_message: CosmosMsg = CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
         to_address: params.fee_collector.to_string(),

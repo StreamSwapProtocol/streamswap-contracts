@@ -149,4 +149,7 @@ pub enum ContractError {
 
     #[error("Invalid exit fee")]
     InvalidStreamExitFee {},
+
+    #[error("Invalid Bootstrapping start time")]
+    StreamInvalidBootstrappingStartTime {},
 }
