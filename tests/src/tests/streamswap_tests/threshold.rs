@@ -214,6 +214,13 @@ mod treshold_tests {
             .unwrap();
         let stream_swap_contract_address: String = get_contract_address_from_res(res);
 
+        // Set time to start of the stream
+        app.set_block(BlockInfo {
+            time: start_time,
+            height: 1_000,
+            chain_id: "test".to_string(),
+        });
+
         let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
             operator_target: None,
             operator: None,

@@ -116,17 +116,16 @@ pub fn execute_cancel_stream_with_threshold(
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
     stream.update_status(env.block.time);
+    // Stream should not be paused or cancelled
+    if stream.is_cancelled() {
+        return Err(ContractError::StreamKillswitchActive {});
+    }
 
     if !stream.is_ended() {
         return Err(ContractError::StreamNotEnded {});
     }
     if info.sender != stream.treasury {
         return Err(ContractError::Unauthorized {});
-    }
-
-    // Stream should not be paused or cancelled
-    if stream.is_cancelled() {
-        return Err(ContractError::StreamKillswitchActive {});
     }
 
     // This should be impossible because creator can not finalize stream when threshold is not reached
