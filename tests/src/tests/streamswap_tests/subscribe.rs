@@ -374,7 +374,7 @@ mod subscibe_test {
     }
 
     #[test]
-    fn test_subscribe_pending() {
+    fn test_subscribe_boothstapping() {
         let Suite {
             mut app,
             test_accounts,
@@ -428,7 +428,7 @@ mod subscibe_test {
         };
         app.set_block(BlockInfo {
             height: 1_100,
-            time: start_time.minus_seconds(100),
+            time: bootstrapping_start_time,
             chain_id: "test".to_string(),
         });
 
@@ -450,7 +450,7 @@ mod subscibe_test {
                 &StreamSwapQueryMsg::Stream {},
             )
             .unwrap();
-        assert_eq!(stream.status, Status::Waiting);
+        assert_eq!(stream.status, Status::Bootstrapping);
         assert_eq!(stream.dist_index, Decimal256::zero());
         assert_eq!(stream.in_supply, Uint128::new(150));
         let position: PositionResponse = app
@@ -478,7 +478,7 @@ mod subscibe_test {
                 &[],
             )
             .unwrap();
-        // Dist index should not be updated as the stream is still pending
+        // Dist index should not be updated as the stream is still bootstrapping
         let stream: StreamResponse = app
             .wrap()
             .query_wasm_smart(
@@ -490,7 +490,7 @@ mod subscibe_test {
         assert_eq!(stream.in_supply, Uint128::new(150));
         assert_eq!(stream.spent_in, Uint128::zero());
         // Stream is still waiting so last updated should be the same as start time
-        assert_eq!(stream.last_updated, start_time);
+        assert_eq!(stream.last_updated, bootstrapping_start_time);
         assert_eq!(stream.shares, Uint128::new(150));
 
         // Subscriber increases subscription
@@ -517,7 +517,7 @@ mod subscibe_test {
         // Distribution index should not be updated because we are still in pending status
         assert_eq!(stream.dist_index, Decimal256::from_str("0").unwrap());
 
-        // Before stream start time, 2 subscriptions have been made and the stream is pending
+        // Before stream start time, 2 subscriptions have been made and the stream is bootstrapping
         // Both subscriptions are made by the same user
         // At 10th second after start time, third subscription is made
         // This one is made by a different user
