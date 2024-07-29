@@ -14,7 +14,7 @@ mod withdraw_tests {
     };
 
     #[test]
-    fn test_withdraw_pending() {
+    fn test_withdraw_boothstapping() {
         let suite = SuiteBuilder::default().build();
         let test_accounts = suite.test_accounts;
         let mut app = suite.app;
@@ -62,6 +62,12 @@ mod withdraw_tests {
             .unwrap();
         let stream_swap_contract_address = get_contract_address_from_res(res);
 
+        // Set time to bootstrapping start time
+        app.set_block(BlockInfo {
+            height: 50,
+            time: bootstrapping_start_time,
+            chain_id: "test".to_string(),
+        });
         // Subscribe to stream
         let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
             operator_target: None,
