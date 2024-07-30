@@ -1,4 +1,4 @@
-use crate::helpers::stargate::MyStargateKeeper;
+use streamswap_test_helpers::stargate::MyStargateKeeper;
 use cosmwasm_std::testing::{MockApi, MockStorage};
 use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Empty, Timestamp};
 use cw_multi_test::{

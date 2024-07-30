@@ -2345,6 +2345,7 @@ dependencies = [
  "streamswap-factory",
  "streamswap-interface",
  "streamswap-stream",
+ "streamswap-test-helpers",
  "streamswap-types",
  "streamswap-utils",
 ]
@@ -2380,6 +2381,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "streamswap-test-helpers"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw-vesting",
+ "cw2",
+ "osmosis-std 0.24.0",
+ "prost 0.12.6",
+ "schemars",
+ "streamswap-factory",
+ "streamswap-stream",
+ "streamswap-types",
+ "streamswap-utils",
+]
+
+[[package]]
 name = "streamswap-tests"
 version = "0.1.0"
 dependencies = [
@@ -2396,6 +2418,7 @@ dependencies = [
  "schemars",
  "streamswap-factory",
  "streamswap-stream",
+ "streamswap-test-helpers",
  "streamswap-types",
  "streamswap-utils",
 ]

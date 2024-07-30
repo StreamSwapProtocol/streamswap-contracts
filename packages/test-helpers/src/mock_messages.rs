@@ -144,7 +144,7 @@ pub fn get_create_stream_msg(
     vesting: Option<VestingInstantiateMsg>,
 ) -> FactoryExecuteMsg {
     FactoryExecuteMsg::CreateStream {
-        msg: Box::new(CreateStreamMsg {
+        msg: CreateStreamMsg {
             treasury: treasury.to_string(),
             stream_admin: treasury.to_string(),
             name: name.to_string(),
@@ -156,6 +156,6 @@ pub fn get_create_stream_msg(
             threshold,
             create_pool,
             vesting,
-        }),
+        },
     }
 }

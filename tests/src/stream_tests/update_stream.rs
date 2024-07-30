@@ -3,8 +3,8 @@ mod update_stream_tests {
 
     use std::str::FromStr;
 
-    use crate::helpers::suite::SuiteBuilder;
-    use crate::helpers::{
+    use streamswap_test_helpers::suite::SuiteBuilder;
+    use streamswap_test_helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
         suite::Suite,
         utils::{get_contract_address_from_res, get_wasm_attribute_with_key},

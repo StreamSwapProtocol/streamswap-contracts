@@ -3,10 +3,10 @@ mod update_position_tests {
 
     use std::str::FromStr;
 
-    use crate::helpers::suite::SuiteBuilder;
-    use crate::helpers::utils::get_contract_address_from_res;
+    use streamswap_test_helpers::suite::SuiteBuilder;
+    use streamswap_test_helpers::utils::get_contract_address_from_res;
     #[cfg(test)]
-    use crate::helpers::{
+    use streamswap_test_helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
         suite::Suite,
     };

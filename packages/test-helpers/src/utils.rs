@@ -53,7 +53,6 @@ pub fn get_funds_from_res(res: AppResponse) -> Vec<(String, Coin)> {
     funds
 }
 
-#[cfg(test)]
 pub fn get_wasm_attribute_with_key(res: AppResponse, key: String) -> String {
     if let Some(_non_empty_key) = key.chars().next() {
         res.events

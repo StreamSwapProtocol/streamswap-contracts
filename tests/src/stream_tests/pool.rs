@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod pool_tests {
-    use crate::helpers::mock_messages::{get_create_stream_msg, get_factory_inst_msg};
-    use crate::helpers::suite::{Suite, SuiteBuilder};
-    use crate::helpers::utils::get_contract_address_from_res;
+    use streamswap_test_helpers::mock_messages::{get_create_stream_msg, get_factory_inst_msg};
+    use streamswap_test_helpers::suite::{Suite, SuiteBuilder};
+    use streamswap_test_helpers::utils::get_contract_address_from_res;
     use cosmwasm_std::{coin, Addr, Coin};
     use cw_multi_test::Executor;
     use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;

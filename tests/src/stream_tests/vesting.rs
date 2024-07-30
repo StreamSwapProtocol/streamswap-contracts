@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod vesting_tests {
-    use crate::helpers::mock_messages::{get_create_stream_msg, get_factory_inst_msg};
-    use crate::helpers::suite::{Suite, SuiteBuilder};
-    use crate::helpers::utils::{
+    use streamswap_test_helpers::mock_messages::{get_create_stream_msg, get_factory_inst_msg};
+    use streamswap_test_helpers::suite::{Suite, SuiteBuilder};
+    use streamswap_test_helpers::utils::{
         get_contract_address_from_res, get_funds_from_res, get_wasm_attribute_with_key,
     };
     use cosmwasm_std::{coin, Addr, Binary, Coin, Uint128};

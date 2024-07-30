@@ -1,6 +1,6 @@
 #![cfg(test)]
-use crate::helpers::suite::SuiteBuilder;
-use crate::helpers::{mock_messages::get_factory_inst_msg, suite::Suite};
+use streamswap_test_helpers::suite::SuiteBuilder;
+use streamswap_test_helpers::{mock_messages::get_factory_inst_msg, suite::Suite};
 use cosmwasm_std::{coin, Decimal};
 use cw_multi_test::Executor;
 use streamswap_types::factory::Params;

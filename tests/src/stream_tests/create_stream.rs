@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod create_stream_tests {
-    use crate::helpers::suite::SuiteBuilder;
-    use crate::helpers::{
+    use streamswap_test_helpers::suite::SuiteBuilder;
+    use streamswap_test_helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
         suite::Suite,
     };

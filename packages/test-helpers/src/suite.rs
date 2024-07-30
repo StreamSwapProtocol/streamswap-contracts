@@ -1,4 +1,4 @@
-use crate::helpers::stargate::MyStargateKeeper;
+use crate::stargate::MyStargateKeeper;
 use cosmwasm_std::testing::MockStorage;
 use cosmwasm_std::Empty;
 use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Timestamp};
@@ -8,8 +8,8 @@ use cw_multi_test::{
     DistributionKeeper, FailingModule, GovFailingModule, IbcFailingModule, StakeKeeper,
 };
 
-#[allow(dead_code)]
 
+#[allow(dead_code)]
 pub const PREFIX: &str = "cosmwasm";
 
 #[allow(dead_code)]
@@ -29,7 +29,7 @@ type AppType = App<
 
 #[allow(dead_code)]
 
-pub(crate) struct Suite {
+pub struct Suite {
     pub app: AppType,
     pub test_accounts: TestAccounts,
     pub stream_swap_factory_code_id: u64,
@@ -38,7 +38,7 @@ pub(crate) struct Suite {
 }
 
 #[derive(Default)]
-pub(crate) struct SuiteBuilder {}
+pub struct SuiteBuilder {}
 
 impl SuiteBuilder {
     #[allow(dead_code)]
