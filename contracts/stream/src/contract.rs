@@ -92,7 +92,6 @@ pub fn instantiate(
         bootstraping_start_time,
         start_time,
         end_time,
-        start_time,
         create_pool,
         vesting,
     );

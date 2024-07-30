@@ -35,7 +35,6 @@ mod treshold_tests {
             Timestamp::from_seconds(0),
             Timestamp::from_seconds(100),
             Timestamp::from_seconds(0),
-            Timestamp::from_seconds(0),
             None,
             None,
         );

@@ -19,9 +19,8 @@ mod shares {
             Timestamp::from_seconds(0),
             Timestamp::from_seconds(100),
             Timestamp::from_seconds(0),
-            Timestamp::from_seconds(0),
             None,
-            None, // Add the missing argument for the `None` parameter
+            None,
         );
 
         // add new shares
