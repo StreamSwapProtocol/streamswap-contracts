@@ -71,10 +71,10 @@ mod update_stream_tests {
                 &[],
             )
             .unwrap();
-        let action = get_wasm_attribute_with_key(res.clone(), "action".to_string());
+        let action = get_wasm_attribute_with_key(res.clone().events, "action".to_string());
         let new_distribution_amount =
-            get_wasm_attribute_with_key(res.clone(), "new_distribution_amount".to_string());
-        let dist_index = get_wasm_attribute_with_key(res.clone(), "dist_index".to_string());
+            get_wasm_attribute_with_key(res.clone().events, "new_distribution_amount".to_string());
+        let dist_index = get_wasm_attribute_with_key(res.clone().events, "dist_index".to_string());
 
         assert_eq!(action, "update_stream");
         assert_eq!(new_distribution_amount, "0");

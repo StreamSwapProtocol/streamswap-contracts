@@ -1,5 +1,5 @@
 use cw_orch::{interface, prelude::*};
-use streamswap_factory::contract::{execute, instantiate, migrate, query};
+use streamswap_stream::contract::{execute, instantiate, migrate, query};
 use streamswap_types::factory::CreateStreamMsg as InstantiateMsg;
 use streamswap_types::stream::{ExecuteMsg, MigrateMsg, QueryMsg};
 

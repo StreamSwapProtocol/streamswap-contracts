@@ -178,7 +178,7 @@ mod cancel_stream {
             )
             .unwrap();
 
-        let stream_status = get_wasm_attribute_with_key(_res.clone(), "status".to_string());
+        let stream_status = get_wasm_attribute_with_key(_res.clone().events, "status".to_string());
         let fund_transfer = get_funds_from_res(_res.clone());
 
         assert_eq!(stream_status, "cancelled".to_string());

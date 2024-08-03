@@ -93,7 +93,8 @@ pub fn instantiate(
     threshold_state.set_threshold_if_any(threshold, deps.storage)?;
 
     let attr = vec![
-        attr("action", "create_stream"),
+        attr("action", "instantiate_stream"),
+        attr("stream_contract_address", env.contract.address),
         attr("treasury", treasury),
         attr("name", name),
         attr("in_denom", in_denom),

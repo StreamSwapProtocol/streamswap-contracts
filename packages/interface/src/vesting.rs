@@ -1,4 +1,4 @@
-use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_schema::cw_serde;
 use cw_orch::{interface, prelude::*};
 use cw_vesting::contract::{execute, instantiate, query};
 use cw_vesting::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};

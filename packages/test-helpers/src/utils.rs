@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{Coin, Uint128};
+use cosmwasm_std::{Coin, Event, Uint128};
 use cw_multi_test::AppResponse;
 
 #[allow(dead_code)]
@@ -53,9 +53,9 @@ pub fn get_funds_from_res(res: AppResponse) -> Vec<(String, Coin)> {
     funds
 }
 
-pub fn get_wasm_attribute_with_key(res: AppResponse, key: String) -> String {
+pub fn get_wasm_attribute_with_key(events: Vec<Event>, key: String) -> String {
     if let Some(_non_empty_key) = key.chars().next() {
-        res.events
+        events
             .iter()
             .find(|e| e.ty == "wasm")
             .and_then(|event| event.attributes.iter().find(|a| a.key == key))

@@ -28,7 +28,7 @@ pub enum ExecuteMsg {
         exit_fee_percent: Option<Decimal>,
     },
     CreateStream {
-        msg: Box<CreateStreamMsg>,
+        msg: CreateStreamMsg,
     },
     Freeze {},
 }
@@ -70,5 +70,4 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
-#[cfg_attr(feature = "interface", derive(cw_orch::MigrateFns))]
 pub enum MigrateMsg {}

@@ -157,7 +157,7 @@ mod vesting_tests {
             )
             .unwrap();
 
-        let vesting_addr = get_wasm_attribute_with_key(res, "vesting_address".to_string());
+        let vesting_addr = get_wasm_attribute_with_key(res.events, "vesting_address".to_string());
         let contract_data = app.contract_data(&Addr::unchecked(vesting_addr)).unwrap();
 
         // Not the best test :(

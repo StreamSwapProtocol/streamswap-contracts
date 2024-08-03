@@ -104,7 +104,7 @@ pub fn execute(
             accepted_in_denoms,
             exit_fee_percent,
         ),
-        ExecuteMsg::CreateStream { msg } => execute_create_stream(deps, env, info, *msg),
+        ExecuteMsg::CreateStream { msg } => execute_create_stream(deps, env, info, msg),
         ExecuteMsg::Freeze {} => execute_freeze(deps, info),
     }
 }

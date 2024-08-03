@@ -1,6 +1,6 @@
 use crate::factory::CreatePool;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Timestamp, Uint128};
+use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Timestamp, Uint128, Uint256};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use std::ops::Mul;
 
