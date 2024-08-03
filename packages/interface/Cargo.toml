@@ -15,6 +15,7 @@ cw-vesting         = { workspace = true }
 cw-orch            = { workspace = true }
 streamswap-types   = { workspace = true }
 streamswap-factory = { workspace = true }
+streamswap-stream  = { workspace = true }
 
 [lints]
 workspace = true

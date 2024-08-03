@@ -544,17 +544,17 @@ dependencies = [
 
 [[package]]
 name = "cw-orch"
-version = "0.23.0"
+version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97c76d9dd1c2632359f964e3531e5d0833d9022ae9fb216ce9aaaf36070d8bdf"
+checksum = "0c81cb500eb2f9be31a0f90c7ce66572ee4a790ffbae1c6b42ff2e3f9faf3479"
 dependencies = [
  "anyhow",
  "cosmwasm-std",
  "cw-orch-contract-derive",
  "cw-orch-core",
  "cw-orch-fns-derive",
- "cw-orch-mock 0.22.4",
- "cw-orch-traits 0.22.0",
+ "cw-orch-mock",
+ "cw-orch-traits",
  "cw-utils",
  "hex",
  "log",
@@ -596,29 +596,14 @@ dependencies = [
 
 [[package]]
 name = "cw-orch-fns-derive"
-version = "0.21.1"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e85c3dea0893dd742c33ede8b4becdfb19b458e86e006ecf9a09ed66331d0c85"
+checksum = "b9e21b23116a0702f540d7fa3f16e8276682d860b589fed56259220ad59d768e"
 dependencies = [
  "convert_case",
  "proc-macro2",
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "cw-orch-mock"
-version = "0.22.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ae9536620b86ee78c2729fd8449538feb4f6257a9809c72c5f9e461e720cf3b"
-dependencies = [
- "abstract-cw-multi-test",
- "cosmwasm-std",
- "cw-orch-core",
- "cw-utils",
- "log",
- "serde",
- "sha2 0.10.8",
 ]
 
 [[package]]
@@ -644,23 +629,12 @@ checksum = "677d633580d1e32e807b63a15724bf05c067c3658f799722433549e448c79f44"
 dependencies = [
  "cosmwasm-std",
  "cw-orch-core",
- "cw-orch-mock 0.23.2",
- "cw-orch-traits 0.23.1",
+ "cw-orch-mock",
+ "cw-orch-traits",
  "osmosis-test-tube",
  "prost 0.12.6",
  "prost-types 0.12.6",
  "serde",
-]
-
-[[package]]
-name = "cw-orch-traits"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5959ce29e9d8a52594b47933a0a2736ea94dd9bf5e29b220cbdbe2b097f07c3a"
-dependencies = [
- "cw-orch-core",
- "prost 0.12.6",
- "prost-types 0.12.6",
 ]
 
 [[package]]
@@ -1564,22 +1538,6 @@ checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
 name = "osmosis-std"
-version = "0.24.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30a7a605885934d9bcfcd544f4e2098365725974522cbf8d696f65c5bb8047b3"
-dependencies = [
- "chrono",
- "cosmwasm-std",
- "osmosis-std-derive",
- "prost 0.12.6",
- "prost-types 0.12.6",
- "schemars",
- "serde",
- "serde-cw-value",
-]
-
-[[package]]
-name = "osmosis-std"
 version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca66dca7e8c9b11b995cd41a44c038134ccca4469894d663d8a9452d6e716241"
@@ -1617,7 +1575,7 @@ dependencies = [
  "bindgen",
  "cosmrs",
  "cosmwasm-std",
- "osmosis-std 0.25.0",
+ "osmosis-std",
  "prost 0.12.6",
  "serde",
  "serde_json",
@@ -2315,7 +2273,7 @@ dependencies = [
  "cw-utils",
  "cw-vesting",
  "cw2",
- "osmosis-std 0.24.0",
+ "osmosis-std",
  "schemars",
  "semver",
  "serde",
@@ -2338,8 +2296,7 @@ dependencies = [
  "cw-utils",
  "cw-vesting",
  "cw2",
- "osmosis-std 0.24.0",
- "osmosis-test-tube",
+ "osmosis-std",
  "prost 0.12.6",
  "schemars",
  "streamswap-factory",
@@ -2358,6 +2315,7 @@ dependencies = [
  "cw-orch",
  "cw-vesting",
  "streamswap-factory",
+ "streamswap-stream",
  "streamswap-types",
 ]
 
@@ -2372,7 +2330,7 @@ dependencies = [
  "cw-utils",
  "cw-vesting",
  "cw2",
- "osmosis-std 0.24.0",
+ "osmosis-std",
  "schemars",
  "semver",
  "serde",
@@ -2392,7 +2350,7 @@ dependencies = [
  "cw-utils",
  "cw-vesting",
  "cw2",
- "osmosis-std 0.24.0",
+ "osmosis-std",
  "prost 0.12.6",
  "schemars",
  "streamswap-factory",
@@ -2413,7 +2371,7 @@ dependencies = [
  "cw-utils",
  "cw-vesting",
  "cw2",
- "osmosis-std 0.24.0",
+ "osmosis-std",
  "prost 0.12.6",
  "schemars",
  "streamswap-factory",
@@ -2434,7 +2392,7 @@ dependencies = [
  "cw-storage-plus",
  "cw-utils",
  "cw-vesting",
- "osmosis-std 0.24.0",
+ "osmosis-std",
  "streamswap-utils",
  "thiserror",
 ]
@@ -2642,7 +2600,7 @@ dependencies = [
  "base64",
  "cosmrs",
  "cosmwasm-std",
- "osmosis-std 0.25.0",
+ "osmosis-std",
  "prost 0.12.6",
  "serde",
  "serde_json",
