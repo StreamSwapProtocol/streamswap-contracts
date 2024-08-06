@@ -168,6 +168,7 @@ pub fn execute(
 pub fn execute_update_stream(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
     stream.update(env.block.time);
+    stream.update_status(env.block.time);
     STREAM.save(deps.storage, &stream)?;
 
     let attrs = vec![
@@ -198,6 +199,7 @@ pub fn execute_update_position(
 
     // sync stream
     stream.update(env.block.time);
+    stream.update_status(env.block.time);
     STREAM.save(deps.storage, &stream)?;
 
     // updates position to latest distribution. Returns the amount of out tokens that has been purchased

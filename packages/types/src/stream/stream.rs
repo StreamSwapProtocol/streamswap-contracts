@@ -154,7 +154,6 @@ impl Stream {
         }
 
         self.last_updated = now;
-        self.update_status(now);
     }
 
     pub fn is_active(&self) -> bool {
