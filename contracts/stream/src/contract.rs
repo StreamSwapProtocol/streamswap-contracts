@@ -191,7 +191,7 @@ pub fn execute_update_position(
     check_access(&info, &position.owner, &position.operator)?;
 
     let mut stream = STREAM.load(deps.storage)?;
-    // check if stream is paused
+    // check if stream is cancelled
     if stream.is_cancelled() {
         return Err(ContractError::StreamIsCancelled {});
     }

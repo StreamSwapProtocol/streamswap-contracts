@@ -188,14 +188,22 @@ fn calculate_diff(
     mut last_updated: Timestamp,
     now: Timestamp,
 ) -> Decimal {
+    // If the stream is not started yet or already ended, return 0
     if now < start_time || last_updated >= end_time {
         return Decimal::zero();
     }
-
+    // If we are here, the stream is active. If the last update time is before the start time,
+    // This means stream is updated before start time, in order to calculate the diff, we should
+    // set the last updated time to start time.
+    // ---Waiting---|---Bootstrapping-(last_updated)--|----(now)--Active---|---Ended---|--Finalized--|
+    //              |              Not include here=--|----=We should be updating here
     if last_updated < start_time {
         last_updated = start_time;
     }
-
+    // If the now is greater than end time, we should set the now to end time.
+    // ---Waiting---|---Bootstrapping---|---Active----(last updated)---|-----(now)--Ended---|--Finalized--|
+    //              |                   |     We should update here=---|-----=Not here
+    // That is why we are taking the minimum of now and end time.
     let now = if now > end_time { end_time } else { now };
 
     let numerator = now.nanos().saturating_sub(last_updated.nanos());
