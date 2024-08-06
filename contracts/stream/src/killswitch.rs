@@ -14,7 +14,6 @@ pub fn execute_exit_cancelled(
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
     stream.update_status(env.block.time);
-    println!("stream.status.status: {:?}", stream.status.status);
 
     // This execution requires the stream to be cancelled or
     // the stream to be ended and the threshold not reached.
