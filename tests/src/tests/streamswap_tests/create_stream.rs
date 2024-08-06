@@ -573,7 +573,6 @@ mod create_stream_tests {
                 &[coin(100, "fee_denom"), coin(100, "out_denom")],
             )
             .unwrap();
-
         // test contract address created deterministically
         let checksum = app
             .wrap()
