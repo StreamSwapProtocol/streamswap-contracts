@@ -1,12 +1,12 @@
 use crate::error::ContractError;
-use cosmwasm_std::{
-    entry_point, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
-    Response, StdResult, WasmMsg,
-};
+use cosmwasm_std::{entry_point, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult, WasmMsg, Order};
 use cw2::ensure_from_older_version;
+use cw_storage_plus::Bound;
+use cw_utils::maybe_addr;
 use streamswap_types::factory::{
     CreateStreamMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, Params, QueryMsg,
 };
+use streamswap_types::stream::{PositionResponse, PositionsResponse, StreamResponse, StreamsResponse};
 use streamswap_utils::payment_checker::check_payment;
 
 use crate::state::{FREEZESTATE, LAST_STREAM_ID, PARAMS, STREAMS};
@@ -275,9 +275,35 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Params {} => to_json_binary(&PARAMS.load(deps.storage)?),
         QueryMsg::Freezestate {} => to_json_binary(&FREEZESTATE.load(deps.storage)?),
         QueryMsg::LastStreamId {} => to_json_binary(&LAST_STREAM_ID.load(deps.storage)?),
+        QueryMsg::ListStreams { start_after, limit } =>
+            to_json_binary(&list_streams(deps, start_after, limit)?)
     }
 }
 
+pub fn list_streams(
+    deps: Deps,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> StdResult<StreamsResponse> {
+    const MAX_LIMIT: u32 = 30;
+    let start_addr = maybe_addr(deps.api, start_after)?;
+    let start = start_addr.as_ref().map(Bound::exclusive);
+    let limit = limit.unwrap_or(MAX_LIMIT).min(MAX_LIMIT) as usize;
+    let positions: StdResult<Vec<PositionResponse>> = STREAMS
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|item| {
+            let (stream_id, stream_addr) = item?;
+            let position = PositionResponse {
+                stream_id,
+                stream_addr,
+            };
+            Ok(position)
+        })
+        .collect();
+    let positions = positions?;
+    Ok(PositionsResponse { positions })
+}
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;

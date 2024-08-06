@@ -2,6 +2,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Binary, Coin, Decimal, Timestamp, Uint128};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
+use crate::stream::{StreamResponse, StreamsResponse};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -73,8 +74,13 @@ pub enum QueryMsg {
     Freezestate {},
     #[returns(u64)]
     LastStreamId {},
+    /// Returns list of streams paginated by `start_after` and `limit`.
+    #[returns(StreamsResponse)]
+    ListStreams {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    }
 }
-
 #[cw_serde]
 #[cfg_attr(feature = "interface", derive(cw_orch::MigrateFns))]
 pub enum MigrateMsg {}
