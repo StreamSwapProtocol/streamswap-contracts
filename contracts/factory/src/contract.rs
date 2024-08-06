@@ -9,7 +9,7 @@ use streamswap_types::factory::{
 };
 use streamswap_utils::payment_checker::check_payment;
 
-use crate::state::{FREEZESTATE, LAST_STREAM_ID, PARAMS};
+use crate::state::{FREEZESTATE, LAST_STREAM_ID, PARAMS, STREAMS};
 
 const CONTRACT_NAME: &str = "crates.io:streamswap-factory";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -137,6 +137,7 @@ pub fn execute_create_stream(
         create_pool: _,
         vesting: _,
         bootstraping_start_time: _,
+        salt,
     } = msg.clone();
     let params = PARAMS.load(deps.storage)?;
     let stream_creation_fee = params.stream_creation_fee.clone();
@@ -159,14 +160,29 @@ pub fn execute_create_stream(
     let mut funds: Vec<Coin> = vec![];
     funds.push(out_asset.clone());
 
-    let stream_swap_inst_message: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
+    let checksum = deps
+        .querier
+        .query_wasm_code_info(params.stream_swap_code_id)?
+        .checksum;
+    let canonical_contract_addr = cosmwasm_std::instantiate2_address(
+        checksum.as_slice(),
+        &deps.api.addr_canonicalize(&info.sender.to_string())?,
+        salt.as_slice(),
+    )
+    .unwrap();
+    let contract_addr = deps.api.addr_humanize(&canonical_contract_addr)?;
+
+    let stream_swap_inst_message: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate2 {
         code_id: params.stream_swap_code_id,
-        // TODO: discuss this
         admin: Some(params.protocol_admin.to_string()),
         label: format!("Stream Swap Stream {} - {}", name, stream_id),
         msg: to_json_binary(&msg)?,
         funds,
+        salt,
     });
+
+    LAST_STREAM_ID.save(deps.storage, &stream_id)?;
+    STREAMS.save(deps.storage, stream_id, &contract_addr)?;
 
     // TODO: If stream cration fee is zero this will fail
     let fund_transfer_message: CosmosMsg = CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
@@ -180,6 +196,8 @@ pub fn execute_create_stream(
         .add_attribute("action", "create_stream")
         .add_attribute("name", name)
         .add_attribute("treasury", treasury)
+        .add_attribute("stream_id", stream_id.to_string())
+        .add_attribute("stream_contract_address", contract_addr)
         .add_attribute("out_asset", out_asset.to_string())
         .add_attribute("start_time", start_time.to_string())
         .add_attribute("end time", end_time.to_string())
