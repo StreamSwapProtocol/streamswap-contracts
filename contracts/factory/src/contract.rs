@@ -108,6 +108,7 @@ pub fn execute(
         ),
         ExecuteMsg::CreateStream { msg } => execute_create_stream(deps, env, info, *msg),
         ExecuteMsg::Freeze {} => execute_freeze(deps, info),
+        ExecuteMsg::Unfreeze {} => execute_unfreeze(deps, info),
     }
 }
 
@@ -239,6 +240,15 @@ pub fn execute_freeze(deps: DepsMut, info: MessageInfo) -> Result<Response, Cont
     }
     FREEZESTATE.save(deps.storage, &true)?;
     Ok(Response::new().add_attribute("action", "freeze"))
+}
+
+pub fn execute_unfreeze(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    let params = PARAMS.load(deps.storage)?;
+    if info.sender != params.protocol_admin {
+        return Err(ContractError::Unauthorized {});
+    }
+    FREEZESTATE.save(deps.storage, &false)?;
+    Ok(Response::new().add_attribute("action", "unfreeze"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

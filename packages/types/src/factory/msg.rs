@@ -32,6 +32,7 @@ pub enum ExecuteMsg {
         msg: Box<CreateStreamMsg>,
     },
     Freeze {},
+    Unfreeze {},
 }
 
 #[cw_serde]
