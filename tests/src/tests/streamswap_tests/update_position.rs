@@ -12,7 +12,6 @@ mod update_position_tests {
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128};
     use cw_multi_test::Executor;
-    use streamswap_stream::ContractError as StreamSwapError;
     use streamswap_types::stream::{
         ExecuteMsg as StreamSwapExecuteMsg, PositionResponse, QueryMsg as StreamSwapQueryMsg,
     };
@@ -74,9 +73,7 @@ mod update_position_tests {
         });
 
         // Update position without any subscription
-        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {
-            operator_target: None,
-        };
+        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {};
 
         let _res = app
             .execute_contract(
@@ -88,10 +85,7 @@ mod update_position_tests {
             .unwrap_err();
 
         // First subscription
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: Some(test_accounts.subscriber_2.to_string()),
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
 
         let _res = app
             .execute_contract(
@@ -102,33 +96,6 @@ mod update_position_tests {
             )
             .unwrap();
 
-        // Non operator cannot update position
-        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {
-            operator_target: Some(test_accounts.subscriber_1.to_string()),
-        };
-        let res = app
-            .execute_contract(
-                test_accounts.wrong_user.clone(),
-                Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_position_msg,
-                &[],
-            )
-            .unwrap_err();
-        let error = res.downcast::<StreamSwapError>().unwrap();
-        assert_eq!(error, StreamSwapError::Unauthorized {});
-
-        // Operator can update position
-        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {
-            operator_target: Some(test_accounts.subscriber_1.to_string()),
-        };
-        let _res = app
-            .execute_contract(
-                test_accounts.subscriber_2.clone(),
-                Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_position_msg,
-                &[],
-            )
-            .unwrap();
         // Update time so we can check the position
         app.set_block(BlockInfo {
             height: 1_100,
@@ -136,9 +103,7 @@ mod update_position_tests {
             chain_id: "test".to_string(),
         });
         // Update position
-        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {
-            operator_target: None,
-        };
+        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {};
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
@@ -184,9 +149,7 @@ mod update_position_tests {
             chain_id: "test".to_string(),
         });
         // Update position
-        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {
-            operator_target: None,
-        };
+        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {};
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
@@ -228,9 +191,7 @@ mod update_position_tests {
             chain_id: "test".to_string(),
         });
         // Update position
-        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {
-            operator_target: None,
-        };
+        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {};
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
@@ -277,9 +238,7 @@ mod update_position_tests {
             chain_id: "test".to_string(),
         });
         // Update position
-        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {
-            operator_target: None,
-        };
+        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {};
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
@@ -314,10 +273,7 @@ mod update_position_tests {
         );
 
         // Exit stream
-        let exit_stream_msg = StreamSwapExecuteMsg::ExitStream {
-            operator_target: None,
-            salt: None,
-        };
+        let exit_stream_msg = StreamSwapExecuteMsg::ExitStream { salt: None };
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
@@ -327,9 +283,7 @@ mod update_position_tests {
             )
             .unwrap();
         // Update position
-        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {
-            operator_target: None,
-        };
+        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {};
         // Position is deleted after exiting the stream
         let _res = app
             .execute_contract(

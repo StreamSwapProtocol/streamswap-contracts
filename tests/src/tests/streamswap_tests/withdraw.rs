@@ -69,10 +69,7 @@ mod withdraw_tests {
             chain_id: "test".to_string(),
         });
         // Subscribe to stream
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
         let subscriber_1_balance_before = app
             .wrap()
             .query_balance(test_accounts.subscriber_1.clone(), "in_denom")
@@ -103,9 +100,7 @@ mod withdraw_tests {
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::UpdatePosition {
-                    operator_target: None,
-                },
+                &StreamSwapExecuteMsg::UpdatePosition {},
                 &[],
             )
             .unwrap();
@@ -136,7 +131,6 @@ mod withdraw_tests {
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Withdraw {
                     cap: Some(Uint128::new(500)),
-                    operator_target: None,
                 },
                 &[],
             )
@@ -174,10 +168,7 @@ mod withdraw_tests {
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::Withdraw {
-                    cap: None,
-                    operator_target: None,
-                },
+                &StreamSwapExecuteMsg::Withdraw { cap: None },
                 &[],
             )
             .unwrap();
@@ -216,10 +207,7 @@ mod withdraw_tests {
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::ExitStream {
-                    operator_target: None,
-                    salt: None,
-                },
+                &StreamSwapExecuteMsg::ExitStream { salt: None },
                 &[],
             )
             .unwrap_err();
@@ -281,10 +269,7 @@ mod withdraw_tests {
             chain_id: "test".to_string(),
         });
 
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
@@ -332,10 +317,7 @@ mod withdraw_tests {
             chain_id: "test".to_string(),
         });
 
-        let withdraw_msg = StreamSwapExecuteMsg::Withdraw {
-            cap: None,
-            operator_target: None,
-        };
+        let withdraw_msg = StreamSwapExecuteMsg::Withdraw { cap: None };
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
@@ -366,10 +348,7 @@ mod withdraw_tests {
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::ExitStream {
-                    operator_target: None,
-                    salt: None,
-                },
+                &StreamSwapExecuteMsg::ExitStream { salt: None },
                 &[],
             )
             .unwrap();
@@ -378,10 +357,7 @@ mod withdraw_tests {
             .execute_contract(
                 test_accounts.subscriber_2.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::ExitStream {
-                    operator_target: None,
-                    salt: None,
-                },
+                &StreamSwapExecuteMsg::ExitStream { salt: None },
                 &[],
             )
             .unwrap();
@@ -445,10 +421,7 @@ mod withdraw_tests {
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::Subscribe {
-                    operator_target: None,
-                    operator: None,
-                },
+                &StreamSwapExecuteMsg::Subscribe {},
                 &[coin(1_000, "in_denom")],
             )
             .unwrap();
@@ -465,7 +438,6 @@ mod withdraw_tests {
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Withdraw {
                     cap: Some(Uint128::new(500)),
-                    operator_target: None,
                 },
                 &[],
             )
@@ -490,7 +462,6 @@ mod withdraw_tests {
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Withdraw {
                     cap: Some(Uint128::zero()),
-                    operator_target: None,
                 },
                 &[],
             )
@@ -506,7 +477,6 @@ mod withdraw_tests {
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Withdraw {
                     cap: Some(Uint128::new(2_250_000_000_000)),
-                    operator_target: None,
                 },
                 &[],
             )
@@ -530,7 +500,6 @@ mod withdraw_tests {
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Withdraw {
                     cap: Some(Uint128::new(500)),
-                    operator_target: None,
                 },
                 &[],
             )

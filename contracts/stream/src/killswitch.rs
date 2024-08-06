@@ -2,7 +2,6 @@ use crate::state::{FACTORY_PARAMS, POSITIONS, STREAM};
 use crate::stream::{sync_stream_status, update_stream};
 use crate::ContractError;
 use cosmwasm_std::{attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response};
-use cw_utils::maybe_addr;
 use streamswap_types::factory::Params;
 use streamswap_types::stream::ThresholdState;
 use streamswap_types::stream::{Status, ThresholdError};
@@ -11,9 +10,14 @@ pub fn execute_exit_cancelled(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
+
+    let position = POSITIONS.load(deps.storage, &info.sender)?;
+    if position.owner != info.sender {
+        return Err(ContractError::Unauthorized {});
+    }
+
     sync_stream_status(&mut stream, env.block.time);
 
     // This execution requires the stream to be cancelled or
@@ -35,32 +39,19 @@ pub fn execute_exit_cancelled(
         threshold_state.error_if_reached(deps.storage, &stream)?;
     }
 
-    let operator_target =
-        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let position = POSITIONS.load(deps.storage, &operator_target)?;
-    if position.owner != info.sender
-        && position
-            .operator
-            .as_ref()
-            .map_or(true, |o| o != info.sender)
-    {
-        return Err(ContractError::Unauthorized {});
-    }
-
     // no need to update position here, we just need to return total balance
     let total_balance = position.in_balance + position.spent;
     POSITIONS.remove(deps.storage, &position.owner);
 
     let attributes = vec![
         attr("action", "withdraw_cancelled"),
-        attr("operator_target", operator_target.clone()),
         attr("total_balance", total_balance),
     ];
 
     // send funds to withdraw address or to the sender
     let res = Response::new()
         .add_message(CosmosMsg::Bank(BankMsg::Send {
-            to_address: operator_target.to_string(),
+            to_address: info.sender.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
                 amount: total_balance,

@@ -18,8 +18,6 @@ pub struct Position {
     pub pending_purchase: Decimal256,
     // Total amount of `token_in` spent tokens at latest calculation
     pub spent: Uint128,
-    // Operator can update position
-    pub operator: Option<Addr>,
 }
 
 impl Position {
@@ -28,7 +26,6 @@ impl Position {
         in_balance: Uint128,
         shares: Uint128,
         index: Option<Decimal256>,
-        operator: Option<Addr>,
         last_updated: Timestamp,
     ) -> Self {
         Position {
@@ -40,7 +37,6 @@ impl Position {
             purchased: Uint128::zero(),
             pending_purchase: Decimal256::zero(),
             spent: Uint128::zero(),
-            operator,
         }
     }
 }

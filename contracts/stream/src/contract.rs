@@ -6,9 +6,9 @@ use crate::killswitch::execute_cancel_stream_with_threshold;
 use crate::stream::{compute_shares_amount, sync_stream_status, update_stream};
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
-    attr, coin, entry_point, to_json_binary, Addr, Attribute, BankMsg, Binary, CodeInfoResponse,
-    Coin, CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, MessageInfo, Order, Response,
-    StdError, StdResult, Timestamp, Uint128, Uint256, WasmMsg,
+    attr, coin, entry_point, to_json_binary, Attribute, BankMsg, Binary, CodeInfoResponse, Coin,
+    CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError,
+    StdResult, Timestamp, Uint128, Uint256, WasmMsg,
 };
 use cw2::{ensure_from_older_version, set_contract_version};
 use cw_storage_plus::Bound;
@@ -122,40 +122,22 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::UpdateOperator { new_operator } => {
-            execute_update_operator(deps, env, info, new_operator)
-        }
-        ExecuteMsg::UpdatePosition { operator_target } => {
-            execute_update_position(deps, env, info, operator_target)
-        }
+        ExecuteMsg::UpdatePosition {} => execute_update_position(deps, env, info),
         ExecuteMsg::UpdateStream {} => execute_update_stream(deps, env),
-        ExecuteMsg::Subscribe {
-            operator_target,
-            operator,
-        } => {
+        ExecuteMsg::Subscribe {} => {
             let stream = STREAM.load(deps.storage)?;
-            execute_subscribe(deps, env, info, operator, operator_target, stream)
+            execute_subscribe(deps, env, info, stream)
         }
-        ExecuteMsg::Withdraw {
-            cap,
-            operator_target,
-        } => {
+        ExecuteMsg::Withdraw { cap } => {
             let stream = STREAM.load(deps.storage)?;
-            execute_withdraw(deps, env, info, stream, cap, operator_target)
+            execute_withdraw(deps, env, info, stream, cap)
         }
         ExecuteMsg::FinalizeStream { new_treasury } => {
             execute_finalize_stream(deps, env, info, new_treasury)
         }
-        ExecuteMsg::ExitStream {
-            operator_target,
-            salt,
-        } => execute_exit_stream(deps, env, info, operator_target, salt),
-
+        ExecuteMsg::ExitStream { salt } => execute_exit_stream(deps, env, info, salt),
         ExecuteMsg::CancelStream {} => killswitch::execute_cancel_stream(deps, env, info),
-        ExecuteMsg::ExitCancelled { operator_target } => {
-            killswitch::execute_exit_cancelled(deps, env, info, operator_target)
-        }
-
+        ExecuteMsg::ExitCancelled {} => killswitch::execute_exit_cancelled(deps, env, info),
         ExecuteMsg::CancelStreamWithThreshold {} => {
             execute_cancel_stream_with_threshold(deps, env, info)
         }
@@ -185,12 +167,8 @@ pub fn execute_update_position(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
-    let operator_target =
-        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let mut position = POSITIONS.load(deps.storage, &operator_target)?;
-    check_access(&info, &position.owner, &position.operator)?;
+    let mut position = POSITIONS.load(deps.storage, &info.sender)?;
 
     let mut stream = STREAM.load(deps.storage)?;
     // check if stream is cancelled
@@ -216,7 +194,6 @@ pub fn execute_update_position(
 
     Ok(Response::new()
         .add_attribute("action", "update_position")
-        .add_attribute("operator_target", operator_target)
         .add_attribute("purchased", purchased)
         .add_attribute("spent", spent))
 }
@@ -272,8 +249,6 @@ pub fn execute_subscribe(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    operator: Option<String>,
-    operator_target: Option<String>,
     mut stream: Stream,
 ) -> Result<Response, ContractError> {
     // Check if stream is cancelled
@@ -290,32 +265,26 @@ pub fn execute_subscribe(
     let in_amount = must_pay(&info, &stream.in_denom)?;
     let new_shares;
 
-    let operator = maybe_addr(deps.api, operator)?;
-    let operator_target =
-        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let position = POSITIONS.may_load(deps.storage, &operator_target)?;
+    let position = POSITIONS.may_load(deps.storage, &info.sender)?;
     match position {
         None => {
-            // operator cannot create a position in behalf of anyone
-            if operator_target != info.sender {
-                return Err(ContractError::Unauthorized {});
-            }
             // incoming tokens should not participate in prev distribution
             update_stream(&mut stream, env.block.time);
             new_shares = compute_shares_amount(&stream, in_amount, false);
             // new positions do not update purchase as it has no effect on distribution
             let new_position = Position::new(
-                info.sender,
+                info.sender.clone(),
                 in_amount,
                 new_shares,
                 Some(stream.dist_index),
-                operator,
                 env.block.time,
             );
-            POSITIONS.save(deps.storage, &operator_target, &new_position)?;
+            POSITIONS.save(deps.storage, &info.sender, &new_position)?;
         }
         Some(mut position) => {
-            check_access(&info, &position.owner, &position.operator)?;
+            if position.owner != info.sender {
+                return Err(ContractError::Unauthorized {});
+            }
             // incoming tokens should not participate in prev distribution
             update_stream(&mut stream, env.block.time);
             new_shares = compute_shares_amount(&stream, in_amount, false);
@@ -329,7 +298,7 @@ pub fn execute_subscribe(
 
             position.in_balance = position.in_balance.checked_add(in_amount)?;
             position.shares = position.shares.checked_add(new_shares)?;
-            POSITIONS.save(deps.storage, &operator_target, &position)?;
+            POSITIONS.save(deps.storage, &info.sender, &position)?;
         }
     }
 
@@ -340,31 +309,10 @@ pub fn execute_subscribe(
 
     let res = Response::new()
         .add_attribute("action", "subscribe")
-        .add_attribute("owner", operator_target)
         .add_attribute("in_supply", stream.in_supply)
         .add_attribute("in_amount", in_amount);
 
     Ok(res)
-}
-
-pub fn execute_update_operator(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    // TODO: REMOVE OPERATOR. IT IS NOT NEEDED.
-    operator: Option<String>,
-) -> Result<Response, ContractError> {
-    let mut position = POSITIONS.load(deps.storage, &info.sender)?;
-
-    let operator = maybe_addr(deps.api, operator)?;
-    position.operator = operator.clone();
-
-    POSITIONS.save(deps.storage, &info.sender, &position)?;
-
-    Ok(Response::new()
-        .add_attribute("action", "update_operator")
-        .add_attribute("owner", info.sender)
-        .add_attribute("operator", operator.unwrap_or_else(|| Addr::unchecked(""))))
 }
 
 pub fn execute_withdraw(
@@ -373,7 +321,6 @@ pub fn execute_withdraw(
     info: MessageInfo,
     mut stream: Stream,
     cap: Option<Uint128>,
-    operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     sync_stream_status(&mut stream, env.block.time);
     if !(stream.is_active() || stream.is_bootstrapping()) {
@@ -381,10 +328,7 @@ pub fn execute_withdraw(
         return Err(ContractError::StreamNotStarted {});
     }
 
-    let operator_target =
-        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let mut position = POSITIONS.load(deps.storage, &operator_target)?;
-    check_access(&info, &position.owner, &position.operator)?;
+    let mut position = POSITIONS.load(deps.storage, &info.sender)?;
 
     update_stream(&mut stream, env.block.time);
     update_position(
@@ -422,14 +366,13 @@ pub fn execute_withdraw(
 
     let attributes = vec![
         attr("action", "withdraw"),
-        attr("operator_target", operator_target.clone()),
         attr("withdraw_amount", withdraw_amount),
     ];
 
     // send funds to withdraw address or to the sender
     let res = Response::new()
         .add_message(CosmosMsg::Bank(BankMsg::Send {
-            to_address: operator_target.to_string(),
+            to_address: info.sender.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
                 amount: withdraw_amount,
@@ -579,7 +522,6 @@ pub fn execute_exit_stream(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    operator_target: Option<String>,
     salt: Option<Binary>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
@@ -599,10 +541,7 @@ pub fn execute_exit_stream(
 
     threshold_state.error_if_not_reached(deps.storage, &stream)?;
 
-    let operator_target =
-        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let mut position = POSITIONS.load(deps.storage, &operator_target)?;
-    check_access(&info, &position.owner, &position.operator)?;
+    let mut position = POSITIONS.load(deps.storage, &info.sender)?;
 
     // update position before exit
     update_position(
@@ -633,7 +572,7 @@ pub fn execute_exit_stream(
         // prepare vesting msg
         vesting.start_time = Some(stream.status_info.end_time);
         vesting.owner = None;
-        vesting.recipient = operator_target.to_string();
+        vesting.recipient = info.sender.to_string();
         vesting.total = position.purchased;
 
         // prepare instantiate msg msg
@@ -649,14 +588,14 @@ pub fn execute_exit_stream(
             &salt,
         )?)?;
 
-        VESTING.save(deps.storage, operator_target.clone(), &address)?;
+        VESTING.save(deps.storage, info.sender.clone(), &address)?;
 
         let vesting_instantiate_msg = WasmMsg::Instantiate2 {
             admin: None,
             code_id: factory_params.vesting_code_id,
             label: format!(
                 "streamswap: Stream Addr {} Released to {}",
-                env.contract.address, operator_target
+                env.contract.address, info.sender
             ),
             msg: to_json_binary(&vesting)?,
             funds: vec![coin(position.purchased.u128(), stream.out_asset.denom)],
@@ -667,7 +606,7 @@ pub fn execute_exit_stream(
         attrs.push(attr("vesting_address", address));
     } else {
         let send_msg = CosmosMsg::Bank(BankMsg::Send {
-            to_address: operator_target.to_string(),
+            to_address: info.sender.to_string(),
             amount: vec![Coin {
                 denom: stream.out_asset.denom.to_string(),
                 amount: position.purchased,
@@ -679,7 +618,7 @@ pub fn execute_exit_stream(
     if !position.in_balance.is_zero() {
         let unspent = position.in_balance;
         let unspent_msg = CosmosMsg::Bank(BankMsg::Send {
-            to_address: operator_target.to_string(),
+            to_address: info.sender.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
                 amount: unspent,
@@ -696,21 +635,6 @@ pub fn execute_exit_stream(
     ]);
 
     Ok(Response::new().add_messages(msgs).add_attributes(attrs))
-}
-
-fn check_access(
-    info: &MessageInfo,
-    position_owner: &Addr,
-    position_operator: &Option<Addr>,
-) -> Result<(), ContractError> {
-    if position_owner.as_ref() != info.sender
-        && position_operator
-            .as_ref()
-            .map_or(true, |o| o != info.sender)
-    {
-        return Err(ContractError::Unauthorized {});
-    }
-    Ok(())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -815,7 +739,6 @@ pub fn query_position(deps: Deps, _env: Env, owner: String) -> StdResult<Positio
         index: position.index,
         spent: position.spent,
         shares: position.shares,
-        operator: position.operator,
         last_updated: position.last_updated,
         pending_purchase: position.pending_purchase,
     };
@@ -843,7 +766,6 @@ pub fn list_positions(
                 index: position.index,
                 spent: position.spent,
                 shares: position.shares,
-                operator: position.operator,
                 last_updated: position.last_updated,
                 pending_purchase: position.pending_purchase,
             };
