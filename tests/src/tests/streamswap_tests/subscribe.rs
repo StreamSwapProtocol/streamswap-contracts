@@ -374,7 +374,7 @@ mod subscibe_test {
     }
 
     #[test]
-    fn test_subscribe_boothstapping() {
+    fn test_subscribe_bootstapping() {
         let Suite {
             mut app,
             test_accounts,
@@ -382,6 +382,7 @@ mod subscibe_test {
             stream_swap_factory_code_id,
             vesting_code_id,
         } = SuiteBuilder::default().build();
+
         let start_time = app.block_info().time.plus_seconds(100).into();
         let end_time = app.block_info().time.plus_seconds(200).into();
         let bootstrapping_start_time = app.block_info().time.plus_seconds(50).into();
@@ -467,7 +468,7 @@ mod subscibe_test {
         // Update stream
         app.set_block(BlockInfo {
             height: 1_200,
-            time: start_time.minus_seconds(50),
+            time: bootstrapping_start_time.plus_seconds(10),
             chain_id: "test".to_string(),
         });
         let _res = app
@@ -486,11 +487,14 @@ mod subscibe_test {
                 &StreamSwapQueryMsg::Stream {},
             )
             .unwrap();
+
         assert_eq!(stream.dist_index, Decimal256::from_str("0").unwrap());
         assert_eq!(stream.in_supply, Uint128::new(150));
         assert_eq!(stream.spent_in, Uint128::zero());
-        // Stream is still waiting so last updated should be the same as start time
-        assert_eq!(stream.last_updated, bootstrapping_start_time);
+        assert_eq!(
+            stream.last_updated,
+            bootstrapping_start_time.plus_seconds(10)
+        );
         assert_eq!(stream.shares, Uint128::new(150));
 
         // Subscriber increases subscription
@@ -629,7 +633,166 @@ mod subscibe_test {
             position.index,
             Decimal256::from_str("1406.292560801144492131").unwrap()
         );
+        // Subscriber 1 has 150+150 = 300 in balance
+        // Until 60 seconds, 60/100*300 = 180 has been spent in the position
         assert_eq!(position.in_balance, Uint128::new(120));
         assert_eq!(position.spent, Uint128::new(180));
+
+        // Update position for subscriber 2
+        let _res = app
+            .execute_contract(
+                test_accounts.subscriber_2.clone(),
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &StreamSwapExecuteMsg::UpdatePosition {
+                    operator_target: None,
+                },
+                &[],
+            )
+            .unwrap();
+
+        // Query Position for subscriber 2
+        let position: PositionResponse = app
+            .wrap()
+            .query_wasm_smart(
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &StreamSwapQueryMsg::Position {
+                    owner: test_accounts.subscriber_2.to_string(),
+                },
+            )
+            .unwrap();
+        // Position should be updated
+        assert_eq!(
+            position.index,
+            Decimal256::from_str("1406.292560801144492131").unwrap()
+        );
+        // Subscriber 2 has 150 in balance subscribed at 10th second
+        // Until 60 seconds, 60-10 = 50/90*150 = 83.333333333333333333
+        // 150-83.333333333333333333 = 66.666666666666666667
+        assert_eq!(position.in_balance, Uint128::new(66));
+        assert_eq!(position.spent, Uint128::new(84));
+    }
+    #[test]
+    fn test_subscibe_waiting() {
+        let Suite {
+            mut app,
+            test_accounts,
+            stream_swap_code_id,
+            stream_swap_factory_code_id,
+            vesting_code_id,
+        } = SuiteBuilder::default().build();
+
+        let start_time = app.block_info().time.plus_seconds(100).into();
+        let end_time = app.block_info().time.plus_seconds(200).into();
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50).into();
+
+        let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
+        let factory_address = app
+            .instantiate_contract(
+                stream_swap_factory_code_id,
+                test_accounts.admin.clone(),
+                &msg,
+                &[],
+                "Factory".to_string(),
+                None,
+            )
+            .unwrap();
+
+        let create_stream_msg = get_create_stream_msg(
+            &"Stream Swap tests".to_string(),
+            None,
+            &test_accounts.creator_1.to_string(),
+            coin(1_000_000, "out_denom"),
+            "in_denom",
+            bootstrapping_start_time,
+            start_time,
+            end_time,
+            None,
+            None,
+            None,
+        );
+
+        let res = app
+            .execute_contract(
+                test_accounts.creator_1.clone(),
+                factory_address.clone(),
+                &create_stream_msg,
+                &[coin(100, "fee_denom"), coin(1_000_000, "out_denom")],
+            )
+            .unwrap();
+        let stream_swap_contract_address: String = get_contract_address_from_res(res);
+
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
+            operator_target: None,
+            operator: None,
+        };
+        app.set_block(BlockInfo {
+            height: 1_100,
+            time: bootstrapping_start_time.minus_seconds(1),
+            chain_id: "test".to_string(),
+        });
+
+        // Try to subscribe before bootstrapping start time
+        let err = app
+            .execute_contract(
+                test_accounts.subscriber_1.clone(),
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &subscribe_msg,
+                &[coin(150, "in_denom")],
+            )
+            .unwrap_err();
+        let error = err
+            .source()
+            .unwrap()
+            .downcast_ref::<StreamSwapError>()
+            .unwrap();
+        assert_eq!(error, &StreamSwapError::StreamNotStarted {});
+
+        // Set time to bootstrapping start time
+        app.set_block(BlockInfo {
+            height: 1_200,
+            time: bootstrapping_start_time,
+            chain_id: "test".to_string(),
+        });
+
+        // First subscription
+        let _res = app
+            .execute_contract(
+                test_accounts.subscriber_1.clone(),
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &subscribe_msg,
+                &[coin(150, "in_denom")],
+            )
+            .unwrap();
+
+        // Query Stream
+        let stream: StreamResponse = app
+            .wrap()
+            .query_wasm_smart(
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &StreamSwapQueryMsg::Stream {},
+            )
+            .unwrap();
+        assert_eq!(stream.clone().status, Status::Bootstrapping);
+
+        // Update stream
+        let _res = app
+            .execute_contract(
+                test_accounts.subscriber_1.clone(),
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &StreamSwapExecuteMsg::UpdateStream {},
+                &[],
+            )
+            .unwrap();
+
+        // Query Stream
+        let stream_after_update: StreamResponse = app
+            .wrap()
+            .query_wasm_smart(
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &StreamSwapQueryMsg::Stream {},
+            )
+            .unwrap();
+
+        assert_eq!(stream_after_update, stream);
     }
 }

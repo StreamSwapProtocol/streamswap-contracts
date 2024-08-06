@@ -273,7 +273,7 @@ pub fn execute_subscribe(
     operator_target: Option<String>,
     mut stream: Stream,
 ) -> Result<Response, ContractError> {
-    // check if stream is paused
+    // Check if stream is cancelled
     if stream.is_cancelled() {
         return Err(ContractError::StreamKillswitchActive {});
     }
@@ -281,13 +281,8 @@ pub fn execute_subscribe(
     stream.update_status(env.block.time);
 
     if !(stream.is_active() || stream.is_bootstrapping()) {
-        // TODO: create a new error for this
         return Err(ContractError::StreamNotStarted {});
     }
-    // // On first subscibe change status to Active
-    // if stream.status == Status::Waiting {
-    //     stream.status = Status::Active
-    // }
 
     let in_amount = must_pay(&info, &stream.in_denom)?;
     let new_shares;
