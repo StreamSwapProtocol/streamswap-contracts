@@ -80,10 +80,7 @@ mod pool_tests {
         let stream_swap_contract_address: String = get_contract_address_from_res(res);
 
         // First Subscription
-        let subscribe_msg = ExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = ExecuteMsg::Subscribe {};
         app.update_block(|b| b.time = start_time.plus_seconds(100));
         app.execute_contract(
             test_accounts.subscriber_1.clone(),

@@ -68,10 +68,7 @@ mod cancel_stream {
             chain_id: "test".to_string(),
         });
 
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
 
         let _res = app
             .execute_contract(
@@ -157,10 +154,7 @@ mod cancel_stream {
             chain_id: "test".to_string(),
         });
 
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
 
         let _res = app
             .execute_contract(
@@ -249,10 +243,7 @@ mod cancel_stream {
             chain_id: "test".to_string(),
         });
 
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
 
         let _res = app
             .execute_contract(

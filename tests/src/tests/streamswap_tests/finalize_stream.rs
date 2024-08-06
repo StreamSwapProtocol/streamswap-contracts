@@ -57,10 +57,7 @@ mod finalize_stream_tests {
             )
             .unwrap();
         let stream_swap_contract_address: String = get_contract_address_from_res(res);
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
         app.set_block(BlockInfo {
             height: 1_100,
             time: start_time,
@@ -174,10 +171,7 @@ mod finalize_stream_tests {
             )
             .unwrap();
         let stream_swap_contract_address: String = get_contract_address_from_res(res);
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
         app.set_block(BlockInfo {
             height: 1_100,
             time: start_time,
@@ -293,10 +287,7 @@ mod finalize_stream_tests {
             )
             .unwrap();
         let stream_swap_contract_address: String = get_contract_address_from_res(res);
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
         app.set_block(BlockInfo {
             height: 1_100,
             time: start_time,

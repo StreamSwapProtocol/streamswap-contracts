@@ -74,10 +74,7 @@ mod rounding_leftover {
             chain_id: "SS".to_string(),
         });
         // First subscription
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
@@ -108,9 +105,7 @@ mod rounding_leftover {
             height: 3,
             chain_id: "SS".to_string(),
         });
-        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {
-            operator_target: None,
-        };
+        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {};
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),

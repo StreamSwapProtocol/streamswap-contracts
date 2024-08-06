@@ -69,10 +69,7 @@ mod subscibe_test {
             .unwrap();
         let stream_swap_contract_address: String = get_contract_address_from_res(res);
 
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
         app.set_block(BlockInfo {
             height: 1_100,
             time: start_time,
@@ -225,10 +222,7 @@ mod subscibe_test {
             .unwrap();
         let stream_swap_contract_address: String = get_contract_address_from_res(res);
 
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
         app.set_block(BlockInfo {
             height: 1_100,
             time: start_time,
@@ -269,31 +263,12 @@ mod subscibe_test {
         assert_eq!(position.in_balance, Uint128::new(150));
         assert_eq!(position.spent, Uint128::zero());
 
-        // Non-operator tries to increase subscription
-        let res = app
-            .execute_contract(
-                test_accounts.wrong_user.clone(),
-                Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::Subscribe {
-                    operator_target: Some(test_accounts.subscriber_1.to_string()),
-                    operator: None,
-                },
-                &[coin(150, "in_denom")],
-            )
-            .unwrap_err();
-        let err = res.source().unwrap();
-        let error = err.downcast_ref::<StreamSwapError>().unwrap();
-        assert_eq!(error, &StreamSwapError::Unauthorized {});
-
         // Subscriber increases subscription in same block_time
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::Subscribe {
-                    operator_target: None,
-                    operator: None,
-                },
+                &StreamSwapExecuteMsg::Subscribe {},
                 &[coin(150, "in_denom")],
             )
             .unwrap();
@@ -333,10 +308,7 @@ mod subscibe_test {
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::Subscribe {
-                    operator_target: None,
-                    operator: None,
-                },
+                &StreamSwapExecuteMsg::Subscribe {},
                 &[coin(150, "in_denom")],
             )
             .unwrap();
@@ -423,10 +395,7 @@ mod subscibe_test {
             .unwrap();
         let stream_swap_contract_address: String = get_contract_address_from_res(res);
 
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
         app.set_block(BlockInfo {
             height: 1_100,
             time: bootstrapping_start_time,
@@ -502,10 +471,7 @@ mod subscibe_test {
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::Subscribe {
-                    operator_target: None,
-                    operator: None,
-                },
+                &StreamSwapExecuteMsg::Subscribe {},
                 &[coin(150, "in_denom")],
             )
             .unwrap();
@@ -546,10 +512,7 @@ mod subscibe_test {
             .execute_contract(
                 test_accounts.subscriber_2.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::Subscribe {
-                    operator_target: None,
-                    operator: None,
-                },
+                &StreamSwapExecuteMsg::Subscribe {},
                 &[coin(150, "in_denom")],
             )
             .unwrap();
@@ -611,9 +574,7 @@ mod subscibe_test {
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::UpdatePosition {
-                    operator_target: None,
-                },
+                &StreamSwapExecuteMsg::UpdatePosition {},
                 &[],
             )
             .unwrap();
@@ -643,9 +604,7 @@ mod subscibe_test {
             .execute_contract(
                 test_accounts.subscriber_2.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::UpdatePosition {
-                    operator_target: None,
-                },
+                &StreamSwapExecuteMsg::UpdatePosition {},
                 &[],
             )
             .unwrap();
@@ -721,10 +680,7 @@ mod subscibe_test {
             .unwrap();
         let stream_swap_contract_address: String = get_contract_address_from_res(res);
 
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
         app.set_block(BlockInfo {
             height: 1_100,
             time: bootstrapping_start_time.minus_seconds(1),
