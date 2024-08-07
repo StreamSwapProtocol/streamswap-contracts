@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod shares {
     use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
+    use streamswap_stream::stream_helpers::compute_shares_amount;
     use streamswap_types::stream::Stream;
 
     #[test]
@@ -24,23 +25,23 @@ mod shares {
         );
 
         // add new shares
-        let shares = stream.compute_shares_amount(Uint128::from(100u128), false);
+        let shares = compute_shares_amount(&stream, Uint128::from(100u128), false);
         assert_eq!(shares, Uint128::from(100u128));
         stream.in_supply = Uint128::from(100u128);
         stream.shares = shares;
 
         // add new shares
-        stream.shares += stream.compute_shares_amount(Uint128::from(100u128), false);
+        stream.shares += compute_shares_amount(&stream, Uint128::from(100u128), false);
         stream.in_supply += Uint128::from(100u128);
         assert_eq!(stream.shares, Uint128::from(200u128));
 
         // add new shares
-        stream.shares += stream.compute_shares_amount(Uint128::from(250u128), false);
+        stream.shares += compute_shares_amount(&stream, Uint128::from(250u128), false);
         assert_eq!(stream.shares, Uint128::from(450u128));
         stream.in_supply += Uint128::from(250u128);
 
         // remove shares
-        stream.shares -= stream.compute_shares_amount(Uint128::from(100u128), true);
+        stream.shares -= compute_shares_amount(&stream, Uint128::from(100u128), false);
         assert_eq!(stream.shares, Uint128::from(350u128));
         stream.in_supply -= Uint128::from(100u128);
     }

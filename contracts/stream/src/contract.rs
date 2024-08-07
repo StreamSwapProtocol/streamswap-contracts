@@ -3,6 +3,7 @@ use std::env;
 
 use crate::helpers::{check_name_and_url, get_decimals, validate_stream_times};
 use crate::killswitch::execute_cancel_stream_with_threshold;
+use crate::stream_helpers::{compute_shares_amount, sync_stream_status, update_stream};
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
     attr, coin, entry_point, to_json_binary, Addr, Attribute, BankMsg, Binary, CodeInfoResponse,
@@ -167,8 +168,8 @@ pub fn execute(
 /// Updates stream to calculate released distribution and spent amount
 pub fn execute_update_stream(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
-    stream.update(env.block.time);
-    stream.update_status(env.block.time);
+    update_stream(&mut stream, env.block.time);
+    sync_stream_status(&mut stream, env.block.time);
     STREAM.save(deps.storage, &stream)?;
 
     let attrs = vec![
@@ -198,8 +199,8 @@ pub fn execute_update_position(
     }
 
     // sync stream
-    stream.update(env.block.time);
-    stream.update_status(env.block.time);
+    update_stream(&mut stream, env.block.time);
+    sync_stream_status(&mut stream, env.block.time);
     STREAM.save(deps.storage, &stream)?;
 
     // updates position to latest distribution. Returns the amount of out tokens that has been purchased
@@ -280,7 +281,7 @@ pub fn execute_subscribe(
         return Err(ContractError::StreamKillswitchActive {});
     }
     // Update stream status
-    stream.update_status(env.block.time);
+    sync_stream_status(&mut stream, env.block.time);
 
     if !(stream.is_active() || stream.is_bootstrapping()) {
         return Err(ContractError::StreamNotStarted {});
@@ -300,8 +301,8 @@ pub fn execute_subscribe(
                 return Err(ContractError::Unauthorized {});
             }
             // incoming tokens should not participate in prev distribution
-            stream.update(env.block.time);
-            new_shares = stream.compute_shares_amount(in_amount, false);
+            update_stream(&mut stream, env.block.time);
+            new_shares = compute_shares_amount(&stream, in_amount, false);
             // new positions do not update purchase as it has no effect on distribution
             let new_position = Position::new(
                 info.sender,
@@ -316,8 +317,8 @@ pub fn execute_subscribe(
         Some(mut position) => {
             check_access(&info, &position.owner, &position.operator)?;
             // incoming tokens should not participate in prev distribution
-            stream.update(env.block.time);
-            new_shares = stream.compute_shares_amount(in_amount, false);
+            update_stream(&mut stream, env.block.time);
+            new_shares = compute_shares_amount(&stream, in_amount, false);
             update_position(
                 stream.dist_index,
                 stream.shares,
@@ -374,11 +375,7 @@ pub fn execute_withdraw(
     cap: Option<Uint128>,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
-    // // check if stream is paused
-    // if stream.is_killswitch_active() {
-    //     return Err(ContractError::StreamKillswitchActive {});
-    // }
-    stream.update_status(env.block.time);
+    sync_stream_status(&mut stream, env.block.time);
     if !(stream.is_active() || stream.is_bootstrapping()) {
         // TODO: create a new error for this
         return Err(ContractError::StreamNotStarted {});
@@ -389,8 +386,7 @@ pub fn execute_withdraw(
     let mut position = POSITIONS.load(deps.storage, &operator_target)?;
     check_access(&info, &position.owner, &position.operator)?;
 
-    //update_stream(env.block.time, &mut stream)?;
-    stream.update(env.block.time);
+    update_stream(&mut stream, env.block.time);
     update_position(
         stream.dist_index,
         stream.shares,
@@ -413,7 +409,7 @@ pub fn execute_withdraw(
     let shares_amount = if withdraw_amount == position.in_balance {
         position.shares
     } else {
-        stream.compute_shares_amount(withdraw_amount, true)
+        compute_shares_amount(&stream, withdraw_amount, true)
     };
 
     stream.in_supply = stream.in_supply.checked_sub(withdraw_amount)?;
@@ -462,14 +458,14 @@ pub fn execute_finalize_stream(
     if stream.treasury != info.sender {
         return Err(ContractError::Unauthorized {});
     }
-    stream.update_status(env.block.time);
+    sync_stream_status(&mut stream, env.block.time);
 
     if !stream.is_ended() {
         return Err(ContractError::StreamNotEnded {});
     }
-    stream.update(env.block.time);
+    update_stream(&mut stream, env.block.time);
 
-    stream.status.status = Status::Finalized;
+    stream.status_info.status = Status::Finalized;
 
     // If threshold is set and not reached, finalize will fail
     // Creator should execute cancel_stream_with_threshold to cancel the stream
@@ -592,12 +588,12 @@ pub fn execute_exit_stream(
     if stream.is_cancelled() {
         return Err(ContractError::StreamKillswitchActive {});
     }
-    stream.update_status(env.block.time);
+    sync_stream_status(&mut stream, env.block.time);
 
     if !(stream.is_ended() || stream.is_finalized()) {
         return Err(ContractError::StreamNotEnded {});
     }
-    stream.update(env.block.time);
+    update_stream(&mut stream, env.block.time);
 
     let threshold_state = ThresholdState::new();
 
@@ -635,8 +631,7 @@ pub fn execute_exit_stream(
         let salt = salt.ok_or(ContractError::InvalidSalt {})?;
 
         // prepare vesting msg
-        vesting.start_time = Some(stream.status.end_time);
-        // TODO: check if we want an owner?
+        vesting.start_time = Some(stream.status_info.end_time);
         vesting.owner = None;
         vesting.recipient = operator_target.to_string();
         vesting.total = position.purchased;
@@ -752,15 +747,15 @@ pub fn query_stream(deps: Deps, _env: Env) -> StdResult<StreamResponse> {
         treasury: stream.treasury.to_string(),
         in_denom: stream.in_denom,
         out_asset: stream.out_asset,
-        start_time: stream.status.start_time,
-        end_time: stream.status.end_time,
+        start_time: stream.status_info.start_time,
+        end_time: stream.status_info.end_time,
         last_updated: stream.last_updated,
         spent_in: stream.spent_in,
         dist_index: stream.dist_index,
         out_remaining: stream.out_remaining,
         in_supply: stream.in_supply,
         shares: stream.shares,
-        status: stream.status.status,
+        status: stream.status_info.status,
         url: stream.url,
         current_streamed_price: stream.current_streamed_price,
         stream_admin: stream.stream_admin.into_string(),
