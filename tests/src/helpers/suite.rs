@@ -44,10 +44,12 @@ impl SuiteBuilder {
     #[allow(dead_code)]
 
     pub fn build(self) -> Suite {
-        let denoms = ["fee_denom".to_string(),
+        let denoms = [
+            "fee_denom".to_string(),
             "out_denom".to_string(),
             "in_denom".to_string(),
-            "wrong_denom".to_string()];
+            "wrong_denom".to_string(),
+        ];
         let amount = 1_000_000_000_000_000u128;
 
         let api = MockApiBech32::new(PREFIX);
