@@ -49,7 +49,7 @@ mod treshold_tests {
         assert!(result.is_err());
         stream.spent_in = Uint128::new(1_500_000_000_000);
         let result = thresholds.error_if_not_reached(&storage, &stream.clone());
-        assert!(!result.is_err());
+        assert!(result.is_ok());
     }
     #[test]
     fn test_threshold_reached() {

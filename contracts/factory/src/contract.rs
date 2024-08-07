@@ -1,15 +1,17 @@
 use crate::error::ContractError;
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
-    Response, StdResult, WasmMsg,
+    Order, Response, StdResult, WasmMsg,
 };
 use cw2::ensure_from_older_version;
+use cw_storage_plus::Bound;
 use streamswap_types::factory::{
-    CreateStreamMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, Params, QueryMsg,
+    CreateStreamMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, Params, QueryMsg, StreamResponse,
+    StreamsResponse,
 };
 use streamswap_utils::payment_checker::check_payment;
 
-use crate::state::{FREEZESTATE, LAST_STREAM_ID, PARAMS};
+use crate::state::{FREEZESTATE, LAST_STREAM_ID, PARAMS, STREAMS};
 
 const CONTRACT_NAME: &str = "crates.io:streamswap-factory";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -139,6 +141,7 @@ pub fn execute_create_stream(
         create_pool: _,
         vesting: _,
         bootstraping_start_time: _,
+        salt,
     } = msg.clone();
 
     let params = PARAMS.load(deps.storage)?;
@@ -157,17 +160,34 @@ pub fn execute_create_stream(
 
     let last_stream_id = LAST_STREAM_ID.load(deps.storage)?;
     let stream_id = last_stream_id + 1;
-    LAST_STREAM_ID.save(deps.storage, &stream_id)?;
+
     let funds: Vec<Coin> = vec![out_asset.clone()];
 
-    let stream_swap_inst_message: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
+    let stream_swap_inst_message: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate2 {
         code_id: params.stream_contract_code_id,
         // TODO: discuss this
         admin: Some(params.protocol_admin.to_string()),
         label: format!("Stream Swap Stream {} - {}", name, stream_id),
         msg: to_json_binary(&msg)?,
         funds,
+        salt: salt.clone(),
     });
+
+    let checksum = deps
+        .querier
+        .query_wasm_code_info(params.stream_contract_code_id)?
+        .checksum;
+    let canonical_contract_addr = cosmwasm_std::instantiate2_address(
+        checksum.as_slice(),
+        &deps.api.addr_canonicalize(info.sender.as_ref())?,
+        salt.as_slice(),
+    )
+    .unwrap();
+
+    LAST_STREAM_ID.save(deps.storage, &stream_id)?;
+
+    let contract_addr = deps.api.addr_humanize(&canonical_contract_addr)?;
+    STREAMS.save(deps.storage, stream_id, &contract_addr)?;
 
     // TODO: If stream cration fee is zero this will fail
     let fund_transfer_message: CosmosMsg = CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
@@ -181,6 +201,8 @@ pub fn execute_create_stream(
         .add_attribute("action", "create_stream")
         .add_attribute("name", name)
         .add_attribute("treasury", treasury)
+        .add_attribute("stream_id", stream_id.to_string())
+        .add_attribute("stream_contract_address", contract_addr)
         .add_attribute("out_asset", out_asset.to_string())
         .add_attribute("start_time", start_time.to_string())
         .add_attribute("end time", end_time.to_string())
@@ -260,7 +282,34 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Params {} => to_json_binary(&PARAMS.load(deps.storage)?),
         QueryMsg::Freezestate {} => to_json_binary(&FREEZESTATE.load(deps.storage)?),
         QueryMsg::LastStreamId {} => to_json_binary(&LAST_STREAM_ID.load(deps.storage)?),
+        QueryMsg::ListStreams { start_after, limit } => {
+            to_json_binary(&list_streams(deps, start_after, limit)?)
+        }
     }
+}
+
+pub fn list_streams(
+    deps: Deps,
+    start_after: Option<u64>,
+    limit: Option<u32>,
+) -> StdResult<StreamsResponse> {
+    const MAX_LIMIT: u32 = 30;
+    let start = start_after.map(Bound::exclusive);
+    let limit = limit.unwrap_or(MAX_LIMIT).min(MAX_LIMIT) as usize;
+    let streams: StdResult<Vec<StreamResponse>> = STREAMS
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|item| {
+            let (id, address) = item?;
+            let stream = StreamResponse {
+                id,
+                address: address.to_string(),
+            };
+            Ok(stream)
+        })
+        .collect();
+    let streams = streams?;
+    Ok(StreamsResponse { streams })
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

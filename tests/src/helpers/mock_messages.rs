@@ -1,5 +1,5 @@
 use super::suite::TestAccounts;
-use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
+use cosmwasm_std::{Binary, Coin, Decimal, Timestamp, Uint128};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use streamswap_types::factory::{CreatePool, CreateStreamMsg};
 use streamswap_types::factory::{
@@ -159,6 +159,7 @@ pub fn get_create_stream_msg(
             threshold,
             create_pool,
             vesting,
+            salt: Binary::from_base64("salt").unwrap(),
         }),
     }
 }
