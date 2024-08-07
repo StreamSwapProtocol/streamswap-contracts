@@ -1,5 +1,5 @@
 use crate::state::{FACTORY_PARAMS, POSITIONS, STREAM};
-use crate::stream_helpers::{sync_stream_status, update_stream};
+use crate::stream::{sync_stream_status, update_stream};
 use crate::ContractError;
 use cosmwasm_std::{attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response};
 use cw_utils::maybe_addr;

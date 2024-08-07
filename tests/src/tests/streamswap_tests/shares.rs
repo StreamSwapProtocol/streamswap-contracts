@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod shares {
     use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
-    use streamswap_stream::stream_helpers::compute_shares_amount;
+    use streamswap_stream::stream::compute_shares_amount;
     use streamswap_types::stream::Stream;
 
     #[test]

@@ -3,7 +3,7 @@ use std::env;
 
 use crate::helpers::{check_name_and_url, get_decimals, validate_stream_times};
 use crate::killswitch::execute_cancel_stream_with_threshold;
-use crate::stream_helpers::{compute_shares_amount, sync_stream_status, update_stream};
+use crate::stream::{compute_shares_amount, sync_stream_status, update_stream};
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
     attr, coin, entry_point, to_json_binary, Addr, Attribute, BankMsg, Binary, CodeInfoResponse,
