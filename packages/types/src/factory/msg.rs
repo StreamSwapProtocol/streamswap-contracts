@@ -20,20 +20,21 @@ pub struct InstantiateMsg {
     pub exit_fee_percent: Decimal,
     /// The list of accepted denominations for the stream.
     pub accepted_in_denoms: Vec<String>,
-    /// The minimum duration of a stream in seconds.
-    pub min_stream_seconds: u64,
-    /// Minimum time in seconds for waiting + bootstrapping status before a stream starts.
-    pub min_seconds_until_start_time: u64,
-    /// Minimum time in seconds for waiting status before the stream starts bootstrapping.
-    pub min_seconds_until_bootstrapping_start_time: u64,
+    // Minumum time of a stream end_time - start_time
+    pub min_stream_duration: u64,
+    // Minimum time of bootstrapping status, start_time - bootstrapping_start_time
+    pub min_bootstrapping_duration: u64,
+    // Minimum time of waiting status, bootstrapping_start_time - creation_time_of_stream
+    pub min_waiting_duration: u64,
 }
 
 #[cw_serde]
 #[cfg_attr(feature = "interface", derive(cw_orch::ExecuteFns))]
 pub enum ExecuteMsg {
     UpdateParams {
-        min_stream_seconds: Option<u64>,
-        min_seconds_until_start_time: Option<u64>,
+        min_stream_duration: Option<u64>,
+        min_bootstrapping_duration: Option<u64>,
+        min_waiting_duration: Option<u64>,
         stream_creation_fee: Option<Coin>,
         fee_collector: Option<String>,
         accepted_in_denoms: Option<Vec<String>>,

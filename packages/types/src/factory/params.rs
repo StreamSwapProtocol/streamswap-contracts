@@ -17,9 +17,9 @@ pub struct Params {
     // Accepted in denoms for the stream
     pub accepted_in_denoms: Vec<String>,
     // Minumum time of a stream end_time - start_time
-    pub min_stream_seconds: u64,
-    // Stream starts at waiting status, then bootstrapping, this parameter is the minimum time of waiting+bootstrapping
-    pub min_seconds_until_start_time: u64,
-    // Stream starts at bootstrapping status, this parameter is the minimum time of waiting
-    pub min_seconds_until_bootstrapping_start_time: u64,
+    pub min_stream_duration: u64,
+    // Minimum time of bootstrapping status, start_time - bootstrapping_start_time
+    pub min_bootstrapping_duration: u64,
+    // Minimum time of waiting status, bootstrapping_start_time - creation_time_of_stream
+    pub min_waiting_duration: u64,
 }

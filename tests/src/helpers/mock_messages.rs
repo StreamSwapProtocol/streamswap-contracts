@@ -23,9 +23,9 @@ pub fn get_factory_inst_msg(
         },
         exit_fee_percent: Decimal::percent(1),
         accepted_in_denoms: vec!["in_denom".to_string()],
-        min_stream_seconds: 100,
-        min_seconds_until_start_time: 100,
-        min_seconds_until_bootstrapping_start_time: 10,
+        min_waiting_duration: 49,
+        min_bootstrapping_duration: 49,
+        min_stream_duration: 99,
     }
 }
 

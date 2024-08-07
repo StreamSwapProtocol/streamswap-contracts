@@ -162,4 +162,10 @@ pub enum ContractError {
 
     #[error("Stream not waiting")]
     StreamNotWaiting {},
+
+    #[error("Stream bootrapping duration too short")]
+    StreamBootstrappingDurationTooShort {},
+
+    #[error("Stream waiting duration too short")]
+    StreamWaitingDurationTooShort {},
 }

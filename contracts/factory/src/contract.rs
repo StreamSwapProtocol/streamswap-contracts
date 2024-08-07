@@ -28,10 +28,10 @@ pub fn instantiate(
         exit_fee_percent,
         accepted_in_denoms,
         fee_collector,
-        min_stream_seconds,
-        min_seconds_until_start_time,
         vesting_code_id,
-        min_seconds_until_bootstrapping_start_time,
+        min_waiting_duration,
+        min_bootstrapping_duration,
+        min_stream_duration,
     } = msg;
 
     let protocol_admin = deps
@@ -47,9 +47,6 @@ pub fn instantiate(
     if stream_creation_fee.amount.is_zero() {
         return Err(ContractError::InvalidStreamCreationFee {});
     }
-    if min_seconds_until_start_time < min_seconds_until_bootstrapping_start_time {
-        return Err(ContractError::InvalidFactoryParams {});
-    }
 
     let params = Params {
         stream_creation_fee: stream_creation_fee.clone(),
@@ -58,10 +55,10 @@ pub fn instantiate(
         vesting_code_id,
         accepted_in_denoms,
         fee_collector,
-        min_stream_seconds,
-        min_seconds_until_start_time,
         protocol_admin: protocol_admin.clone(),
-        min_seconds_until_bootstrapping_start_time,
+        min_waiting_duration,
+        min_bootstrapping_duration,
+        min_stream_duration,
     };
     PARAMS.save(deps.storage, &params)?;
 
@@ -92,8 +89,9 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::UpdateParams {
-            min_stream_seconds,
-            min_seconds_until_start_time,
+            min_waiting_duration,
+            min_bootstrapping_duration,
+            min_stream_duration,
             stream_creation_fee,
             fee_collector,
             accepted_in_denoms,
@@ -102,8 +100,9 @@ pub fn execute(
             deps,
             env,
             info,
-            min_stream_seconds,
-            min_seconds_until_start_time,
+            min_waiting_duration,
+            min_bootstrapping_duration,
+            min_stream_duration,
             stream_creation_fee,
             fee_collector,
             accepted_in_denoms,
@@ -195,8 +194,9 @@ pub fn execute_update_params(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    min_stream_seconds: Option<u64>,
-    min_seconds_until_start_time: Option<u64>,
+    min_waiting_duration: Option<u64>,
+    min_bootstrapping_duration: Option<u64>,
+    min_stream_duration: Option<u64>,
     stream_creation_fee: Option<Coin>,
     fee_collector: Option<String>,
     accepted_in_denoms: Option<Vec<String>>,
@@ -223,13 +223,14 @@ pub fn execute_update_params(
     if let Some(accepted_in_denoms) = accepted_in_denoms {
         params.accepted_in_denoms = accepted_in_denoms;
     }
-
-    if let Some(min_stream_seconds) = min_stream_seconds {
-        params.min_stream_seconds = min_stream_seconds;
+    if let Some(min_waiting_duration) = min_waiting_duration {
+        params.min_waiting_duration = min_waiting_duration;
     }
-
-    if let Some(min_seconds_until_start_time) = min_seconds_until_start_time {
-        params.min_seconds_until_start_time = min_seconds_until_start_time;
+    if let Some(min_bootstrapping_duration) = min_bootstrapping_duration {
+        params.min_bootstrapping_duration = min_bootstrapping_duration;
+    }
+    if let Some(min_stream_duration) = min_stream_duration {
+        params.min_stream_duration = min_stream_duration;
     }
 
     PARAMS.save(deps.storage, &params)?;

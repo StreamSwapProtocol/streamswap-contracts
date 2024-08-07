@@ -81,27 +81,23 @@ pub fn validate_stream_times(
         .checked_sub(start_time.seconds())
         .ok_or(ContractError::StreamInvalidEndTime {})?;
 
-    if stream_duration < params.min_stream_seconds {
+    if stream_duration < params.min_stream_duration {
         return Err(ContractError::StreamDurationTooShort {});
     }
-
-    let time_until_start = start_time
+    let bootstrapping_duration = start_time
         .seconds()
-        .checked_sub(now.seconds())
+        .checked_sub(bootstrapping_start_time.seconds())
         .ok_or(ContractError::StreamInvalidStartTime {})?;
+    if bootstrapping_duration < params.min_bootstrapping_duration {
+        return Err(ContractError::StreamBootstrappingDurationTooShort {});
+    }
 
-    let time_until_bootstrapping_start = bootstrapping_start_time
+    let waiting_duration = bootstrapping_start_time
         .seconds()
         .checked_sub(now.seconds())
         .ok_or(ContractError::StreamInvalidBootstrappingStartTime {})?;
-
-    if time_until_bootstrapping_start < params.min_seconds_until_bootstrapping_start_time {
-        return Err(ContractError::StreamBootstrappingStartsTooSoon {});
+    if waiting_duration < params.min_waiting_duration {
+        return Err(ContractError::StreamWaitingDurationTooShort {});
     }
-
-    if time_until_start < params.min_seconds_until_start_time {
-        return Err(ContractError::StreamStartsTooSoon {});
-    }
-
     Ok(())
 }

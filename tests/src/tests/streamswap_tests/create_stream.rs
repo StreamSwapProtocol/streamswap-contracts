@@ -453,17 +453,19 @@ mod create_stream_tests {
                 None,
             )
             .unwrap();
+
         let factory_params: FactoryParams = app
             .wrap()
             .query_wasm_smart(factory_address.clone(), &QueryMsg::Params {})
             .unwrap();
 
-        // Bootstrapping start time too soon
+        // Waiting duration too short
         let bootstart_time = app
             .block_info()
             .time
-            .plus_seconds(factory_params.min_seconds_until_bootstrapping_start_time - 1)
+            .plus_seconds(factory_params.min_waiting_duration - 1)
             .into();
+
         let start_time = app.block_info().time.plus_seconds(100).into();
         let end_time = app.block_info().time.plus_seconds(200).into();
 
@@ -490,7 +492,7 @@ mod create_stream_tests {
             .unwrap_err();
         let err = res.source().unwrap().source().unwrap();
         let error = err.downcast_ref::<StreamSwapError>().unwrap();
-        assert_eq!(*error, StreamSwapError::StreamBootstrappingStartsTooSoon {});
+        assert_eq!(*error, StreamSwapError::StreamWaitingDurationTooShort {});
 
         // Stream duration too short
         let bootstart_time = app.block_info().time.plus_seconds(50).into();
