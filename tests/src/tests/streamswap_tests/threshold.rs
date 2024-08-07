@@ -101,10 +101,7 @@ mod treshold_tests {
             .unwrap();
         let stream_swap_contract_address: String = get_contract_address_from_res(res);
 
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
         // Set time to start of the stream
         app.set_block(BlockInfo {
             time: start_time,
@@ -129,10 +126,7 @@ mod treshold_tests {
         });
 
         // Threshold should be reached
-        let exit_msg = StreamSwapExecuteMsg::ExitStream {
-            operator_target: None,
-            salt: None,
-        };
+        let exit_msg = StreamSwapExecuteMsg::ExitStream { salt: None };
 
         let res = app
             .execute_contract(
@@ -227,10 +221,7 @@ mod treshold_tests {
             chain_id: "test".to_string(),
         });
 
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
         // Subscription 1
         let _res = app
             .execute_contract(
@@ -258,10 +249,7 @@ mod treshold_tests {
         });
 
         // Exit should not be possible
-        let exit_msg = StreamSwapExecuteMsg::ExitStream {
-            operator_target: None,
-            salt: None,
-        };
+        let exit_msg = StreamSwapExecuteMsg::ExitStream { salt: None };
 
         let _res = app
             .execute_contract(
@@ -290,9 +278,7 @@ mod treshold_tests {
         );
 
         // Subscriber one executes exit cancelled before creator cancels stream
-        let exit_cancelled_msg = StreamSwapExecuteMsg::ExitCancelled {
-            operator_target: None,
-        };
+        let exit_cancelled_msg = StreamSwapExecuteMsg::ExitCancelled {};
         // Subscriber 1 executes exit cancelled
         let res = app
             .execute_contract(
@@ -352,9 +338,7 @@ mod treshold_tests {
         assert_eq!(error, StreamSwapError::StreamKillswitchActive {});
 
         // Subscriber 2 executes exit cancelled after creator cancels stream
-        let exit_cancelled_msg = StreamSwapExecuteMsg::ExitCancelled {
-            operator_target: None,
-        };
+        let exit_cancelled_msg = StreamSwapExecuteMsg::ExitCancelled {};
 
         let res = app
             .execute_contract(
@@ -440,10 +424,7 @@ mod treshold_tests {
         });
 
         // Subscription 1
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
 
         let _res = app
             .execute_contract(

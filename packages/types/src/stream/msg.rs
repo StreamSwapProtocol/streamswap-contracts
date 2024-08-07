@@ -1,34 +1,20 @@
 use crate::stream::Status;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Coin, Decimal, Decimal256, Timestamp, Uint128};
+use cosmwasm_std::{Binary, Coin, Decimal, Decimal256, Timestamp, Uint128};
 
 #[cw_serde]
 #[cfg_attr(feature = "interface", derive(cw_orch::ExecuteFns))]
 pub enum ExecuteMsg {
     /// Update stream and calculates distribution state.
     UpdateStream {},
-    /// UpdateOperator updates the operator of the position.
-    UpdateOperator {
-        new_operator: Option<String>,
-    },
-    Subscribe {
-        /// operator_target is the address of operator targets to execute on behalf of the user.
-        operator_target: Option<String>,
-        /// operator can subscribe/withdraw/update position.
-        operator: Option<String>,
-    },
+    Subscribe {},
     /// Withdraw unspent tokens in balance.
     Withdraw {
         cap: Option<Uint128>,
-        /// operator_target is the address of operator targets to execute on behalf of the user.
-        operator_target: Option<String>,
     },
     /// UpdatePosition updates the position of the user.
     /// syncs position index to the current state of the stream.
-    UpdatePosition {
-        /// operator_target is the address of operator targets to execute on behalf of the user.
-        operator_target: Option<String>,
-    },
+    UpdatePosition {},
     /// FinalizeStream clean ups the stream and sends income (earned tokens_in) to the
     /// Stream recipient. Returns error if called before the Stream end. Anyone can
     /// call this method.
@@ -39,8 +25,6 @@ pub enum ExecuteMsg {
     /// tokens_out from the pool and remained tokens_in. Must be called after
     /// the stream ends.
     ExitStream {
-        /// operator_target is the address of operator targets to execute on behalf of the user.
-        operator_target: Option<String>,
         /// Salt is required for vested address generation
         salt: Option<Binary>,
     },
@@ -48,10 +32,7 @@ pub enum ExecuteMsg {
     // Killswitch features
     //
     /// ExitCancelled returns the whole balance user put in the stream, both spent and unspent.
-    ExitCancelled {
-        /// Operator_target is the address of operator targets to execute on behalf of the user.
-        operator_target: Option<String>,
-    },
+    ExitCancelled {},
     CancelStream {},
     CancelStreamWithThreshold {},
     StreamAdminCancel {},
@@ -167,8 +148,6 @@ pub struct PositionResponse {
     pub pending_purchase: Decimal256,
     // Total amount of `token_in` spent tokens at latest calculation
     pub spent: Uint128,
-    // Operator can update position
-    pub operator: Option<Addr>,
 }
 
 #[cw_serde]

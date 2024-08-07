@@ -72,10 +72,7 @@ mod vesting_tests {
             )
             .unwrap();
         let stream_swap_contract_address: String = get_contract_address_from_res(res);
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
         app.update_block(|b| b.time = start_time);
         // First subscription
         let _res = app
@@ -132,10 +129,7 @@ mod vesting_tests {
         assert_eq!(stream.status, Status::Finalized);
 
         // no salt expect error
-        let exit_msg = StreamSwapExecuteMsg::ExitStream {
-            operator_target: None,
-            salt: None,
-        };
+        let exit_msg = StreamSwapExecuteMsg::ExitStream { salt: None };
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
@@ -147,7 +141,6 @@ mod vesting_tests {
 
         // sub1 exists
         let exit_msg = StreamSwapExecuteMsg::ExitStream {
-            operator_target: None,
             salt: Some(Binary::from_base64("salt").unwrap()),
         };
         let res = app

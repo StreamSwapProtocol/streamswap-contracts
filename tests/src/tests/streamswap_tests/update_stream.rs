@@ -181,10 +181,7 @@ mod update_stream_tests {
         // - We have tried to update stream without subscription at Waiting, Bootstrapping and Active status
         // - Now we will subscribe to stream and update stream at Active status
         // - We will check if stream is updated successfully in next 10 seconds and compare with previous state which no subscription was made
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
 
         let _res = app
             .execute_contract(
@@ -309,10 +306,7 @@ mod update_stream_tests {
             chain_id: "test".to_string(),
         });
 
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
 
         let _res = app
             .execute_contract(
@@ -447,10 +441,7 @@ mod update_stream_tests {
             .unwrap();
         assert_eq!(stream.current_streamed_price, Decimal::new(Uint128::new(0)));
 
-        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
-            operator_target: None,
-            operator: None,
-        };
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
         // First subscription
         let _res = app
             .execute_contract(
