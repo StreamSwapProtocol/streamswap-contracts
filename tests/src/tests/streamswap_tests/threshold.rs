@@ -46,10 +46,10 @@ mod treshold_tests {
 
         stream.spent_in = Uint128::new(1_500_000_000_000 - 1);
         let result = thresholds.error_if_not_reached(&storage, &stream.clone());
-        assert_eq!(result.is_err(), true);
+        assert!(result.is_err());
         stream.spent_in = Uint128::new(1_500_000_000_000);
         let result = thresholds.error_if_not_reached(&storage, &stream.clone());
-        assert_eq!(result.is_err(), false);
+        assert!(!result.is_err());
     }
     #[test]
     fn test_threshold_reached() {
@@ -60,9 +60,9 @@ mod treshold_tests {
             stream_swap_factory_code_id,
             vesting_code_id,
         } = SuiteBuilder::default().build();
-        let start_time = app.block_info().time.plus_seconds(1_000_000).into();
-        let end_time = app.block_info().time.plus_seconds(5_000_000).into();
-        let bootstrapping_start_time = app.block_info().time.plus_seconds(500_000).into();
+        let start_time = app.block_info().time.plus_seconds(1_000_000);
+        let end_time = app.block_info().time.plus_seconds(5_000_000);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(500_000);
         let threshold = Uint128::from(250u128);
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
@@ -78,9 +78,9 @@ mod treshold_tests {
             .unwrap();
 
         let create_stream_msg = get_create_stream_msg(
-            &"Stream Swap tests".to_string(),
+            "Stream Swap tests",
             Some("https://sample.url".to_string()),
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(500, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
@@ -179,9 +179,9 @@ mod treshold_tests {
             stream_swap_factory_code_id,
             vesting_code_id,
         } = SuiteBuilder::default().build();
-        let start_time = app.block_info().time.plus_seconds(1_000_000).into();
-        let end_time = app.block_info().time.plus_seconds(5_000_000).into();
-        let bootstrapping_start_time = app.block_info().time.plus_seconds(500_000).into();
+        let start_time = app.block_info().time.plus_seconds(1_000_000);
+        let end_time = app.block_info().time.plus_seconds(5_000_000);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(500_000);
         let threshold = Uint128::from(500u128);
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
@@ -197,9 +197,9 @@ mod treshold_tests {
             .unwrap();
 
         let create_stream_msg = get_create_stream_msg(
-            &"Stream Swap tests".to_string(),
+            "Stream Swap tests",
             Some("https://sample.url".to_string()),
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(500, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
@@ -392,9 +392,9 @@ mod treshold_tests {
             stream_swap_factory_code_id,
             vesting_code_id,
         } = SuiteBuilder::default().build();
-        let start_time = app.block_info().time.plus_seconds(1_000_000).into();
-        let end_time = app.block_info().time.plus_seconds(5_000_000).into();
-        let bootstrapping_start_time = app.block_info().time.plus_seconds(500_000).into();
+        let start_time = app.block_info().time.plus_seconds(1_000_000);
+        let end_time = app.block_info().time.plus_seconds(5_000_000);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(500_000);
         let threshold = Uint128::from(500u128);
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
@@ -410,9 +410,9 @@ mod treshold_tests {
             .unwrap();
 
         let create_stream_msg = get_create_stream_msg(
-            &"Stream Swap tests".to_string(),
+            "Stream Swap tests",
             Some("https://sample.url".to_string()),
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(500, "out_denom"),
             "in_denom",
             bootstrapping_start_time,

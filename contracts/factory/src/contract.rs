@@ -158,9 +158,7 @@ pub fn execute_create_stream(
     let last_stream_id = LAST_STREAM_ID.load(deps.storage)?;
     let stream_id = last_stream_id + 1;
     LAST_STREAM_ID.save(deps.storage, &stream_id)?;
-
-    let mut funds: Vec<Coin> = vec![];
-    funds.push(out_asset.clone());
+    let funds: Vec<Coin> = vec![out_asset.clone()];
 
     let stream_swap_inst_message: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: params.stream_contract_code_id,

@@ -13,7 +13,7 @@ pub fn get_factory_inst_msg(
     test_accounts: &TestAccounts,
 ) -> FactoryInstantiateMsg {
     FactoryInstantiateMsg {
-        stream_contract_code_id: stream_contract_code_id,
+        stream_contract_code_id,
         vesting_code_id,
         protocol_admin: Some(test_accounts.admin.to_string()),
         fee_collector: Some(test_accounts.admin.to_string()),

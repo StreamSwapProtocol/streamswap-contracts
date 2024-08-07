@@ -34,7 +34,7 @@ fn factory_freeze() {
     let create_stream_msg = get_create_stream_msg(
         "stream",
         None,
-        &test_accounts.creator_1.to_string(),
+        test_accounts.creator_1.as_ref(),
         coin(100, "out_denom"),
         "in_denom",
         app.block_info().time.plus_seconds(50),
@@ -82,13 +82,13 @@ fn factory_freeze() {
         .wrap()
         .query_wasm_smart(factory_address.clone(), &QueryMsg::Freezestate {})
         .unwrap();
-    assert_eq!(res, true);
+    assert!(res);
 
     // When factory is frozen, Stream creation is not allowed
     let create_stream_msg = get_create_stream_msg(
         "stream",
         None,
-        &test_accounts.creator_1.to_string(),
+        test_accounts.creator_1.as_ref(),
         coin(100, "out_denom"),
         "in_denom",
         app.block_info().time.plus_seconds(50),

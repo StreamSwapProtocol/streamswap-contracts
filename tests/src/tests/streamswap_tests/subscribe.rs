@@ -29,9 +29,9 @@ mod subscibe_test {
             stream_swap_factory_code_id,
             vesting_code_id,
         } = SuiteBuilder::default().build();
-        let start_time = app.block_info().time.plus_seconds(100).into();
-        let end_time = app.block_info().time.plus_seconds(200).into();
-        let bootstrapping_start_time = app.block_info().time.plus_seconds(50).into();
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
@@ -46,9 +46,9 @@ mod subscibe_test {
             .unwrap();
 
         let create_stream_msg = get_create_stream_msg(
-            &"Stream Swap tests".to_string(),
+            "Stream Swap tests",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(1_000_000, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
@@ -185,9 +185,9 @@ mod subscibe_test {
             stream_swap_factory_code_id,
             vesting_code_id,
         } = SuiteBuilder::default().build();
-        let start_time = app.block_info().time.plus_seconds(100).into();
-        let end_time = app.block_info().time.plus_seconds(200).into();
-        let bootstrapping_start_time = app.block_info().time.plus_seconds(50).into();
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
@@ -202,9 +202,9 @@ mod subscibe_test {
             .unwrap();
 
         let create_stream_msg = get_create_stream_msg(
-            &"Stream Swap tests".to_string(),
+            "Stream Swap tests",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(1_000_000, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
@@ -383,9 +383,9 @@ mod subscibe_test {
             vesting_code_id,
         } = SuiteBuilder::default().build();
 
-        let start_time = app.block_info().time.plus_seconds(100).into();
-        let end_time = app.block_info().time.plus_seconds(200).into();
-        let bootstrapping_start_time = app.block_info().time.plus_seconds(50).into();
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
@@ -400,9 +400,9 @@ mod subscibe_test {
             .unwrap();
 
         let create_stream_msg = get_create_stream_msg(
-            &"Stream Swap tests".to_string(),
+            "Stream Swap tests",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(1_000_000, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
@@ -681,9 +681,9 @@ mod subscibe_test {
             vesting_code_id,
         } = SuiteBuilder::default().build();
 
-        let start_time = app.block_info().time.plus_seconds(100).into();
-        let end_time = app.block_info().time.plus_seconds(200).into();
-        let bootstrapping_start_time = app.block_info().time.plus_seconds(50).into();
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
@@ -698,9 +698,9 @@ mod subscibe_test {
             .unwrap();
 
         let create_stream_msg = get_create_stream_msg(
-            &"Stream Swap tests".to_string(),
+            "Stream Swap tests",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(1_000_000, "out_denom"),
             "in_denom",
             bootstrapping_start_time,

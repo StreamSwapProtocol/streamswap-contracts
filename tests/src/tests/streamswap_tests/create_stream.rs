@@ -23,9 +23,9 @@ mod create_stream_tests {
             stream_swap_factory_code_id,
             vesting_code_id,
         } = SuiteBuilder::default().build();
-        let start_time = app.block_info().time.plus_seconds(100).into();
-        let end_time = app.block_info().time.plus_seconds(200).into();
-        let bootstrapping_start_time = app.block_info().time.plus_seconds(50).into();
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
@@ -43,7 +43,7 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "s",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
@@ -71,12 +71,12 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             &long_name,
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
-            app.block_info().time.plus_seconds(100).into(),
-            app.block_info().time.plus_seconds(200).into(),
+            app.block_info().time.plus_seconds(100),
+            app.block_info().time.plus_seconds(200),
             None,
             None,
             None,
@@ -99,12 +99,12 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "abc~ß",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
-            app.block_info().time.plus_seconds(100).into(),
-            app.block_info().time.plus_seconds(200).into(),
+            app.block_info().time.plus_seconds(100),
+            app.block_info().time.plus_seconds(200),
             None,
             None,
             None,
@@ -128,12 +128,12 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             Some("a".to_string()),
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
-            app.block_info().time.plus_seconds(100).into(),
-            app.block_info().time.plus_seconds(200).into(),
+            app.block_info().time.plus_seconds(100),
+            app.block_info().time.plus_seconds(200),
             None,
             None,
             None,
@@ -158,12 +158,12 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             Some(long_url),
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
-            app.block_info().time.plus_seconds(100).into(),
-            app.block_info().time.plus_seconds(200).into(),
+            app.block_info().time.plus_seconds(100),
+            app.block_info().time.plus_seconds(200),
             Some(Uint128::from(100u128)),
             None,
             None,
@@ -193,9 +193,9 @@ mod create_stream_tests {
             vesting_code_id,
         } = SuiteBuilder::default().build();
 
-        let start_time = app.block_info().time.plus_seconds(100).into();
-        let end_time = app.block_info().time.plus_seconds(200).into();
-        let bootstrapping_start_time = app.block_info().time.plus_seconds(50).into();
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
@@ -213,7 +213,7 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "invalid_in_denom",
             bootstrapping_start_time,
@@ -239,12 +239,12 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(100, "in_denom"),
             "in_denom",
             bootstrapping_start_time,
-            app.block_info().time.plus_seconds(100).into(),
-            app.block_info().time.plus_seconds(200).into(),
+            app.block_info().time.plus_seconds(100),
+            app.block_info().time.plus_seconds(200),
             None,
             None,
             None,
@@ -266,12 +266,12 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(0, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
-            app.block_info().time.plus_seconds(100).into(),
-            app.block_info().time.plus_seconds(200).into(),
+            app.block_info().time.plus_seconds(100),
+            app.block_info().time.plus_seconds(200),
             Some(Uint128::from(100u128)),
             None,
             None,
@@ -293,12 +293,12 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
-            app.block_info().time.plus_seconds(100).into(),
-            app.block_info().time.plus_seconds(200).into(),
+            app.block_info().time.plus_seconds(100),
+            app.block_info().time.plus_seconds(200),
             None,
             None,
             None,
@@ -327,12 +327,12 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
-            app.block_info().time.plus_seconds(100).into(),
-            app.block_info().time.plus_seconds(200).into(),
+            app.block_info().time.plus_seconds(100),
+            app.block_info().time.plus_seconds(200),
             None,
             None,
             None,
@@ -361,12 +361,12 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
-            app.block_info().time.plus_seconds(100).into(),
-            app.block_info().time.plus_seconds(200).into(),
+            app.block_info().time.plus_seconds(100),
+            app.block_info().time.plus_seconds(200),
             None,
             None,
             None,
@@ -404,12 +404,12 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
-            app.block_info().time.plus_seconds(100).into(),
-            app.block_info().time.plus_seconds(200).into(),
+            app.block_info().time.plus_seconds(100),
+            app.block_info().time.plus_seconds(200),
             Some(Uint128::from(0u128)),
             None,
             None,
@@ -463,16 +463,15 @@ mod create_stream_tests {
         let bootstart_time = app
             .block_info()
             .time
-            .plus_seconds(factory_params.min_waiting_duration - 1)
-            .into();
+            .plus_seconds(factory_params.min_waiting_duration - 1);
 
-        let start_time = app.block_info().time.plus_seconds(100).into();
-        let end_time = app.block_info().time.plus_seconds(200).into();
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
 
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstart_time,
@@ -495,14 +494,14 @@ mod create_stream_tests {
         assert_eq!(*error, StreamSwapError::StreamWaitingDurationTooShort {});
 
         // Stream duration too short
-        let bootstart_time = app.block_info().time.plus_seconds(50).into();
-        let start_time = app.block_info().time.plus_seconds(100).into();
-        let end_time = app.block_info().time.plus_seconds(101).into();
+        let bootstart_time = app.block_info().time.plus_seconds(50);
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(101);
 
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstart_time,
@@ -537,9 +536,9 @@ mod create_stream_tests {
             vesting_code_id,
         } = SuiteBuilder::default().build();
 
-        let start_time = app.block_info().time.plus_seconds(100).into();
-        let end_time = app.block_info().time.plus_seconds(200).into();
-        let bootstrapping_start_time = app.block_info().time.plus_seconds(50).into();
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(
@@ -555,7 +554,7 @@ mod create_stream_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
