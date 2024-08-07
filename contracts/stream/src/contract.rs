@@ -208,7 +208,7 @@ pub fn execute_update_position(
     let (purchased, spent) = update_position(
         stream.dist_index,
         stream.shares,
-        stream.last_updated,
+        stream.status_info.last_updated,
         stream.in_supply,
         &mut position,
     )?;
@@ -322,7 +322,7 @@ pub fn execute_subscribe(
             update_position(
                 stream.dist_index,
                 stream.shares,
-                stream.last_updated,
+                stream.status_info.last_updated,
                 stream.in_supply,
                 &mut position,
             )?;
@@ -390,7 +390,7 @@ pub fn execute_withdraw(
     update_position(
         stream.dist_index,
         stream.shares,
-        stream.last_updated,
+        stream.status_info.last_updated,
         stream.in_supply,
         &mut position,
     )?;
@@ -608,7 +608,7 @@ pub fn execute_exit_stream(
     update_position(
         stream.dist_index,
         stream.shares,
-        stream.last_updated,
+        stream.status_info.last_updated,
         stream.in_supply,
         &mut position,
     )?;
@@ -749,7 +749,7 @@ pub fn query_stream(deps: Deps, _env: Env) -> StdResult<StreamResponse> {
         out_asset: stream.out_asset,
         start_time: stream.status_info.start_time,
         end_time: stream.status_info.end_time,
-        last_updated: stream.last_updated,
+        last_updated: stream.status_info.last_updated,
         spent_in: stream.spent_in,
         dist_index: stream.dist_index,
         out_remaining: stream.out_remaining,

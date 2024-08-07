@@ -8,12 +8,12 @@ use streamswap_types::factory::{
 
 #[allow(dead_code)]
 pub fn get_factory_inst_msg(
-    stream_swap_code_id: u64,
+    stream_contract_code_id: u64,
     vesting_code_id: u64,
     test_accounts: &TestAccounts,
 ) -> FactoryInstantiateMsg {
     FactoryInstantiateMsg {
-        stream_swap_code_id,
+        stream_contract_code_id: stream_contract_code_id,
         vesting_code_id,
         protocol_admin: Some(test_accounts.admin.to_string()),
         fee_collector: Some(test_accounts.admin.to_string()),

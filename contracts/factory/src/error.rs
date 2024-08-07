@@ -147,6 +147,9 @@ pub enum ContractError {
 
     #[error("Invalid exit fee")]
     InvalidStreamExitFee {},
+
+    #[error("Invalid factory params")]
+    InvalidFactoryParams {},
 }
 
 impl From<ContractError> for StdError {

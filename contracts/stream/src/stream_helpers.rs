@@ -39,7 +39,7 @@ pub fn update_stream(stream: &mut Stream, now: Timestamp) {
     let diff = calculate_diff(
         stream.status_info.start_time,
         stream.status_info.end_time,
-        stream.last_updated,
+        stream.status_info.last_updated,
         now,
     );
 
@@ -61,7 +61,7 @@ pub fn update_stream(stream: &mut Stream, now: Timestamp) {
         }
     }
 
-    stream.last_updated = now;
+    stream.status_info.last_updated = now;
 }
 
 fn calculate_diff(

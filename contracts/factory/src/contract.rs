@@ -22,7 +22,7 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     let InstantiateMsg {
-        stream_swap_code_id,
+        stream_contract_code_id,
         protocol_admin,
         stream_creation_fee,
         exit_fee_percent,
@@ -47,11 +47,14 @@ pub fn instantiate(
     if stream_creation_fee.amount.is_zero() {
         return Err(ContractError::InvalidStreamCreationFee {});
     }
+    if min_seconds_until_start_time < min_seconds_until_bootstrapping_start_time {
+        return Err(ContractError::InvalidFactoryParams {});
+    }
 
     let params = Params {
         stream_creation_fee: stream_creation_fee.clone(),
         exit_fee_percent,
-        stream_swap_code_id,
+        stream_contract_code_id,
         vesting_code_id,
         accepted_in_denoms,
         fee_collector,
@@ -76,7 +79,7 @@ pub fn instantiate(
             stream_creation_fee.amount.to_string(),
         )
         .add_attribute("exit_fee_percent", exit_fee_percent.to_string())
-        .add_attribute("stream_swap_code_id", stream_swap_code_id.to_string());
+        .add_attribute("stream_swap_code_id", stream_contract_code_id.to_string());
     Ok(res)
 }
 
@@ -138,6 +141,7 @@ pub fn execute_create_stream(
         vesting: _,
         bootstraping_start_time: _,
     } = msg.clone();
+
     let params = PARAMS.load(deps.storage)?;
     let stream_creation_fee = params.stream_creation_fee.clone();
 
@@ -160,7 +164,7 @@ pub fn execute_create_stream(
     funds.push(out_asset.clone());
 
     let stream_swap_inst_message: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
-        code_id: params.stream_swap_code_id,
+        code_id: params.stream_contract_code_id,
         // TODO: discuss this
         admin: Some(params.protocol_admin.to_string()),
         label: format!("Stream Swap Stream {} - {}", name, stream_id),

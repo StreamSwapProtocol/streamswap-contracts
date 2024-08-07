@@ -36,7 +36,7 @@ fn factory_proper_instantiate() {
         .unwrap();
     assert_eq!(res.stream_creation_fee, coin(100, "fee_denom"));
     assert_eq!(res.exit_fee_percent, Decimal::percent(1));
-    assert_eq!(res.stream_swap_code_id, stream_swap_code_id);
+    assert_eq!(res.stream_contract_code_id, stream_swap_code_id);
     assert_eq!(res.accepted_in_denoms, vec!["in_denom".to_string()]);
     assert_eq!(res.fee_collector, test_accounts.admin.to_string());
     assert_eq!(res.min_stream_seconds, 100);
