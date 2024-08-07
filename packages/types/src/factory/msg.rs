@@ -4,24 +4,37 @@ use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
 
 #[cw_serde]
+/// Message used to instantiate the factory contract.
 pub struct InstantiateMsg {
-    pub stream_swap_code_id: u64,
+    /// The code ID for the stream contract.
+    pub stream_contract_code_id: u64,
+    /// The code ID for the vesting contract.
     pub vesting_code_id: u64,
+    /// The optional address of the protocol admin. Defaults to the sender.
     pub protocol_admin: Option<String>,
+    /// The optional address of the fee collector. Defaults to the protocol admin.
     pub fee_collector: Option<String>,
+    /// The fee required to create a stream. Collected from the stream creator upon stream creation.
     pub stream_creation_fee: Coin,
+    /// The percentage fee charged when a user exits a stream.
     pub exit_fee_percent: Decimal,
+    /// The list of accepted denominations for the stream.
     pub accepted_in_denoms: Vec<String>,
-    pub min_stream_seconds: u64,
-    pub min_seconds_until_start_time: u64,
+    // Minumum time of a stream end_time - start_time
+    pub min_stream_duration: u64,
+    // Minimum time of bootstrapping status, start_time - bootstrapping_start_time
+    pub min_bootstrapping_duration: u64,
+    // Minimum time of waiting status, bootstrapping_start_time - creation_time_of_stream
+    pub min_waiting_duration: u64,
 }
 
 #[cw_serde]
 #[cfg_attr(feature = "interface", derive(cw_orch::ExecuteFns))]
 pub enum ExecuteMsg {
     UpdateParams {
-        min_stream_seconds: Option<u64>,
-        min_seconds_until_start_time: Option<u64>,
+        min_stream_duration: Option<u64>,
+        min_bootstrapping_duration: Option<u64>,
+        min_waiting_duration: Option<u64>,
         stream_creation_fee: Option<Coin>,
         fee_collector: Option<String>,
         accepted_in_denoms: Option<Vec<String>>,
@@ -31,18 +44,31 @@ pub enum ExecuteMsg {
         msg: Box<CreateStreamMsg>,
     },
     Freeze {},
+    Unfreeze {},
 }
 
 #[cw_serde]
 pub struct CreateStreamMsg {
+    /// Treasury address, where the stream creator can withdraw the in assets at the end of the stream
     pub treasury: String,
+    /// Stream admin address, where the stream creator can manage the stream, like canceling it in waiting status
+    /// or finalizing it in ended status
     pub stream_admin: String,
+    /// Name of the stream
     pub name: String,
+    /// URL of the stream
     pub url: Option<String>,
+    /// Out asset of the stream
     pub out_asset: Coin,
+    /// In denom of the stream
     pub in_denom: String,
+    /// Bootstrapping start time
+    pub bootstraping_start_time: Timestamp,
+    /// Stream start time
     pub start_time: Timestamp,
+    /// Stream end time
     pub end_time: Timestamp,
+    /// Optional threshold for the stream, if set, the stream will be cancelled if the threshold is not reached
     pub threshold: Option<Uint128>,
     /// CreatePool Flag
     pub create_pool: Option<CreatePool>,

@@ -33,18 +33,20 @@ mod exit_cancel {
             )
             .unwrap();
 
-        let start_time = app.block_info().time.plus_seconds(100).into();
-        let end_time = app.block_info().time.plus_seconds(200).into();
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
 
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
+            bootstrapping_start_time,
             start_time,
             end_time,
-            Some(Uint128::from(100u128)),
+            None,
             None,
             None,
         );
@@ -120,15 +122,17 @@ mod exit_cancel {
             )
             .unwrap();
 
-        let start_time = app.block_info().time.plus_seconds(100).into();
-        let end_time = app.block_info().time.plus_seconds(200).into();
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
 
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
+            bootstrapping_start_time,
             start_time,
             end_time,
             Some(Uint128::from(100u128)),
@@ -216,15 +220,17 @@ mod exit_cancel {
             )
             .unwrap();
 
-        let start_time = app.block_info().time.plus_seconds(100).into();
-        let end_time = app.block_info().time.plus_seconds(200).into();
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
 
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
+            bootstrapping_start_time,
             start_time,
             end_time,
             Some(Uint128::from(100u128)),

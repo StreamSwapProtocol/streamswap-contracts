@@ -54,6 +54,7 @@ pub enum ExecuteMsg {
     },
     CancelStream {},
     CancelStreamWithThreshold {},
+    StreamAdminCancel {},
 }
 
 #[cw_serde]
@@ -146,7 +147,7 @@ pub struct StreamResponse {
 
 #[cw_serde]
 pub struct StreamsResponse {
-    pub streams: Vec<StreamResponse>,
+    pub streams: Vec<(u32, StreamResponse)>,
 }
 
 #[cw_serde]

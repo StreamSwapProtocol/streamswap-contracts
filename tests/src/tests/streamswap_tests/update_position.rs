@@ -26,8 +26,9 @@ mod update_position_tests {
             stream_swap_factory_code_id,
             vesting_code_id,
         } = SuiteBuilder::default().build();
-        let start_time = app.block_info().time.plus_seconds(100).into();
-        let end_time = app.block_info().time.plus_seconds(200).into();
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
@@ -42,11 +43,12 @@ mod update_position_tests {
             .unwrap();
 
         let create_stream_msg = get_create_stream_msg(
-            &"Stream Swap tests".to_string(),
+            "Stream Swap tests",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(1_000_000, "out_denom"),
             "in_denom",
+            bootstrapping_start_time,
             start_time,
             end_time,
             None,
@@ -63,6 +65,13 @@ mod update_position_tests {
             )
             .unwrap();
         let stream_swap_contract_address: String = get_contract_address_from_res(res);
+
+        // Set time to start time
+        app.set_block(BlockInfo {
+            height: 1_000,
+            time: start_time,
+            chain_id: "test".to_string(),
+        });
 
         // Update position without any subscription
         let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {

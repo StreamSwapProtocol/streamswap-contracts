@@ -1,5 +1,5 @@
-use crate::contract::update_stream;
 use crate::state::{FACTORY_PARAMS, POSITIONS, STREAM};
+use crate::stream::{sync_stream_status, update_stream};
 use crate::ContractError;
 use cosmwasm_std::{attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response};
 use cw_utils::maybe_addr;
@@ -14,6 +14,7 @@ pub fn execute_exit_cancelled(
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
+    sync_stream_status(&mut stream, env.block.time);
 
     // This execution requires the stream to be cancelled or
     // the stream to be ended and the threshold not reached.
@@ -26,11 +27,11 @@ pub fn execute_exit_cancelled(
         }
 
         // Stream should be ended
-        if stream.end_time > env.block.time {
+        if !stream.is_ended() {
             return Err(ContractError::StreamNotCancelled {});
         }
         // Update stream before checking threshold
-        update_stream(env.block.time, &mut stream)?;
+        update_stream(&mut stream, env.block.time);
         threshold_state.error_if_reached(deps.storage, &stream)?;
     }
 
@@ -72,7 +73,7 @@ pub fn execute_exit_cancelled(
 
 pub fn execute_cancel_stream(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
     let factory_params: Params = FACTORY_PARAMS.load(deps.storage)?;
@@ -81,11 +82,17 @@ pub fn execute_cancel_stream(
         return Err(ContractError::Unauthorized {});
     }
     let mut stream = STREAM.load(deps.storage)?;
+    sync_stream_status(&mut stream, env.block.time);
+
+    // TODO if finalized can not be cancelled
+    if stream.is_ended() {
+        return Err(ContractError::StreamEnded {});
+    }
 
     if stream.is_cancelled() {
         return Err(ContractError::StreamIsCancelled {});
     }
-    stream.status = Status::Cancelled;
+    stream.status_info.status = Status::Cancelled;
     STREAM.save(deps.storage, &stream)?;
 
     //Refund all out tokens to stream creator(treasury)
@@ -109,27 +116,26 @@ pub fn execute_cancel_stream_with_threshold(
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
+    sync_stream_status(&mut stream, env.block.time);
+    // Stream should not be paused or cancelled
+    if stream.is_cancelled() {
+        return Err(ContractError::StreamKillswitchActive {});
+    }
 
-    if env.block.time < stream.end_time {
+    if !stream.is_ended() {
         return Err(ContractError::StreamNotEnded {});
     }
+    // Update stream before checking threshold
     if info.sender != stream.treasury {
         return Err(ContractError::Unauthorized {});
     }
 
-    // Stream should not be paused or cancelled
-    if stream.is_killswitch_active() {
-        return Err(ContractError::StreamKillswitchActive {});
-    }
-
     // This should be impossible because creator can not finalize stream when threshold is not reached
-    if stream.status == Status::Finalized {
+    if stream.status_info.status == Status::Finalized {
         return Err(ContractError::StreamAlreadyFinalized {});
     }
 
-    if stream.last_updated < env.block.time {
-        update_stream(env.block.time, &mut stream)?;
-    }
+    update_stream(&mut stream, env.block.time);
 
     let threshold_state = ThresholdState::new();
 
@@ -141,7 +147,7 @@ pub fn execute_cancel_stream_with_threshold(
     // Threshold should not be reached
     threshold_state.error_if_reached(deps.storage, &stream)?;
 
-    stream.status = Status::Cancelled;
+    stream.status_info.status = Status::Cancelled;
 
     STREAM.save(deps.storage, &stream)?;
 
@@ -152,6 +158,36 @@ pub fn execute_cancel_stream_with_threshold(
             denom: stream.out_asset.denom,
             amount: stream.out_asset.amount,
         }],
+    })];
+
+    Ok(Response::new()
+        .add_attribute("action", "cancel_stream")
+        .add_messages(messages)
+        .add_attribute("status", "cancelled"))
+}
+pub fn execute_stream_admin_cancel(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    let mut stream = STREAM.load(deps.storage)?;
+    sync_stream_status(&mut stream, env.block.time);
+
+    // In order for stream admin to cancel the stream, the stream should be waiting
+    if !stream.is_waiting() {
+        return Err(ContractError::StreamNotWaiting {});
+    }
+
+    if info.sender != stream.stream_admin {
+        return Err(ContractError::Unauthorized {});
+    }
+    stream.status_info.status = Status::Cancelled;
+    STREAM.save(deps.storage, &stream)?;
+
+    //Refund all out tokens to stream creator(treasury)
+    let messages: Vec<CosmosMsg> = vec![CosmosMsg::Bank(BankMsg::Send {
+        to_address: stream.treasury.to_string(),
+        amount: vec![stream.out_asset],
     })];
 
     Ok(Response::new()

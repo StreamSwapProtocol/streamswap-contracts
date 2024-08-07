@@ -4,6 +4,7 @@ use cosmwasm_std::{
 };
 use cw_utils::PaymentError;
 use std::convert::Infallible;
+use streamswap_utils::payment_checker::CustomPaymentError;
 use thiserror::Error;
 
 use streamswap_types::stream::ThresholdError;
@@ -27,6 +28,9 @@ pub enum ContractError {
 
     #[error("{0}")]
     ThresholdError(#[from] ThresholdError),
+
+    #[error("{0}")]
+    CustomPayment(#[from] CustomPaymentError),
 
     #[error("{0}")]
     ConversionOverflowError(#[from] ConversionOverflowError),
@@ -149,4 +153,19 @@ pub enum ContractError {
 
     #[error("Invalid exit fee")]
     InvalidStreamExitFee {},
+
+    #[error("Invalid Bootstrapping start time")]
+    StreamInvalidBootstrappingStartTime {},
+
+    #[error("Stream Bootstrapping starts too soon")]
+    StreamBootstrappingStartsTooSoon {},
+
+    #[error("Stream not waiting")]
+    StreamNotWaiting {},
+
+    #[error("Stream bootrapping duration too short")]
+    StreamBootstrappingDurationTooShort {},
+
+    #[error("Stream waiting duration too short")]
+    StreamWaitingDurationTooShort {},
 }

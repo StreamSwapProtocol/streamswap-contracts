@@ -44,7 +44,7 @@ impl SuiteBuilder {
     #[allow(dead_code)]
 
     pub fn build(self) -> Suite {
-        let denoms = vec![
+        let denoms = [
             "fee_denom".to_string(),
             "out_denom".to_string(),
             "in_denom".to_string(),

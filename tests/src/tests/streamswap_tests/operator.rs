@@ -23,8 +23,9 @@ mod operator_tests {
             stream_swap_factory_code_id,
             vesting_code_id,
         } = SuiteBuilder::default().build();
-        let start_time = app.block_info().time.plus_seconds(100).into();
-        let end_time = app.block_info().time.plus_seconds(200).into();
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
@@ -39,11 +40,12 @@ mod operator_tests {
             .unwrap();
 
         let create_stream_msg = get_create_stream_msg(
-            &"Stream Swap tests".to_string(),
+            "Stream Swap tests",
             Some("https://sample.url".to_string()),
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(1_000_000, "out_denom"),
             "in_denom",
+            bootstrapping_start_time,
             start_time,
             end_time,
             None,
@@ -67,7 +69,7 @@ mod operator_tests {
         };
         app.set_block(BlockInfo {
             height: 1_100,
-            time: start_time.minus_seconds(100),
+            time: start_time,
             chain_id: "test".to_string(),
         });
         // Target a subscription that does not exist
@@ -110,6 +112,11 @@ mod operator_tests {
             stream_swap_factory_code_id,
             vesting_code_id,
         } = SuiteBuilder::default().build();
+
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
+
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(
@@ -125,11 +132,12 @@ mod operator_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
-            app.block_info().time.plus_seconds(100).into(),
-            app.block_info().time.plus_seconds(200).into(),
+            bootstrapping_start_time,
+            start_time,
+            end_time,
             Some(Uint128::from(100u128)),
             None,
             None,
@@ -150,6 +158,11 @@ mod operator_tests {
             operator_target: None,
             operator: Some(test_accounts.subscriber_2.to_string()),
         };
+        app.set_block(BlockInfo {
+            height: 1_100,
+            time: app.block_info().time.plus_seconds(100),
+            chain_id: "test".to_string(),
+        });
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
@@ -158,6 +171,7 @@ mod operator_tests {
                 &[coin(100, "in_denom")],
             )
             .unwrap();
+
         // random targeting subscriber_1 it should fail
         let msg = StreamSwapExecuteMsg::Subscribe {
             operator_target: Some(test_accounts.subscriber_1.to_string()),
@@ -260,6 +274,10 @@ mod operator_tests {
             vesting_code_id,
         } = SuiteBuilder::default().build();
 
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
+
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(
@@ -275,11 +293,12 @@ mod operator_tests {
         let create_stream_msg = get_create_stream_msg(
             "stream",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
-            app.block_info().time.plus_seconds(100).into(),
-            app.block_info().time.plus_seconds(200).into(),
+            bootstrapping_start_time,
+            start_time,
+            end_time,
             Some(Uint128::from(100u128)),
             None,
             None,
@@ -295,6 +314,11 @@ mod operator_tests {
             .unwrap();
         let stream_swap_contract_address: String = get_contract_address_from_res(res);
 
+        app.set_block(BlockInfo {
+            height: 1_100,
+            time: app.block_info().time.plus_seconds(100),
+            chain_id: "test".to_string(),
+        });
         // Set operator as subscriber_2
         let msg = StreamSwapExecuteMsg::Subscribe {
             operator_target: None,

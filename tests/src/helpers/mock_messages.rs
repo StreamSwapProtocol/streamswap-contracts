@@ -8,12 +8,12 @@ use streamswap_types::factory::{
 
 #[allow(dead_code)]
 pub fn get_factory_inst_msg(
-    stream_swap_code_id: u64,
+    stream_contract_code_id: u64,
     vesting_code_id: u64,
     test_accounts: &TestAccounts,
 ) -> FactoryInstantiateMsg {
     FactoryInstantiateMsg {
-        stream_swap_code_id,
+        stream_contract_code_id,
         vesting_code_id,
         protocol_admin: Some(test_accounts.admin.to_string()),
         fee_collector: Some(test_accounts.admin.to_string()),
@@ -23,8 +23,9 @@ pub fn get_factory_inst_msg(
         },
         exit_fee_percent: Decimal::percent(1),
         accepted_in_denoms: vec!["in_denom".to_string()],
-        min_stream_seconds: 100,
-        min_seconds_until_start_time: 100,
+        min_waiting_duration: 49,
+        min_bootstrapping_duration: 49,
+        min_stream_duration: 99,
     }
 }
 
@@ -137,6 +138,7 @@ pub fn get_create_stream_msg(
     treasury: &str,
     out_asset: Coin,
     in_denom: &str,
+    bootstrapping_start_time: Timestamp,
     start_time: Timestamp,
     end_time: Timestamp,
     threshold: Option<Uint128>,
@@ -145,6 +147,7 @@ pub fn get_create_stream_msg(
 ) -> FactoryExecuteMsg {
     FactoryExecuteMsg::CreateStream {
         msg: Box::new(CreateStreamMsg {
+            bootstraping_start_time: bootstrapping_start_time,
             treasury: treasury.to_string(),
             stream_admin: treasury.to_string(),
             name: name.to_string(),

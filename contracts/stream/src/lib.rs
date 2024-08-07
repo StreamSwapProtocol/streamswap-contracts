@@ -6,3 +6,4 @@ mod error;
 mod helpers;
 mod killswitch;
 pub mod state;
+pub mod stream;

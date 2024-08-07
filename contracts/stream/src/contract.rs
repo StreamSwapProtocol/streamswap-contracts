@@ -1,10 +1,14 @@
-use crate::helpers::{check_name_and_url, get_decimals};
+use core::str;
+use std::env;
+
+use crate::helpers::{check_name_and_url, get_decimals, validate_stream_times};
 use crate::killswitch::execute_cancel_stream_with_threshold;
+use crate::stream::{compute_shares_amount, sync_stream_status, update_stream};
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
     attr, coin, entry_point, to_json_binary, Addr, Attribute, BankMsg, Binary, CodeInfoResponse,
-    Coin, CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, Fraction, MessageInfo, Order,
-    Response, StdError, StdResult, Timestamp, Uint128, Uint256, WasmMsg,
+    Coin, CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, MessageInfo, Order, Response,
+    StdError, StdResult, Timestamp, Uint128, Uint256, WasmMsg,
 };
 use cw2::{ensure_from_older_version, set_contract_version};
 use cw_storage_plus::Bound;
@@ -17,6 +21,7 @@ use streamswap_types::stream::{
     AveragePriceResponse, ExecuteMsg, LatestStreamedPriceResponse, PositionResponse,
     PositionsResponse, QueryMsg, StreamResponse,
 };
+use streamswap_utils::payment_checker::check_payment;
 
 use crate::state::{FACTORY_PARAMS, POSITIONS, STREAM, VESTING};
 use streamswap_types::factory::Params as FactoryParams;
@@ -44,6 +49,7 @@ pub fn instantiate(
     FACTORY_PARAMS.save(deps.storage, &factory_params)?;
 
     let CreateStreamMsg {
+        bootstraping_start_time,
         start_time,
         end_time,
         treasury,
@@ -56,18 +62,20 @@ pub fn instantiate(
         create_pool,
         vesting,
     } = msg;
+    // Check if out asset is provided
+    // TODO: This might be unnecessary as we are checking this at factory level
+    check_payment(&info.funds, &[out_asset.clone()])?;
 
-    if start_time > end_time {
-        return Err(ContractError::StreamInvalidEndTime {});
-    }
-    if env.block.time > start_time {
-        return Err(ContractError::StreamInvalidStartTime {});
-    }
+    validate_stream_times(
+        env.block.time,
+        bootstraping_start_time,
+        start_time,
+        end_time,
+        &factory_params,
+    )?;
+
     if in_denom == out_asset.denom {
         return Err(ContractError::SameDenomOnEachSide {});
-    }
-    if out_asset.amount.is_zero() {
-        return Err(ContractError::ZeroOutSupply {});
     }
     let stream_admin = deps.api.addr_validate(&stream_admin)?;
     let treasury = deps.api.addr_validate(&treasury)?;
@@ -75,15 +83,16 @@ pub fn instantiate(
     check_name_and_url(&name, &url)?;
 
     let stream = Stream::new(
+        env.block.time,
         name.clone(),
         treasury.clone(),
         stream_admin,
         url.clone(),
         out_asset.clone(),
         in_denom.clone(),
+        bootstraping_start_time,
         start_time,
         end_time,
-        start_time,
         create_pool,
         vesting,
     );
@@ -107,7 +116,7 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    mut deps: DepsMut,
+    deps: DepsMut,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -125,50 +134,14 @@ pub fn execute(
             operator,
         } => {
             let stream = STREAM.load(deps.storage)?;
-            if stream.start_time > env.block.time {
-                Ok(execute_subscribe_pending(
-                    deps.branch(),
-                    env,
-                    info,
-                    operator,
-                    operator_target,
-                    stream,
-                )?)
-            } else {
-                Ok(execute_subscribe(
-                    deps,
-                    env,
-                    info,
-                    operator,
-                    operator_target,
-                    stream,
-                )?)
-            }
+            execute_subscribe(deps, env, info, operator, operator_target, stream)
         }
         ExecuteMsg::Withdraw {
             cap,
             operator_target,
         } => {
             let stream = STREAM.load(deps.storage)?;
-            if stream.start_time > env.block.time {
-                Ok(execute_withdraw_pending(
-                    deps.branch(),
-                    env,
-                    info,
-                    stream,
-                    cap,
-                    operator_target,
-                )?)
-            } else {
-                Ok(execute_withdraw(
-                    deps,
-                    env,
-                    info,
-                    stream,
-                    cap,
-                    operator_target,
-                )?)
-            }
+            execute_withdraw(deps, env, info, stream, cap, operator_target)
         }
         ExecuteMsg::FinalizeStream { new_treasury } => {
             execute_finalize_stream(deps, env, info, new_treasury)
@@ -186,89 +159,26 @@ pub fn execute(
         ExecuteMsg::CancelStreamWithThreshold {} => {
             execute_cancel_stream_with_threshold(deps, env, info)
         }
+        ExecuteMsg::StreamAdminCancel {} => {
+            killswitch::execute_stream_admin_cancel(deps, env, info)
+        }
     }
 }
 
 /// Updates stream to calculate released distribution and spent amount
 pub fn execute_update_stream(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
-
-    if stream.is_killswitch_active() {
-        return Err(ContractError::StreamIsCancelled {});
-    }
-    let (_, dist_amount) = update_stream(env.block.time, &mut stream)?;
+    update_stream(&mut stream, env.block.time);
+    sync_stream_status(&mut stream, env.block.time);
     STREAM.save(deps.storage, &stream)?;
 
     let attrs = vec![
         attr("action", "update_stream"),
-        attr("new_distribution_amount", dist_amount),
+        // attr("new_distribution_amount", dist_amount),
         attr("dist_index", stream.dist_index.to_string()),
     ];
     let res = Response::new().add_attributes(attrs);
     Ok(res)
-}
-
-pub fn update_stream(
-    now: Timestamp,
-    stream: &mut Stream,
-) -> Result<(Decimal, Uint128), ContractError> {
-    let diff = calculate_diff(stream.end_time, stream.last_updated, now);
-
-    let mut new_distribution_balance = Uint128::zero();
-
-    // if no in balance in the contract, no need to update
-    // if diff not changed this means either stream not started or no in balance so far
-    if !stream.shares.is_zero() && !diff.is_zero() {
-        // new distribution balance is the amount of in tokens that has been distributed since last update
-        // distribution is linear for now.
-        new_distribution_balance = stream
-            .out_remaining
-            .multiply_ratio(diff.numerator(), diff.denominator());
-        // spent in tokens is the amount of in tokens that has been spent since last update
-        // spending is linear and goes to zero at the end of the stream
-        let spent_in = stream
-            .in_supply
-            .multiply_ratio(diff.numerator(), diff.denominator());
-
-        // increase total spent_in of the stream
-        stream.spent_in = stream.spent_in.checked_add(spent_in)?;
-        // decrease in_supply of the steam
-        stream.in_supply = stream.in_supply.checked_sub(spent_in)?;
-
-        // if no new distribution balance, no need to update the price, out_remaining and dist_index
-        if !new_distribution_balance.is_zero() {
-            // decrease amount to be distributed of the stream
-            stream.out_remaining = stream.out_remaining.checked_sub(new_distribution_balance)?;
-            // update distribution index. A positions share of the distribution is calculated by
-            // multiplying the share by the distribution index
-            stream.dist_index = stream.dist_index.checked_add(Decimal256::from_ratio(
-                new_distribution_balance,
-                stream.shares,
-            ))?;
-            stream.current_streamed_price = Decimal::from_ratio(spent_in, new_distribution_balance)
-        }
-    }
-
-    stream.last_updated = if now < stream.start_time {
-        stream.start_time
-    } else {
-        now
-    };
-
-    Ok((diff, new_distribution_balance))
-}
-
-fn calculate_diff(end_time: Timestamp, last_updated: Timestamp, now: Timestamp) -> Decimal {
-    // diff = (now - last_updated) / (end_time - last_updated)
-    let now = if now > end_time { end_time } else { now };
-    let numerator = now.nanos().saturating_sub(last_updated.nanos());
-    let denominator = end_time.nanos().saturating_sub(last_updated.nanos());
-
-    if denominator == 0 || numerator == 0 {
-        Decimal::zero()
-    } else {
-        Decimal::from_ratio(numerator, denominator)
-    }
 }
 
 pub fn execute_update_position(
@@ -283,13 +193,14 @@ pub fn execute_update_position(
     check_access(&info, &position.owner, &position.operator)?;
 
     let mut stream = STREAM.load(deps.storage)?;
-    // check if stream is paused
-    if stream.is_killswitch_active() {
+    // check if stream is cancelled
+    if stream.is_cancelled() {
         return Err(ContractError::StreamIsCancelled {});
     }
 
     // sync stream
-    update_stream(env.block.time, &mut stream)?;
+    update_stream(&mut stream, env.block.time);
+    sync_stream_status(&mut stream, env.block.time);
     STREAM.save(deps.storage, &stream)?;
 
     // updates position to latest distribution. Returns the amount of out tokens that has been purchased
@@ -297,7 +208,7 @@ pub fn execute_update_position(
     let (purchased, spent) = update_position(
         stream.dist_index,
         stream.shares,
-        stream.last_updated,
+        stream.status_info.last_updated,
         stream.in_supply,
         &mut position,
     )?;
@@ -365,17 +276,15 @@ pub fn execute_subscribe(
     operator_target: Option<String>,
     mut stream: Stream,
 ) -> Result<Response, ContractError> {
-    // check if stream is paused
-    if stream.is_killswitch_active() {
+    // Check if stream is cancelled
+    if stream.is_cancelled() {
         return Err(ContractError::StreamKillswitchActive {});
     }
+    // Update stream status
+    sync_stream_status(&mut stream, env.block.time);
 
-    if env.block.time >= stream.end_time {
-        return Err(ContractError::StreamEnded {});
-    }
-    // On first subscibe change status to Active
-    if stream.status == Status::Waiting {
-        stream.status = Status::Active
+    if !(stream.is_active() || stream.is_bootstrapping()) {
+        return Err(ContractError::StreamNotStarted {});
     }
 
     let in_amount = must_pay(&info, &stream.in_denom)?;
@@ -391,8 +300,9 @@ pub fn execute_subscribe(
             if operator_target != info.sender {
                 return Err(ContractError::Unauthorized {});
             }
-            update_stream(env.block.time, &mut stream)?;
-            new_shares = stream.compute_shares_amount(in_amount, false);
+            // incoming tokens should not participate in prev distribution
+            update_stream(&mut stream, env.block.time);
+            new_shares = compute_shares_amount(&stream, in_amount, false);
             // new positions do not update purchase as it has no effect on distribution
             let new_position = Position::new(
                 info.sender,
@@ -407,12 +317,12 @@ pub fn execute_subscribe(
         Some(mut position) => {
             check_access(&info, &position.owner, &position.operator)?;
             // incoming tokens should not participate in prev distribution
-            update_stream(env.block.time, &mut stream)?;
-            new_shares = stream.compute_shares_amount(in_amount, false);
+            update_stream(&mut stream, env.block.time);
+            new_shares = compute_shares_amount(&stream, in_amount, false);
             update_position(
                 stream.dist_index,
                 stream.shares,
-                stream.last_updated,
+                stream.status_info.last_updated,
                 stream.in_supply,
                 &mut position,
             )?;
@@ -437,64 +347,11 @@ pub fn execute_subscribe(
     Ok(res)
 }
 
-pub fn execute_subscribe_pending(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    operator: Option<String>,
-    operator_target: Option<String>,
-    mut stream: Stream,
-) -> Result<Response, ContractError> {
-    // check if stream is paused
-    if stream.is_killswitch_active() {
-        return Err(ContractError::StreamKillswitchActive {});
-    }
-    let in_amount = must_pay(&info, &stream.in_denom)?;
-    let new_shares = stream.compute_shares_amount(in_amount, false);
-
-    let operator = maybe_addr(deps.api, operator)?;
-    let operator_target =
-        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let position = POSITIONS.may_load(deps.storage, &operator_target)?;
-    match position {
-        None => {
-            // operator cannot create a position in behalf of anyone
-            if operator_target != info.sender {
-                return Err(ContractError::Unauthorized {});
-            }
-            let new_position = Position::new(
-                info.sender,
-                in_amount,
-                new_shares,
-                Some(stream.dist_index),
-                operator,
-                env.block.time,
-            );
-            POSITIONS.save(deps.storage, &operator_target, &new_position)?;
-        }
-        Some(mut position) => {
-            check_access(&info, &position.owner, &position.operator)?;
-            // if subscibed already, we wont update its position but just increase its in_balance and shares
-            position.in_balance = position.in_balance.checked_add(in_amount)?;
-            position.shares = position.shares.checked_add(new_shares)?;
-            POSITIONS.save(deps.storage, &operator_target, &position)?;
-        }
-    }
-    stream.in_supply = stream.in_supply.checked_add(in_amount)?;
-    stream.shares = stream.shares.checked_add(new_shares)?;
-    STREAM.save(deps.storage, &stream)?;
-
-    Ok(Response::new()
-        .add_attribute("action", "subscribe_pending")
-        .add_attribute("owner", operator_target)
-        .add_attribute("in_supply", stream.in_supply)
-        .add_attribute("in_amount", in_amount))
-}
-
 pub fn execute_update_operator(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
+    // TODO: REMOVE OPERATOR. IT IS NOT NEEDED.
     operator: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut position = POSITIONS.load(deps.storage, &info.sender)?;
@@ -518,13 +375,10 @@ pub fn execute_withdraw(
     cap: Option<Uint128>,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
-    // check if stream is paused
-    if stream.is_killswitch_active() {
-        return Err(ContractError::StreamKillswitchActive {});
-    }
-    // can't withdraw after stream ended
-    if env.block.time >= stream.end_time {
-        return Err(ContractError::StreamEnded {});
+    sync_stream_status(&mut stream, env.block.time);
+    if !(stream.is_active() || stream.is_bootstrapping()) {
+        // TODO: create a new error for this
+        return Err(ContractError::StreamNotStarted {});
     }
 
     let operator_target =
@@ -532,11 +386,11 @@ pub fn execute_withdraw(
     let mut position = POSITIONS.load(deps.storage, &operator_target)?;
     check_access(&info, &position.owner, &position.operator)?;
 
-    update_stream(env.block.time, &mut stream)?;
+    update_stream(&mut stream, env.block.time);
     update_position(
         stream.dist_index,
         stream.shares,
-        stream.last_updated,
+        stream.status_info.last_updated,
         stream.in_supply,
         &mut position,
     )?;
@@ -555,7 +409,7 @@ pub fn execute_withdraw(
     let shares_amount = if withdraw_amount == position.in_balance {
         position.shares
     } else {
-        stream.compute_shares_amount(withdraw_amount, true)
+        compute_shares_amount(&stream, withdraw_amount, true)
     };
 
     stream.in_supply = stream.in_supply.checked_sub(withdraw_amount)?;
@@ -585,66 +439,6 @@ pub fn execute_withdraw(
 
     Ok(res)
 }
-
-pub fn execute_withdraw_pending(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    mut stream: Stream,
-    cap: Option<Uint128>,
-    operator_target: Option<String>,
-) -> Result<Response, ContractError> {
-    // check if stream is paused
-    let operator_target =
-        maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
-    let mut position = POSITIONS.load(deps.storage, &operator_target)?;
-    check_access(&info, &position.owner, &position.operator)?;
-
-    let withdraw_amount = cap.unwrap_or(position.in_balance);
-    // if amount to withdraw more then deduced buy balance throw error
-    if withdraw_amount > position.in_balance {
-        return Err(ContractError::WithdrawAmountExceedsBalance(withdraw_amount));
-    }
-
-    if withdraw_amount.is_zero() {
-        return Err(ContractError::InvalidWithdrawAmount {});
-    }
-
-    // decrease in supply and shares
-    let shares_amount = if withdraw_amount == position.in_balance {
-        position.shares
-    } else {
-        stream.compute_shares_amount(withdraw_amount, true)
-    };
-
-    stream.in_supply = stream.in_supply.checked_sub(withdraw_amount)?;
-    stream.shares = stream.shares.checked_sub(shares_amount)?;
-    position.in_balance = position.in_balance.checked_sub(withdraw_amount)?;
-    position.shares = position.shares.checked_sub(shares_amount)?;
-
-    STREAM.save(deps.storage, &stream)?;
-    POSITIONS.save(deps.storage, &position.owner, &position)?;
-
-    let attributes = vec![
-        attr("action", "withdraw_pending"),
-        attr("operator_target", operator_target.clone()),
-        attr("withdraw_amount", withdraw_amount),
-    ];
-
-    // send funds to withdraw address or to the sender
-    let res = Response::new()
-        .add_message(CosmosMsg::Bank(BankMsg::Send {
-            to_address: operator_target.to_string(),
-            amount: vec![Coin {
-                denom: stream.in_denom,
-                amount: withdraw_amount,
-            }],
-        }))
-        .add_attributes(attributes);
-
-    Ok(res)
-}
-
 pub fn execute_finalize_stream(
     deps: DepsMut,
     env: Env,
@@ -653,25 +447,26 @@ pub fn execute_finalize_stream(
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
     // check if the stream is already finalized
-    if stream.status == Status::Finalized {
+    if stream.is_finalized() {
         return Err(ContractError::StreamAlreadyFinalized {});
     }
     // check if killswitch is active
-    if stream.is_killswitch_active() {
+    if stream.is_cancelled() {
+        // TODO: create a new error for this
         return Err(ContractError::StreamKillswitchActive {});
     }
     if stream.treasury != info.sender {
         return Err(ContractError::Unauthorized {});
     }
-    if env.block.time <= stream.end_time {
+    sync_stream_status(&mut stream, env.block.time);
+
+    if !stream.is_ended() {
         return Err(ContractError::StreamNotEnded {});
     }
-    if stream.last_updated < stream.end_time {
-        update_stream(env.block.time, &mut stream)?;
-    }
-    if stream.status == Status::Active {
-        stream.status = Status::Finalized
-    }
+    update_stream(&mut stream, env.block.time);
+
+    stream.status_info.status = Status::Finalized;
+
     // If threshold is set and not reached, finalize will fail
     // Creator should execute cancel_stream_with_threshold to cancel the stream
     // Only returns error if threshold is set and not reached
@@ -790,15 +585,15 @@ pub fn execute_exit_stream(
     let mut stream = STREAM.load(deps.storage)?;
     let factory_params = FACTORY_PARAMS.load(deps.storage)?;
     // check if stream is paused
-    if stream.is_killswitch_active() {
+    if stream.is_cancelled() {
         return Err(ContractError::StreamKillswitchActive {});
     }
-    if env.block.time <= stream.end_time {
+    sync_stream_status(&mut stream, env.block.time);
+
+    if !(stream.is_ended() || stream.is_finalized()) {
         return Err(ContractError::StreamNotEnded {});
     }
-    if stream.last_updated < stream.end_time {
-        update_stream(env.block.time, &mut stream)?;
-    }
+    update_stream(&mut stream, env.block.time);
 
     let threshold_state = ThresholdState::new();
 
@@ -813,7 +608,7 @@ pub fn execute_exit_stream(
     update_position(
         stream.dist_index,
         stream.shares,
-        stream.last_updated,
+        stream.status_info.last_updated,
         stream.in_supply,
         &mut position,
     )?;
@@ -836,8 +631,7 @@ pub fn execute_exit_stream(
         let salt = salt.ok_or(ContractError::InvalidSalt {})?;
 
         // prepare vesting msg
-        vesting.start_time = Some(stream.end_time);
-        // TODO: check if we want an owner?
+        vesting.start_time = Some(stream.status_info.end_time);
         vesting.owner = None;
         vesting.recipient = operator_target.to_string();
         vesting.total = position.purchased;
@@ -953,15 +747,15 @@ pub fn query_stream(deps: Deps, _env: Env) -> StdResult<StreamResponse> {
         treasury: stream.treasury.to_string(),
         in_denom: stream.in_denom,
         out_asset: stream.out_asset,
-        start_time: stream.start_time,
-        end_time: stream.end_time,
-        last_updated: stream.last_updated,
+        start_time: stream.status_info.start_time,
+        end_time: stream.status_info.end_time,
+        last_updated: stream.status_info.last_updated,
         spent_in: stream.spent_in,
         dist_index: stream.dist_index,
         out_remaining: stream.out_remaining,
         in_supply: stream.in_supply,
         shares: stream.shares,
-        status: stream.status,
+        status: stream.status_info.status,
         url: stream.url,
         current_streamed_price: stream.current_streamed_price,
         stream_admin: stream.stream_admin.into_string(),

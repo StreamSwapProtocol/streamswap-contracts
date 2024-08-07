@@ -34,8 +34,9 @@ fn params_update() {
         exit_fee_percent: None,
         accepted_in_denoms: None,
         fee_collector: None,
-        min_seconds_until_start_time: None,
-        min_stream_seconds: None,
+        min_bootstrapping_duration: None,
+        min_waiting_duration: None,
+        min_stream_duration: None,
     };
     let res = app
         .execute_contract(
@@ -55,8 +56,9 @@ fn params_update() {
         exit_fee_percent: None,
         accepted_in_denoms: None,
         fee_collector: None,
-        min_seconds_until_start_time: None,
-        min_stream_seconds: None,
+        min_bootstrapping_duration: None,
+        min_waiting_duration: None,
+        min_stream_duration: None,
     };
     let _ = app
         .execute_contract(
@@ -81,8 +83,9 @@ fn params_update() {
         exit_fee_percent: Some(Decimal::percent(101)),
         accepted_in_denoms: None,
         fee_collector: None,
-        min_seconds_until_start_time: None,
-        min_stream_seconds: None,
+        min_bootstrapping_duration: None,
+        min_waiting_duration: None,
+        min_stream_duration: None,
     };
     let res = app
         .execute_contract(
@@ -102,8 +105,9 @@ fn params_update() {
         exit_fee_percent: Some(Decimal::percent(50)),
         accepted_in_denoms: None,
         fee_collector: None,
-        min_seconds_until_start_time: None,
-        min_stream_seconds: None,
+        min_bootstrapping_duration: None,
+        min_waiting_duration: None,
+        min_stream_duration: None,
     };
     let _ = app
         .execute_contract(
@@ -128,8 +132,9 @@ fn params_update() {
         exit_fee_percent: None,
         accepted_in_denoms: Some(vec!["denom1".to_string(), "denom2".to_string()]),
         fee_collector: None,
-        min_seconds_until_start_time: None,
-        min_stream_seconds: None,
+        min_bootstrapping_duration: None,
+        min_waiting_duration: None,
+        min_stream_duration: None,
     };
     let _ = app
         .execute_contract(
@@ -157,8 +162,9 @@ fn params_update() {
         exit_fee_percent: None,
         accepted_in_denoms: None,
         fee_collector: test_accounts.admin_2.to_string().into(),
-        min_seconds_until_start_time: None,
-        min_stream_seconds: None,
+        min_bootstrapping_duration: None,
+        min_waiting_duration: None,
+        min_stream_duration: None,
     };
     let _ = app
         .execute_contract(
@@ -177,14 +183,15 @@ fn params_update() {
 
     assert_eq!(res.fee_collector, test_accounts.admin_2);
 
-    // Update min stream seconds
+    // Update min stream duration
     let msg = ExecuteMsg::UpdateParams {
         stream_creation_fee: None,
         exit_fee_percent: None,
         accepted_in_denoms: None,
         fee_collector: None,
-        min_seconds_until_start_time: None,
-        min_stream_seconds: Some(200),
+        min_bootstrapping_duration: None,
+        min_waiting_duration: None,
+        min_stream_duration: Some(200),
     };
     let _ = app
         .execute_contract(
@@ -201,16 +208,17 @@ fn params_update() {
         .query_wasm_smart(factory_address.clone(), &QueryMsg::Params {})
         .unwrap();
 
-    assert_eq!(res.min_stream_seconds, 200);
+    assert_eq!(res.min_stream_duration, 200);
 
-    // Update min seconds until start time
+    // Update min bootstrapping duration
     let msg = ExecuteMsg::UpdateParams {
         stream_creation_fee: None,
         exit_fee_percent: None,
         accepted_in_denoms: None,
         fee_collector: None,
-        min_stream_seconds: None,
-        min_seconds_until_start_time: Some(200),
+        min_bootstrapping_duration: Some(200),
+        min_waiting_duration: None,
+        min_stream_duration: None,
     };
     let _ = app
         .execute_contract(
@@ -227,5 +235,5 @@ fn params_update() {
         .query_wasm_smart(factory_address.clone(), &QueryMsg::Params {})
         .unwrap();
 
-    assert_eq!(res.min_seconds_until_start_time, 200);
+    assert_eq!(res.min_bootstrapping_duration, 200);
 }

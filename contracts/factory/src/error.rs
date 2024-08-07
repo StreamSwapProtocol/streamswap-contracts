@@ -85,8 +85,14 @@ pub enum ContractError {
     #[error("Stream starts too soon")]
     StreamStartsTooSoon {},
 
+    #[error("Stream bootstrapping starts too soon")]
+    StreamBootstrappingStartsTooSoon {},
+
     #[error("Invalid start time ")]
     StreamInvalidStartTime {},
+
+    #[error("Invalid boothstrapping start time ")]
+    StreamInvalidBootstrappingStartTime {},
 
     #[error("Invalid end time ")]
     StreamInvalidEndTime {},
@@ -141,6 +147,9 @@ pub enum ContractError {
 
     #[error("Invalid exit fee")]
     InvalidStreamExitFee {},
+
+    #[error("Invalid factory params")]
+    InvalidFactoryParams {},
 }
 
 impl From<ContractError> for StdError {

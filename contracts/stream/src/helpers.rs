@@ -1,6 +1,7 @@
 use crate::ContractError;
-use cosmwasm_std::Decimal256;
+use cosmwasm_std::{Decimal256, Timestamp};
 use std::str::FromStr;
+use streamswap_types::factory::Params as FactoryParams;
 
 /// Stream validation related constants
 const MIN_NAME_LENGTH: usize = 2;
@@ -52,6 +53,51 @@ pub fn check_name_and_url(name: &str, url: &Option<String>) -> Result<(), Contra
         {
             return Err(ContractError::InvalidStreamUrl {});
         }
+    }
+    Ok(())
+}
+
+// Function to validate stream times
+pub fn validate_stream_times(
+    now: Timestamp,
+    bootstrapping_start_time: Timestamp,
+    start_time: Timestamp,
+    end_time: Timestamp,
+    params: &FactoryParams,
+) -> Result<(), ContractError> {
+    if now > bootstrapping_start_time {
+        return Err(ContractError::StreamInvalidBootstrappingStartTime {});
+    }
+
+    if bootstrapping_start_time > start_time {
+        return Err(ContractError::StreamInvalidBootstrappingStartTime {});
+    }
+
+    if start_time > end_time {
+        return Err(ContractError::StreamInvalidEndTime {});
+    }
+    let stream_duration = end_time
+        .seconds()
+        .checked_sub(start_time.seconds())
+        .ok_or(ContractError::StreamInvalidEndTime {})?;
+
+    if stream_duration < params.min_stream_duration {
+        return Err(ContractError::StreamDurationTooShort {});
+    }
+    let bootstrapping_duration = start_time
+        .seconds()
+        .checked_sub(bootstrapping_start_time.seconds())
+        .ok_or(ContractError::StreamInvalidStartTime {})?;
+    if bootstrapping_duration < params.min_bootstrapping_duration {
+        return Err(ContractError::StreamBootstrappingDurationTooShort {});
+    }
+
+    let waiting_duration = bootstrapping_start_time
+        .seconds()
+        .checked_sub(now.seconds())
+        .ok_or(ContractError::StreamInvalidBootstrappingStartTime {})?;
+    if waiting_duration < params.min_waiting_duration {
+        return Err(ContractError::StreamWaitingDurationTooShort {});
     }
     Ok(())
 }

@@ -14,7 +14,7 @@ mod withdraw_tests {
     };
 
     #[test]
-    fn test_withdraw_pending() {
+    fn test_withdraw_bootstapping() {
         let suite = SuiteBuilder::default().build();
         let test_accounts = suite.test_accounts;
         let mut app = suite.app;
@@ -34,15 +34,17 @@ mod withdraw_tests {
                 None,
             )
             .unwrap();
-        let start_time = app.block_info().time.plus_seconds(100).into();
-        let end_time = app.block_info().time.plus_seconds(200).into();
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
 
         let create_stream_msg = get_create_stream_msg(
-            &"Stream Swap tests".to_string(),
+            "Stream Swap tests",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(1_000_000, "out_denom"),
             "in_denom",
+            bootstrapping_start_time,
             start_time,
             end_time,
             None,
@@ -60,6 +62,12 @@ mod withdraw_tests {
             .unwrap();
         let stream_swap_contract_address = get_contract_address_from_res(res);
 
+        // Set time to bootstrapping start time
+        app.set_block(BlockInfo {
+            height: 50,
+            time: bootstrapping_start_time,
+            chain_id: "test".to_string(),
+        });
         // Subscribe to stream
         let subscribe_msg = StreamSwapExecuteMsg::Subscribe {
             operator_target: None,
@@ -238,15 +246,17 @@ mod withdraw_tests {
                 None,
             )
             .unwrap();
-        let start_time = app.block_info().time.plus_seconds(1000).into();
-        let end_time = app.block_info().time.plus_seconds(5000).into();
+        let start_time = app.block_info().time.plus_seconds(1000);
+        let end_time = app.block_info().time.plus_seconds(5000);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(500);
 
         let create_stream_msg = get_create_stream_msg(
-            &"Stream Swap test".to_string(),
+            "Stream Swap test",
             Some("https://sample.url".to_string()),
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(1_000_000_000_000, "out_denom"),
             "in_denom",
+            bootstrapping_start_time,
             start_time,
             end_time,
             None,
@@ -397,15 +407,17 @@ mod withdraw_tests {
                 None,
             )
             .unwrap();
-        let start_time = app.block_info().time.plus_seconds(100).into();
-        let end_time = app.block_info().time.plus_seconds(200).into();
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
 
         let create_stream_msg = get_create_stream_msg(
-            &"Stream Swap tests".to_string(),
+            "Stream Swap tests",
             None,
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(1_000_000, "out_denom"),
             "in_denom",
+            bootstrapping_start_time,
             start_time,
             end_time,
             None,

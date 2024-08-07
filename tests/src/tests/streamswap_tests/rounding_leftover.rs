@@ -29,6 +29,7 @@ mod rounding_leftover {
 
         let start_time = Timestamp::from_seconds(1_000_000);
         let end_time = Timestamp::from_seconds(5_000_000);
+        let bootstrapping_start_time = Timestamp::from_seconds(500_000);
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
 
@@ -44,11 +45,12 @@ mod rounding_leftover {
             .unwrap();
 
         let create_stream_msg = get_create_stream_msg(
-            &"Stream Swap tests".to_string(),
+            "Stream Swap tests",
             Some("https://sample.url".to_string()),
-            &test_accounts.creator_1.to_string(),
+            test_accounts.creator_1.as_ref(),
             coin(1_000_000_000_000, "out_denom"),
             "in_denom",
+            bootstrapping_start_time,
             start_time,
             end_time,
             None,
