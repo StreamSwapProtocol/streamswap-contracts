@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
+use cosmwasm_std::{Binary, Coin, Decimal, Timestamp, Uint128};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
 
@@ -74,6 +74,9 @@ pub struct CreateStreamMsg {
     pub create_pool: Option<CreatePool>,
     /// Vesting configuration
     pub vesting: Option<VestingInstantiateMsg>,
+    // Salt is used to instantiate stream contracts deterministically.
+    // Pass randomly generated value here. bech32 hashed would be ideal.
+    pub salt: Binary,
 }
 
 #[cw_serde]
@@ -93,6 +96,23 @@ pub enum QueryMsg {
     Freezestate {},
     #[returns(u64)]
     LastStreamId {},
+    /// Returns list of streams paginated by `start_after` and `limit`.
+    #[returns(StreamsResponse)]
+    ListStreams {
+        start_after: Option<u64>,
+        limit: Option<u32>,
+    },
+}
+
+#[cw_serde]
+pub struct StreamsResponse {
+    pub streams: Vec<StreamResponse>,
+}
+
+#[cw_serde]
+pub struct StreamResponse {
+    pub id: u64,
+    pub address: String,
 }
 
 #[cw_serde]

@@ -61,6 +61,7 @@ pub fn instantiate(
         stream_admin,
         create_pool,
         vesting,
+        salt: _,
     } = msg;
     // Check if out asset is provided
     // TODO: This might be unnecessary as we are checking this at factory level

@@ -1,11 +1,12 @@
 #[cfg(test)]
 mod create_stream_tests {
     use crate::helpers::suite::SuiteBuilder;
+    use crate::helpers::utils::get_wasm_attribute_with_key;
     use crate::helpers::{
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
         suite::Suite,
     };
-    use cosmwasm_std::{coin, Uint128};
+    use cosmwasm_std::{coin, Api, Binary, Uint128};
     use cw_multi_test::Executor;
     use streamswap_factory::error::ContractError as FactoryError;
     use streamswap_stream::ContractError as StreamSwapError;
@@ -565,7 +566,7 @@ mod create_stream_tests {
             None,
         );
 
-        let _res = app
+        let res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
                 factory_address.clone(),
@@ -573,6 +574,24 @@ mod create_stream_tests {
                 &[coin(100, "fee_denom"), coin(100, "out_denom")],
             )
             .unwrap();
+        // test contract address created deterministically
+        let checksum = app
+            .wrap()
+            .query_wasm_code_info(stream_swap_code_id)
+            .unwrap()
+            .checksum;
+        let canonical_contract_addr = cosmwasm_std::instantiate2_address(
+            checksum.as_slice(),
+            &app.api()
+                .addr_canonicalize(test_accounts.creator_1.clone().as_str())
+                .unwrap(),
+            Binary::from_base64("salt").unwrap().as_slice(),
+        )
+        .unwrap();
+        let contract_addr = app.api().addr_humanize(&canonical_contract_addr).unwrap();
+        let res_contract_addr =
+            get_wasm_attribute_with_key(res, "stream_contract_address".to_string());
+        assert_eq!(contract_addr, res_contract_addr);
 
         // Query stream with id
         let query_msg = QueryMsg::LastStreamId {};
