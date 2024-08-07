@@ -179,7 +179,7 @@ pub fn execute_create_stream(
         .checksum;
     let canonical_contract_addr = cosmwasm_std::instantiate2_address(
         checksum.as_slice(),
-        &deps.api.addr_canonicalize(&info.sender.to_string())?,
+        &deps.api.addr_canonicalize(info.sender.as_ref())?,
         salt.as_slice(),
     )
     .unwrap();
