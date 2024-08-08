@@ -1,7 +1,8 @@
 use crate::factory::CreatePool;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Coin, Decimal, Decimal256, Timestamp, Uint128};
+use cosmwasm_std::{Addr, Coin, Decimal256, Timestamp, Uint256};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
+use streamswap_utils::to_uint256;
 
 #[cw_serde]
 pub struct Stream {
@@ -19,18 +20,18 @@ pub struct Stream {
     /// Out asset of the stream
     pub out_asset: Coin,
     /// Remaining out asset to be distributed
-    pub out_remaining: Uint128,
+    pub out_remaining: Uint256,
     /// In denom of the stream
     pub in_denom: String,
     /// In supply of the stream
-    pub in_supply: Uint128,
+    pub in_supply: Uint256,
     /// Spent in of the stream, the total amount of in assets spent
     /// At any time spent_in + in_supply = total in assets
-    pub spent_in: Uint128,
+    pub spent_in: Uint256,
     /// Shares of the stream, used to calculate the amount of out assets to be distributed among subscribers
-    pub shares: Uint128,
+    pub shares: Uint256,
     /// Current streamed price, the price of in asset in out asset
-    pub current_streamed_price: Decimal,
+    pub current_streamed_price: Decimal256,
     /// Status info of the stream
     pub status_info: StatusInfo,
     /// Create pool message, used to create a pool for the stream once the stream ends
@@ -112,12 +113,12 @@ impl Stream {
             url,
             dist_index: Decimal256::zero(),
             out_asset: out_asset.clone(),
-            out_remaining: out_asset.amount,
+            out_remaining: to_uint256(out_asset.amount),
             in_denom,
-            in_supply: Uint128::zero(),
-            spent_in: Uint128::zero(),
-            shares: Uint128::zero(),
-            current_streamed_price: Decimal::zero(),
+            in_supply: Uint256::zero(),
+            spent_in: Uint256::zero(),
+            shares: Uint256::zero(),
+            current_streamed_price: Decimal256::zero(),
             status_info: StatusInfo::new(now, bootstrapping_start_time, start_time, end_time),
             create_pool,
             vesting,

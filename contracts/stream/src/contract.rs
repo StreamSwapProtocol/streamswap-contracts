@@ -7,8 +7,8 @@ use crate::stream::{compute_shares_amount, sync_stream_status, update_stream};
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
     attr, coin, entry_point, to_json_binary, Attribute, BankMsg, Binary, CodeInfoResponse, Coin,
-    CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError,
-    StdResult, Timestamp, Uint128, Uint256, WasmMsg,
+    CosmosMsg, Decimal256, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult,
+    Timestamp, Uint128, Uint256, WasmMsg,
 };
 use cw2::{ensure_from_older_version, set_contract_version};
 use cw_storage_plus::Bound;
@@ -22,6 +22,7 @@ use streamswap_types::stream::{
     PositionsResponse, QueryMsg, StreamResponse,
 };
 use streamswap_utils::payment_checker::check_payment;
+use streamswap_utils::to_uint256;
 
 use crate::state::{FACTORY_PARAMS, POSITIONS, STREAM, VESTING};
 use streamswap_types::factory::Params as FactoryParams;
@@ -203,16 +204,16 @@ pub fn execute_update_position(
 // returns purchased out amount and spent in amount
 pub fn update_position(
     stream_dist_index: Decimal256,
-    stream_shares: Uint128,
+    stream_shares: Uint256,
     stream_last_updated_time: Timestamp,
-    stream_in_supply: Uint128,
+    stream_in_supply: Uint256,
     position: &mut Position,
-) -> Result<(Uint128, Uint128), ContractError> {
+) -> Result<(Uint256, Uint256), ContractError> {
     // index difference represents the amount of distribution that has been received since last update
     let index_diff = stream_dist_index.checked_sub(position.index)?;
 
-    let mut spent = Uint128::zero();
-    let mut purchased_uint128 = Uint128::zero();
+    let mut spent = Uint256::zero();
+    let mut uint256_purchased = Uint256::zero();
 
     // if no shares available, means no distribution and no spent
     if !stream_shares.is_zero() {
@@ -236,14 +237,14 @@ pub fn update_position(
         position.pending_purchase = decimals;
 
         // floors the decimal points
-        purchased_uint128 = (purchased * Uint256::one()).try_into()?;
-        position.purchased = position.purchased.checked_add(purchased_uint128)?;
+        uint256_purchased = purchased * Uint256::one();
+        position.purchased = position.purchased.checked_add(uint256_purchased)?;
     }
 
     position.index = stream_dist_index;
     position.last_updated = stream_last_updated_time;
 
-    Ok((purchased_uint128, spent))
+    Ok((uint256_purchased, spent))
 }
 
 pub fn execute_subscribe(
@@ -264,6 +265,7 @@ pub fn execute_subscribe(
     }
 
     let in_amount = must_pay(&info, &stream.in_denom)?;
+    let uint256_in_amount = Uint256::from(in_amount.u128());
     let new_shares;
 
     let position = POSITIONS.may_load(deps.storage, &info.sender)?;
@@ -271,11 +273,11 @@ pub fn execute_subscribe(
         None => {
             // incoming tokens should not participate in prev distribution
             update_stream(&mut stream, env.block.time);
-            new_shares = compute_shares_amount(&stream, in_amount, false);
+            new_shares = compute_shares_amount(&stream, uint256_in_amount, false);
             // new positions do not update purchase as it has no effect on distribution
             let new_position = Position::new(
                 info.sender.clone(),
-                in_amount,
+                uint256_in_amount,
                 new_shares,
                 Some(stream.dist_index),
                 env.block.time,
@@ -288,7 +290,7 @@ pub fn execute_subscribe(
             }
             // incoming tokens should not participate in prev distribution
             update_stream(&mut stream, env.block.time);
-            new_shares = compute_shares_amount(&stream, in_amount, false);
+            new_shares = compute_shares_amount(&stream, uint256_in_amount, false);
             update_position(
                 stream.dist_index,
                 stream.shares,
@@ -297,14 +299,14 @@ pub fn execute_subscribe(
                 &mut position,
             )?;
 
-            position.in_balance = position.in_balance.checked_add(in_amount)?;
+            position.in_balance = position.in_balance.checked_add(uint256_in_amount)?;
             position.shares = position.shares.checked_add(new_shares)?;
             POSITIONS.save(deps.storage, &info.sender, &position)?;
         }
     }
 
     // increase in supply and shares
-    stream.in_supply = stream.in_supply.checked_add(in_amount)?;
+    stream.in_supply = stream.in_supply.checked_add(uint256_in_amount)?;
     stream.shares = stream.shares.checked_add(new_shares)?;
     STREAM.save(deps.storage, &stream)?;
 
@@ -321,7 +323,7 @@ pub fn execute_withdraw(
     env: Env,
     info: MessageInfo,
     mut stream: Stream,
-    cap: Option<Uint128>,
+    cap: Option<Uint256>,
 ) -> Result<Response, ContractError> {
     sync_stream_status(&mut stream, env.block.time);
     if !(stream.is_active() || stream.is_bootstrapping()) {
@@ -370,13 +372,14 @@ pub fn execute_withdraw(
         attr("withdraw_amount", withdraw_amount),
     ];
 
+    let uint128_withdraw_amount = Uint128::try_from(withdraw_amount)?;
     // send funds to withdraw address or to the sender
     let res = Response::new()
         .add_message(CosmosMsg::Bank(BankMsg::Send {
             to_address: info.sender.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
-                amount: withdraw_amount,
+                amount: uint128_withdraw_amount,
             }],
         }))
         .add_attributes(attributes);
@@ -423,45 +426,48 @@ pub fn execute_finalize_stream(
     let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or_else(|| stream.treasury.clone());
 
     //Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
-    let swap_fee = Decimal::from_ratio(stream.spent_in, Uint128::one())
+    let swap_fee = Decimal256::from_ratio(stream.spent_in, Uint128::one())
         .checked_mul(factory_params.exit_fee_percent)?
-        * Uint128::one();
+        * Uint256::one();
 
     let creator_revenue = stream.spent_in.checked_sub(swap_fee)?;
 
     let mut messages = vec![];
+    let uint128_creator_revenue = Uint128::try_from(creator_revenue)?;
     //Creator's revenue claimed at finalize
     let revenue_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: treasury.to_string(),
         amount: vec![Coin {
             denom: stream.in_denom.clone(),
-            amount: creator_revenue,
+            amount: uint128_creator_revenue,
         }],
     });
     messages.push(revenue_msg);
+    let uint128_swap_fee = Uint128::try_from(swap_fee)?;
     let swap_fee_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: factory_params.fee_collector.to_string(),
         amount: vec![Coin {
             denom: stream.in_denom.clone(),
-            amount: swap_fee,
+            amount: uint128_swap_fee,
         }],
     });
     messages.push(swap_fee_msg);
 
     // if no spent, remove all messages to prevent failure
-    if stream.spent_in == Uint128::zero() {
+    if stream.spent_in == Uint256::zero() {
         messages = vec![]
     }
 
     // In case the stream is ended without any shares in it. We need to refund the remaining
     // out tokens although that is unlikely to happen.
-    if stream.out_remaining > Uint128::zero() {
+    if stream.out_remaining > Uint256::zero() {
         let remaining_out = stream.out_remaining;
+        let uint128_remaining_out = Uint128::try_from(remaining_out)?;
         let remaining_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: treasury.to_string(),
             amount: vec![Coin {
                 denom: stream.out_asset.denom.clone(),
-                amount: remaining_out,
+                amount: uint128_remaining_out,
             }],
         });
         messages.push(remaining_msg);
@@ -470,7 +476,7 @@ pub fn execute_finalize_stream(
         messages.push(pool.msg_create_pool.into());
 
         // amount of in tokens allocated for clp
-        let in_clp = (pool.out_amount_clp / stream.out_asset.amount) * stream.spent_in;
+        let in_clp = (pool.out_amount_clp / to_uint256(stream.out_asset.amount)) * stream.spent_in;
         let current_num_of_pools = PoolmanagerQuerier::new(&deps.querier)
             .num_pools()?
             .num_pools;
@@ -505,9 +511,7 @@ pub fn execute_finalize_stream(
         attr("refunded_out_remaining", stream.out_remaining.to_string()),
         attr(
             "total_sold",
-            stream
-                .out_asset
-                .amount
+            to_uint256(stream.out_asset.amount)
                 .checked_sub(stream.out_remaining)?
                 .to_string(),
         ),
@@ -558,15 +562,16 @@ pub fn execute_exit_stream(
     POSITIONS.remove(deps.storage, &position.owner);
 
     // Swap fee = fixed_rate*position.spent_in this calculation is only for execution reply attributes
-    let swap_fee = Decimal::from_ratio(position.spent, Uint128::one())
+    let swap_fee = Decimal256::from_ratio(position.spent, Uint128::one())
         .checked_mul(factory_params.exit_fee_percent)?
-        * Uint128::one();
+        * Uint256::one();
 
     let mut msgs: Vec<CosmosMsg> = vec![];
     let mut attrs: Vec<Attribute> = vec![];
 
     // if vesting is set, instantiate a vested release contract for user and send
     // the out tokens to the contract
+    let uint128_purchased = Uint128::try_from(position.purchased)?;
     if let Some(mut vesting) = stream.vesting {
         let salt = salt.ok_or(ContractError::InvalidSalt {})?;
 
@@ -574,7 +579,7 @@ pub fn execute_exit_stream(
         vesting.start_time = Some(stream.status_info.end_time);
         vesting.owner = None;
         vesting.recipient = info.sender.to_string();
-        vesting.total = position.purchased;
+        vesting.total = uint128_purchased;
 
         // prepare instantiate msg msg
         let CodeInfoResponse { checksum, .. } = deps
@@ -599,7 +604,7 @@ pub fn execute_exit_stream(
                 env.contract.address, info.sender
             ),
             msg: to_json_binary(&vesting)?,
-            funds: vec![coin(position.purchased.u128(), stream.out_asset.denom)],
+            funds: vec![coin(uint128_purchased.u128(), stream.out_asset.denom)],
             salt,
         };
 
@@ -610,7 +615,7 @@ pub fn execute_exit_stream(
             to_address: info.sender.to_string(),
             amount: vec![Coin {
                 denom: stream.out_asset.denom.to_string(),
-                amount: position.purchased,
+                amount: uint128_purchased,
             }],
         });
         msgs.push(send_msg);
@@ -618,11 +623,12 @@ pub fn execute_exit_stream(
     // if there is any unspent in balance, send it back to the user
     if !position.in_balance.is_zero() {
         let unspent = position.in_balance;
+        let uint128_unspent = Uint128::try_from(unspent)?;
         let unspent_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: info.sender.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
-                amount: unspent,
+                amount: uint128_unspent,
             }],
         });
         msgs.push(unspent_msg);
@@ -779,8 +785,8 @@ pub fn list_positions(
 
 pub fn query_average_price(deps: Deps, _env: Env) -> StdResult<AveragePriceResponse> {
     let stream = STREAM.load(deps.storage)?;
-    let total_purchased = stream.out_asset.amount - stream.out_remaining;
-    let average_price = Decimal::from_ratio(stream.spent_in, total_purchased);
+    let total_purchased = to_uint256(stream.out_asset.amount) - stream.out_remaining;
+    let average_price = Decimal256::from_ratio(stream.spent_in, total_purchased);
     Ok(AveragePriceResponse { average_price })
 }
 
@@ -791,7 +797,7 @@ pub fn query_last_streamed_price(deps: Deps, _env: Env) -> StdResult<LatestStrea
     })
 }
 
-pub fn query_threshold_state(deps: Deps, _env: Env) -> Result<Option<Uint128>, StdError> {
+pub fn query_threshold_state(deps: Deps, _env: Env) -> Result<Option<Uint256>, StdError> {
     let threshold_state = ThresholdState::new();
     let threshold = threshold_state.get_threshold(deps.storage)?;
     Ok(threshold)

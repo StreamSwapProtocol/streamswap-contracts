@@ -9,7 +9,7 @@ mod rounding_leftover {
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
         suite::Suite,
     };
-    use cosmwasm_std::Uint128;
+    use cosmwasm_std::Uint256;
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Timestamp};
     use cw_multi_test::Executor;
     use streamswap_types::stream::{
@@ -128,9 +128,9 @@ mod rounding_leftover {
             position_1.index,
             Decimal256::from_str("202.813614449380587585").unwrap()
         );
-        assert_eq!(position_1.purchased, Uint128::new(202_813_614_449));
-        assert_eq!(position_1.spent, Uint128::new(749_993_750));
-        assert_eq!(position_1.in_balance, Uint128::new(250_006_250));
+        assert_eq!(position_1.purchased, Uint256::from(202_813_614_449u128));
+        assert_eq!(position_1.spent, Uint256::from(749_993_750u128));
+        assert_eq!(position_1.in_balance, Uint256::from(250_006_250u128));
 
         let stream: StreamResponse = app
             .wrap()
@@ -173,9 +173,9 @@ mod rounding_leftover {
             position_2.index,
             Decimal256::from_str("238.074595237060799266").unwrap()
         );
-        assert_eq!(position_2.purchased, Uint128::new(655_672_748_445));
-        assert_eq!(position_2.spent, Uint128::new(2_673_076_923));
-        assert_eq!(position_2.in_balance, Uint128::new(326_923_077));
+        assert_eq!(position_2.purchased, Uint256::from(655_672_748_445u128));
+        assert_eq!(position_2.spent, Uint256::from(2_673_076_923u128));
+        assert_eq!(position_2.in_balance, Uint256::from(326_923_077u128));
 
         let stream: StreamResponse = app
             .wrap()
@@ -218,7 +218,7 @@ mod rounding_leftover {
             stream.dist_index,
             Decimal256::from_str("264.137059297637397644").unwrap()
         );
-        assert_eq!(stream.in_supply, Uint128::zero());
+        assert_eq!(stream.in_supply, Uint256::zero());
 
         let position_1: PositionResponse = app
             .wrap()
@@ -233,8 +233,8 @@ mod rounding_leftover {
             position_1.index,
             Decimal256::from_str("264.137059297637397644").unwrap()
         );
-        assert_eq!(position_1.spent, Uint128::new(1_000_000_000));
-        assert_eq!(position_1.in_balance, Uint128::zero());
+        assert_eq!(position_1.spent, Uint256::from(1_000_000_000u128));
+        assert_eq!(position_1.in_balance, Uint256::zero());
 
         // Update position after stream ends
         app.set_block(BlockInfo {
@@ -264,7 +264,7 @@ mod rounding_leftover {
             stream.dist_index,
             Decimal256::from_str("264.137059297637397644").unwrap()
         );
-        assert_eq!(stream.in_supply, Uint128::zero());
+        assert_eq!(stream.in_supply, Uint256::zero());
 
         let position_2: PositionResponse = app
             .wrap()
@@ -279,17 +279,17 @@ mod rounding_leftover {
             position_2.index,
             Decimal256::from_str("264.137059297637397644").unwrap()
         );
-        assert_eq!(position_2.spent, Uint128::new(3_000_000_000));
-        assert_eq!(position_2.in_balance, Uint128::zero());
+        assert_eq!(position_2.spent, Uint256::from(3_000_000_000u128));
+        assert_eq!(position_2.in_balance, Uint256::zero());
 
-        assert_eq!(stream.out_remaining, Uint128::zero());
+        assert_eq!(stream.out_remaining, Uint256::zero());
         assert_eq!(
             position_1
                 .purchased
                 .checked_add(position_2.purchased)
                 .unwrap(),
             // 1 difference due to rounding
-            stream.out_asset.amount.saturating_sub(Uint128::new(1u128))
+            Uint256::from(stream.out_asset.amount.u128()).saturating_sub(Uint256::from(1u128))
         );
     }
 }
@@ -299,7 +299,7 @@ mod rounding_leftover {
 //         let treasury = Addr::unchecked("treasury");
 //         let start = Timestamp::from_seconds(1_000_000);
 //         let end = Timestamp::from_seconds(5_000_000);
-//         let out_supply = Uint128::new(1_000_000_000_000);
+//         let out_supply = Uint256::from(1_000_000_000_000);
 //         let out_denom = "out_denom";
 
 //         // instantiate
@@ -310,7 +310,7 @@ mod rounding_leftover {
 //             min_stream_seconds: Uint64::new(1000),
 //             min_seconds_until_start_time: Uint64::new(1000),
 //             stream_creation_denom: "fee".to_string(),
-//             stream_creation_fee: Uint128::new(100),
+//             stream_creation_fee: Uint256::from(100),
 //             exit_fee_percent: Decimal::percent(1),
 //             fee_collector: "collector".to_string(),
 //             protocol_admin: "protocol_admin".to_string(),
@@ -378,9 +378,9 @@ mod rounding_leftover {
 //             position.index,
 //             Decimal256::from_str("202.813614449380587585").unwrap()
 //         );
-//         assert_eq!(position.purchased, Uint128::new(202_813_614_449));
-//         assert_eq!(position.spent, Uint128::new(749_993_750));
-//         assert_eq!(position.in_balance, Uint128::new(250_006_250));
+//         assert_eq!(position.purchased, Uint256::from(202_813_614_449));
+//         assert_eq!(position.spent, Uint256::from(749_993_750));
+//         assert_eq!(position.in_balance, Uint256::from(250_006_250));
 //         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
 //         assert_eq!(
 //             stream.dist_index,
@@ -399,9 +399,9 @@ mod rounding_leftover {
 //             position.index,
 //             Decimal256::from_str("238.074595237060799266").unwrap()
 //         );
-//         assert_eq!(position.purchased, Uint128::new(655672748445));
-//         assert_eq!(position.spent, Uint128::new(2673076923));
-//         assert_eq!(position.in_balance, Uint128::new(326923077));
+//         assert_eq!(position.purchased, Uint256::from(655672748445));
+//         assert_eq!(position.spent, Uint256::from(2673076923));
+//         assert_eq!(position.in_balance, Uint256::from(326923077));
 //         let stream = query_stream(deps.as_ref(), env, 1).unwrap();
 //         assert_eq!(
 //             stream.dist_index,
@@ -424,7 +424,7 @@ mod rounding_leftover {
 //             position1.index,
 //             Decimal256::from_str("264.137059297637397644").unwrap()
 //         );
-//         assert_eq!(position1.spent, Uint128::new(1_000_000_000));
+//         assert_eq!(position1.spent, Uint256::from(1_000_000_000));
 //         assert_eq!(position1.in_balance, Uint128::zero());
 
 //         // update position after stream ends
@@ -443,7 +443,7 @@ mod rounding_leftover {
 //             position2.index,
 //             Decimal256::from_str("264.137059297637397644").unwrap()
 //         );
-//         assert_eq!(position2.spent, Uint128::new(3_000_000_000));
+//         assert_eq!(position2.spent, Uint256::from(3_000_000_000));
 //         assert_eq!(position2.in_balance, Uint128::zero());
 
 //         assert_eq!(stream.out_remaining, Uint128::zero());
@@ -453,6 +453,6 @@ mod rounding_leftover {
 //                 .checked_add(position2.purchased)
 //                 .unwrap(),
 //             // 1 difference due to rounding
-//             stream.out_supply.sub(Uint128::new(1u128))
+//             stream.out_supply.sub(Uint256::from(1u128))
 //         );
 //     }

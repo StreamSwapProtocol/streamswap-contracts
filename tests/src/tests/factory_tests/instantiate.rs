@@ -1,7 +1,7 @@
 #![cfg(test)]
 use crate::helpers::suite::SuiteBuilder;
 use crate::helpers::{mock_messages::get_factory_inst_msg, suite::Suite};
-use cosmwasm_std::{coin, Decimal};
+use cosmwasm_std::{coin, Decimal256};
 use cw_multi_test::Executor;
 use streamswap_types::factory::Params;
 use streamswap_types::factory::QueryMsg;
@@ -35,7 +35,7 @@ fn factory_proper_instantiate() {
         .query_wasm_smart(factory_address, &QueryMsg::Params {})
         .unwrap();
     assert_eq!(res.stream_creation_fee, coin(100, "fee_denom"));
-    assert_eq!(res.exit_fee_percent, Decimal::percent(1));
+    assert_eq!(res.exit_fee_percent, Decimal256::percent(1));
     assert_eq!(res.stream_contract_code_id, stream_swap_code_id);
     assert_eq!(res.accepted_in_denoms, vec!["in_denom".to_string()]);
     assert_eq!(res.fee_collector, test_accounts.admin.to_string());

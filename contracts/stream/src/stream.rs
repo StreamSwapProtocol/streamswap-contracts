@@ -1,4 +1,4 @@
-use cosmwasm_std::{Decimal, Decimal256, Fraction, Timestamp, Uint128};
+use cosmwasm_std::{Decimal, Decimal256, Fraction, Timestamp, Uint256};
 use std::ops::Mul;
 use streamswap_types::stream::{Status, Stream};
 
@@ -24,13 +24,13 @@ pub fn sync_stream_status(stream: &mut Stream, now: Timestamp) {
     };
 }
 
-pub fn compute_shares_amount(stream: &Stream, amount_in: Uint128, round_up: bool) -> Uint128 {
+pub fn compute_shares_amount(stream: &Stream, amount_in: Uint256, round_up: bool) -> Uint256 {
     if stream.shares.is_zero() || amount_in.is_zero() {
         return amount_in;
     }
     let shares = stream.shares.mul(amount_in);
     if round_up {
-        (shares + stream.in_supply - Uint128::one()) / stream.in_supply
+        (shares + stream.in_supply - Uint256::one()) / stream.in_supply
     } else {
         shares / stream.in_supply
     }
@@ -57,7 +57,8 @@ pub fn update_stream(stream: &mut Stream, now: Timestamp) {
         if !new_distribution_balance.is_zero() {
             stream.out_remaining -= new_distribution_balance;
             stream.dist_index += Decimal256::from_ratio(new_distribution_balance, stream.shares);
-            stream.current_streamed_price = Decimal::from_ratio(spent_in, new_distribution_balance);
+            stream.current_streamed_price =
+                Decimal256::from_ratio(spent_in, new_distribution_balance);
         }
     }
 

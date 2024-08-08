@@ -1,8 +1,8 @@
 use crate::stream::{Stream, ThresholdError};
-use cosmwasm_std::{StdError, Storage, Uint128};
+use cosmwasm_std::{StdError, Storage, Uint256};
 use cw_storage_plus::Item;
 
-pub type Threshold = Uint128;
+pub type Threshold = Uint256;
 
 pub const THRESHOLDS_STATE_KEY: &str = "thresholds";
 
@@ -15,7 +15,7 @@ impl<'a> ThresholdState<'a> {
 
     pub fn set_threshold_if_any(
         &self,
-        threshold: Option<Uint128>,
+        threshold: Option<Uint256>,
         storage: &mut dyn Storage,
     ) -> Result<(), ThresholdError> {
         match threshold {

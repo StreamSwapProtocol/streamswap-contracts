@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Binary, Coin, Decimal, Timestamp, Uint128};
+use cosmwasm_std::{Binary, Coin, Decimal256, Timestamp, Uint256};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
 
@@ -17,7 +17,7 @@ pub struct InstantiateMsg {
     /// The fee required to create a stream. Collected from the stream creator upon stream creation.
     pub stream_creation_fee: Coin,
     /// The percentage fee charged when a user exits a stream.
-    pub exit_fee_percent: Decimal,
+    pub exit_fee_percent: Decimal256,
     /// The list of accepted denominations for the stream.
     pub accepted_in_denoms: Vec<String>,
     // Minumum time of a stream end_time - start_time
@@ -38,7 +38,7 @@ pub enum ExecuteMsg {
         stream_creation_fee: Option<Coin>,
         fee_collector: Option<String>,
         accepted_in_denoms: Option<Vec<String>>,
-        exit_fee_percent: Option<Decimal>,
+        exit_fee_percent: Option<Decimal256>,
     },
     CreateStream {
         msg: Box<CreateStreamMsg>,
@@ -69,7 +69,7 @@ pub struct CreateStreamMsg {
     /// Stream end time
     pub end_time: Timestamp,
     /// Optional threshold for the stream, if set, the stream will be cancelled if the threshold is not reached
-    pub threshold: Option<Uint128>,
+    pub threshold: Option<Uint256>,
     /// CreatePool Flag
     pub create_pool: Option<CreatePool>,
     /// Vesting configuration
@@ -82,7 +82,7 @@ pub struct CreateStreamMsg {
 #[cw_serde]
 pub struct CreatePool {
     // amount of out tokens that will be sent to the pool
-    pub out_amount_clp: Uint128,
+    pub out_amount_clp: Uint256,
     // osmosis concentration pool creation message
     pub msg_create_pool: MsgCreateConcentratedPool,
 }

@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     ConversionOverflowError, DivideByZeroError, Instantiate2AddressError, OverflowError, StdError,
-    Uint128,
+    Uint256,
 };
 use cw_utils::PaymentError;
 use std::convert::Infallible;
@@ -62,7 +62,7 @@ pub enum ContractError {
     StreamOutSupplyFundsRequired {},
 
     #[error("Withdraw amount exceeds user balance: {0}")]
-    WithdrawAmountExceedsBalance(Uint128),
+    WithdrawAmountExceedsBalance(Uint256),
 
     #[error("Withdraw amount cannot be zero")]
     InvalidWithdrawAmount {},
@@ -71,7 +71,7 @@ pub enum ContractError {
     InvalidFunds {},
 
     #[error("Decrease amount exceeds user balance: {0}")]
-    DecreaseAmountExceeds(Uint128),
+    DecreaseAmountExceeds(Uint256),
 
     #[error("Wait for the unbonding")]
     WaitUnbonding {},

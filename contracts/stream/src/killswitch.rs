@@ -1,7 +1,7 @@
 use crate::state::{FACTORY_PARAMS, POSITIONS, STREAM};
 use crate::stream::{sync_stream_status, update_stream};
 use crate::ContractError;
-use cosmwasm_std::{attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128};
 use streamswap_types::factory::Params;
 use streamswap_types::stream::ThresholdState;
 use streamswap_types::stream::{Status, ThresholdError};
@@ -48,13 +48,14 @@ pub fn execute_exit_cancelled(
         attr("total_balance", total_balance),
     ];
 
+    let uint128_total_balance = Uint128::try_from(total_balance)?;
     // send funds to withdraw address or to the sender
     let res = Response::new()
         .add_message(CosmosMsg::Bank(BankMsg::Send {
             to_address: info.sender.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
-                amount: total_balance,
+                amount: uint128_total_balance,
             }],
         }))
         .add_attributes(attributes);
