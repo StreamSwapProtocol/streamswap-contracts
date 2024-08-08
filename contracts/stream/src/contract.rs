@@ -213,7 +213,7 @@ pub fn update_position(
     let index_diff = stream_dist_index.checked_sub(position.index)?;
 
     let mut spent = Uint256::zero();
-    let mut purchased_uint256 = Uint256::zero();
+    let mut uint256_purchased = Uint256::zero();
 
     // if no shares available, means no distribution and no spent
     if !stream_shares.is_zero() {
@@ -237,14 +237,14 @@ pub fn update_position(
         position.pending_purchase = decimals;
 
         // floors the decimal points
-        purchased_uint256 = purchased * Uint256::one();
-        position.purchased = position.purchased.checked_add(purchased_uint256)?;
+        uint256_purchased = purchased * Uint256::one();
+        position.purchased = position.purchased.checked_add(uint256_purchased)?;
     }
 
     position.index = stream_dist_index;
     position.last_updated = stream_last_updated_time;
 
-    Ok((purchased_uint256, spent))
+    Ok((uint256_purchased, spent))
 }
 
 pub fn execute_subscribe(
@@ -265,7 +265,7 @@ pub fn execute_subscribe(
     }
 
     let in_amount = must_pay(&info, &stream.in_denom)?;
-    let in_amount_uint256 = Uint256::from(in_amount.u128());
+    let uint256_in_amount = Uint256::from(in_amount.u128());
     let new_shares;
 
     let position = POSITIONS.may_load(deps.storage, &info.sender)?;
@@ -273,11 +273,11 @@ pub fn execute_subscribe(
         None => {
             // incoming tokens should not participate in prev distribution
             update_stream(&mut stream, env.block.time);
-            new_shares = compute_shares_amount(&stream, in_amount_uint256, false);
+            new_shares = compute_shares_amount(&stream, uint256_in_amount, false);
             // new positions do not update purchase as it has no effect on distribution
             let new_position = Position::new(
                 info.sender.clone(),
-                in_amount_uint256,
+                uint256_in_amount,
                 new_shares,
                 Some(stream.dist_index),
                 env.block.time,
@@ -290,7 +290,7 @@ pub fn execute_subscribe(
             }
             // incoming tokens should not participate in prev distribution
             update_stream(&mut stream, env.block.time);
-            new_shares = compute_shares_amount(&stream, in_amount_uint256, false);
+            new_shares = compute_shares_amount(&stream, uint256_in_amount, false);
             update_position(
                 stream.dist_index,
                 stream.shares,
@@ -299,14 +299,14 @@ pub fn execute_subscribe(
                 &mut position,
             )?;
 
-            position.in_balance = position.in_balance.checked_add(in_amount_uint256)?;
+            position.in_balance = position.in_balance.checked_add(uint256_in_amount)?;
             position.shares = position.shares.checked_add(new_shares)?;
             POSITIONS.save(deps.storage, &info.sender, &position)?;
         }
     }
 
     // increase in supply and shares
-    stream.in_supply = stream.in_supply.checked_add(in_amount_uint256)?;
+    stream.in_supply = stream.in_supply.checked_add(uint256_in_amount)?;
     stream.shares = stream.shares.checked_add(new_shares)?;
     STREAM.save(deps.storage, &stream)?;
 
@@ -571,7 +571,7 @@ pub fn execute_exit_stream(
 
     // if vesting is set, instantiate a vested release contract for user and send
     // the out tokens to the contract
-    let uint_128_purchased = Uint128::try_from(position.purchased)?;
+    let uint128_purchased = Uint128::try_from(position.purchased)?;
     if let Some(mut vesting) = stream.vesting {
         let salt = salt.ok_or(ContractError::InvalidSalt {})?;
 
@@ -579,7 +579,7 @@ pub fn execute_exit_stream(
         vesting.start_time = Some(stream.status_info.end_time);
         vesting.owner = None;
         vesting.recipient = info.sender.to_string();
-        vesting.total = uint_128_purchased;
+        vesting.total = uint128_purchased;
 
         // prepare instantiate msg msg
         let CodeInfoResponse { checksum, .. } = deps
@@ -604,7 +604,7 @@ pub fn execute_exit_stream(
                 env.contract.address, info.sender
             ),
             msg: to_json_binary(&vesting)?,
-            funds: vec![coin(uint_128_purchased.u128(), stream.out_asset.denom)],
+            funds: vec![coin(uint128_purchased.u128(), stream.out_asset.denom)],
             salt,
         };
 
@@ -615,7 +615,7 @@ pub fn execute_exit_stream(
             to_address: info.sender.to_string(),
             amount: vec![Coin {
                 denom: stream.out_asset.denom.to_string(),
-                amount: uint_128_purchased,
+                amount: uint128_purchased,
             }],
         });
         msgs.push(send_msg);
