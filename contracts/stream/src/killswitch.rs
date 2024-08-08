@@ -1,7 +1,9 @@
 use crate::state::{FACTORY_PARAMS, POSITIONS, STREAM};
 use crate::stream::{sync_stream_status, update_stream};
 use crate::ContractError;
-use cosmwasm_std::{attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Timestamp, Uint128};
+use cosmwasm_std::{
+    attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Timestamp, Uint128,
+};
 use streamswap_types::factory::Params;
 use streamswap_types::stream::ThresholdState;
 use streamswap_types::stream::{Status, ThresholdError};
@@ -45,7 +47,7 @@ pub fn execute_exit_cancelled(
 
     // no need to update position here, we just need to return total balance
     let total_balance = position.in_balance + position.spent;
-    // update position exit date    
+    // update position exit date
     position.exit_date = env.block.time;
     POSITIONS.save(deps.storage, &position.owner, &position)?;
 

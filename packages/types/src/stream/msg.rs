@@ -150,7 +150,6 @@ pub struct PositionResponse {
     pub spent: Uint256,
     // Exit date of the position
     pub exit_date: Timestamp,
-
 }
 
 #[cw_serde]
