@@ -547,6 +547,10 @@ pub fn execute_exit_stream(
     threshold_state.error_if_not_reached(deps.storage, &stream)?;
 
     let mut position = POSITIONS.load(deps.storage, &info.sender)?;
+    // TODO: add test case for this
+    if position.exit_date != Timestamp::from_seconds(0) {
+        return Err(ContractError::SubscriberAlreadyExited {});
+    }
 
     // update position before exit
     update_position(

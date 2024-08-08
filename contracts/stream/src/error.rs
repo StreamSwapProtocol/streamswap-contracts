@@ -46,6 +46,9 @@ pub enum ContractError {
     #[error("Exit fee must be between 0 and 1")]
     InvalidExitFeePercent {},
 
+    #[error("Subscriber already exited")]
+    SubscriberAlreadyExited {},
+
     #[error("Required denom not found in funds")]
     NoFundsSent {},
 
