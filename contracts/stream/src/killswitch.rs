@@ -1,7 +1,7 @@
 use crate::state::{FACTORY_PARAMS, POSITIONS, STREAM};
 use crate::stream::{sync_stream_status, update_stream};
 use crate::ContractError;
-use cosmwasm_std::{attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128};
+use cosmwasm_std::{attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Timestamp, Uint128};
 use streamswap_types::factory::Params;
 use streamswap_types::stream::ThresholdState;
 use streamswap_types::stream::{Status, ThresholdError};
@@ -16,6 +16,10 @@ pub fn execute_exit_cancelled(
     let mut position = POSITIONS.load(deps.storage, &info.sender)?;
     if position.owner != info.sender {
         return Err(ContractError::Unauthorized {});
+    }
+    // TODO: add test case for this
+    if position.exit_date != Timestamp::from_seconds(0) {
+        return Err(ContractError::SubscriberAlreadyExited {});
     }
 
     sync_stream_status(&mut stream, env.block.time);
