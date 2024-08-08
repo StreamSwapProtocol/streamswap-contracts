@@ -10,7 +10,7 @@ mod subscibe_test {
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
         suite::Suite,
     };
-    use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128};
+    use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128, Uint256};
     use cw_multi_test::Executor;
     use cw_utils::PaymentError;
     use streamswap_stream::ContractError as StreamSwapError;
@@ -127,7 +127,7 @@ mod subscibe_test {
         // Dist index should be zero because no distribution has been made until last update
         assert_eq!(stream.dist_index, Decimal256::zero());
         // In supply should be updated
-        assert_eq!(stream.in_supply, Uint128::new(150));
+        assert_eq!(stream.in_supply, Uint256::from(150u128));
         // Position should be updated
         let position: PositionResponse = app
             .wrap()
@@ -139,8 +139,8 @@ mod subscibe_test {
             )
             .unwrap();
         assert_eq!(position.index, Decimal256::zero());
-        assert_eq!(position.in_balance, Uint128::new(150));
-        assert_eq!(position.spent, Uint128::zero());
+        assert_eq!(position.in_balance, Uint256::from(150u128));
+        assert_eq!(position.spent, Uint256::zero());
 
         // Update stream
         app.set_block(BlockInfo {
@@ -168,10 +168,10 @@ mod subscibe_test {
             stream.dist_index,
             Decimal256::from_str("1333.333333333333333333").unwrap()
         );
-        assert_eq!(stream.in_supply, Uint128::new(120));
-        assert_eq!(stream.spent_in, Uint128::new(30));
+        assert_eq!(stream.in_supply, Uint256::from(120u128));
+        assert_eq!(stream.spent_in, Uint256::from(30u128));
         assert_eq!(stream.last_updated, start_time.plus_seconds(20));
-        assert_eq!(stream.shares, Uint128::new(150));
+        assert_eq!(stream.shares, Uint256::from(150u128));
     }
     #[test]
     fn test_recurring_subscribe() {
@@ -249,7 +249,7 @@ mod subscibe_test {
             .unwrap();
         assert_eq!(stream.status, streamswap_types::stream::Status::Active);
         assert_eq!(stream.dist_index, Decimal256::zero());
-        assert_eq!(stream.in_supply, Uint128::new(150));
+        assert_eq!(stream.in_supply, Uint256::from(150u128));
         let position: PositionResponse = app
             .wrap()
             .query_wasm_smart(
@@ -260,8 +260,8 @@ mod subscibe_test {
             )
             .unwrap();
         assert_eq!(position.index, Decimal256::zero());
-        assert_eq!(position.in_balance, Uint128::new(150));
-        assert_eq!(position.spent, Uint128::zero());
+        assert_eq!(position.in_balance, Uint256::from(150u128));
+        assert_eq!(position.spent, Uint256::zero());
 
         // Subscriber increases subscription in same block_time
         let _res = app
@@ -294,7 +294,7 @@ mod subscibe_test {
             )
             .unwrap();
         assert_eq!(position.index, Decimal256::from_str("0").unwrap());
-        assert_eq!(position.in_balance, Uint128::new(300));
+        assert_eq!(position.in_balance, Uint256::from(300u128));
 
         // Now simulate a block update
         app.set_block(BlockInfo {
@@ -326,7 +326,7 @@ mod subscibe_test {
             stream.dist_index,
             Decimal256::from_str("33.333333333333333333").unwrap()
         );
-        assert_eq!(stream.in_supply, Uint128::new(447));
+        assert_eq!(stream.in_supply, Uint256::from(447u128));
         let position: PositionResponse = app
             .wrap()
             .query_wasm_smart(
@@ -341,8 +341,8 @@ mod subscibe_test {
             position.index,
             Decimal256::from_str("33.333333333333333333").unwrap()
         );
-        assert_eq!(position.in_balance, Uint128::new(447));
-        assert_eq!(position.spent, Uint128::from(3u128));
+        assert_eq!(position.in_balance, Uint256::from(447u128));
+        assert_eq!(position.spent, Uint256::from(3u128));
     }
 
     #[test]
@@ -422,7 +422,7 @@ mod subscibe_test {
             .unwrap();
         assert_eq!(stream.status, Status::Bootstrapping);
         assert_eq!(stream.dist_index, Decimal256::zero());
-        assert_eq!(stream.in_supply, Uint128::new(150));
+        assert_eq!(stream.in_supply, Uint256::from(150u128));
         let position: PositionResponse = app
             .wrap()
             .query_wasm_smart(
@@ -458,13 +458,13 @@ mod subscibe_test {
             .unwrap();
 
         assert_eq!(stream.dist_index, Decimal256::from_str("0").unwrap());
-        assert_eq!(stream.in_supply, Uint128::new(150));
-        assert_eq!(stream.spent_in, Uint128::zero());
+        assert_eq!(stream.in_supply, Uint256::from(150u128));
+        assert_eq!(stream.spent_in, Uint256::zero());
         assert_eq!(
             stream.last_updated,
             bootstrapping_start_time.plus_seconds(10)
         );
-        assert_eq!(stream.shares, Uint128::new(150));
+        assert_eq!(stream.shares, Uint256::from(150u128));
 
         // Subscriber increases subscription
         let _res = app
@@ -596,8 +596,8 @@ mod subscibe_test {
         );
         // Subscriber 1 has 150+150 = 300 in balance
         // Until 60 seconds, 60/100*300 = 180 has been spent in the position
-        assert_eq!(position.in_balance, Uint128::new(120));
-        assert_eq!(position.spent, Uint128::new(180));
+        assert_eq!(position.in_balance, Uint256::from(120u128));
+        assert_eq!(position.spent, Uint256::from(180u128));
 
         // Update position for subscriber 2
         let _res = app
@@ -627,8 +627,8 @@ mod subscibe_test {
         // Subscriber 2 has 150 in balance subscribed at 10th second
         // Until 60 seconds, 60-10 = 50/90*150 = 83.333333333333333333
         // 150-83.333333333333333333 = 66.666666666666666667
-        assert_eq!(position.in_balance, Uint128::new(66));
-        assert_eq!(position.spent, Uint128::new(84));
+        assert_eq!(position.in_balance, Uint256::from(66u128));
+        assert_eq!(position.spent, Uint256::from(84u128));
     }
     #[test]
     fn test_subscibe_waiting() {

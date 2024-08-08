@@ -1,7 +1,7 @@
 use crate::error::ContractError;
 use cosmwasm_std::{
-    entry_point, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
-    Order, Response, StdResult, WasmMsg,
+    entry_point, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env,
+    MessageInfo, Order, Response, StdResult, WasmMsg,
 };
 use cw2::ensure_from_older_version;
 use cw_storage_plus::Bound;
@@ -43,7 +43,7 @@ pub fn instantiate(
         .api
         .addr_validate(&fee_collector.unwrap_or(info.sender.to_string()))?;
 
-    if exit_fee_percent > Decimal::percent(100) || exit_fee_percent < Decimal::percent(0) {
+    if exit_fee_percent > Decimal256::percent(100) || exit_fee_percent < Decimal256::percent(0) {
         return Err(ContractError::InvalidExitFeePercent {});
     }
     if stream_creation_fee.amount.is_zero() {
@@ -220,7 +220,7 @@ pub fn execute_update_params(
     stream_creation_fee: Option<Coin>,
     fee_collector: Option<String>,
     accepted_in_denoms: Option<Vec<String>>,
-    exit_fee_percent: Option<Decimal>,
+    exit_fee_percent: Option<Decimal256>,
 ) -> Result<Response, ContractError> {
     let mut params = PARAMS.load(deps.storage)?;
     if info.sender != params.protocol_admin {
@@ -231,7 +231,8 @@ pub fn execute_update_params(
     }
 
     if let Some(exit_fee_percent) = exit_fee_percent {
-        if exit_fee_percent > Decimal::percent(100) || exit_fee_percent < Decimal::percent(0) {
+        if exit_fee_percent > Decimal256::percent(100) || exit_fee_percent < Decimal256::percent(0)
+        {
             return Err(ContractError::InvalidExitFeePercent {});
         }
         params.exit_fee_percent = exit_fee_percent;

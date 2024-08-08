@@ -10,7 +10,7 @@ mod update_stream_tests {
         utils::get_contract_address_from_res,
     };
 
-    use cosmwasm_std::{coin, Addr, BlockInfo, Decimal, Decimal256, Uint128};
+    use cosmwasm_std::{coin, Addr, BlockInfo, Decimal, Decimal256, Uint256};
     use cw_multi_test::Executor;
     use streamswap_types::stream::{
         ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg, Status, StreamResponse,
@@ -204,9 +204,9 @@ mod update_stream_tests {
         assert_eq!(stream.status, Status::Active);
         assert_eq!(stream.last_updated, app.block_info().time);
         assert_eq!(stream.dist_index, Decimal256::zero());
-        assert_eq!(stream.in_supply, Uint128::from(100u128));
-        assert_eq!(stream.spent_in, Uint128::zero());
-        assert_eq!(stream.shares, Uint128::from(100u128));
+        assert_eq!(stream.in_supply, Uint256::from(100u128));
+        assert_eq!(stream.spent_in, Uint256::zero());
+        assert_eq!(stream.shares, Uint256::from(100u128));
 
         // Set time to start_time+20
         app.set_block(BlockInfo {
@@ -244,8 +244,8 @@ mod update_stream_tests {
         // - 10 seconds passed
         // (20-10)/90(time-remaning) = 1/9*100(in_supply) = 11.11(spent_amount)
         // 100(in_supply) - 11(spent_amount)(round_down) = 89(in_supply)
-        assert_eq!(stream.in_supply, Uint128::from(89u128));
-        assert_eq!(stream.spent_in, Uint128::from(11u128));
+        assert_eq!(stream.in_supply, Uint256::from(89u128));
+        assert_eq!(stream.spent_in, Uint256::from(11u128));
     }
 
     #[test]
@@ -343,9 +343,9 @@ mod update_stream_tests {
             .unwrap();
 
         assert_eq!(stream.status, Status::Bootstrapping);
-        assert_eq!(stream.in_supply, Uint128::from(100u128));
+        assert_eq!(stream.in_supply, Uint256::from(100u128));
         assert_eq!(stream.dist_index, Decimal256::zero());
-        assert_eq!(stream.spent_in, Uint128::zero());
+        assert_eq!(stream.spent_in, Uint256::zero());
 
         app.set_block(BlockInfo {
             height: 1_100,
@@ -370,10 +370,10 @@ mod update_stream_tests {
             )
             .unwrap();
 
-        assert_eq!(stream.in_supply + stream.spent_in, Uint128::from(100u128));
-        assert_eq!(stream.out_remaining, Uint128::from(90u128));
+        assert_eq!(stream.in_supply + stream.spent_in, Uint256::from(100u128));
+        assert_eq!(stream.out_remaining, Uint256::from(90u128));
         assert_ne!(stream.dist_index, Decimal256::zero());
-        assert_ne!(stream.spent_in, Uint128::zero());
+        assert_ne!(stream.spent_in, Uint256::zero());
     }
 
     #[test]
@@ -439,7 +439,10 @@ mod update_stream_tests {
                 &StreamSwapQueryMsg::Stream {},
             )
             .unwrap();
-        assert_eq!(stream.current_streamed_price, Decimal::new(Uint128::new(0)));
+        assert_eq!(
+            stream.current_streamed_price,
+            Decimal256::new(Uint256::zero())
+        );
 
         let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
         // First subscription
@@ -479,7 +482,7 @@ mod update_stream_tests {
             .unwrap();
         assert_eq!(
             stream.current_streamed_price,
-            Decimal::from_str("1").unwrap()
+            Decimal256::from_str("1").unwrap()
         );
 
         // Second subscription
@@ -519,7 +522,7 @@ mod update_stream_tests {
 
         assert_eq!(
             stream.current_streamed_price,
-            Decimal::from_str("3").unwrap()
+            Decimal256::from_str("3").unwrap()
         );
     }
 }

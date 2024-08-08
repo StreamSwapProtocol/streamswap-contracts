@@ -1,6 +1,6 @@
 use crate::stream::Status;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Binary, Coin, Decimal, Decimal256, Timestamp, Uint128};
+use cosmwasm_std::{Binary, Coin, Decimal, Decimal256, Timestamp, Uint128, Uint256};
 
 #[cw_serde]
 #[cfg_attr(feature = "interface", derive(cw_orch::ExecuteFns))]
@@ -10,7 +10,7 @@ pub enum ExecuteMsg {
     Subscribe {},
     /// Withdraw unspent tokens in balance.
     Withdraw {
-        cap: Option<Uint128>,
+        cap: Option<Uint256>,
     },
     /// UpdatePosition updates the position of the user.
     /// syncs position index to the current state of the stream.
@@ -86,7 +86,7 @@ pub struct ConfigResponse {
     /// Creation fee amount.
     pub stream_creation_fee: Uint128,
     /// This percentage represents the fee that will be collected from the investors.
-    pub exit_fee_percent: Decimal,
+    pub exit_fee_percent: Decimal256,
     /// Address of the fee collector.
     pub fee_collector: String,
     /// Address of the protocol admin.
@@ -105,21 +105,21 @@ pub struct StreamResponse {
 
     pub out_asset: Coin,
     /// Total number of remaining out tokens at the time of update.
-    pub out_remaining: Uint128,
+    pub out_remaining: Uint256,
     /// Denom of the `token_in`.
     pub in_denom: String,
     /// Total number of `token_in` on the buy side at latest state.
-    pub in_supply: Uint128,
+    pub in_supply: Uint256,
     /// Total number of `token_in` spent at latest state.
-    pub spent_in: Uint128,
+    pub spent_in: Uint256,
     /// Total number of shares minted.
-    pub shares: Uint128,
+    pub shares: Uint256,
     /// start time when the token emission starts. in nanos.
     pub start_time: Timestamp,
     /// end time when the token emission ends.
     pub end_time: Timestamp,
     /// Price at when latest distribution is triggered.
-    pub current_streamed_price: Decimal,
+    pub current_streamed_price: Decimal256,
     /// Status of the stream. Can be `Waiting`, `Active`, `Finalzed`, `Paused` or `Canceled` for kill switch.
     pub status: Status,
     /// Address of the stream admin.
@@ -136,18 +136,18 @@ pub struct PositionResponse {
     /// Creator of the position.
     pub owner: String,
     /// Current amount of tokens in buy pool
-    pub in_balance: Uint128,
-    pub shares: Uint128,
+    pub in_balance: Uint256,
+    pub shares: Uint256,
     // Index is used to calculate the distribution a position has
     pub index: Decimal256,
     // Last_updated_time is the time when the position was last updated
     pub last_updated: Timestamp,
     // Total amount of `token_out` purchased in tokens at latest calculation
-    pub purchased: Uint128,
+    pub purchased: Uint256,
     // Pending purchased accumulates purchases after decimal truncation
     pub pending_purchase: Decimal256,
     // Total amount of `token_in` spent tokens at latest calculation
-    pub spent: Uint128,
+    pub spent: Uint256,
 }
 
 #[cw_serde]
@@ -157,12 +157,12 @@ pub struct PositionsResponse {
 
 #[cw_serde]
 pub struct AveragePriceResponse {
-    pub average_price: Decimal,
+    pub average_price: Decimal256,
 }
 
 #[cw_serde]
 pub struct LatestStreamedPriceResponse {
-    pub current_streamed_price: Decimal,
+    pub current_streamed_price: Decimal256,
 }
 
 #[cw_serde]

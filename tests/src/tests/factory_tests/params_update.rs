@@ -1,7 +1,7 @@
 #![cfg(test)]
 use crate::helpers::suite::SuiteBuilder;
 use crate::helpers::{mock_messages::get_factory_inst_msg, suite::Suite};
-use cosmwasm_std::{coin, Decimal};
+use cosmwasm_std::{coin, Decimal, Decimal256};
 use cw_multi_test::Executor;
 use streamswap_factory::error::ContractError as FactoryError;
 use streamswap_types::factory::{ExecuteMsg, Params, QueryMsg};
@@ -80,7 +80,7 @@ fn params_update() {
     // Update wrong exit fee percent
     let msg = ExecuteMsg::UpdateParams {
         stream_creation_fee: None,
-        exit_fee_percent: Some(Decimal::percent(101)),
+        exit_fee_percent: Some(Decimal256::percent(101)),
         accepted_in_denoms: None,
         fee_collector: None,
         min_bootstrapping_duration: None,
@@ -102,7 +102,7 @@ fn params_update() {
     // Update exit fee percent
     let msg = ExecuteMsg::UpdateParams {
         stream_creation_fee: None,
-        exit_fee_percent: Some(Decimal::percent(50)),
+        exit_fee_percent: Some(Decimal256::percent(50)),
         accepted_in_denoms: None,
         fee_collector: None,
         min_bootstrapping_duration: None,
@@ -124,7 +124,7 @@ fn params_update() {
         .query_wasm_smart(factory_address.clone(), &QueryMsg::Params {})
         .unwrap();
 
-    assert_eq!(res.exit_fee_percent, Decimal::percent(50));
+    assert_eq!(res.exit_fee_percent, Decimal256::percent(50));
 
     // Update accepted in denoms
     let msg = ExecuteMsg::UpdateParams {

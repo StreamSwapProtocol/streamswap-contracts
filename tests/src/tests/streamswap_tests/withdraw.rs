@@ -5,7 +5,7 @@ mod withdraw_tests {
     use crate::helpers::mock_messages::{get_create_stream_msg, get_factory_inst_msg};
     use crate::helpers::suite::SuiteBuilder;
     use crate::helpers::utils::get_contract_address_from_res;
-    use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128};
+    use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128, Uint256};
     use cw_multi_test::Executor;
     use streamswap_stream::ContractError as StreamSwapError;
     use streamswap_types::stream::{
@@ -89,11 +89,10 @@ mod withdraw_tests {
             .unwrap();
         // Subscriber balance should be reduced by 1_000 after subscription
         assert_eq!(
-            subscriber_1_balance_before
-                .amount
-                .checked_sub(Uint128::new(1_000))
+            Uint256::from(subscriber_1_balance_before.amount.u128())
+                .checked_sub(Uint256::from(1_000u128))
                 .unwrap(),
-            subscriber_1_balance_after.amount
+            Uint256::from(subscriber_1_balance_after.amount.u128())
         );
         // Update position
         let _res = app
@@ -115,9 +114,9 @@ mod withdraw_tests {
                 },
             )
             .unwrap();
-        assert_eq!(position.purchased, Uint128::zero());
-        assert_eq!(position.spent, Uint128::zero());
-        assert_eq!(position.shares, Uint128::new(1_000));
+        assert_eq!(position.purchased, Uint256::zero());
+        assert_eq!(position.spent, Uint256::zero());
+        assert_eq!(position.shares, Uint256::from(1_000u128));
 
         // Withdraw before start time
         let subscriber_1_balance_before = app
@@ -130,7 +129,7 @@ mod withdraw_tests {
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Withdraw {
-                    cap: Some(Uint128::new(500)),
+                    cap: Some(Uint256::from(500u128)),
                 },
                 &[],
             )
@@ -141,11 +140,10 @@ mod withdraw_tests {
             .unwrap();
         // Subscriber balance should be increased by 1_000 after withdraw
         assert_eq!(
-            subscriber_1_balance_before
-                .amount
-                .checked_add(Uint128::new(500))
+            Uint256::from(subscriber_1_balance_before.amount)
+                .checked_add(Uint256::from(500u128))
                 .unwrap(),
-            subscriber_1_balance_after.amount
+            Uint256::from(subscriber_1_balance_after.amount)
         );
         // Query stream
         let stream: StreamResponse = app
@@ -156,8 +154,8 @@ mod withdraw_tests {
             )
             .unwrap();
         assert_eq!(stream.dist_index, Decimal256::zero());
-        assert_eq!(stream.in_supply, Uint128::new(500));
-        assert_eq!(stream.spent_in, Uint128::zero());
+        assert_eq!(stream.in_supply, Uint256::from(500u128));
+        assert_eq!(stream.spent_in, Uint256::zero());
 
         // Withdraw rest of the funds
         let subscriber_1_balance_before = app
@@ -183,7 +181,7 @@ mod withdraw_tests {
                 .amount
                 .checked_sub(subscriber_1_balance_before.amount)
                 .unwrap(),
-            Uint128::new(500)
+            Uint128::from(500u128)
         );
         // Query stream
         let stream: StreamResponse = app
@@ -193,8 +191,8 @@ mod withdraw_tests {
                 &StreamSwapQueryMsg::Stream {},
             )
             .unwrap();
-        assert_eq!(stream.in_supply, Uint128::zero());
-        assert_eq!(stream.spent_in, Uint128::new(0));
+        assert_eq!(stream.in_supply, Uint256::zero());
+        assert_eq!(stream.spent_in, Uint256::from(0u128));
 
         // Set block time to end time
         app.set_block(BlockInfo {
@@ -437,7 +435,7 @@ mod withdraw_tests {
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Withdraw {
-                    cap: Some(Uint128::new(500)),
+                    cap: Some(Uint256::from(500u128)),
                 },
                 &[],
             )
@@ -452,7 +450,7 @@ mod withdraw_tests {
                 .amount
                 .checked_sub(subscriber_1_balance_before.amount)
                 .unwrap(),
-            Uint128::new(500)
+            Uint128::from(500u128)
         );
 
         // Withdraw amount zero
@@ -461,7 +459,7 @@ mod withdraw_tests {
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Withdraw {
-                    cap: Some(Uint128::zero()),
+                    cap: Some(Uint256::zero()),
                 },
                 &[],
             )
@@ -476,7 +474,7 @@ mod withdraw_tests {
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Withdraw {
-                    cap: Some(Uint128::new(2_250_000_000_000)),
+                    cap: Some(Uint256::from(2_250_000_000_000u128)),
                 },
                 &[],
             )
@@ -485,7 +483,7 @@ mod withdraw_tests {
         let error = error.downcast_ref::<StreamSwapError>().unwrap();
         assert_eq!(
             error,
-            &StreamSwapError::WithdrawAmountExceedsBalance(Uint128::new(2_250_000_000_000))
+            &StreamSwapError::WithdrawAmountExceedsBalance(Uint256::from(2_250_000_000_000u128))
         );
 
         // Withdraw with valid cap
@@ -499,7 +497,7 @@ mod withdraw_tests {
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &StreamSwapExecuteMsg::Withdraw {
-                    cap: Some(Uint128::new(500)),
+                    cap: Some(Uint256::from(500u128)),
                 },
                 &[],
             )
@@ -514,7 +512,7 @@ mod withdraw_tests {
                 .amount
                 .checked_sub(subscriber_1_balance_before.amount)
                 .unwrap(),
-            Uint128::new(500)
+            Uint128::from(500u128)
         );
     }
 }

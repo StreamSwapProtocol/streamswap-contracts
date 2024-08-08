@@ -10,7 +10,7 @@ mod update_position_tests {
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
         suite::Suite,
     };
-    use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128};
+    use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128, Uint256};
     use cw_multi_test::Executor;
     use streamswap_types::stream::{
         ExecuteMsg as StreamSwapExecuteMsg, PositionResponse, QueryMsg as StreamSwapQueryMsg,
@@ -129,17 +129,17 @@ mod update_position_tests {
         );
         assert_eq!(
             position.purchased,
-            Uint128::new(500_000),
+            Uint256::from(500_000u128),
             "Position purchased should be 500_000"
         );
         assert_eq!(
             position.spent,
-            Uint128::new(500_000),
+            Uint256::from(500_000u128),
             "Position spent should be 500_000"
         );
         assert_eq!(
             position.in_balance,
-            Uint128::new(500_000),
+            Uint256::from(500_000u128),
             "Position in balance should be 500_000"
         );
         // Update time so we can check the position
@@ -175,12 +175,12 @@ mod update_position_tests {
         );
         assert_eq!(
             position.purchased,
-            Uint128::new(750_000),
+            Uint256::from(750_000u128),
             "Position purchased should be 750_000"
         );
         assert_eq!(
             position.spent,
-            Uint128::new(750_000),
+            Uint256::from(750_000u128),
             "Position spent should be 750_000"
         );
 
@@ -217,17 +217,17 @@ mod update_position_tests {
         );
         assert_eq!(
             position.purchased,
-            Uint128::new(1_000_000),
+            Uint256::from(1_000_000u128),
             "Position purchased should be 1_000_000"
         );
         assert_eq!(
             position.spent,
-            Uint128::new(1_000_000),
+            Uint256::from(1_000_000u128),
             "Position spent should be 1_000_000"
         );
         assert_eq!(
             position.in_balance,
-            Uint128::zero(),
+            Uint256::zero(),
             "Position in balance should be 0"
         );
 
@@ -263,12 +263,12 @@ mod update_position_tests {
         );
         assert_eq!(
             position.purchased,
-            Uint128::new(1_000_000),
+            Uint256::from(1_000_000u128),
             "Position purchased should be 1_000_000"
         );
         assert_eq!(
             position.spent,
-            Uint128::new(1_000_000),
+            Uint256::from(1_000_000u128),
             "Position spent should be 1_000_000"
         );
 

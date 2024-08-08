@@ -6,7 +6,7 @@ mod cancel_stream {
         suite::Suite,
         utils::{get_contract_address_from_res, get_funds_from_res, get_wasm_attribute_with_key},
     };
-    use cosmwasm_std::{coin, Addr, BlockInfo, Uint128};
+    use cosmwasm_std::{coin, Addr, BlockInfo, Uint256};
     use cw_multi_test::Executor;
     use streamswap_stream::ContractError;
     use streamswap_types::stream::ExecuteMsg as StreamSwapExecuteMsg;
@@ -46,7 +46,7 @@ mod cancel_stream {
             bootstrapping_start_time,
             start_time,
             end_time,
-            Some(Uint128::from(100u128)),
+            Some(Uint256::from(100u128)),
             None,
             None,
         );
@@ -132,7 +132,7 @@ mod cancel_stream {
             bootstrapping_start_time,
             start_time,
             end_time,
-            Some(Uint128::from(100u128)),
+            Some(Uint256::from(100u128)),
             None,
             None,
         );
@@ -221,7 +221,7 @@ mod cancel_stream {
             bootstrapping_start_time,
             start_time,
             end_time,
-            Some(Uint128::from(100u128)),
+            Some(Uint256::from(100u128)),
             None,
             None,
         );

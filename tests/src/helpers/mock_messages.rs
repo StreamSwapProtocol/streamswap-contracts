@@ -1,5 +1,5 @@
 use super::suite::TestAccounts;
-use cosmwasm_std::{Binary, Coin, Decimal, Timestamp, Uint128};
+use cosmwasm_std::{Binary, Coin, Decimal, Decimal256, Timestamp, Uint128, Uint256};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use streamswap_types::factory::{CreatePool, CreateStreamMsg};
 use streamswap_types::factory::{
@@ -21,7 +21,7 @@ pub fn get_factory_inst_msg(
             denom: "fee_denom".to_string(),
             amount: 100u128.into(),
         },
-        exit_fee_percent: Decimal::percent(1),
+        exit_fee_percent: Decimal256::percent(1),
         accepted_in_denoms: vec!["in_denom".to_string()],
         min_waiting_duration: 49,
         min_bootstrapping_duration: 49,
@@ -141,7 +141,7 @@ pub fn get_create_stream_msg(
     bootstrapping_start_time: Timestamp,
     start_time: Timestamp,
     end_time: Timestamp,
-    threshold: Option<Uint128>,
+    threshold: Option<Uint256>,
     create_pool: Option<CreatePool>,
     vesting: Option<VestingInstantiateMsg>,
 ) -> FactoryExecuteMsg {

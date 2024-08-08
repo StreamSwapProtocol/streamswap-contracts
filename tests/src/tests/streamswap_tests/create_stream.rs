@@ -6,7 +6,7 @@ mod create_stream_tests {
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
         suite::Suite,
     };
-    use cosmwasm_std::{coin, Api, Binary, Uint128};
+    use cosmwasm_std::{coin, Api, Binary, Uint256};
     use cw_multi_test::Executor;
     use streamswap_factory::error::ContractError as FactoryError;
     use streamswap_stream::ContractError as StreamSwapError;
@@ -165,7 +165,7 @@ mod create_stream_tests {
             bootstrapping_start_time,
             app.block_info().time.plus_seconds(100),
             app.block_info().time.plus_seconds(200),
-            Some(Uint128::from(100u128)),
+            Some(Uint256::from(100u128)),
             None,
             None,
         );
@@ -273,7 +273,7 @@ mod create_stream_tests {
             bootstrapping_start_time,
             app.block_info().time.plus_seconds(100),
             app.block_info().time.plus_seconds(200),
-            Some(Uint128::from(100u128)),
+            Some(Uint256::from(100u128)),
             None,
             None,
         );
@@ -411,7 +411,7 @@ mod create_stream_tests {
             bootstrapping_start_time,
             app.block_info().time.plus_seconds(100),
             app.block_info().time.plus_seconds(200),
-            Some(Uint128::from(0u128)),
+            Some(Uint256::from(0u128)),
             None,
             None,
         );
@@ -561,7 +561,7 @@ mod create_stream_tests {
             bootstrapping_start_time,
             start_time,
             end_time,
-            Some(Uint128::from(100u128)),
+            Some(Uint256::from(100u128)),
             None,
             None,
         );

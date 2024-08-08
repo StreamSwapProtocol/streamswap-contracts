@@ -8,7 +8,7 @@ mod treshold_tests {
         suite::Suite,
     };
     use cosmwasm_std::testing::MockStorage;
-    use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Timestamp, Uint128};
+    use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Timestamp, Uint128, Uint256};
     use cw_multi_test::Executor;
     use streamswap_stream::ContractError as StreamSwapError;
     use streamswap_types::stream::{
@@ -38,16 +38,16 @@ mod treshold_tests {
             None,
             None,
         );
-        let threshold = Uint128::new(1_500_000_000_000);
+        let threshold = Uint256::from(1_500_000_000_000u128);
 
         thresholds
             .set_threshold_if_any(Some(threshold), &mut storage)
             .unwrap();
 
-        stream.spent_in = Uint128::new(1_500_000_000_000 - 1);
+        stream.spent_in = Uint256::from(1_500_000_000_000u128 - 1u128);
         let result = thresholds.error_if_not_reached(&storage, &stream.clone());
         assert!(result.is_err());
-        stream.spent_in = Uint128::new(1_500_000_000_000);
+        stream.spent_in = Uint256::from(1_500_000_000_000u128);
         let result = thresholds.error_if_not_reached(&storage, &stream.clone());
         assert!(result.is_ok());
     }
@@ -63,7 +63,7 @@ mod treshold_tests {
         let start_time = app.block_info().time.plus_seconds(1_000_000);
         let end_time = app.block_info().time.plus_seconds(5_000_000);
         let bootstrapping_start_time = app.block_info().time.plus_seconds(500_000);
-        let threshold = Uint128::from(250u128);
+        let threshold = Uint256::from(250u128);
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
@@ -140,7 +140,10 @@ mod treshold_tests {
         // Exit should be possible
         // Since there is only one subscriber all out denom should be sent to subscriber
         let funds = get_funds_from_res(res);
-        assert_eq!(funds[0].1.amount, Uint128::from(500u128));
+        assert_eq!(
+            Uint256::from(funds[0].1.amount.u128()),
+            Uint256::from(500u128)
+        );
         assert_eq!(funds[0].1.denom, "out_denom".to_string());
 
         // Creator finalizes the stream
@@ -157,10 +160,16 @@ mod treshold_tests {
 
         // Creator's revenue
         let funds = get_funds_from_res(res);
-        assert_eq!(funds[0].1.amount, Uint128::from(495u128));
+        assert_eq!(
+            Uint256::from(funds[0].1.amount.u128()),
+            Uint256::from(495u128)
+        );
         assert_eq!(funds[0].1.denom, "in_denom".to_string());
         // Fee collector's revenue
-        assert_eq!(funds[1].1.amount, Uint128::from(5u128));
+        assert_eq!(
+            Uint256::from(funds[1].1.amount.u128()),
+            Uint256::from(5u128)
+        );
         assert_eq!(funds[1].1.denom, "in_denom".to_string());
     }
 
@@ -176,7 +185,7 @@ mod treshold_tests {
         let start_time = app.block_info().time.plus_seconds(1_000_000);
         let end_time = app.block_info().time.plus_seconds(5_000_000);
         let bootstrapping_start_time = app.block_info().time.plus_seconds(500_000);
-        let threshold = Uint128::from(500u128);
+        let threshold = Uint256::from(500u128);
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
@@ -290,7 +299,10 @@ mod treshold_tests {
             .unwrap();
         let subscriber_1_funds = get_funds_from_res(res);
         assert_eq!(subscriber_1_funds.len(), 1);
-        assert_eq!(subscriber_1_funds[0].1.amount, Uint128::from(250u128));
+        assert_eq!(
+            Uint256::from(subscriber_1_funds[0].1.amount.u128()),
+            Uint256::from(250u128)
+        );
         assert_eq!(subscriber_1_funds[0].1.denom, "in_denom".to_string());
 
         // Creator threshold cancels the stream
@@ -306,7 +318,10 @@ mod treshold_tests {
             .unwrap();
         let creator_funds = get_funds_from_res(res);
         assert_eq!(creator_funds.len(), 1);
-        assert_eq!(creator_funds[0].1.amount, Uint128::from(500u128));
+        assert_eq!(
+            Uint256::from(creator_funds[0].1.amount.u128()),
+            Uint256::from(500u128)
+        );
         assert_eq!(creator_funds[0].1.denom, "out_denom".to_string());
 
         // Creator can not finalize the stream
@@ -350,7 +365,10 @@ mod treshold_tests {
             .unwrap();
         let subscriber_2_funds = get_funds_from_res(res);
         assert_eq!(subscriber_2_funds.len(), 1);
-        assert_eq!(subscriber_2_funds[0].1.amount, Uint128::from(1u128));
+        assert_eq!(
+            Uint256::from(subscriber_2_funds[0].1.amount.u128()),
+            Uint256::from(1u128)
+        );
         assert_eq!(subscriber_2_funds[0].1.denom, "in_denom".to_string());
 
         // Query stream should return stream with is_cancelled = true
@@ -379,7 +397,7 @@ mod treshold_tests {
         let start_time = app.block_info().time.plus_seconds(1_000_000);
         let end_time = app.block_info().time.plus_seconds(5_000_000);
         let bootstrapping_start_time = app.block_info().time.plus_seconds(500_000);
-        let threshold = Uint128::from(500u128);
+        let threshold = Uint256::from(500u128);
 
         let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
