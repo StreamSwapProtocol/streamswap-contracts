@@ -10,7 +10,7 @@ mod update_stream_tests {
         utils::get_contract_address_from_res,
     };
 
-    use cosmwasm_std::{coin, Addr, BlockInfo, Decimal, Decimal256, Uint256};
+    use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint256};
     use cw_multi_test::Executor;
     use streamswap_types::stream::{
         ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg, Status, StreamResponse,

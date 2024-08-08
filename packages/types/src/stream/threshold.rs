@@ -1,5 +1,5 @@
 use crate::stream::{Stream, ThresholdError};
-use cosmwasm_std::{StdError, Storage, Uint128, Uint256};
+use cosmwasm_std::{StdError, Storage, Uint256};
 use cw_storage_plus::Item;
 
 pub type Threshold = Uint256;

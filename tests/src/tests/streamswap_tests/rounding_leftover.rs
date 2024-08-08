@@ -9,8 +9,8 @@ mod rounding_leftover {
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
         suite::Suite,
     };
+    use cosmwasm_std::Uint256;
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Timestamp};
-    use cosmwasm_std::{Uint128, Uint256};
     use cw_multi_test::Executor;
     use streamswap_types::stream::{
         ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg,

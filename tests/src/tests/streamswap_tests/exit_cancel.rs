@@ -6,7 +6,7 @@ mod exit_cancel {
         suite::Suite,
         utils::{get_contract_address_from_res, get_funds_from_res},
     };
-    use cosmwasm_std::{coin, Addr, BlockInfo, Uint128, Uint256};
+    use cosmwasm_std::{coin, Addr, BlockInfo, Uint256};
     use cw_multi_test::Executor;
     use streamswap_stream::ContractError;
     use streamswap_types::stream::ExecuteMsg as StreamSwapExecuteMsg;

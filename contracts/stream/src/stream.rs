@@ -1,4 +1,4 @@
-use cosmwasm_std::{Decimal, Decimal256, Fraction, Timestamp, Uint128, Uint256};
+use cosmwasm_std::{Decimal, Decimal256, Fraction, Timestamp, Uint256};
 use std::ops::Mul;
 use streamswap_types::stream::{Status, Stream};
 

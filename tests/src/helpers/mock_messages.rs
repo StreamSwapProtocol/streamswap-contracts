@@ -1,5 +1,5 @@
 use super::suite::TestAccounts;
-use cosmwasm_std::{Binary, Coin, Decimal, Decimal256, Timestamp, Uint128, Uint256};
+use cosmwasm_std::{Binary, Coin, Decimal256, Timestamp, Uint256};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use streamswap_types::factory::{CreatePool, CreateStreamMsg};
 use streamswap_types::factory::{

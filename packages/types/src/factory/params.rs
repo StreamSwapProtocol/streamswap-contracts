@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Coin, Decimal, Decimal256};
+use cosmwasm_std::{Addr, Coin, Decimal256};
 
 #[cw_serde]
 pub struct Params {

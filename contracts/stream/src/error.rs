@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     ConversionOverflowError, DivideByZeroError, Instantiate2AddressError, OverflowError, StdError,
-    Uint128, Uint256,
+    Uint256,
 };
 use cw_utils::PaymentError;
 use std::convert::Infallible;

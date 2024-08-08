@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Decimal256, Timestamp, Uint128, Uint256};
+use cosmwasm_std::{Addr, Decimal256, Timestamp, Uint256};
 
 #[cw_serde]
 pub struct Position {

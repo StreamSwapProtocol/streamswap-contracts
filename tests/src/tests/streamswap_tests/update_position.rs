@@ -10,7 +10,7 @@ mod update_position_tests {
         mock_messages::{get_create_stream_msg, get_factory_inst_msg},
         suite::Suite,
     };
-    use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint128, Uint256};
+    use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint256};
     use cw_multi_test::Executor;
     use streamswap_types::stream::{
         ExecuteMsg as StreamSwapExecuteMsg, PositionResponse, QueryMsg as StreamSwapQueryMsg,

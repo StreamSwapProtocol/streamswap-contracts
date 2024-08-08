@@ -1,6 +1,6 @@
 use crate::error::ContractError;
 use cosmwasm_std::{
-    entry_point, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env,
+    entry_point, to_json_binary, Binary, Coin, CosmosMsg, Decimal256, Deps, DepsMut, Env,
     MessageInfo, Order, Response, StdResult, WasmMsg,
 };
 use cw2::ensure_from_older_version;

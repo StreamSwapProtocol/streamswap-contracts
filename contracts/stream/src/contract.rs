@@ -7,8 +7,8 @@ use crate::stream::{compute_shares_amount, sync_stream_status, update_stream};
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
     attr, coin, entry_point, to_json_binary, Attribute, BankMsg, Binary, CodeInfoResponse, Coin,
-    CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError,
-    StdResult, Timestamp, Uint128, Uint256, WasmMsg,
+    CosmosMsg, Decimal256, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult,
+    Timestamp, Uint128, Uint256, WasmMsg,
 };
 use cw2::{ensure_from_older_version, set_contract_version};
 use cw_storage_plus::Bound;
@@ -237,7 +237,7 @@ pub fn update_position(
         position.pending_purchase = decimals;
 
         // floors the decimal points
-        purchased_uint256 = (purchased * Uint256::one()).try_into()?;
+        purchased_uint256 = purchased * Uint256::one();
         position.purchased = position.purchased.checked_add(purchased_uint256)?;
     }
 
