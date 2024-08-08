@@ -18,6 +18,8 @@ pub struct Position {
     pub pending_purchase: Decimal256,
     // Total amount of `token_in` spent tokens at latest calculation
     pub spent: Uint256,
+    // Exit date of the position
+    pub exit_date: Timestamp,
 }
 
 impl Position {
@@ -37,6 +39,7 @@ impl Position {
             purchased: Uint256::zero(),
             pending_purchase: Decimal256::zero(),
             spent: Uint256::zero(),
+            exit_date: Timestamp::from_nanos(0),
         }
     }
 }

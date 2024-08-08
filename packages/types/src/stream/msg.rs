@@ -148,6 +148,8 @@ pub struct PositionResponse {
     pub pending_purchase: Decimal256,
     // Total amount of `token_in` spent tokens at latest calculation
     pub spent: Uint256,
+    // Exit date of the position
+    pub exit_date: Timestamp,
 }
 
 #[cw_serde]

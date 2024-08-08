@@ -282,16 +282,16 @@ mod update_position_tests {
                 &[],
             )
             .unwrap();
-        // Update position
-        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {};
-        // Position is deleted after exiting the stream
-        let _res = app
-            .execute_contract(
-                test_accounts.subscriber_1.clone(),
+
+        let position: PositionResponse = app
+            .wrap()
+            .query_wasm_smart(
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_position_msg,
-                &[],
+                &StreamSwapQueryMsg::Position {
+                    owner: test_accounts.subscriber_1.to_string(),
+                },
             )
-            .unwrap_err();
+            .unwrap();
+        assert_eq!(position.exit_date, app.block_info().time);
     }
 }

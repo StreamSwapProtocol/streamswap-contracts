@@ -547,6 +547,10 @@ pub fn execute_exit_stream(
     threshold_state.error_if_not_reached(deps.storage, &stream)?;
 
     let mut position = POSITIONS.load(deps.storage, &info.sender)?;
+    // TODO: add test case for this
+    if position.exit_date != Timestamp::from_seconds(0) {
+        return Err(ContractError::SubscriberAlreadyExited {});
+    }
 
     // update position before exit
     update_position(
@@ -559,7 +563,9 @@ pub fn execute_exit_stream(
     stream.shares = stream.shares.checked_sub(position.shares)?;
 
     STREAM.save(deps.storage, &stream)?;
-    POSITIONS.remove(deps.storage, &position.owner);
+    // update position exit date
+    position.exit_date = env.block.time;
+    POSITIONS.save(deps.storage, &position.owner, &position)?;
 
     // Swap fee = fixed_rate*position.spent_in this calculation is only for execution reply attributes
     let swap_fee = Decimal256::from_ratio(position.spent, Uint128::one())
@@ -748,6 +754,7 @@ pub fn query_position(deps: Deps, _env: Env, owner: String) -> StdResult<Positio
         shares: position.shares,
         last_updated: position.last_updated,
         pending_purchase: position.pending_purchase,
+        exit_date: position.exit_date,
     };
     Ok(res)
 }
@@ -775,6 +782,7 @@ pub fn list_positions(
                 shares: position.shares,
                 last_updated: position.last_updated,
                 pending_purchase: position.pending_purchase,
+                exit_date: position.exit_date,
             };
             Ok(position)
         })

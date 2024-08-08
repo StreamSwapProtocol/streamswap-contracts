@@ -1,7 +1,9 @@
 use crate::state::{FACTORY_PARAMS, POSITIONS, STREAM};
 use crate::stream::{sync_stream_status, update_stream};
 use crate::ContractError;
-use cosmwasm_std::{attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128};
+use cosmwasm_std::{
+    attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Timestamp, Uint128,
+};
 use streamswap_types::factory::Params;
 use streamswap_types::stream::ThresholdState;
 use streamswap_types::stream::{Status, ThresholdError};
@@ -13,9 +15,13 @@ pub fn execute_exit_cancelled(
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
 
-    let position = POSITIONS.load(deps.storage, &info.sender)?;
+    let mut position = POSITIONS.load(deps.storage, &info.sender)?;
     if position.owner != info.sender {
         return Err(ContractError::Unauthorized {});
+    }
+    // TODO: add test case for this
+    if position.exit_date != Timestamp::from_seconds(0) {
+        return Err(ContractError::SubscriberAlreadyExited {});
     }
 
     sync_stream_status(&mut stream, env.block.time);
@@ -41,7 +47,9 @@ pub fn execute_exit_cancelled(
 
     // no need to update position here, we just need to return total balance
     let total_balance = position.in_balance + position.spent;
-    POSITIONS.remove(deps.storage, &position.owner);
+    // update position exit date
+    position.exit_date = env.block.time;
+    POSITIONS.save(deps.storage, &position.owner, &position)?;
 
     let attributes = vec![
         attr("action", "withdraw_cancelled"),
