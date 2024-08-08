@@ -13,7 +13,7 @@ pub fn execute_exit_cancelled(
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
 
-    let position = POSITIONS.load(deps.storage, &info.sender)?;
+    let mut position = POSITIONS.load(deps.storage, &info.sender)?;
     if position.owner != info.sender {
         return Err(ContractError::Unauthorized {});
     }
@@ -41,7 +41,9 @@ pub fn execute_exit_cancelled(
 
     // no need to update position here, we just need to return total balance
     let total_balance = position.in_balance + position.spent;
-    POSITIONS.remove(deps.storage, &position.owner);
+    // update position exit date    
+    position.exit_date = env.block.time;
+    POSITIONS.save(deps.storage, &position.owner, &position)?;
 
     let attributes = vec![
         attr("action", "withdraw_cancelled"),
