@@ -5,7 +5,7 @@ mod update_stream_tests {
 
     use crate::helpers::suite::SuiteBuilder;
     use crate::helpers::{
-        mock_messages::{get_create_stream_msg, get_controller_inst_msg},
+        mock_messages::{get_controller_inst_msg, get_create_stream_msg},
         suite::Suite,
         utils::get_contract_address_from_res,
     };

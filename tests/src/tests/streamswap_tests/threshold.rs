@@ -4,7 +4,7 @@ mod treshold_tests {
     use crate::helpers::suite::SuiteBuilder;
     use crate::helpers::utils::{get_contract_address_from_res, get_funds_from_res};
     use crate::helpers::{
-        mock_messages::{get_create_stream_msg, get_controller_inst_msg},
+        mock_messages::{get_controller_inst_msg, get_create_stream_msg},
         suite::Suite,
     };
     use cosmwasm_std::testing::MockStorage;

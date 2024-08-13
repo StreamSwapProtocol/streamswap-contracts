@@ -3,7 +3,7 @@ mod create_stream_tests {
     use crate::helpers::suite::SuiteBuilder;
     use crate::helpers::utils::get_wasm_attribute_with_key;
     use crate::helpers::{
-        mock_messages::{get_create_stream_msg, get_controller_inst_msg},
+        mock_messages::{get_controller_inst_msg, get_create_stream_msg},
         suite::Suite,
     };
     use cosmwasm_std::{coin, Api, Binary, Uint256};

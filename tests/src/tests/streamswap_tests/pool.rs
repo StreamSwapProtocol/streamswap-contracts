@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod pool_tests {
-    use crate::helpers::mock_messages::{get_create_stream_msg, get_controller_inst_msg};
+    use crate::helpers::mock_messages::{get_controller_inst_msg, get_create_stream_msg};
     use crate::helpers::suite::{Suite, SuiteBuilder};
     use crate::helpers::utils::get_contract_address_from_res;
     use cosmwasm_std::{coin, Addr, Coin};

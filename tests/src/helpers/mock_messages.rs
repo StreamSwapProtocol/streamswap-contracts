@@ -12,7 +12,7 @@ pub fn get_controller_inst_msg(
     vesting_code_id: u64,
     test_accounts: &TestAccounts,
 ) -> ControllerInstantiateMsg {
-    ControllerInstantiateMsg{
+    ControllerInstantiateMsg {
         stream_contract_code_id,
         vesting_code_id,
         protocol_admin: Some(test_accounts.admin.to_string()),
