@@ -524,9 +524,9 @@ mod withdraw {
 
         // Instantiate stream swap
         let stream_swap_code_id = suite.stream_swap_code_id;
-        let stream_swap_factory_code_id = suite.stream_swap_factory_code_id;
+        let stream_swap_factory_code_id = suite.stream_swap_controller_code_id;
         let vesting_code_id = suite.vesting_code_id;
-        let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
+        let msg = get_controller_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let factory_address = app
             .instantiate_contract(
                 stream_swap_factory_code_id,
