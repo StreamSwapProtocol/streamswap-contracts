@@ -27,7 +27,7 @@ cw2                = { workspace = true }
 osmosis-std        = { workspace = true }
 prost              = { workspace = true }
 schemars           = { workspace = true }
-streamswap-factory = { workspace = true }
+streamswap-controller = { workspace = true }
 streamswap-stream  = { workspace = true }
 streamswap-types   = { workspace = true }
 streamswap-utils   = { workspace = true }

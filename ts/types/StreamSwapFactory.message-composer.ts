@@ -7,8 +7,8 @@
 import { MsgExecuteContractEncodeObject } from "@cosmjs/cosmwasm-stargate";
 import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
 import { toUtf8 } from "@cosmjs/encoding";
-import { Decimal, Uint128, InstantiateMsg, Coin, ExecuteMsg, Timestamp, Uint64, UncheckedDenom, Schedule, CreateStreamMsg, CreatePool, MsgCreateConcentratedPool, QueryMsg, Boolean, Addr, Params } from "./StreamSwapFactory.types";
-export interface StreamSwapFactoryMsg {
+import { Decimal, Uint128, InstantiateMsg, Coin, ExecuteMsg, Timestamp, Uint64, UncheckedDenom, Schedule, CreateStreamMsg, CreatePool, MsgCreateConcentratedPool, QueryMsg, Boolean, Addr, Params } from "./StreamSwapController.types";
+export interface StreamSwapControllerMsg {
   contractAddress: string;
   sender: string;
   updateParams: ({
@@ -33,7 +33,7 @@ export interface StreamSwapFactoryMsg {
   }, _funds?: Coin[]) => MsgExecuteContractEncodeObject;
   freeze: (_funds?: Coin[]) => MsgExecuteContractEncodeObject;
 }
-export class StreamSwapFactoryMsgComposer implements StreamSwapFactoryMsg {
+export class StreamSwapControllerMsgComposer implements StreamSwapControllerMsg {
   sender: string;
   contractAddress: string;
 

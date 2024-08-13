@@ -1,4 +1,4 @@
-use crate::factory::CreatePool;
+use crate::controller::CreatePool;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin, Decimal256, Timestamp, Uint256};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;

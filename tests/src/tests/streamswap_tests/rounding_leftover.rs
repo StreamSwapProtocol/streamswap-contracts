@@ -6,7 +6,7 @@ mod rounding_leftover {
     use crate::helpers::suite::SuiteBuilder;
     use crate::helpers::utils::get_contract_address_from_res;
     use crate::helpers::{
-        mock_messages::{get_create_stream_msg, get_factory_inst_msg},
+        mock_messages::{get_create_stream_msg, get_controller_inst_msg},
         suite::Suite,
     };
     use cosmwasm_std::Uint256;
@@ -23,7 +23,7 @@ mod rounding_leftover {
             mut app,
             test_accounts,
             stream_swap_code_id,
-            stream_swap_factory_code_id,
+            stream_swap_controller_code_id,
             vesting_code_id,
         } = SuiteBuilder::default().build();
 
@@ -31,15 +31,15 @@ mod rounding_leftover {
         let end_time = Timestamp::from_seconds(5_000_000);
         let bootstrapping_start_time = Timestamp::from_seconds(500_000);
 
-        let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
+        let msg = get_controller_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
 
-        let factory_address = app
+        let controller_address = app
             .instantiate_contract(
-                stream_swap_factory_code_id,
+                stream_swap_controller_code_id,
                 test_accounts.admin.clone(),
                 &msg,
                 &[],
-                "Factory".to_string(),
+                "Controller".to_string(),
                 None,
             )
             .unwrap();
@@ -61,7 +61,7 @@ mod rounding_leftover {
         let res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
-                factory_address.clone(),
+                controller_address.clone(),
                 &create_stream_msg,
                 &[coin(100, "fee_denom"), coin(1_000_000_000_000, "out_denom")],
             )

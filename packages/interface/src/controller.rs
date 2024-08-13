@@ -1,13 +1,13 @@
 use cw_orch::{interface, prelude::*};
-use streamswap_factory::contract::{execute, instantiate, migrate, query};
-use streamswap_types::factory::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use streamswap_controller::contract::{execute, instantiate, migrate, query};
+use streamswap_types::controller::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
-pub const CONTRACT_ID: &str = "streamswap_factory";
+pub const CONTRACT_ID: &str = "streamswap_controller";
 
 #[interface(InstantiateMsg, ExecuteMsg, QueryMsg, MigrateMsg, id = CONTRACT_ID)]
-pub struct StreamSwapFactoryContract;
+pub struct StreamSwapControllerContract;
 
-impl<Chain> Uploadable for StreamSwapFactoryContract<Chain> {
+impl<Chain> Uploadable for StreamSwapControllerContract<Chain> {
     /// Return the path to the wasm file corresponding to the contract
     fn wasm(_chain: &ChainInfoOwned) -> WasmPath {
         artifacts_dir_from_workspace!()

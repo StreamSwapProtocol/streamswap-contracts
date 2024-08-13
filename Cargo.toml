@@ -38,8 +38,8 @@ serde           = { version = "1.0.152", default-features = false, features = ["
 thiserror       = { version = "1.0.38" }
 
 # contracts
-streamswap-factory = { path = "./contracts/factory" }
-streamswap-stream  = { path = "./contracts/stream" }
+streamswap-controller = { path = "./contracts/controller" }
+streamswap-stream     = { path = "./contracts/stream" }
 
 # packages
 streamswap-types = { path = "./packages/types" }

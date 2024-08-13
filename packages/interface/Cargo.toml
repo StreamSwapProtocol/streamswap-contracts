@@ -10,9 +10,9 @@ version.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cw-orch          = { workspace = true }
-streamswap-types = { workspace = true }
-streamswap-factory = { workspace = true }
+cw-orch               = { workspace = true }
+streamswap-types      = { workspace = true }
+streamswap-controller = { workspace = true }
 
 [lints]
 workspace = true

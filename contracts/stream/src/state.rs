@@ -1,9 +1,9 @@
 use cosmwasm_std::Addr;
 use cw_storage_plus::{Item, Map};
-use streamswap_types::factory::Params;
+use streamswap_types::controller::Params;
 use streamswap_types::stream::{Position, Stream};
 
-pub const FACTORY_PARAMS: Item<Params> = Item::new("params");
+pub const CONTROLLER_PARAMS: Item<Params> = Item::new("params");
 
 pub const STREAM: Item<Stream> = Item::new("stream");
 

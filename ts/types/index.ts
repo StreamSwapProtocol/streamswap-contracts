@@ -4,14 +4,14 @@
 * and run the @cosmwasm/ts-codegen generate command to regenerate this file.
 */
 
-import * as _0 from "./StreamSwapFactory.types";
-import * as _1 from "./StreamSwapFactory.client";
-import * as _2 from "./StreamSwapFactory.message-composer";
+import * as _0 from "./StreamSwapController.types";
+import * as _1 from "./StreamSwapController.client";
+import * as _2 from "./StreamSwapController.message-composer";
 import * as _3 from "./StreamSwapStream.types";
 import * as _4 from "./StreamSwapStream.client";
 import * as _5 from "./StreamSwapStream.message-composer";
 export namespace contracts {
-  export const StreamSwapFactory = { ..._0,
+  export const StreamSwapController = { ..._0,
     ..._1,
     ..._2
   };

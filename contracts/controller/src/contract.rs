@@ -5,7 +5,7 @@ use cosmwasm_std::{
 };
 use cw2::ensure_from_older_version;
 use cw_storage_plus::Bound;
-use streamswap_types::factory::{
+use streamswap_types::controller::{
     CreateStreamMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, Params, QueryMsg, StreamResponse,
     StreamsResponse,
 };
@@ -13,7 +13,7 @@ use streamswap_utils::payment_checker::check_payment;
 
 use crate::state::{FREEZESTATE, LAST_STREAM_ID, PARAMS, STREAMS};
 
-const CONTRACT_NAME: &str = "crates.io:streamswap-factory";
+const CONTRACT_NAME: &str = "crates.io:streamswap-controller";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]

@@ -1,10 +1,10 @@
 #![cfg(test)]
 use crate::helpers::suite::SuiteBuilder;
-use crate::helpers::{mock_messages::get_factory_inst_msg, suite::Suite};
+use crate::helpers::{mock_messages::get_controller_inst_msg, suite::Suite};
 use cosmwasm_std::{coin, Decimal256};
 use cw_multi_test::Executor;
-use streamswap_factory::error::ContractError as FactoryError;
-use streamswap_types::factory::{ExecuteMsg, Params, QueryMsg};
+use streamswap_controller::error::ContractError as ControllerError;
+use streamswap_types::controller::{ExecuteMsg, Params, QueryMsg};
 
 #[test]
 fn params_update() {
@@ -12,18 +12,18 @@ fn params_update() {
         mut app,
         test_accounts,
         stream_swap_code_id,
-        stream_swap_factory_code_id,
+        stream_swap_controller_code_id,
         vesting_code_id,
     } = SuiteBuilder::default().build();
 
-    let msg = get_factory_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
-    let factory_address = app
+    let msg = get_controller_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
+    let controller_address = app
         .instantiate_contract(
-            stream_swap_factory_code_id,
+            stream_swap_controller_code_id,
             test_accounts.admin.clone(),
             &msg,
             &[],
-            "Factory".to_string(),
+            "Controller".to_string(),
             None,
         )
         .unwrap();
@@ -41,14 +41,14 @@ fn params_update() {
     let res = app
         .execute_contract(
             test_accounts.subscriber_1.clone(),
-            factory_address.clone(),
+            controller_address.clone(),
             &msg,
             &[],
         )
         .unwrap_err();
     let err = res.source().unwrap();
-    let error = err.downcast_ref::<FactoryError>().unwrap();
-    assert_eq!(*error, FactoryError::Unauthorized {});
+    let error = err.downcast_ref::<ControllerError>().unwrap();
+    assert_eq!(*error, ControllerError::Unauthorized {});
 
     // Update stream creation fee
     let msg = ExecuteMsg::UpdateParams {
@@ -63,7 +63,7 @@ fn params_update() {
     let _ = app
         .execute_contract(
             test_accounts.admin.clone(),
-            factory_address.clone(),
+            controller_address.clone(),
             &msg,
             &[],
         )
@@ -72,7 +72,7 @@ fn params_update() {
     // Query Params
     let res: Params = app
         .wrap()
-        .query_wasm_smart(factory_address.clone(), &QueryMsg::Params {})
+        .query_wasm_smart(controller_address.clone(), &QueryMsg::Params {})
         .unwrap();
 
     assert_eq!(res.stream_creation_fee, coin(200, "fee_denom"));
@@ -90,14 +90,14 @@ fn params_update() {
     let res = app
         .execute_contract(
             test_accounts.admin.clone(),
-            factory_address.clone(),
+            controller_address.clone(),
             &msg,
             &[],
         )
         .unwrap_err();
     let err = res.source().unwrap();
-    let error = err.downcast_ref::<FactoryError>().unwrap();
-    assert_eq!(*error, FactoryError::InvalidExitFeePercent {});
+    let error = err.downcast_ref::<ControllerError>().unwrap();
+    assert_eq!(*error, ControllerError::InvalidExitFeePercent {});
 
     // Update exit fee percent
     let msg = ExecuteMsg::UpdateParams {
@@ -112,7 +112,7 @@ fn params_update() {
     let _ = app
         .execute_contract(
             test_accounts.admin.clone(),
-            factory_address.clone(),
+            controller_address.clone(),
             &msg,
             &[],
         )
@@ -121,7 +121,7 @@ fn params_update() {
     // Query Params
     let res: Params = app
         .wrap()
-        .query_wasm_smart(factory_address.clone(), &QueryMsg::Params {})
+        .query_wasm_smart(controller_address.clone(), &QueryMsg::Params {})
         .unwrap();
 
     assert_eq!(res.exit_fee_percent, Decimal256::percent(50));
@@ -139,7 +139,7 @@ fn params_update() {
     let _ = app
         .execute_contract(
             test_accounts.admin.clone(),
-            factory_address.clone(),
+            controller_address.clone(),
             &msg,
             &[],
         )
@@ -148,7 +148,7 @@ fn params_update() {
     // Query Params
     let res: Params = app
         .wrap()
-        .query_wasm_smart(factory_address.clone(), &QueryMsg::Params {})
+        .query_wasm_smart(controller_address.clone(), &QueryMsg::Params {})
         .unwrap();
 
     assert_eq!(
@@ -169,7 +169,7 @@ fn params_update() {
     let _ = app
         .execute_contract(
             test_accounts.admin.clone(),
-            factory_address.clone(),
+            controller_address.clone(),
             &msg,
             &[],
         )
@@ -178,7 +178,7 @@ fn params_update() {
     // Query Params
     let res: Params = app
         .wrap()
-        .query_wasm_smart(factory_address.clone(), &QueryMsg::Params {})
+        .query_wasm_smart(controller_address.clone(), &QueryMsg::Params {})
         .unwrap();
 
     assert_eq!(res.fee_collector, test_accounts.admin_2);
@@ -196,7 +196,7 @@ fn params_update() {
     let _ = app
         .execute_contract(
             test_accounts.admin.clone(),
-            factory_address.clone(),
+            controller_address.clone(),
             &msg,
             &[],
         )
@@ -205,7 +205,7 @@ fn params_update() {
     // Query Params
     let res: Params = app
         .wrap()
-        .query_wasm_smart(factory_address.clone(), &QueryMsg::Params {})
+        .query_wasm_smart(controller_address.clone(), &QueryMsg::Params {})
         .unwrap();
 
     assert_eq!(res.min_stream_duration, 200);
@@ -223,7 +223,7 @@ fn params_update() {
     let _ = app
         .execute_contract(
             test_accounts.admin.clone(),
-            factory_address.clone(),
+            controller_address.clone(),
             &msg,
             &[],
         )
@@ -232,7 +232,7 @@ fn params_update() {
     // Query Params
     let res: Params = app
         .wrap()
-        .query_wasm_smart(factory_address.clone(), &QueryMsg::Params {})
+        .query_wasm_smart(controller_address.clone(), &QueryMsg::Params {})
         .unwrap();
 
     assert_eq!(res.min_bootstrapping_duration, 200);

@@ -32,7 +32,7 @@ type AppType = App<
 pub(crate) struct Suite {
     pub app: AppType,
     pub test_accounts: TestAccounts,
-    pub stream_swap_factory_code_id: u64,
+    pub stream_swap_controller_code_id: u64,
     pub stream_swap_code_id: u64,
     pub vesting_code_id: u64,
 }
@@ -71,10 +71,10 @@ impl SuiteBuilder {
             time: Timestamp::from_seconds(1_000),
         });
 
-        let stream_swap_factory_contract = Box::new(ContractWrapper::new(
-            streamswap_factory::contract::execute,
-            streamswap_factory::contract::instantiate,
-            streamswap_factory::contract::query,
+        let stream_swap_controller_contract = Box::new(ContractWrapper::new(
+            streamswap_controller::contract::execute,
+            streamswap_controller::contract::instantiate,
+            streamswap_controller::contract::query,
         ));
         let stream_swap_contract = Box::new(ContractWrapper::new(
             streamswap_stream::contract::execute,
@@ -88,12 +88,12 @@ impl SuiteBuilder {
         ));
 
         let stream_swap_code_id = app.store_code(stream_swap_contract);
-        let stream_swap_factory_code_id = app.store_code(stream_swap_factory_contract);
+        let stream_swap_controller_code_id = app.store_code(stream_swap_controller_contract);
         let vesting_code_id = app.store_code(vesting_contract);
 
         Suite {
             test_accounts: accounts,
-            stream_swap_factory_code_id,
+            stream_swap_controller_code_id,
             stream_swap_code_id,
             vesting_code_id,
             app,

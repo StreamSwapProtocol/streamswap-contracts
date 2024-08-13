@@ -1,18 +1,18 @@
 use super::suite::TestAccounts;
 use cosmwasm_std::{Binary, Coin, Decimal256, Timestamp, Uint256};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
-use streamswap_types::factory::{CreatePool, CreateStreamMsg};
-use streamswap_types::factory::{
-    ExecuteMsg as FactoryExecuteMsg, InstantiateMsg as FactoryInstantiateMsg,
+use streamswap_types::controller::{CreatePool, CreateStreamMsg};
+use streamswap_types::controller::{
+    ExecuteMsg as ControllerExecuteMsg, InstantiateMsg as ControllerInstantiateMsg,
 };
 
 #[allow(dead_code)]
-pub fn get_factory_inst_msg(
+pub fn get_controller_inst_msg(
     stream_contract_code_id: u64,
     vesting_code_id: u64,
     test_accounts: &TestAccounts,
-) -> FactoryInstantiateMsg {
-    FactoryInstantiateMsg {
+) -> ControllerInstantiateMsg {
+    ControllerInstantiateMsg{
         stream_contract_code_id,
         vesting_code_id,
         protocol_admin: Some(test_accounts.admin.to_string()),
@@ -144,8 +144,8 @@ pub fn get_create_stream_msg(
     threshold: Option<Uint256>,
     create_pool: Option<CreatePool>,
     vesting: Option<VestingInstantiateMsg>,
-) -> FactoryExecuteMsg {
-    FactoryExecuteMsg::CreateStream {
+) -> ControllerExecuteMsg {
+    ControllerExecuteMsg::CreateStream {
         msg: Box::new(CreateStreamMsg {
             bootstraping_start_time: bootstrapping_start_time,
             treasury: treasury.to_string(),

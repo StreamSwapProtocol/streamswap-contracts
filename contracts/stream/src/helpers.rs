@@ -1,7 +1,7 @@
 use crate::ContractError;
 use cosmwasm_std::{Decimal256, Timestamp};
 use std::str::FromStr;
-use streamswap_types::factory::Params as FactoryParams;
+use streamswap_types::controller::Params as ControllerParams;
 
 /// Stream validation related constants
 const MIN_NAME_LENGTH: usize = 2;
@@ -63,7 +63,7 @@ pub fn validate_stream_times(
     bootstrapping_start_time: Timestamp,
     start_time: Timestamp,
     end_time: Timestamp,
-    params: &FactoryParams,
+    params: &ControllerParams,
 ) -> Result<(), ContractError> {
     if now > bootstrapping_start_time {
         return Err(ContractError::StreamInvalidBootstrappingStartTime {});

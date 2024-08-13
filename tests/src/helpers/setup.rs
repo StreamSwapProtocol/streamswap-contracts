@@ -5,8 +5,8 @@ use cw_multi_test::{
     App, AppBuilder, BankKeeper, BankSudo, ContractWrapper, DistributionKeeper, FailingModule,
     GovFailingModule, IbcFailingModule, StakeKeeper, SudoMsg, WasmKeeper,
 };
-use streamswap_factory::contract::{
-    execute as factory_execute, instantiate as factory_instantiate, query as factory_query,
+use streamswap_controller::contract::{
+    execute as controller_execute, instantiate as controller_instantiate, query as controller_query,
 };
 use streamswap_stream::contract::{
     execute as streamswap_execute, instantiate as streamswap_instantiate, query as streamswap_query,
@@ -40,10 +40,10 @@ pub fn setup() -> SetupResponse {
         time: Timestamp::from_seconds(1_000),
     });
 
-    let stream_swap_factory_contract = Box::new(ContractWrapper::new(
-        factory_execute,
-        factory_instantiate,
-        factory_query,
+    let stream_swap_controller_contract = Box::new(ContractWrapper::new(
+        controller_execute,
+        controller_instantiate,
+        controller_query,
     ));
     let stream_swap_contract = Box::new(ContractWrapper::new(
         streamswap_execute,
@@ -52,11 +52,11 @@ pub fn setup() -> SetupResponse {
     ));
 
     let stream_swap_code_id = app.store_code(stream_swap_contract);
-    let stream_swap_factory_code_id = app.store_code(stream_swap_factory_contract);
+    let stream_swap_controller_code_id = app.store_code(stream_swap_controller_contract);
 
     SetupResponse {
         test_accounts: accounts,
-        stream_swap_factory_code_id,
+        stream_swap_controller_code_id,
         stream_swap_code_id,
         app,
     }
@@ -98,7 +98,7 @@ pub struct SetupResponse {
         MyStargateKeeper,
     >,
     pub test_accounts: TestAccounts,
-    pub stream_swap_factory_code_id: u64,
+    pub stream_swap_controller_code_id: u64,
     pub stream_swap_code_id: u64,
 }
 
