@@ -74,7 +74,7 @@ pub enum ContractError {
     StreamIsStarted {},
 
     #[error("sync position")]
-    UpdatePosition {},
+    SyncPosition {},
 
     #[error("Stream duration is too short")]
     StreamDurationTooShort {},
