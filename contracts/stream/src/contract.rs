@@ -24,9 +24,9 @@ use streamswap_types::stream::{
 use streamswap_utils::payment_checker::check_payment;
 use streamswap_utils::to_uint256;
 
-use crate::state::{FACTORY_PARAMS, POSITIONS, STREAM, VESTING};
-use streamswap_types::factory::Params as FactoryParams;
-use streamswap_types::factory::{CreateStreamMsg, MigrateMsg};
+use crate::state::{CONTROLLER_PARAMS, POSITIONS, STREAM, VESTING};
+use streamswap_types::controller::Params as ControllerParams;
+use streamswap_types::controller::{CreateStreamMsg, MigrateMsg};
 use streamswap_types::stream::{Position, Status, Stream};
 
 // Version and contract info for migration
@@ -42,12 +42,12 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     let params_query_msg = QueryMsg::Params {};
-    let factory_params: FactoryParams = deps
+    let controller_params: ControllerParams = deps
         .querier
         .query_wasm_smart(info.sender.to_string(), &params_query_msg)?;
-    // Factory parameters are collected at the time of stream creation
-    // Any changes to factory parameters will not affect the stream
-    FACTORY_PARAMS.save(deps.storage, &factory_params)?;
+    // Controller parameters are collected at the time of stream creation
+    // Any changes to controller parameters will not affect the stream
+    CONTROLLER_PARAMS.save(deps.storage, &controller_params)?;
 
     let CreateStreamMsg {
         bootstraping_start_time,
@@ -65,7 +65,7 @@ pub fn instantiate(
         salt: _,
     } = msg;
     // Check if out asset is provided
-    // TODO: This might be unnecessary as we are checking this at factory level
+    // TODO: This might be unnecessary as we are checking this at controller level
     check_payment(&info.funds, &[out_asset.clone()])?;
 
     validate_stream_times(
@@ -73,7 +73,7 @@ pub fn instantiate(
         bootstraping_start_time,
         start_time,
         end_time,
-        &factory_params,
+        &controller_params,
     )?;
 
     if in_denom == out_asset.denom {
@@ -422,12 +422,12 @@ pub fn execute_finalize_stream(
 
     STREAM.save(deps.storage, &stream)?;
 
-    let factory_params = FACTORY_PARAMS.load(deps.storage)?;
+    let controller_params = CONTROLLER_PARAMS.load(deps.storage)?;
     let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or_else(|| stream.treasury.clone());
 
     //Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
     let swap_fee = Decimal256::from_ratio(stream.spent_in, Uint128::one())
-        .checked_mul(factory_params.exit_fee_percent)?
+        .checked_mul(controller_params.exit_fee_percent)?
         * Uint256::one();
 
     let creator_revenue = stream.spent_in.checked_sub(swap_fee)?;
@@ -445,7 +445,7 @@ pub fn execute_finalize_stream(
     messages.push(revenue_msg);
     let uint128_swap_fee = Uint128::try_from(swap_fee)?;
     let swap_fee_msg = CosmosMsg::Bank(BankMsg::Send {
-        to_address: factory_params.fee_collector.to_string(),
+        to_address: controller_params.fee_collector.to_string(),
         amount: vec![Coin {
             denom: stream.in_denom.clone(),
             amount: uint128_swap_fee,
@@ -506,7 +506,7 @@ pub fn execute_finalize_stream(
     Ok(Response::new().add_messages(messages).add_attributes(vec![
         attr("action", "finalize_stream"),
         attr("treasury", treasury.as_str()),
-        attr("fee_collector", factory_params.fee_collector.to_string()),
+        attr("fee_collector", controller_params.fee_collector.to_string()),
         attr("creators_revenue", creator_revenue),
         attr("refunded_out_remaining", stream.out_remaining.to_string()),
         attr(
@@ -518,7 +518,7 @@ pub fn execute_finalize_stream(
         attr("swap_fee", swap_fee),
         attr(
             "creation_fee_amount",
-            factory_params.stream_creation_fee.amount.to_string(),
+            controller_params.stream_creation_fee.amount.to_string(),
         ),
     ]))
 }
@@ -530,7 +530,7 @@ pub fn execute_exit_stream(
     salt: Option<Binary>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
-    let factory_params = FACTORY_PARAMS.load(deps.storage)?;
+    let controller_params = CONTROLLER_PARAMS.load(deps.storage)?;
     // check if stream is paused
     if stream.is_cancelled() {
         return Err(ContractError::StreamKillswitchActive {});
@@ -569,7 +569,7 @@ pub fn execute_exit_stream(
 
     // Swap fee = fixed_rate*position.spent_in this calculation is only for execution reply attributes
     let swap_fee = Decimal256::from_ratio(position.spent, Uint128::one())
-        .checked_mul(factory_params.exit_fee_percent)?
+        .checked_mul(controller_params.exit_fee_percent)?
         * Uint256::one();
 
     let mut msgs: Vec<CosmosMsg> = vec![];
@@ -590,7 +590,7 @@ pub fn execute_exit_stream(
         // prepare instantiate msg msg
         let CodeInfoResponse { checksum, .. } = deps
             .querier
-            .query_wasm_code_info(factory_params.vesting_code_id)?;
+            .query_wasm_code_info(controller_params.vesting_code_id)?;
         let creator = deps.api.addr_canonicalize(env.contract.address.as_str())?;
 
         // Calculate the address of the new contract
@@ -604,7 +604,7 @@ pub fn execute_exit_stream(
 
         let vesting_instantiate_msg = WasmMsg::Instantiate2 {
             admin: None,
-            code_id: factory_params.vesting_code_id,
+            code_id: controller_params.vesting_code_id,
             label: format!(
                 "streamswap: Stream Addr {} Released to {}",
                 env.contract.address, info.sender
@@ -673,9 +673,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Threshold {} => to_json_binary(&query_threshold_state(deps, env)?),
     }
 }
-pub fn query_params(deps: Deps) -> StdResult<FactoryParams> {
-    let factory_params = FACTORY_PARAMS.load(deps.storage)?;
-    Ok(factory_params)
+pub fn query_params(deps: Deps) -> StdResult<ControllerParams> {
+    let controller_params = CONTROLLER_PARAMS.load(deps.storage)?;
+    Ok(controller_params)
 }
 
 pub fn query_stream(deps: Deps, _env: Env) -> StdResult<StreamResponse> {

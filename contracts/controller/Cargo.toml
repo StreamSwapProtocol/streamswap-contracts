@@ -1,5 +1,5 @@
 [package]
-name = "streamswap-factory"
+name = "streamswap-controller"
 version = { workspace = true }
 edition = { workspace = true }
 exclude = [

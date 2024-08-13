@@ -1,6 +1,6 @@
 use cw_orch::{interface, prelude::*};
-use streamswap_factory::contract::{execute, instantiate, migrate, query};
-use streamswap_types::factory::CreateStreamMsg as InstantiateMsg;
+use streamswap_controller::contract::{execute, instantiate, migrate, query};
+use streamswap_types::controller::CreateStreamMsg as InstantiateMsg;
 use streamswap_types::stream::{ExecuteMsg, MigrateMsg, QueryMsg};
 
 pub const CONTRACT_ID: &str = "streamswap_stream";

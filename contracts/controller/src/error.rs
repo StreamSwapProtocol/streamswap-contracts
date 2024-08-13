@@ -148,8 +148,8 @@ pub enum ContractError {
     #[error("Invalid exit fee")]
     InvalidStreamExitFee {},
 
-    #[error("Invalid factory params")]
-    InvalidFactoryParams {},
+    #[error("Invalid controller params")]
+    InvalidControllerParams {},
 }
 
 impl From<ContractError> for StdError {

@@ -43,7 +43,7 @@ pub enum ExecuteMsg {
 #[cfg_attr(feature = "interface", derive(cw_orch::QueryFns))]
 pub enum QueryMsg {
     /// Returns current configuration.
-    #[returns(crate::factory::Params)]
+    #[returns(crate::controller::Params)]
     Params {},
     /// Returns a stream's current state.
     #[returns(StreamResponse)]

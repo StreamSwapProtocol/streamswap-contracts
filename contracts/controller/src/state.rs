@@ -1,6 +1,6 @@
 use cosmwasm_std::Addr;
 use cw_storage_plus::{Item, Map};
-use streamswap_types::factory::Params;
+use streamswap_types::controller::Params;
 
 pub const PARAMS: Item<Params> = Item::new("params");
 pub const FREEZESTATE: Item<bool> = Item::new("freezestate");

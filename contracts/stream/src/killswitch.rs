@@ -1,10 +1,10 @@
-use crate::state::{FACTORY_PARAMS, POSITIONS, STREAM};
+use crate::state::{CONTROLLER_PARAMS, POSITIONS, STREAM};
 use crate::stream::{sync_stream_status, update_stream};
 use crate::ContractError;
 use cosmwasm_std::{
     attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Timestamp, Uint128,
 };
-use streamswap_types::factory::Params;
+use streamswap_types::controller::Params;
 use streamswap_types::stream::ThresholdState;
 use streamswap_types::stream::{Status, ThresholdError};
 
@@ -76,9 +76,9 @@ pub fn execute_cancel_stream(
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
-    let factory_params: Params = FACTORY_PARAMS.load(deps.storage)?;
+    let controller_params: Params = CONTROLLER_PARAMS.load(deps.storage)?;
 
-    if factory_params.protocol_admin != info.sender {
+    if controller_params.protocol_admin != info.sender {
         return Err(ContractError::Unauthorized {});
     }
     let mut stream = STREAM.load(deps.storage)?;

@@ -4,7 +4,7 @@ use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
 
 #[cw_serde]
-/// Message used to instantiate the factory contract.
+/// Message used to instantiate the controller contract.
 pub struct InstantiateMsg {
     /// The code ID for the stream contract.
     pub stream_contract_code_id: u64,
@@ -90,7 +90,7 @@ pub struct CreatePool {
 #[derive(QueryResponses)]
 #[cfg_attr(feature = "interface", derive(cw_orch::QueryFns))]
 pub enum QueryMsg {
-    #[returns(crate::factory::Params)]
+    #[returns(crate::controller::Params)]
     Params {},
     #[returns(bool)]
     Freezestate {},

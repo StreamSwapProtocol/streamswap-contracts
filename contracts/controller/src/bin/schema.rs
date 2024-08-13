@@ -1,6 +1,6 @@
 use cosmwasm_schema::write_api;
 
-use streamswap_types::factory::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use streamswap_types::controller::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 fn main() {
     write_api! {

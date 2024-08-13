@@ -2,7 +2,7 @@ import codegen from "@cosmwasm/ts-codegen";
 
 codegen({
   contracts: [
-    { name: "StreamSwapFactory", dir: "../contracts/factory" },
+    { name: "StreamSwapController", dir: "../contracts/controller" },
     { name: "StreamSwapStream", dir: "../contracts/stream" }
   ],
   outPath: "./types/",
