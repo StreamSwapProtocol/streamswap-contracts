@@ -12,9 +12,9 @@ pub enum ExecuteMsg {
     Withdraw {
         cap: Option<Uint256>,
     },
-    /// UpdatePosition updates the position of the user.
+    /// SyncPosition sync the position of the user.
     /// syncs position index to the current state of the stream.
-    UpdatePosition {},
+    SyncPosition {},
     /// FinalizeStream clean ups the stream and sends income (earned tokens_in) to the
     /// Stream recipient. Returns error if called before the Stream end. Anyone can
     /// call this method.

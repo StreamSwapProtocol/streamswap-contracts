@@ -99,18 +99,18 @@ mod rounding_leftover {
             )
             .unwrap();
 
-        // Update position of subscriber 1
+        // sync position of subscriber 1
         app.set_block(BlockInfo {
             time: start_time.plus_seconds(3_000_000),
             height: 3,
             chain_id: "SS".to_string(),
         });
-        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {};
+        let sync_position_msg = StreamSwapExecuteMsg::SyncPosition {};
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_position_msg,
+                &sync_position_msg,
                 &[],
             )
             .unwrap();
@@ -145,7 +145,7 @@ mod rounding_leftover {
             Decimal256::from_str("202.813614449380587585").unwrap()
         );
 
-        // Update position of subscriber 2
+        // sync position of subscriber 2
         app.set_block(BlockInfo {
             time: start_time.plus_seconds(3_575_000),
             height: 4,
@@ -155,7 +155,7 @@ mod rounding_leftover {
             .execute_contract(
                 test_accounts.subscriber_2.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_position_msg,
+                &sync_position_msg,
                 &[],
             )
             .unwrap();
@@ -190,7 +190,7 @@ mod rounding_leftover {
             Decimal256::from_str("238.074595237060799266").unwrap()
         );
 
-        // Update position after stream ends
+        // sync position after stream ends
         app.set_block(BlockInfo {
             time: end_time.plus_seconds(1),
             height: 5,
@@ -201,7 +201,7 @@ mod rounding_leftover {
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_position_msg,
+                &sync_position_msg,
                 &[],
             )
             .unwrap();
@@ -236,7 +236,7 @@ mod rounding_leftover {
         assert_eq!(position_1.spent, Uint256::from(1_000_000_000u128));
         assert_eq!(position_1.in_balance, Uint256::zero());
 
-        // Update position after stream ends
+        // sync position after stream ends
         app.set_block(BlockInfo {
             time: end_time.plus_seconds(1),
             height: 6,
@@ -247,7 +247,7 @@ mod rounding_leftover {
             .execute_contract(
                 test_accounts.subscriber_2.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_position_msg,
+                &sync_position_msg,
                 &[],
             )
             .unwrap();
