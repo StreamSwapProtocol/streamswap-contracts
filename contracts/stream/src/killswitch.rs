@@ -1,5 +1,5 @@
 use crate::state::{CONTROLLER_PARAMS, POSITIONS, STREAM};
-use crate::stream::{sync_stream_status, update_stream};
+use crate::stream::{sync_stream, sync_stream_status};
 use crate::ContractError;
 use cosmwasm_std::{
     attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Timestamp, Uint128,
@@ -41,7 +41,7 @@ pub fn execute_exit_cancelled(
             return Err(ContractError::StreamNotCancelled {});
         }
         // Update stream before checking threshold
-        update_stream(&mut stream, env.block.time);
+        sync_stream(&mut stream, env.block.time);
         threshold_state.error_if_reached(deps.storage, &stream)?;
     }
 
@@ -135,7 +135,7 @@ pub fn execute_cancel_stream_with_threshold(
         return Err(ContractError::StreamAlreadyFinalized {});
     }
 
-    update_stream(&mut stream, env.block.time);
+    sync_stream(&mut stream, env.block.time);
 
     let threshold_state = ThresholdState::new();
 

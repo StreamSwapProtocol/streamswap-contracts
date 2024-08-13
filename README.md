@@ -80,7 +80,7 @@ unspent pledged tokens to the investor and keep the purchased tokens until the s
 ### Distribution
 
 Stream distribution is done based on the total amount of shares and block passed.
-On each `update_stream` call, the contract will calculate the amount to be distributed to the investors.
+On each `sync_stream` call, the contract will calculate the amount to be distributed to the investors.
 
 ```
 diff = (stream.last_updated_block - now_block) / (stream.end_block - stream.last_updated_block)
@@ -101,7 +101,7 @@ stream.dist_index += new_distribution_balance / shares
 ### Purchase / Spending
 
 Spend calculation happens when `update_position` is called. Distribution and spending work as lazy accounting. Meaning
-the calculations are done continuously, with no action required. `update_stream` and `update_position` updates the current state of the stream and position.
+the calculations are done continuously, with no action required. `sync_stream` and `update_position` updates the current state of the stream and position.
 
 When `update_position` is called, the contract will calculate the amount of tokens spent and accumulated so far by the investor.
 Update position updates distribution index first.
@@ -155,7 +155,7 @@ On finalize stream, exit fee on whole sale is applied to tokens spent on buy sid
 ### Price
 
 Average price of the sale: `stream.spent_in / (stream.out_supply - stream.out_remaining)`.
-Last streamed price: `spent_in / new_distribution_balance` at the latest `update_stream`.
+Last streamed price: `spent_in / new_distribution_balance` at the latest `sync_stream`.
 
 ### Creation Fee
 

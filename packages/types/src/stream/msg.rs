@@ -5,8 +5,8 @@ use cosmwasm_std::{Binary, Coin, Decimal256, Timestamp, Uint128, Uint256};
 #[cw_serde]
 #[cfg_attr(feature = "interface", derive(cw_orch::ExecuteFns))]
 pub enum ExecuteMsg {
-    /// Update stream and calculates distribution state.
-    UpdateStream {},
+    /// SyncStream synchronizes stream and distribution to reflect the current state of the stream.
+    SyncStream {},
     Subscribe {},
     /// Withdraw unspent tokens in balance.
     Withdraw {
