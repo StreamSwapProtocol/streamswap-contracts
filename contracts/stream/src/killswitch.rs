@@ -182,6 +182,7 @@ pub fn execute_stream_admin_cancel(
         return Err(ContractError::Unauthorized {});
     }
     stream.status_info.status = Status::Cancelled;
+    update_stream(&mut stream, env.block.time);
     STREAM.save(deps.storage, &stream)?;
 
     //Refund all out tokens to stream creator(treasury)
