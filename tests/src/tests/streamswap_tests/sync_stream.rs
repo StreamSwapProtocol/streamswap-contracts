@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod update_stream_tests {
+mod sync_stream_tests {
 
     use std::str::FromStr;
 
@@ -17,7 +17,7 @@ mod update_stream_tests {
     };
 
     #[test]
-    fn update_stream_without_subscription() {
+    fn sync_stream_without_subscription() {
         let Suite {
             mut app,
             test_accounts,
@@ -67,12 +67,12 @@ mod update_stream_tests {
 
         let stream_swap_contract_address = get_contract_address_from_res(_res);
         // Update stream at Waiting status
-        let update_stream_msg = StreamSwapExecuteMsg::UpdateStream {};
+        let sync_stream_msg = StreamSwapExecuteMsg::SyncStream {};
         let _res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_stream_msg,
+                &sync_stream_msg,
                 &[],
             )
             .unwrap();
@@ -95,12 +95,12 @@ mod update_stream_tests {
         });
 
         // Update stream at Waiting status
-        let update_stream_msg = StreamSwapExecuteMsg::UpdateStream {};
+        let sync_stream_msg = StreamSwapExecuteMsg::SyncStream {};
         let _res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_stream_msg,
+                &sync_stream_msg,
                 &[],
             )
             .unwrap();
@@ -124,12 +124,12 @@ mod update_stream_tests {
         });
 
         // Update stream at Bootstrapping status
-        let update_stream_msg = StreamSwapExecuteMsg::UpdateStream {};
+        let sync_stream_msg = StreamSwapExecuteMsg::SyncStream {};
         let _res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_stream_msg,
+                &sync_stream_msg,
                 &[],
             )
             .unwrap();
@@ -153,12 +153,12 @@ mod update_stream_tests {
         });
 
         // Update stream at Active status
-        let update_stream_msg = StreamSwapExecuteMsg::UpdateStream {};
+        let sync_stream_msg = StreamSwapExecuteMsg::SyncStream {};
         let _res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_stream_msg,
+                &sync_stream_msg,
                 &[],
             )
             .unwrap();
@@ -216,12 +216,12 @@ mod update_stream_tests {
         });
 
         // Update stream at Active status
-        let update_stream_msg = StreamSwapExecuteMsg::UpdateStream {};
+        let sync_stream_msg = StreamSwapExecuteMsg::SyncStream {};
         let _res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_stream_msg,
+                &sync_stream_msg,
                 &[],
             )
             .unwrap();
@@ -249,7 +249,7 @@ mod update_stream_tests {
     }
 
     #[test]
-    fn update_stream_during_bootstraping_period() {
+    fn sync_stream_during_bootstraping_period() {
         let Suite {
             mut app,
             test_accounts,
@@ -323,13 +323,13 @@ mod update_stream_tests {
             chain_id: "test".to_string(),
         });
 
-        let update_stream_msg = StreamSwapExecuteMsg::UpdateStream {};
+        let sync_stream_msg = StreamSwapExecuteMsg::SyncStream {};
 
         let _res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_stream_msg,
+                &sync_stream_msg,
                 &[],
             )
             .unwrap();
@@ -357,7 +357,7 @@ mod update_stream_tests {
             .execute_contract(
                 test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_stream_msg,
+                &sync_stream_msg,
                 &[],
             )
             .unwrap();
@@ -462,12 +462,12 @@ mod update_stream_tests {
             chain_id: "test".to_string(),
         });
         // Update Stream
-        let update_stream_msg = StreamSwapExecuteMsg::UpdateStream {};
+        let sync_stream_msg = StreamSwapExecuteMsg::SyncStream {};
         let _res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_stream_msg,
+                &sync_stream_msg,
                 &[coin(100, "fee_denom")],
             )
             .unwrap();
@@ -502,12 +502,12 @@ mod update_stream_tests {
             chain_id: "test".to_string(),
         });
         // Update Stream
-        let update_stream_msg = StreamSwapExecuteMsg::UpdateStream {};
+        let sync_stream_msg = StreamSwapExecuteMsg::SyncStream {};
         let _res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_stream_msg,
+                &sync_stream_msg,
                 &[coin(100, "fee_denom")],
             )
             .unwrap();

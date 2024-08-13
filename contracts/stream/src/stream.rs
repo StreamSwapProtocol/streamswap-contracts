@@ -35,7 +35,7 @@ pub fn compute_shares_amount(stream: &Stream, amount_in: Uint256, round_up: bool
         shares / stream.in_supply
     }
 }
-pub fn update_stream(stream: &mut Stream, now: Timestamp) {
+pub fn sync_stream(stream: &mut Stream, now: Timestamp) {
     let diff = calculate_diff(
         stream.status_info.start_time,
         stream.status_info.end_time,

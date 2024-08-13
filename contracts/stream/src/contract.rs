@@ -3,7 +3,7 @@ use std::env;
 
 use crate::helpers::{check_name_and_url, get_decimals, validate_stream_times};
 use crate::killswitch::execute_cancel_stream_with_threshold;
-use crate::stream::{compute_shares_amount, sync_stream_status, update_stream};
+use crate::stream::{compute_shares_amount, sync_stream, sync_stream_status};
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
     attr, coin, entry_point, to_json_binary, Attribute, BankMsg, Binary, CodeInfoResponse, Coin,
@@ -125,7 +125,7 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::UpdatePosition {} => execute_update_position(deps, env, info),
-        ExecuteMsg::UpdateStream {} => execute_update_stream(deps, env),
+        ExecuteMsg::SyncStream {} => execute_sync_stream(deps, env),
         ExecuteMsg::Subscribe {} => {
             let stream = STREAM.load(deps.storage)?;
             execute_subscribe(deps, env, info, stream)
@@ -149,15 +149,15 @@ pub fn execute(
     }
 }
 
-/// Updates stream to calculate released distribution and spent amount
-pub fn execute_update_stream(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+/// Syncs stream to calculate released distribution and spent amount
+pub fn execute_sync_stream(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
-    update_stream(&mut stream, env.block.time);
+    sync_stream(&mut stream, env.block.time);
     sync_stream_status(&mut stream, env.block.time);
     STREAM.save(deps.storage, &stream)?;
 
     let attrs = vec![
-        attr("action", "update_stream"),
+        attr("action", "sync_stream"),
         // attr("new_distribution_amount", dist_amount),
         attr("dist_index", stream.dist_index.to_string()),
     ];
@@ -179,7 +179,7 @@ pub fn execute_update_position(
     }
 
     // sync stream
-    update_stream(&mut stream, env.block.time);
+    sync_stream(&mut stream, env.block.time);
     sync_stream_status(&mut stream, env.block.time);
     STREAM.save(deps.storage, &stream)?;
 
@@ -272,7 +272,7 @@ pub fn execute_subscribe(
     match position {
         None => {
             // incoming tokens should not participate in prev distribution
-            update_stream(&mut stream, env.block.time);
+            sync_stream(&mut stream, env.block.time);
             new_shares = compute_shares_amount(&stream, uint256_in_amount, false);
             // new positions do not update purchase as it has no effect on distribution
             let new_position = Position::new(
@@ -289,7 +289,7 @@ pub fn execute_subscribe(
                 return Err(ContractError::Unauthorized {});
             }
             // incoming tokens should not participate in prev distribution
-            update_stream(&mut stream, env.block.time);
+            sync_stream(&mut stream, env.block.time);
             new_shares = compute_shares_amount(&stream, uint256_in_amount, false);
             update_position(
                 stream.dist_index,
@@ -333,7 +333,7 @@ pub fn execute_withdraw(
 
     let mut position = POSITIONS.load(deps.storage, &info.sender)?;
 
-    update_stream(&mut stream, env.block.time);
+    sync_stream(&mut stream, env.block.time);
     update_position(
         stream.dist_index,
         stream.shares,
@@ -410,7 +410,7 @@ pub fn execute_finalize_stream(
     if !stream.is_ended() {
         return Err(ContractError::StreamNotEnded {});
     }
-    update_stream(&mut stream, env.block.time);
+    sync_stream(&mut stream, env.block.time);
 
     stream.status_info.status = Status::Finalized;
 
@@ -540,7 +540,7 @@ pub fn execute_exit_stream(
     if !(stream.is_ended() || stream.is_finalized()) {
         return Err(ContractError::StreamNotEnded {});
     }
-    update_stream(&mut stream, env.block.time);
+    sync_stream(&mut stream, env.block.time);
 
     let threshold_state = ThresholdState::new();
 

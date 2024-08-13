@@ -178,7 +178,7 @@ export class StreamSwapStreamClient extends StreamSwapStreamQueryClient implemen
 
   updateStream = async (fee: number | StdFee | "auto" = "auto", memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
-      update_stream: {}
+      sync_stream: {}
     }, fee, memo, _funds);
   };
   updateOperator = async ({

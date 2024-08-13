@@ -58,7 +58,7 @@ export interface InstantiateMsg1 {
   vesting_duration_seconds: number;
 }
 export type ExecuteMsg = {
-  update_stream: {};
+  sync_stream: {};
 } | {
   update_operator: {
     new_operator?: string | null;

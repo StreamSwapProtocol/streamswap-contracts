@@ -94,7 +94,7 @@ export class StreamSwapStreamMsgComposer implements StreamSwapStreamMsg {
         sender: this.sender,
         contract: this.contractAddress,
         msg: toUtf8(JSON.stringify({
-          update_stream: {}
+          sync_stream: {}
         })),
         funds: _funds
       })

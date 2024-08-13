@@ -152,7 +152,7 @@ mod subscibe_test {
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::UpdateStream {},
+                &StreamSwapExecuteMsg::SyncStream {},
                 &[],
             )
             .unwrap();
@@ -444,7 +444,7 @@ mod subscibe_test {
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::UpdateStream {},
+                &StreamSwapExecuteMsg::SyncStream {},
                 &[],
             )
             .unwrap();
@@ -520,7 +520,7 @@ mod subscibe_test {
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::UpdateStream {},
+                &StreamSwapExecuteMsg::SyncStream {},
                 &[],
             )
             .unwrap();
@@ -550,7 +550,7 @@ mod subscibe_test {
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::UpdateStream {},
+                &StreamSwapExecuteMsg::SyncStream {},
                 &[],
             )
             .unwrap();
@@ -735,7 +735,7 @@ mod subscibe_test {
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::UpdateStream {},
+                &StreamSwapExecuteMsg::SyncStream {},
                 &[],
             )
             .unwrap();
