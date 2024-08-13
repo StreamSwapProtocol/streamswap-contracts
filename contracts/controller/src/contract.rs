@@ -70,19 +70,9 @@ pub fn instantiate(
     // Initialize Last Stream ID
     LAST_STREAM_ID.save(deps.storage, &0)?;
 
-    // return res with attributes
     let res = Response::new()
-        .add_attribute("action", "init")
-        .add_attribute("protocol_admin", protocol_admin.to_string())
-        .add_attribute("fee_collector", fee_collector.to_string())
-        .add_attribute("stream_creation_fee", stream_creation_fee.to_string())
-        .add_attribute("exit_fee_percent", exit_fee_percent.to_string())
-        .add_attribute("stream_contract_code_id", stream_contract_code_id.to_string())
-        .add_attribute("vesting_code_id", vesting_code_id.to_string())
-        .add_attribute("accepted_in_denoms", accepted_in_denoms.join(","))
-        .add_attribute("min_waiting_duration", min_waiting_duration.to_string())
-        .add_attribute("min_bootstrapping_duration", min_bootstrapping_duration.to_string())
-        .add_attribute("min_stream_duration", min_stream_duration.to_string());
+        .add_attributes(params.to_attributes())
+        .add_attribute("action", "instantiate controller");
     Ok(res)
 }
 
@@ -208,6 +198,10 @@ pub fn execute_create_stream(
         .add_attribute("stream_creation_fee", stream_creation_fee.to_string())
         .add_attribute("out_asset", out_asset.to_string())
         .add_attribute("in_denom", in_denom)
+        .add_attribute(
+            "bootstrapping_start_time",
+            msg.bootstraping_start_time.to_string(),
+        )
         .add_attribute("start_time", start_time.to_string())
         .add_attribute("end_time", end_time.to_string())
         .add_attribute("treasury", treasury.to_string())
@@ -263,16 +257,7 @@ pub fn execute_update_params(
 
     let res = Response::new()
         .add_attribute("action", "update_params")
-        .add_attribute("protocol_admin", params.protocol_admin.to_string())
-        .add_attribute("fee_collector", params.fee_collector.to_string())
-        .add_attribute("stream_creation_fee", params.stream_creation_fee.to_string())
-        .add_attribute("exit_fee_percent", params.exit_fee_percent.to_string())
-        .add_attribute("stream_contract_code_id", params.stream_contract_code_id.to_string())
-        .add_attribute("vesting_code_id", params.vesting_code_id.to_string())
-        .add_attribute("accepted_in_denoms", params.accepted_in_denoms.join(","))
-        .add_attribute("min_waiting_duration", params.min_waiting_duration.to_string())
-        .add_attribute("min_bootstrapping_duration", params.min_bootstrapping_duration.to_string())
-        .add_attribute("min_stream_duration", params.min_stream_duration.to_string());
+        .add_attributes(params.to_attributes());
     Ok(res)
 }
 

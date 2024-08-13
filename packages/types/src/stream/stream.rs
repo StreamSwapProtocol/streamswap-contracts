@@ -73,7 +73,6 @@ impl std::fmt::Display for Status {
     }
 }
 
-
 #[cw_serde]
 pub struct StatusInfo {
     /// Status of the stream
