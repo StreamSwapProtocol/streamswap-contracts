@@ -93,6 +93,8 @@ pub fn execute_cancel_stream(
         return Err(ContractError::StreamIsCancelled {});
     }
     stream.status_info.status = Status::Cancelled;
+
+    update_stream(&mut stream, env.block.time);
     STREAM.save(deps.storage, &stream)?;
 
     //Refund all out tokens to stream creator(treasury)
