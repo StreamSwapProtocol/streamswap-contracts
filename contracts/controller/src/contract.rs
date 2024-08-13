@@ -165,7 +165,6 @@ pub fn execute_create_stream(
 
     let stream_swap_inst_message: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate2 {
         code_id: params.stream_contract_code_id,
-        // TODO: discuss this
         admin: Some(params.protocol_admin.to_string()),
         label: format!("Stream Swap Stream {} - {}", name, stream_id),
         msg: to_json_binary(&msg)?,
@@ -189,15 +188,18 @@ pub fn execute_create_stream(
     let contract_addr = deps.api.addr_humanize(&canonical_contract_addr)?;
     STREAMS.save(deps.storage, stream_id, &contract_addr)?;
 
-    // TODO: If stream cration fee is zero this will fail
-    let fund_transfer_message: CosmosMsg = CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
-        to_address: params.fee_collector.to_string(),
-        amount: vec![stream_creation_fee],
-    });
+    let mut msgs = vec![];
+
+    msgs.push(stream_swap_inst_message.clone());
+    if !stream_creation_fee.amount.is_zero() {
+        msgs.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
+            to_address: params.fee_collector.to_string(),
+            amount: vec![stream_creation_fee],
+        }));
+    }
 
     let res = Response::new()
-        .add_message(stream_swap_inst_message)
-        .add_message(fund_transfer_message)
+        .add_messages(msgs)
         .add_attribute("action", "create_stream")
         .add_attribute("name", name)
         .add_attribute("treasury", treasury)
