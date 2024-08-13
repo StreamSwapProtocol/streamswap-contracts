@@ -104,7 +104,7 @@ Spend calculation happens when `update_position` is called. Distribution and spe
 the calculations are done continuously, with no action required. `sync_stream` and `update_position` updates the current state of the stream and position.
 
 When `update_position` is called, the contract will calculate the amount of tokens spent and accumulated so far by the investor.
-Update position updates distribution index first.
+sync position updates distribution index first.
 
 ```
 index_diff = stream.dist_index - position.index;

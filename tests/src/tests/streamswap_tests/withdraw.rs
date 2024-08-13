@@ -94,12 +94,12 @@ mod withdraw {
                 .unwrap(),
             Uint256::from(subscriber_1_balance_after.amount.u128())
         );
-        // Update position
+        // sync position
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::UpdatePosition {},
+                &StreamSwapExecuteMsg::SyncPosition {},
                 &[],
             )
             .unwrap();

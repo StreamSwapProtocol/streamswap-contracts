@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod update_position {
+mod sync_position {
 
     use std::str::FromStr;
 
@@ -17,7 +17,7 @@ mod update_position {
     };
 
     #[test]
-    fn update_position() {
+    fn sync_position() {
         let Suite {
             mut app,
             test_accounts,
@@ -72,14 +72,14 @@ mod update_position {
             chain_id: "test".to_string(),
         });
 
-        // Update position without any subscription
-        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {};
+        // sync position without any subscription
+        let sync_position_msg = StreamSwapExecuteMsg::SyncPosition {};
 
         let _res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_position_msg,
+                &sync_position_msg,
                 &[],
             )
             .unwrap_err();
@@ -102,13 +102,13 @@ mod update_position {
             time: start_time.plus_seconds(50),
             chain_id: "test".to_string(),
         });
-        // Update position
-        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {};
+        // sync position
+        let sync_position_msg = StreamSwapExecuteMsg::SyncPosition {};
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_position_msg,
+                &sync_position_msg,
                 &[],
             )
             .unwrap();
@@ -148,13 +148,13 @@ mod update_position {
             time: start_time.plus_seconds(75),
             chain_id: "test".to_string(),
         });
-        // Update position
-        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {};
+        // sync position
+        let sync_position_msg = StreamSwapExecuteMsg::SyncPosition {};
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_position_msg,
+                &sync_position_msg,
                 &[],
             )
             .unwrap();
@@ -190,13 +190,13 @@ mod update_position {
             time: end_time.plus_seconds(1),
             chain_id: "test".to_string(),
         });
-        // Update position
-        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {};
+        // sync position
+        let sync_position_msg = StreamSwapExecuteMsg::SyncPosition {};
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_position_msg,
+                &sync_position_msg,
                 &[],
             )
             .unwrap();
@@ -237,13 +237,13 @@ mod update_position {
             time: end_time.plus_seconds(200),
             chain_id: "test".to_string(),
         });
-        // Update position
-        let update_position_msg = StreamSwapExecuteMsg::UpdatePosition {};
+        // sync position
+        let sync_position_msg = StreamSwapExecuteMsg::SyncPosition {};
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &update_position_msg,
+                &sync_position_msg,
                 &[],
             )
             .unwrap();

@@ -569,12 +569,12 @@ mod subscribe {
             Decimal256::from_str("1406.292560801144492131").unwrap()
         );
 
-        // Update position
+        // sync position
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::UpdatePosition {},
+                &StreamSwapExecuteMsg::SyncPosition {},
                 &[],
             )
             .unwrap();
@@ -599,12 +599,12 @@ mod subscribe {
         assert_eq!(position.in_balance, Uint256::from(120u128));
         assert_eq!(position.spent, Uint256::from(180u128));
 
-        // Update position for subscriber 2
+        // sync position for subscriber 2
         let _res = app
             .execute_contract(
                 test_accounts.subscriber_2.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::UpdatePosition {},
+                &StreamSwapExecuteMsg::SyncPosition {},
                 &[],
             )
             .unwrap();

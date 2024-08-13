@@ -124,7 +124,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::UpdatePosition {} => execute_update_position(deps, env, info),
+        ExecuteMsg::SyncPosition {} => execute_sync_position(deps, env, info),
         ExecuteMsg::SyncStream {} => execute_sync_stream(deps, env),
         ExecuteMsg::Subscribe {} => {
             let stream = STREAM.load(deps.storage)?;
@@ -165,7 +165,7 @@ pub fn execute_sync_stream(deps: DepsMut, env: Env) -> Result<Response, Contract
     Ok(res)
 }
 
-pub fn execute_update_position(
+pub fn execute_sync_position(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -185,7 +185,7 @@ pub fn execute_update_position(
 
     // updates position to latest distribution. Returns the amount of out tokens that has been purchased
     // and in tokens that has been spent.
-    let (purchased, spent) = update_position(
+    let (purchased, spent) = sync_position(
         stream.dist_index,
         stream.shares,
         stream.status_info.last_updated,
@@ -195,14 +195,14 @@ pub fn execute_update_position(
     POSITIONS.save(deps.storage, &position.owner, &position)?;
 
     Ok(Response::new()
-        .add_attribute("action", "update_position")
+        .add_attribute("action", "sync_position")
         .add_attribute("purchased", purchased)
         .add_attribute("spent", spent))
 }
 
 // calculate the user purchase based on the positions index and the global index.
 // returns purchased out amount and spent in amount
-pub fn update_position(
+pub fn sync_position(
     stream_dist_index: Decimal256,
     stream_shares: Uint256,
     stream_last_updated_time: Timestamp,
@@ -291,7 +291,7 @@ pub fn execute_subscribe(
             // incoming tokens should not participate in prev distribution
             sync_stream(&mut stream, env.block.time);
             new_shares = compute_shares_amount(&stream, uint256_in_amount, false);
-            update_position(
+            sync_position(
                 stream.dist_index,
                 stream.shares,
                 stream.status_info.last_updated,
@@ -334,7 +334,7 @@ pub fn execute_withdraw(
     let mut position = POSITIONS.load(deps.storage, &info.sender)?;
 
     sync_stream(&mut stream, env.block.time);
-    update_position(
+    sync_position(
         stream.dist_index,
         stream.shares,
         stream.status_info.last_updated,
@@ -552,8 +552,8 @@ pub fn execute_exit_stream(
         return Err(ContractError::SubscriberAlreadyExited {});
     }
 
-    // update position before exit
-    update_position(
+    // sync position before exit
+    sync_position(
         stream.dist_index,
         stream.shares,
         stream.status_info.last_updated,
@@ -563,7 +563,7 @@ pub fn execute_exit_stream(
     stream.shares = stream.shares.checked_sub(position.shares)?;
 
     STREAM.save(deps.storage, &stream)?;
-    // update position exit date
+    // sync position exit date
     position.exit_date = env.block.time;
     POSITIONS.save(deps.storage, &position.owner, &position)?;
 

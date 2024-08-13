@@ -88,7 +88,7 @@ pub enum ContractError {
     #[error("Stream is started update stream")]
     StreamIsStarted {},
 
-    #[error("Update position")]
+    #[error("sync position")]
     UpdatePosition {},
 
     #[error("Stream duration is too short")]

@@ -45,9 +45,9 @@ pub fn execute_exit_cancelled(
         threshold_state.error_if_reached(deps.storage, &stream)?;
     }
 
-    // no need to update position here, we just need to return total balance
+    // no need to sync position here, we just need to return total balance
     let total_balance = position.in_balance + position.spent;
-    // update position exit date
+    // sync position exit date
     position.exit_date = env.block.time;
     POSITIONS.save(deps.storage, &position.owner, &position)?;
 
@@ -94,7 +94,7 @@ pub fn execute_cancel_stream(
     }
     stream.status_info.status = Status::Cancelled;
 
-    update_stream(&mut stream, env.block.time);
+    sync_stream(&mut stream, env.block.time);
     STREAM.save(deps.storage, &stream)?;
 
     //Refund all out tokens to stream creator(treasury)
@@ -184,7 +184,7 @@ pub fn execute_stream_admin_cancel(
         return Err(ContractError::Unauthorized {});
     }
     stream.status_info.status = Status::Cancelled;
-    update_stream(&mut stream, env.block.time);
+    sync_stream(&mut stream, env.block.time);
     STREAM.save(deps.storage, &stream)?;
 
     //Refund all out tokens to stream creator(treasury)
