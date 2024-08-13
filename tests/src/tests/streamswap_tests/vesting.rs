@@ -15,7 +15,7 @@ mod vesting {
     };
 
     #[test]
-    fn test_vesting() {
+    fn vesting() {
         let Suite {
             mut app,
             test_accounts,
