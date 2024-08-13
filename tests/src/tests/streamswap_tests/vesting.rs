@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod vesting_tests {
+mod vesting {
     use crate::helpers::mock_messages::{get_create_stream_msg, get_controller_inst_msg};
     use crate::helpers::suite::{Suite, SuiteBuilder};
     use crate::helpers::utils::{
