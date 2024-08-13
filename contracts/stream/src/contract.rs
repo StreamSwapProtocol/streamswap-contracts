@@ -88,13 +88,13 @@ pub fn instantiate(
         env.block.time,
         name.clone(),
         treasury.clone(),
-        stream_admin,
+        stream_admin.clone(),
         url.clone(),
         out_asset.clone(),
         in_denom.clone(),
         bootstraping_start_time,
-        start_time,
-        end_time,
+        start_time.clone(),
+        end_time.clone(),
         create_pool,
         vesting,
     );
@@ -103,17 +103,21 @@ pub fn instantiate(
     let threshold_state = ThresholdState::new();
     threshold_state.set_threshold_if_any(threshold, deps.storage)?;
 
-    let attr = vec![
-        attr("action", "create_stream"),
-        attr("treasury", treasury),
+
+    // return response with attributes
+    let res = Response::new().add_attributes(vec![
+        attr("action", "instantiate"),
         attr("name", name),
+        attr("treasury", treasury),
+        attr("stream_admin", stream_admin),
+        attr("url", url.unwrap_or("".to_string())),
+        attr("out_asset", out_asset.denom),
         attr("in_denom", in_denom),
-        attr("out_denom", out_asset.denom),
-        attr("out_supply", out_asset.amount.to_string()),
         attr("start_time", start_time.to_string()),
         attr("end_time", end_time.to_string()),
-    ];
-    Ok(Response::default().add_attributes(attr))
+        attr("bootstrapping_start_time", bootstraping_start_time.to_string()),
+    ]);
+    Ok(res)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -158,7 +162,12 @@ pub fn execute_sync_stream(deps: DepsMut, env: Env) -> Result<Response, Contract
 
     let attrs = vec![
         attr("action", "sync_stream"),
-        // attr("new_distribution_amount", dist_amount),
+        attr("out_remaining", stream.out_remaining),
+        attr("spent_in", stream.spent_in),
+        attr("current_streamed_price", stream.current_streamed_price.to_string()),
+        attr("in_supply", stream.in_supply),
+        attr("shares", stream.shares),
+        attr("status_info", stream.status_info.status.to_string()),
         attr("dist_index", stream.dist_index.to_string()),
     ];
     let res = Response::new().add_attributes(attrs);
@@ -194,10 +203,15 @@ pub fn execute_sync_position(
     )?;
     POSITIONS.save(deps.storage, &position.owner, &position)?;
 
-    Ok(Response::new()
-        .add_attribute("action", "sync_position")
-        .add_attribute("purchased", purchased)
-        .add_attribute("spent", spent))
+    // return response with attributes
+    let res = Response::new().add_attributes(vec![
+        attr("action", "sync_position"),
+        attr("dist_index", stream.dist_index.to_string()),
+        attr("status", stream.status_info.status.to_string()),
+        attr("purchased", purchased),
+        attr("spent", spent),
+    ]);
+    Ok(res)
 }
 
 // calculate the user purchase based on the positions index and the global index.

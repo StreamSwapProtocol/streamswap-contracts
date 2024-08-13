@@ -60,6 +60,20 @@ pub enum Status {
     Cancelled,
 }
 
+impl std::fmt::Display for Status {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Status::Waiting => write!(f, "Waiting"),
+            Status::Bootstrapping => write!(f, "Bootstrapping"),
+            Status::Active => write!(f, "Active"),
+            Status::Ended => write!(f, "Ended"),
+            Status::Finalized => write!(f, "Finalized"),
+            Status::Cancelled => write!(f, "Cancelled"),
+        }
+    }
+}
+
+
 #[cw_serde]
 pub struct StatusInfo {
     /// Status of the stream
