@@ -590,7 +590,7 @@ mod create_stream_tests {
         .unwrap();
         let contract_addr = app.api().addr_humanize(&canonical_contract_addr).unwrap();
         let res_contract_addr =
-            get_wasm_attribute_with_key(res, "stream_contract_address".to_string());
+            get_wasm_attribute_with_key(res, "stream_contract_addr".to_string());
         assert_eq!(contract_addr, res_contract_addr);
 
         // Query stream with id

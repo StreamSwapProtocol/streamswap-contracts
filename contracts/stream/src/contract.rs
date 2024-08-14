@@ -1,13 +1,19 @@
-use core::str;
-use std::env;
-use crate::helpers::{build_u128_bank_send_msg, check_name_and_url, get_decimals, validate_stream_times};
+use crate::helpers::{
+    build_u128_bank_send_msg, check_name_and_url, get_decimals, validate_stream_times,
+};
 use crate::killswitch::execute_cancel_stream_with_threshold;
 use crate::stream::{compute_shares_amount, sync_stream, sync_stream_status};
 use crate::{killswitch, ContractError};
-use cosmwasm_std::{attr, coin, entry_point, to_json_binary, Attribute, BankMsg, Binary, CodeInfoResponse, Coin, CosmosMsg, Decimal256, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult, Timestamp, Uint128, Uint256, WasmMsg};
+use core::str;
+use cosmwasm_std::{
+    attr, coin, entry_point, to_json_binary, Attribute, BankMsg, Binary, CodeInfoResponse, Coin,
+    CosmosMsg, Decimal256, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult,
+    Timestamp, Uint128, Uint256, WasmMsg,
+};
 use cw2::{ensure_from_older_version, set_contract_version};
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay};
+use std::env;
 use streamswap_types::stream::ThresholdState;
 use streamswap_types::stream::{
     AveragePriceResponse, ExecuteMsg, LatestStreamedPriceResponse, PositionResponse,
@@ -18,8 +24,8 @@ use streamswap_utils::to_uint256;
 
 use crate::pool::{build_create_initial_position_msg, calculate_in_amount_clp, next_pool_id};
 use crate::state::{CONTROLLER_PARAMS, POSITIONS, STREAM, VESTING};
-use streamswap_types::controller::{Params as ControllerParams, Params};
 use streamswap_types::controller::{CreateStreamMsg, MigrateMsg};
+use streamswap_types::controller::{Params as ControllerParams, Params};
 use streamswap_types::stream::{Position, Status, Stream};
 
 // Version and contract info for migration
@@ -100,7 +106,6 @@ pub fn instantiate(
         attr("name", name),
         attr("treasury", treasury),
         attr("stream_admin", stream_admin),
-        attr("url", url.unwrap_or("".to_string())),
         attr("out_asset", out_asset.denom),
         attr("in_denom", in_denom),
         attr("start_time", start_time.to_string()),
@@ -441,7 +446,7 @@ pub fn execute_finalize_stream(
     let mut messages = vec![];
     let mut attributes = vec![];
 
-    let mut creator_revenue= stream.spent_in;
+    let mut creator_revenue = stream.spent_in;
 
     // Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
     let swap_fee = Decimal256::from_ratio(stream.spent_in, Uint128::one())
@@ -498,8 +503,13 @@ pub fn execute_finalize_stream(
         attributes.push(attr("pool_in_amount", in_clp));
     }
 
-    let swap_fee_msg = build_u128_bank_send_msg(stream.in_denom.clone(), controller_params.fee_collector.to_string(), swap_fee)?;
-    let revenue_msg = build_u128_bank_send_msg(stream.in_denom, treasury.to_string(), creator_revenue)?;
+    let swap_fee_msg = build_u128_bank_send_msg(
+        stream.in_denom.clone(),
+        controller_params.fee_collector.to_string(),
+        swap_fee,
+    )?;
+    let revenue_msg =
+        build_u128_bank_send_msg(stream.in_denom, treasury.to_string(), creator_revenue)?;
 
     messages.push(revenue_msg);
     messages.push(swap_fee_msg);
@@ -533,7 +543,6 @@ pub fn execute_finalize_stream(
         .add_messages(messages)
         .add_attributes(attributes))
 }
-
 
 pub fn execute_exit_stream(
     deps: DepsMut,
