@@ -97,12 +97,19 @@ pub fn execute_cancel_stream(
     sync_stream(&mut stream, env.block.time);
     STREAM.save(deps.storage, &stream)?;
 
-    //Refund all out tokens to stream creator(treasury)
+    // Refund all out tokens to stream creator(treasury)
+    let mut refund_amount = stream.out_asset.amount;
+
+    // if pool is configured return clp too
+    if let Some(pool) = stream.create_pool {
+        refund_amount = refund_amount.checked_add(Uint128::try_from(pool.out_amount_clp)?)?;
+    }
+
     let messages: Vec<CosmosMsg> = vec![CosmosMsg::Bank(BankMsg::Send {
         to_address: stream.treasury.to_string(),
         amount: vec![Coin {
             denom: stream.out_asset.denom,
-            amount: stream.out_asset.amount,
+            amount: refund_amount,
         }],
     })];
 
