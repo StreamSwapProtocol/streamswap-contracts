@@ -1,7 +1,7 @@
+use crate::ContractError;
 use cosmwasm_std::{DepsMut, Uint256};
 use osmosis_std::types::osmosis::concentratedliquidity::v1beta1::MsgCreatePosition;
 use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
-use crate::ContractError;
 
 /// This function is used to calculate the in amount of the pool
 pub fn calculate_in_amount_clp(

@@ -24,8 +24,8 @@ use streamswap_utils::to_uint256;
 
 use crate::pool::{build_create_initial_position_msg, calculate_in_amount_clp, next_pool_id};
 use crate::state::{CONTROLLER_PARAMS, POSITIONS, STREAM, VESTING};
+use streamswap_types::controller::Params as ControllerParams;
 use streamswap_types::controller::{CreateStreamMsg, MigrateMsg};
-use streamswap_types::controller::{Params as ControllerParams, Params};
 use streamswap_types::stream::{Position, Status, Stream};
 
 // Version and contract info for migration
@@ -446,6 +446,7 @@ pub fn execute_finalize_stream(
     let mut messages = vec![];
     let mut attributes = vec![];
 
+    // last creator revenue = spent_in - swap_fee - in_clp;
     let mut creator_revenue = stream.spent_in;
 
     // Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
