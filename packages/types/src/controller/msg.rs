@@ -86,6 +86,7 @@ pub struct CreatePool {
     // osmosis concentration pool creation message
     pub msg_create_pool: MsgCreateConcentratedPool,
 }
+
 #[cw_serde]
 #[derive(QueryResponses)]
 #[cfg_attr(feature = "interface", derive(cw_orch::QueryFns))]

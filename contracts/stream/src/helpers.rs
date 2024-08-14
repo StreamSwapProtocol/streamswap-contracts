@@ -111,7 +111,7 @@ pub fn build_u128_bank_send_msg(
     let revenue_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: to_addr,
         amount: vec![Coin {
-            denom: denom,
+            denom,
             amount: u128_amount,
         }],
     });

@@ -1,4 +1,6 @@
 use crate::error::ContractError;
+use crate::helpers::validate_create_pool;
+use crate::state::{FREEZESTATE, LAST_STREAM_ID, PARAMS, STREAMS};
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Coin, CosmosMsg, Decimal256, Deps, DepsMut, Env,
     MessageInfo, Order, Response, StdResult, WasmMsg,
@@ -10,8 +12,6 @@ use streamswap_types::controller::{
     StreamsResponse,
 };
 use streamswap_utils::payment_checker::check_payment;
-
-use crate::state::{FREEZESTATE, LAST_STREAM_ID, PARAMS, STREAMS};
 
 const CONTRACT_NAME: &str = "crates.io:streamswap-controller";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -132,7 +132,7 @@ pub fn execute_create_stream(
         stream_admin: _,
         threshold: _,
         url: _,
-        create_pool: _,
+        create_pool,
         vesting: _,
         bootstraping_start_time: _,
         salt,
@@ -151,6 +151,9 @@ pub fn execute_create_stream(
 
     let expected_funds = vec![stream_creation_fee.clone(), out_asset.clone()];
     check_payment(&info.funds, &expected_funds)?;
+
+    // validate pool msg
+    validate_create_pool(create_pool.clone(), &out_asset, &in_denom)?;
 
     let last_stream_id = LAST_STREAM_ID.load(deps.storage)?;
     let stream_id = last_stream_id + 1;
@@ -174,8 +177,7 @@ pub fn execute_create_stream(
         checksum.as_slice(),
         &deps.api.addr_canonicalize(info.sender.as_ref())?,
         salt.as_slice(),
-    )
-    .unwrap();
+    )?;
 
     LAST_STREAM_ID.save(deps.storage, &stream_id)?;
 
