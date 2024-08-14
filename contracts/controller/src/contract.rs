@@ -188,7 +188,7 @@ pub fn execute_create_stream(
     if !stream_creation_fee.amount.is_zero() {
         msgs.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
             to_address: params.fee_collector.to_string(),
-            amount: vec![stream_creation_fee],
+            amount: vec![stream_creation_fee.clone()],
         }));
     }
 

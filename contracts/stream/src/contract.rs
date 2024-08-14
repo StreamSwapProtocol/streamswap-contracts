@@ -91,8 +91,8 @@ pub fn instantiate(
         out_asset.clone(),
         in_denom.clone(),
         bootstraping_start_time,
-        start_time.clone(),
-        end_time.clone(),
+        start_time,
+        end_time,
         create_pool,
         vesting,
     );
