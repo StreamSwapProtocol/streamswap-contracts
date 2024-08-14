@@ -53,7 +53,7 @@ impl Stargate for MyStargateKeeper {
                 let params = ParamsResponse {
                     params: Some(Params {
                         pool_creation_fee: vec![Coin {
-                            denom: "uosmo".to_string(),
+                            denom: "fee_denom".to_string(),
                             amount: "1000000".to_string(),
                         }],
                         taker_fee_params: None,

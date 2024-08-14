@@ -1,3 +1,4 @@
+use crate::pool::get_pool_creation_fee;
 use crate::state::{CONTROLLER_PARAMS, POSITIONS, STREAM};
 use crate::stream::{sync_stream, sync_stream_status};
 use crate::ContractError;
@@ -57,7 +58,7 @@ pub fn execute_exit_cancelled(
     ];
 
     let uint128_total_balance = Uint128::try_from(total_balance)?;
-    // send funds to withdraw address or to the sender
+    // send funds to the sender
     let res = Response::new()
         .add_message(CosmosMsg::Bank(BankMsg::Send {
             to_address: info.sender.to_string(),
@@ -97,19 +98,32 @@ pub fn execute_cancel_stream(
     sync_stream(&mut stream, env.block.time);
     STREAM.save(deps.storage, &stream)?;
 
-    //Refund all out tokens to stream creator(treasury)
-    let messages: Vec<CosmosMsg> = vec![CosmosMsg::Bank(BankMsg::Send {
-        to_address: stream.treasury.to_string(),
-        amount: vec![Coin {
+    // Refund all out tokens to stream creator(treasury)
+    let mut refund_coins = vec![stream.out_asset.clone()];
+
+    // if pool is configured return clp + pool creation fee
+    if let Some(pool) = stream.create_pool {
+        let pool_creation_fee_vec = get_pool_creation_fee(&deps)?;
+        refund_coins.extend(pool_creation_fee_vec);
+        refund_coins.push(Coin {
             denom: stream.out_asset.denom,
-            amount: stream.out_asset.amount,
-        }],
-    })];
+            amount: Uint128::try_from(pool.out_amount_clp)?,
+        });
+    }
+    let funds_msgs: Vec<CosmosMsg> = refund_coins
+        .iter()
+        .map(|coin| {
+            CosmosMsg::Bank(BankMsg::Send {
+                to_address: stream.treasury.to_string(),
+                amount: vec![coin.clone()],
+            })
+        })
+        .collect();
 
     Ok(Response::new()
         .add_attribute("action", "cancel_stream")
-        .add_messages(messages)
-        .add_attribute("status", "cancelled"))
+        .add_attribute("status", "cancelled")
+        .add_messages(funds_msgs))
 }
 
 pub fn execute_cancel_stream_with_threshold(
@@ -153,18 +167,31 @@ pub fn execute_cancel_stream_with_threshold(
 
     STREAM.save(deps.storage, &stream)?;
 
-    //Refund all out tokens to stream creator(treasury)
-    let messages: Vec<CosmosMsg> = vec![CosmosMsg::Bank(BankMsg::Send {
-        to_address: stream.treasury.to_string(),
-        amount: vec![Coin {
+    // Refund all out tokens to stream creator(treasury)
+    let mut refund_coins = vec![stream.out_asset.clone()];
+
+    // if pool is configured return clp + pool creation fee
+    if let Some(pool) = stream.create_pool {
+        let pool_creation_fee_vec = get_pool_creation_fee(&deps)?;
+        refund_coins.extend(pool_creation_fee_vec);
+        refund_coins.push(Coin {
             denom: stream.out_asset.denom,
-            amount: stream.out_asset.amount,
-        }],
-    })];
+            amount: Uint128::try_from(pool.out_amount_clp)?,
+        });
+    }
+    let funds_msgs: Vec<CosmosMsg> = refund_coins
+        .iter()
+        .map(|coin| {
+            CosmosMsg::Bank(BankMsg::Send {
+                to_address: stream.treasury.to_string(),
+                amount: vec![coin.clone()],
+            })
+        })
+        .collect();
 
     Ok(Response::new()
         .add_attribute("action", "cancel_stream")
-        .add_messages(messages)
+        .add_messages(funds_msgs)
         .add_attribute("status", "cancelled"))
 }
 pub fn execute_stream_admin_cancel(
@@ -187,14 +214,30 @@ pub fn execute_stream_admin_cancel(
     sync_stream(&mut stream, env.block.time);
     STREAM.save(deps.storage, &stream)?;
 
-    //Refund all out tokens to stream creator(treasury)
-    let messages: Vec<CosmosMsg> = vec![CosmosMsg::Bank(BankMsg::Send {
-        to_address: stream.treasury.to_string(),
-        amount: vec![stream.out_asset],
-    })];
+    // Refund all out tokens to stream creator(treasury)
+    let mut refund_coins = vec![stream.out_asset.clone()];
+
+    // if pool is configured return clp + pool creation fee
+    if let Some(pool) = stream.create_pool {
+        let pool_creation_fee_vec = get_pool_creation_fee(&deps)?;
+        refund_coins.extend(pool_creation_fee_vec);
+        refund_coins.push(Coin {
+            denom: stream.out_asset.denom,
+            amount: Uint128::try_from(pool.out_amount_clp)?,
+        });
+    }
+    let funds_msgs: Vec<CosmosMsg> = refund_coins
+        .iter()
+        .map(|coin| {
+            CosmosMsg::Bank(BankMsg::Send {
+                to_address: stream.treasury.to_string(),
+                amount: vec![coin.clone()],
+            })
+        })
+        .collect();
 
     Ok(Response::new()
         .add_attribute("action", "cancel_stream")
-        .add_messages(messages)
+        .add_messages(funds_msgs)
         .add_attribute("status", "cancelled"))
 }

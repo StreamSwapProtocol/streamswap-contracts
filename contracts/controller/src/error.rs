@@ -1,10 +1,11 @@
-use cosmwasm_std::{ConversionOverflowError, DivideByZeroError, OverflowError, StdError};
+use cosmwasm_std::{
+    ConversionOverflowError, DivideByZeroError, Instantiate2AddressError, OverflowError, StdError,
+};
 use cw_denom::DenomError;
 use cw_utils::PaymentError;
 use std::convert::Infallible;
 use streamswap_utils::payment_checker::CustomPaymentError;
 use thiserror::Error;
-
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
     #[error("{0}")]
@@ -27,6 +28,9 @@ pub enum ContractError {
 
     #[error("{0}")]
     ConversionOverflowError(#[from] ConversionOverflowError),
+
+    #[error("{0}")]
+    Instantiate2AddressError(#[from] Instantiate2AddressError),
 
     #[error("{0}")]
     DenomError(#[from] DenomError),
@@ -150,6 +154,15 @@ pub enum ContractError {
 
     #[error("Invalid controller params")]
     InvalidControllerParams {},
+
+    #[error("Invalid pool out amount")]
+    InvalidPoolOutAmount {},
+
+    #[error("Invalid pool denom")]
+    InvalidPoolDenom {},
+
+    #[error("Pool creation fee not found")]
+    PoolCreationFeeNotFound {},
 }
 
 impl From<ContractError> for StdError {

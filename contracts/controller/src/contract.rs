@@ -1,7 +1,9 @@
 use crate::error::ContractError;
+use crate::helpers::{get_pool_creation_fee, validate_create_pool};
+use crate::state::{FREEZESTATE, LAST_STREAM_ID, PARAMS, STREAMS};
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Coin, CosmosMsg, Decimal256, Deps, DepsMut, Env,
-    MessageInfo, Order, Response, StdResult, WasmMsg,
+    MessageInfo, Order, Response, StdResult, Uint128, WasmMsg,
 };
 use cw2::ensure_from_older_version;
 use cw_storage_plus::Bound;
@@ -10,8 +12,6 @@ use streamswap_types::controller::{
     StreamsResponse,
 };
 use streamswap_utils::payment_checker::check_payment;
-
-use crate::state::{FREEZESTATE, LAST_STREAM_ID, PARAMS, STREAMS};
 
 const CONTRACT_NAME: &str = "crates.io:streamswap-controller";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -132,7 +132,7 @@ pub fn execute_create_stream(
         stream_admin: _,
         threshold: _,
         url: _,
-        create_pool: _,
+        create_pool,
         vesting: _,
         bootstraping_start_time: _,
         salt,
@@ -148,21 +148,42 @@ pub fn execute_create_stream(
     if out_asset.amount.is_zero() {
         return Err(ContractError::ZeroOutSupply {});
     }
+    // These funds shall be sent to controller, after the control these funds will be distributed to the stream contract and fee_collector
+    let mut expected_funds = vec![stream_creation_fee.clone(), out_asset.clone()];
+    // These funds shall be sent to the stream contract
+    let mut instantiate_funds: Vec<Coin> = vec![out_asset.clone()];
 
-    let expected_funds = vec![stream_creation_fee.clone(), out_asset.clone()];
+    if create_pool.is_some() {
+        // Get pool creation fee vector
+        let pool_creation_fee_vec = get_pool_creation_fee(&deps)?;
+        let pool = create_pool.unwrap();
+        validate_create_pool(pool.clone(), &out_asset, &in_denom)?;
+        let uint128_pool_out_amount = Uint128::try_from(pool.clone().out_amount_clp)?;
+        // Pool out amount is separate from out asset to be streamed.
+        let pool_out_amount = Coin {
+            denom: out_asset.denom.clone(),
+            amount: uint128_pool_out_amount,
+        };
+        // Add the pool out amount to instantiate funds as well
+        instantiate_funds.push(pool_out_amount.clone());
+        // Add the pool out amount to expected funds
+        expected_funds.push(pool_out_amount);
+        // Merge the pool creation fee with instantiate funds
+        instantiate_funds.extend(pool_creation_fee_vec.clone());
+        // Merge the pool creation fee with expected funds
+        expected_funds.extend(pool_creation_fee_vec);
+    }
     check_payment(&info.funds, &expected_funds)?;
 
     let last_stream_id = LAST_STREAM_ID.load(deps.storage)?;
     let stream_id = last_stream_id + 1;
-
-    let funds: Vec<Coin> = vec![out_asset.clone()];
 
     let stream_swap_inst_message: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate2 {
         code_id: params.stream_contract_code_id,
         admin: Some(params.protocol_admin.to_string()),
         label: format!("Stream Swap Stream {} - {}", name, stream_id),
         msg: to_json_binary(&msg)?,
-        funds,
+        funds: instantiate_funds,
         salt: salt.clone(),
     });
 
@@ -174,8 +195,7 @@ pub fn execute_create_stream(
         checksum.as_slice(),
         &deps.api.addr_canonicalize(info.sender.as_ref())?,
         salt.as_slice(),
-    )
-    .unwrap();
+    )?;
 
     LAST_STREAM_ID.save(deps.storage, &stream_id)?;
 
