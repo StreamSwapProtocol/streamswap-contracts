@@ -121,15 +121,6 @@ pub enum ContractError {
     #[error("Stream not cancelled")]
     StreamNotCancelled {},
 
-    #[error("Stream is cancelled")]
-    StreamIsCancelled {},
-
-    #[error("Stream killswitch is active")]
-    StreamKillswitchActive {},
-
-    #[error("Stream is already finalized")]
-    StreamAlreadyFinalized {},
-
     #[error("Stream Name too short")]
     StreamNameTooShort {},
 
@@ -163,12 +154,15 @@ pub enum ContractError {
     #[error("Stream Bootstrapping starts too soon")]
     StreamBootstrappingStartsTooSoon {},
 
-    #[error("Stream not waiting")]
-    StreamNotWaiting {},
-
     #[error("Stream bootrapping duration too short")]
     StreamBootstrappingDurationTooShort {},
 
     #[error("Stream waiting duration too short")]
     StreamWaitingDurationTooShort {},
+
+    #[error("Stream wrong status")]
+    StreamWrongStatus {
+        expected: Vec<String>,
+        actual: String,
+    },
 }

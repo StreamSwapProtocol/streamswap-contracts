@@ -611,7 +611,12 @@ mod withdraw {
 
         let error = err.source().unwrap();
         let error = error.downcast_ref::<StreamSwapError>().unwrap();
-        // TODO: change error type
-        assert_eq!(error, &StreamSwapError::StreamNotStarted {});
+        assert_eq!(
+            error,
+            &StreamSwapError::StreamWrongStatus {
+                expected: vec!["Active".to_string(), "Bootstrapping".to_string()],
+                actual: "Cancelled".to_string(),
+            }
+        );
     }
 }

@@ -28,6 +28,7 @@ pub fn execute_exit_cancelled(
 
     // This execution requires the stream to be cancelled or
     // the stream to be ended and the threshold not reached.
+    // If any of other condition fails return not cancelled error.
     if !stream.is_cancelled() {
         let threshold_state = ThresholdState::new();
         // Threshold should be set
@@ -84,13 +85,16 @@ pub fn execute_cancel_stream(
     let mut stream = STREAM.load(deps.storage)?;
     sync_stream_status(&mut stream, env.block.time);
 
-    // TODO if finalized can not be cancelled
-    if stream.is_ended() {
-        return Err(ContractError::StreamEnded {});
-    }
-
-    if stream.is_cancelled() {
-        return Err(ContractError::StreamIsCancelled {});
+    if stream.is_finalized() || stream.is_cancelled() {
+        return Err(ContractError::StreamWrongStatus {
+            expected: Vec::from([
+                Status::Waiting.to_string(),
+                Status::Bootstrapping.to_string(),
+                Status::Active.to_string(),
+                Status::Ended.to_string(),
+            ]),
+            actual: stream.status_info.status.to_string(),
+        });
     }
     stream.status_info.status = Status::Cancelled;
 
@@ -118,23 +122,18 @@ pub fn execute_cancel_stream_with_threshold(
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
-    sync_stream_status(&mut stream, env.block.time);
-    // Stream should not be paused or cancelled
-    if stream.is_cancelled() {
-        return Err(ContractError::StreamKillswitchActive {});
-    }
-
-    if !stream.is_ended() {
-        return Err(ContractError::StreamNotEnded {});
-    }
-    // Update stream before checking threshold
-    if info.sender != stream.treasury {
+    // Only stream creator can cancel the stream with threshold not reached
+    if info.sender != stream.stream_admin {
         return Err(ContractError::Unauthorized {});
     }
-
-    // This should be impossible because creator can not finalize stream when threshold is not reached
-    if stream.status_info.status == Status::Finalized {
-        return Err(ContractError::StreamAlreadyFinalized {});
+    sync_stream_status(&mut stream, env.block.time);
+    // Stream should not be cancelled of finalized, should be ended.
+    // Creator should not able to finalize the stream with threshold not reached but only cancel it.
+    if !stream.is_ended() {
+        return Err(ContractError::StreamWrongStatus {
+            expected: Vec::from([Status::Ended.to_string()]),
+            actual: stream.status_info.status.to_string(),
+        });
     }
 
     sync_stream(&mut stream, env.block.time);
@@ -173,15 +172,19 @@ pub fn execute_stream_admin_cancel(
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
+    // Only stream admin can cancel the stream with this method
+    if info.sender != stream.stream_admin {
+        return Err(ContractError::Unauthorized {});
+    }
+
     sync_stream_status(&mut stream, env.block.time);
 
     // In order for stream admin to cancel the stream, the stream should be waiting
     if !stream.is_waiting() {
-        return Err(ContractError::StreamNotWaiting {});
-    }
-
-    if info.sender != stream.stream_admin {
-        return Err(ContractError::Unauthorized {});
+        return Err(ContractError::StreamWrongStatus {
+            expected: Vec::from([Status::Waiting.to_string()]),
+            actual: stream.status_info.status.to_string(),
+        });
     }
     stream.status_info.status = Status::Cancelled;
     sync_stream(&mut stream, env.block.time);

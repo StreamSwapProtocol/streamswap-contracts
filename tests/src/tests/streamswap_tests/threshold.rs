@@ -336,7 +336,13 @@ mod threshold {
             )
             .unwrap_err();
         let error = err.downcast::<StreamSwapError>().unwrap();
-        assert_eq!(error, StreamSwapError::StreamKillswitchActive {});
+        assert_eq!(
+            error,
+            StreamSwapError::StreamWrongStatus {
+                expected: vec!["Ended".to_string()],
+                actual: "Cancelled".to_string()
+            }
+        );
 
         // Creator can not cancel the stream again
         let cancel_msg = StreamSwapExecuteMsg::CancelStreamWithThreshold {};
@@ -350,7 +356,13 @@ mod threshold {
             )
             .unwrap_err();
         let error = err.downcast::<StreamSwapError>().unwrap();
-        assert_eq!(error, StreamSwapError::StreamKillswitchActive {});
+        assert_eq!(
+            error,
+            StreamSwapError::StreamWrongStatus {
+                expected: vec!["Ended".to_string()],
+                actual: "Cancelled".to_string()
+            }
+        );
 
         // Subscriber 2 executes exit cancelled after creator cancels stream
         let exit_cancelled_msg = StreamSwapExecuteMsg::ExitCancelled {};
@@ -475,7 +487,13 @@ mod threshold {
             )
             .unwrap_err();
         let error = err.downcast::<StreamSwapError>().unwrap();
-        assert_eq!(error, StreamSwapError::StreamNotEnded {});
+        assert_eq!(
+            error,
+            StreamSwapError::StreamWrongStatus {
+                expected: vec!["Ended".to_string()],
+                actual: "Active".to_string()
+            }
+        );
 
         // Set block to the end of the stream
         app.set_block(BlockInfo {

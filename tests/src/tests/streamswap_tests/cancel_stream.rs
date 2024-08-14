@@ -277,6 +277,17 @@ mod cancel_stream {
         let err = res.source().unwrap();
         let error = err.downcast_ref::<ContractError>().unwrap();
 
-        assert_eq!(*error, ContractError::StreamIsCancelled {});
+        assert_eq!(
+            *error,
+            ContractError::StreamWrongStatus {
+                expected: vec![
+                    "Waiting".to_string(),
+                    "Bootstrapping".to_string(),
+                    "Active".to_string(),
+                    "Ended".to_string()
+                ],
+                actual: "Cancelled".to_string()
+            }
+        );
     }
 }
