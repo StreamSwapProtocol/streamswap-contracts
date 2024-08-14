@@ -2,7 +2,9 @@
 mod pool {
     use crate::helpers::mock_messages::{get_controller_inst_msg, get_create_stream_msg};
     use crate::helpers::suite::{Suite, SuiteBuilder};
-    use crate::helpers::utils::{get_contract_address_from_res, get_funds_from_res, get_wasm_attribute_with_key};
+    use crate::helpers::utils::{
+        get_contract_address_from_res, get_funds_from_res, get_wasm_attribute_with_key,
+    };
     use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Uint256};
     use cw_multi_test::Executor;
     use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
@@ -192,7 +194,10 @@ mod pool {
                 test_accounts.creator_1.clone(),
                 controller_address.clone(),
                 &create_stream_msg,
-                &[coin(100, "fee_denom"), coin(out_supply + out_clp_amount, out_denom)],
+                &[
+                    coin(100, "fee_denom"),
+                    coin(out_supply + out_clp_amount, out_denom),
+                ],
             )
             .unwrap();
 

@@ -462,6 +462,8 @@ pub fn execute_finalize_stream(
     if stream.out_remaining > Uint256::zero() {
         let remaining_out = stream.out_remaining;
         let uint128_remaining_out = Uint128::try_from(remaining_out)?;
+        // Sub remaining out tokens from out_asset
+        stream.out_asset.amount = stream.out_asset.amount.checked_sub(uint128_remaining_out)?;
         let remaining_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: treasury.to_string(),
             amount: vec![Coin {
@@ -509,17 +511,18 @@ pub fn execute_finalize_stream(
         controller_params.fee_collector.to_string(),
         swap_fee,
     )?;
+
     let revenue_msg =
         build_u128_bank_send_msg(stream.in_denom, treasury.to_string(), creator_revenue)?;
 
     messages.push(revenue_msg);
     messages.push(swap_fee_msg);
 
-    // if no spent, remove all messages to prevent failure
-    // TODO: not sure of this
-    if stream.spent_in == Uint256::zero() {
-        messages = vec![]
-    }
+    // // if no spent, remove all messages to prevent failure
+    // // TODO: not sure of this
+    // if stream.spent_in == Uint256::zero() {
+    //     messages = vec![]
+    // }
 
     attributes.extend(vec![
         attr("action", "finalize_stream"),
