@@ -22,7 +22,7 @@ use streamswap_types::stream::{
 use streamswap_utils::payment_checker::check_payment;
 use streamswap_utils::to_uint256;
 
-use crate::pool::{build_create_initial_pool_position_msg, calculate_in_amount_clp};
+use crate::pool::{build_create_initial_position_msg, calculate_in_amount_clp};
 use crate::state::{CONTROLLER_PARAMS, POSITIONS, STREAM, VESTING};
 use streamswap_types::controller::Params as ControllerParams;
 use streamswap_types::controller::{CreateStreamMsg, MigrateMsg};
@@ -444,14 +444,16 @@ pub fn execute_finalize_stream(
     let controller_params = CONTROLLER_PARAMS.load(deps.storage)?;
     let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or_else(|| stream.treasury.clone());
 
-    //Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
+    let mut messages = vec![];
+    let mut attributes = vec![];
+
+    // Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
     let swap_fee = Decimal256::from_ratio(stream.spent_in, Uint128::one())
         .checked_mul(controller_params.exit_fee_percent)?
         * Uint256::one();
 
     let creator_revenue = stream.spent_in.checked_sub(swap_fee)?;
 
-    let mut messages = vec![];
     let uint128_creator_revenue = Uint128::try_from(creator_revenue)?;
     //Creator's revenue claimed at finalize
     let revenue_msg = CosmosMsg::Bank(BankMsg::Send {
@@ -462,6 +464,7 @@ pub fn execute_finalize_stream(
         }],
     });
     messages.push(revenue_msg);
+
     let uint128_swap_fee = Uint128::try_from(swap_fee)?;
     let swap_fee_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: controller_params.fee_collector.to_string(),
@@ -477,7 +480,6 @@ pub fn execute_finalize_stream(
         messages = vec![]
     }
 
-    let mut attributes = vec![];
     // In case the stream is ended without any shares in it. We need to refund the remaining
     // out tokens although that is unlikely to happen.
     if stream.out_remaining > Uint256::zero() {
@@ -506,7 +508,9 @@ pub fn execute_finalize_stream(
             pool.out_amount_clp,
             stream.spent_in,
         );
-        let create_initial_position_msg = build_create_initial_pool_position_msg(
+
+        // Create initial position message
+        let create_initial_position_msg = build_create_initial_position_msg(
             pool_id,
             treasury.as_str(),
             &stream.in_denom,

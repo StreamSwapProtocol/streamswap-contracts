@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod pool_tests {
+mod pool {
     use crate::helpers::mock_messages::{get_controller_inst_msg, get_create_stream_msg};
     use crate::helpers::suite::{Suite, SuiteBuilder};
     use crate::helpers::utils::get_contract_address_from_res;
