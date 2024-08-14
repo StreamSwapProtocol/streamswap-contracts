@@ -152,8 +152,13 @@ pub fn execute(
 /// Syncs stream to calculate released distribution and spent amount
 pub fn execute_sync_stream(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
-    sync_stream(&mut stream, env.block.time);
     sync_stream_status(&mut stream, env.block.time);
+    if stream.is_cancelled() {
+        return Err(ContractError::OperationNotAllowed {
+            current_status: stream.status_info.status.to_string(),
+        });
+    }
+    sync_stream(&mut stream, env.block.time);
     STREAM.save(deps.storage, &stream)?;
 
     let attrs = vec![
@@ -181,14 +186,16 @@ pub fn execute_sync_position(
     let mut position = POSITIONS.load(deps.storage, &info.sender)?;
 
     let mut stream = STREAM.load(deps.storage)?;
-    // check if stream is cancelled
+    sync_stream_status(&mut stream, env.block.time);
+    // check and return error if stream is cancelled
     if stream.is_cancelled() {
-        return Err(ContractError::StreamIsCancelled {});
+        return Err(ContractError::OperationNotAllowed {
+            current_status: stream.status_info.status.to_string(),
+        });
     }
 
     // sync stream
     sync_stream(&mut stream, env.block.time);
-    sync_stream_status(&mut stream, env.block.time);
     STREAM.save(deps.storage, &stream)?;
 
     // updates position to latest distribution. Returns the amount of out tokens that has been purchased
@@ -266,15 +273,13 @@ pub fn execute_subscribe(
     info: MessageInfo,
     mut stream: Stream,
 ) -> Result<Response, ContractError> {
-    // Check if stream is cancelled
-    if stream.is_cancelled() {
-        return Err(ContractError::StreamKillswitchActive {});
-    }
     // Update stream status
     sync_stream_status(&mut stream, env.block.time);
 
     if !(stream.is_active() || stream.is_bootstrapping()) {
-        return Err(ContractError::StreamNotStarted {});
+        return Err(ContractError::OperationNotAllowed {
+            current_status: stream.status_info.status.to_string(),
+        });
     }
 
     let in_amount = must_pay(&info, &stream.in_denom)?;
@@ -344,8 +349,9 @@ pub fn execute_withdraw(
 ) -> Result<Response, ContractError> {
     sync_stream_status(&mut stream, env.block.time);
     if !(stream.is_active() || stream.is_bootstrapping()) {
-        // TODO: create a new error for this
-        return Err(ContractError::StreamNotStarted {});
+        return Err(ContractError::OperationNotAllowed {
+            current_status: stream.status_info.status.to_string(),
+        });
     }
 
     let mut position = POSITIONS.load(deps.storage, &info.sender)?;
@@ -409,22 +415,15 @@ pub fn execute_finalize_stream(
     new_treasury: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
-    // check if the stream is already finalized
-    if stream.is_finalized() {
-        return Err(ContractError::StreamAlreadyFinalized {});
-    }
-    // check if killswitch is active
-    if stream.is_cancelled() {
-        // TODO: create a new error for this
-        return Err(ContractError::StreamKillswitchActive {});
-    }
-    if stream.treasury != info.sender {
+    if stream.stream_admin != info.sender {
         return Err(ContractError::Unauthorized {});
     }
     sync_stream_status(&mut stream, env.block.time);
 
-    if !stream.is_ended() {
-        return Err(ContractError::StreamNotEnded {});
+    if stream.is_finalized() || stream.is_cancelled() || !stream.is_ended() {
+        return Err(ContractError::OperationNotAllowed {
+            current_status: stream.status_info.status.to_string(),
+        });
     }
     sync_stream(&mut stream, env.block.time);
 
@@ -555,14 +554,14 @@ pub fn execute_exit_stream(
     let mut stream = STREAM.load(deps.storage)?;
     let controller_params = CONTROLLER_PARAMS.load(deps.storage)?;
     // check if stream is paused
-    if stream.is_cancelled() {
-        return Err(ContractError::StreamKillswitchActive {});
-    }
     sync_stream_status(&mut stream, env.block.time);
 
-    if !(stream.is_ended() || stream.is_finalized()) {
-        return Err(ContractError::StreamNotEnded {});
+    if stream.is_cancelled() || !(stream.is_ended() || stream.is_finalized()) {
+        return Err(ContractError::OperationNotAllowed {
+            current_status: stream.status_info.status.to_string(),
+        });
     }
+
     sync_stream(&mut stream, env.block.time);
 
     let threshold_state = ThresholdState::new();

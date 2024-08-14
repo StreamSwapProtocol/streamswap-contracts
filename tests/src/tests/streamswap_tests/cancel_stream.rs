@@ -277,6 +277,11 @@ mod cancel_stream {
         let err = res.source().unwrap();
         let error = err.downcast_ref::<ContractError>().unwrap();
 
-        assert_eq!(*error, ContractError::StreamIsCancelled {});
+        assert_eq!(
+            *error,
+            ContractError::OperationNotAllowed {
+                current_status: "Cancelled".to_string()
+            }
+        );
     }
 }

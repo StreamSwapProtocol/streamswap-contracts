@@ -701,7 +701,12 @@ mod subscribe {
             .unwrap()
             .downcast_ref::<StreamSwapError>()
             .unwrap();
-        assert_eq!(error, &StreamSwapError::StreamNotStarted {});
+        assert_eq!(
+            error,
+            &StreamSwapError::OperationNotAllowed {
+                current_status: "Waiting".to_string()
+            }
+        );
 
         // Set time to bootstrapping start time
         app.set_block(BlockInfo {

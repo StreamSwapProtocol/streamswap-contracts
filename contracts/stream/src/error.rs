@@ -85,20 +85,11 @@ pub enum ContractError {
     #[error("Stream not ended")]
     StreamNotEnded {},
 
-    #[error("Stream is started update stream")]
-    StreamIsStarted {},
-
     #[error("sync position")]
     SyncPosition {},
 
     #[error("Stream duration is too short")]
     StreamDurationTooShort {},
-
-    #[error("Stream duration is too long")]
-    StreamDurationTooLong {},
-
-    #[error("Stream starts too soon")]
-    StreamStartsTooSoon {},
 
     #[error("Invalid start time")]
     StreamInvalidStartTime {},
@@ -109,26 +100,11 @@ pub enum ContractError {
     #[error("Creation fee amount do not match the supplied funds")]
     StreamCreationFeeRequired {},
 
-    #[error("Stream Ended")]
-    StreamEnded {},
-
-    #[error("Stream not started")]
-    StreamNotStarted {},
-
     #[error("Invalid decimals")]
     InvalidDecimals {},
 
     #[error("Stream not cancelled")]
     StreamNotCancelled {},
-
-    #[error("Stream is cancelled")]
-    StreamIsCancelled {},
-
-    #[error("Stream killswitch is active")]
-    StreamKillswitchActive {},
-
-    #[error("Stream is already finalized")]
-    StreamAlreadyFinalized {},
 
     #[error("Stream Name too short")]
     StreamNameTooShort {},
@@ -163,12 +139,12 @@ pub enum ContractError {
     #[error("Stream Bootstrapping starts too soon")]
     StreamBootstrappingStartsTooSoon {},
 
-    #[error("Stream not waiting")]
-    StreamNotWaiting {},
-
     #[error("Stream bootrapping duration too short")]
     StreamBootstrappingDurationTooShort {},
 
     #[error("Stream waiting duration too short")]
     StreamWaitingDurationTooShort {},
+
+    #[error("Operation not allowed in ths current state {current_status}")]
+    OperationNotAllowed { current_status: String },
 }
