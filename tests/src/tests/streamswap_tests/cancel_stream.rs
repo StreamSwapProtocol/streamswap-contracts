@@ -279,14 +279,8 @@ mod cancel_stream {
 
         assert_eq!(
             *error,
-            ContractError::WrongStatus {
-                expected_one_of_status: vec![
-                    "Waiting".to_string(),
-                    "Bootstrapping".to_string(),
-                    "Active".to_string(),
-                    "Ended".to_string()
-                ],
-                actual_status: "Cancelled".to_string()
+            ContractError::OperationNotAllowed {
+                current_status: "Cancelled".to_string()
             }
         );
     }

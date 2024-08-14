@@ -86,14 +86,8 @@ pub fn execute_cancel_stream(
     sync_stream_status(&mut stream, env.block.time);
 
     if stream.is_finalized() || stream.is_cancelled() {
-        return Err(ContractError::WrongStatus {
-            expected_one_of_status: Vec::from([
-                Status::Waiting.to_string(),
-                Status::Bootstrapping.to_string(),
-                Status::Active.to_string(),
-                Status::Ended.to_string(),
-            ]),
-            actual_status: stream.status_info.status.to_string(),
+        return Err(ContractError::OperationNotAllowed {
+            current_status: stream.status_info.status.to_string(),
         });
     }
     stream.status_info.status = Status::Cancelled;
@@ -130,9 +124,8 @@ pub fn execute_cancel_stream_with_threshold(
     // Stream should not be cancelled of finalized, should be ended.
     // Creator should not able to finalize the stream with threshold not reached but only cancel it.
     if !stream.is_ended() {
-        return Err(ContractError::WrongStatus {
-            expected_one_of_status: Vec::from([Status::Ended.to_string()]),
-            actual_status: stream.status_info.status.to_string(),
+        return Err(ContractError::OperationNotAllowed {
+            current_status: stream.status_info.status.to_string(),
         });
     }
 
@@ -181,9 +174,8 @@ pub fn execute_stream_admin_cancel(
 
     // In order for stream admin to cancel the stream, the stream should be waiting
     if !stream.is_waiting() {
-        return Err(ContractError::WrongStatus {
-            expected_one_of_status: Vec::from([Status::Waiting.to_string()]),
-            actual_status: stream.status_info.status.to_string(),
+        return Err(ContractError::OperationNotAllowed {
+            current_status: stream.status_info.status.to_string(),
         });
     }
     stream.status_info.status = Status::Cancelled;

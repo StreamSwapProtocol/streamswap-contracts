@@ -338,9 +338,8 @@ mod threshold {
         let error = err.downcast::<StreamSwapError>().unwrap();
         assert_eq!(
             error,
-            StreamSwapError::WrongStatus {
-                expected_one_of_status: vec!["Ended".to_string()],
-                actual_status: "Cancelled".to_string()
+            StreamSwapError::OperationNotAllowed {
+                current_status: "Cancelled".to_string()
             }
         );
 
@@ -358,9 +357,8 @@ mod threshold {
         let error = err.downcast::<StreamSwapError>().unwrap();
         assert_eq!(
             error,
-            StreamSwapError::WrongStatus {
-                expected_one_of_status: vec!["Ended".to_string()],
-                actual_status: "Cancelled".to_string()
+            StreamSwapError::OperationNotAllowed {
+                current_status: "Cancelled".to_string()
             }
         );
 
@@ -489,9 +487,8 @@ mod threshold {
         let error = err.downcast::<StreamSwapError>().unwrap();
         assert_eq!(
             error,
-            StreamSwapError::WrongStatus {
-                expected_one_of_status: vec!["Ended".to_string()],
-                actual_status: "Active".to_string()
+            StreamSwapError::OperationNotAllowed {
+                current_status: "Active".to_string()
             }
         );
 

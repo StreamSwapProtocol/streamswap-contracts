@@ -157,15 +157,8 @@ pub fn execute_sync_stream(deps: DepsMut, env: Env) -> Result<Response, Contract
     let mut stream = STREAM.load(deps.storage)?;
     sync_stream_status(&mut stream, env.block.time);
     if stream.is_cancelled() {
-        return Err(ContractError::WrongStatus {
-            expected_one_of_status: Vec::from([
-                Status::Active.to_string(),
-                Status::Bootstrapping.to_string(),
-                Status::Waiting.to_string(),
-                Status::Ended.to_string(),
-                Status::Finalized.to_string(),
-            ]),
-            actual_status: stream.status_info.status.to_string(),
+        return Err(ContractError::OperationNotAllowed {
+            current_status: stream.status_info.status.to_string(),
         });
     }
     sync_stream(&mut stream, env.block.time);
@@ -199,15 +192,8 @@ pub fn execute_sync_position(
     sync_stream_status(&mut stream, env.block.time);
     // check and return error if stream is cancelled
     if stream.is_cancelled() {
-        return Err(ContractError::WrongStatus {
-            expected_one_of_status: Vec::from([
-                Status::Active.to_string(),
-                Status::Bootstrapping.to_string(),
-                Status::Waiting.to_string(),
-                Status::Ended.to_string(),
-                Status::Finalized.to_string(),
-            ]),
-            actual_status: stream.status_info.status.to_string(),
+        return Err(ContractError::OperationNotAllowed {
+            current_status: stream.status_info.status.to_string(),
         });
     }
 
@@ -294,12 +280,8 @@ pub fn execute_subscribe(
     sync_stream_status(&mut stream, env.block.time);
 
     if !(stream.is_active() || stream.is_bootstrapping()) {
-        return Err(ContractError::WrongStatus {
-            expected_one_of_status: Vec::from([
-                Status::Active.to_string(),
-                Status::Bootstrapping.to_string(),
-            ]),
-            actual_status: stream.status_info.status.to_string(),
+        return Err(ContractError::OperationNotAllowed {
+            current_status: stream.status_info.status.to_string(),
         });
     }
 
@@ -370,12 +352,8 @@ pub fn execute_withdraw(
 ) -> Result<Response, ContractError> {
     sync_stream_status(&mut stream, env.block.time);
     if !(stream.is_active() || stream.is_bootstrapping()) {
-        return Err(ContractError::WrongStatus {
-            expected_one_of_status: Vec::from([
-                Status::Active.to_string(),
-                Status::Bootstrapping.to_string(),
-            ]),
-            actual_status: stream.status_info.status.to_string(),
+        return Err(ContractError::OperationNotAllowed {
+            current_status: stream.status_info.status.to_string(),
         });
     }
 
@@ -446,9 +424,8 @@ pub fn execute_finalize_stream(
     sync_stream_status(&mut stream, env.block.time);
 
     if stream.is_finalized() || stream.is_cancelled() || !stream.is_ended() {
-        return Err(ContractError::WrongStatus {
-            expected_one_of_status: Vec::from([Status::Ended.to_string()]),
-            actual_status: stream.status_info.status.to_string(),
+        return Err(ContractError::OperationNotAllowed {
+            current_status: stream.status_info.status.to_string(),
         });
     }
     sync_stream(&mut stream, env.block.time);
@@ -588,12 +565,8 @@ pub fn execute_exit_stream(
     sync_stream_status(&mut stream, env.block.time);
 
     if stream.is_cancelled() || !(stream.is_ended() || stream.is_finalized()) {
-        return Err(ContractError::WrongStatus {
-            expected_one_of_status: Vec::from([
-                Status::Ended.to_string(),
-                Status::Finalized.to_string(),
-            ]),
-            actual_status: stream.status_info.status.to_string(),
+        return Err(ContractError::OperationNotAllowed {
+            current_status: stream.status_info.status.to_string(),
         });
     }
 
