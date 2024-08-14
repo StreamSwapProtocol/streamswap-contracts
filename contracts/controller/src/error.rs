@@ -160,6 +160,9 @@ pub enum ContractError {
 
     #[error("Invalid pool denom")]
     InvalidPoolDenom {},
+
+    #[error("Pool creation fee not found")]
+    PoolCreationFeeNotFound {},
 }
 
 impl From<ContractError> for StdError {
