@@ -64,8 +64,6 @@ pub fn instantiate(
         vesting,
         salt: _,
     } = msg;
-    // Check if out asset is provided
-    // TODO: This might be unnecessary as we are checking this at controller level
     check_payment(&info.funds, &[out_asset.clone()])?;
 
     validate_stream_times(
