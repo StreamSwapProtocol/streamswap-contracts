@@ -31,8 +31,7 @@ pub fn validate_create_pool(
 pub fn get_pool_creation_fee(deps: &DepsMut) -> Result<Vec<Coin>, ContractError> {
     let pool_creation_fee_vec = PoolmanagerQuerier::new(&deps.querier)
         .params()?
-        .params
-    ?
+        .params?
         .pool_creation_fee;
     println!("pool_creation_fee_vec: {:?}", pool_creation_fee_vec);
     let mut cosmwasm_std_coin_vec = Vec::new();
