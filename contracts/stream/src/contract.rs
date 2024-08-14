@@ -13,8 +13,6 @@ use cosmwasm_std::{
 use cw2::{ensure_from_older_version, set_contract_version};
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay};
-use osmosis_std::types::cosmos::base;
-use osmosis_std::types::osmosis::concentratedliquidity::v1beta1::MsgCreatePosition;
 use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
 use streamswap_types::stream::ThresholdState;
 use streamswap_types::stream::{
@@ -24,6 +22,7 @@ use streamswap_types::stream::{
 use streamswap_utils::payment_checker::check_payment;
 use streamswap_utils::to_uint256;
 
+use crate::pool::{build_create_initial_pool_position_msg, calculate_in_amount_clp};
 use crate::state::{CONTROLLER_PARAMS, POSITIONS, STREAM, VESTING};
 use streamswap_types::controller::Params as ControllerParams;
 use streamswap_types::controller::{CreateStreamMsg, MigrateMsg};
@@ -493,62 +492,55 @@ pub fn execute_finalize_stream(
         });
         messages.push(remaining_msg);
     }
+    // if create_pool is set, create a pool for the stream and send initial position
     if let Some(pool) = stream.create_pool {
-        messages.push(pool.msg_create_pool.into());
-
-        // amount of in tokens allocated for clp
-        let in_clp = (pool.out_amount_clp / to_uint256(stream.out_asset.amount)) * stream.spent_in;
+        // query the number of pools to get the pool id
         let current_num_of_pools = PoolmanagerQuerier::new(&deps.querier)
             .num_pools()?
             .num_pools;
         let pool_id = current_num_of_pools + 1;
+
+        // amount of in tokens allocated for clp
+        let in_clp = calculate_in_amount_clp(
+            to_uint256(stream.out_asset.amount),
+            pool.out_amount_clp,
+            stream.spent_in,
+        );
+        let create_initial_position_msg = build_create_initial_pool_position_msg(
+            pool_id,
+            treasury.as_str(),
+            &stream.in_denom,
+            in_clp,
+            &stream.out_asset.denom,
+            pool.out_amount_clp,
+        );
+
+        messages.push(pool.msg_create_pool.into());
+        messages.push(create_initial_position_msg.into());
+
         attributes.push(attr("pool_id", pool_id.clone().to_string()));
         attributes.push(attr("pool_out_amount", pool.out_amount_clp));
         attributes.push(attr("pool_in_amount", in_clp));
-
-        let create_initial_position_msg = MsgCreatePosition {
-            pool_id,
-            sender: treasury.to_string(),
-            lower_tick: 0,
-            upper_tick: i64::MAX,
-            tokens_provided: vec![
-                base::v1beta1::Coin {
-                    denom: stream.in_denom,
-                    amount: in_clp.to_string(),
-                },
-                base::v1beta1::Coin {
-                    denom: stream.out_asset.denom,
-                    amount: pool.out_amount_clp.to_string(),
-                },
-            ],
-            token_min_amount0: "0".to_string(),
-            token_min_amount1: "0".to_string(),
-        };
-        messages.push(create_initial_position_msg.into());
     }
 
-    attributes.push(attr("action", "finalize_stream"));
-    attributes.push(attr("treasury", treasury.to_string()));
-    attributes.push(attr(
-        "fee_collector",
-        controller_params.fee_collector.to_string(),
-    ));
-    attributes.push(attr("creators_revenue", creator_revenue));
-    attributes.push(attr(
-        "refunded_out_remaining",
-        stream.out_remaining.to_string(),
-    ));
-    attributes.push(attr(
-        "total_sold",
-        to_uint256(stream.out_asset.amount)
-            .checked_sub(stream.out_remaining)?
-            .to_string(),
-    ));
-    attributes.push(attr("swap_fee", swap_fee));
-    attributes.push(attr(
-        "creation_fee_amount",
-        controller_params.stream_creation_fee.amount.to_string(),
-    ));
+    attributes.extend(vec![
+        attr("action", "finalize_stream"),
+        attr("treasury", treasury.to_string()),
+        attr("fee_collector", controller_params.fee_collector.to_string()),
+        attr("creators_revenue", creator_revenue),
+        attr("refunded_out_remaining", stream.out_remaining.to_string()),
+        attr(
+            "total_sold",
+            to_uint256(stream.out_asset.amount)
+                .checked_sub(stream.out_remaining)?
+                .to_string(),
+        ),
+        attr("swap_fee", swap_fee),
+        attr(
+            "creation_fee_amount",
+            controller_params.stream_creation_fee.amount.to_string(),
+        ),
+    ]);
 
     Ok(Response::new()
         .add_messages(messages)

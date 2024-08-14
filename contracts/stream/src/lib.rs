@@ -5,5 +5,6 @@ pub mod contract;
 mod error;
 mod helpers;
 mod killswitch;
+mod pool;
 pub mod state;
 pub mod stream;
