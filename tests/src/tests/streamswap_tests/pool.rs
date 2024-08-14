@@ -9,8 +9,10 @@ mod pool {
     use cw_multi_test::Executor;
     use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
     use streamswap_types::controller::CreatePool;
-    use streamswap_types::stream::ExecuteMsg;
     use streamswap_types::stream::ExecuteMsg as StreamSwapExecuteMsg;
+    use streamswap_types::stream::QueryMsg as StreamSwapQueryMsg;
+    use streamswap_types::stream::Status;
+    use streamswap_types::stream::StreamResponse;
 
     #[test]
     fn pool_creation() {
@@ -87,7 +89,7 @@ mod pool {
         let stream_swap_contract_address: String = get_contract_address_from_res(res);
 
         // First Subscription
-        let subscribe_msg = ExecuteMsg::Subscribe {};
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
         app.update_block(|b| b.time = start_time.plus_seconds(100));
         app.execute_contract(
             test_accounts.subscriber_1.clone(),
@@ -115,7 +117,7 @@ mod pool {
             .execute_contract(
                 test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &ExecuteMsg::FinalizeStream { new_treasury: None },
+                &StreamSwapExecuteMsg::FinalizeStream { new_treasury: None },
                 &[],
             )
             .unwrap();
@@ -250,6 +252,241 @@ mod pool {
                 (test_accounts.creator_1.to_string(), res_refund_out_amount),
                 (test_accounts.creator_1.to_string(), pool_creation_fee),
                 (test_accounts.creator_1.to_string(), res_pool_amount),
+            ]
+        );
+    }
+    #[test]
+    fn cancel_stream_with_threshold_pool_clp_refund() {
+        let Suite {
+            mut app,
+            test_accounts,
+            stream_swap_code_id,
+            stream_swap_controller_code_id,
+            vesting_code_id,
+        } = SuiteBuilder::default().build();
+
+        let msg = get_controller_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
+        let controller_address = app
+            .instantiate_contract(
+                stream_swap_controller_code_id,
+                test_accounts.admin.clone(),
+                &msg,
+                &[],
+                "Controller".to_string(),
+                None,
+            )
+            .unwrap();
+
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
+        let out_supply = 1_000_000u128;
+        // pool amount is %20 of out_supply
+        let out_clp_amount = 200_000u128;
+        let out_denom = "out_denom";
+
+        let out_coin = coin(out_supply, out_denom);
+        let pool_out_coin = coin(out_clp_amount, out_denom);
+        let pool_creation_fee = coin(1000000, "fee_denom");
+        let stream_creation_fee = coin(100, "fee_denom");
+        let in_denom = "in_denom";
+
+        let create_stream_msg = get_create_stream_msg(
+            "stream",
+            None,
+            test_accounts.creator_1.as_ref(),
+            out_coin.clone(),
+            in_denom,
+            bootstrapping_start_time,
+            start_time,
+            end_time,
+            Some(Uint256::from(100u128)),
+            Some(CreatePool {
+                out_amount_clp: out_clp_amount.into(),
+                msg_create_pool: MsgCreateConcentratedPool {
+                    sender: test_accounts.creator_1.to_string(),
+                    denom0: out_denom.to_string(),
+                    denom1: in_denom.to_string(),
+                    tick_spacing: 100,
+                    spread_factor: "10".to_string(),
+                },
+            }),
+            None,
+        );
+
+        let _res = app
+            .execute_contract(
+                test_accounts.creator_1.clone(),
+                controller_address.clone(),
+                &create_stream_msg,
+                &[
+                    pool_creation_fee.clone(),
+                    pool_out_coin.clone(),
+                    out_coin.clone(),
+                    stream_creation_fee,
+                ],
+            )
+            .unwrap();
+
+        let stream_swap_contract_address = get_contract_address_from_res(_res);
+
+        app.set_block(BlockInfo {
+            time: start_time.plus_seconds(20),
+            height: 2,
+            chain_id: "test".to_string(),
+        });
+
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
+
+        let _res = app
+            .execute_contract(
+                test_accounts.subscriber_1.clone(),
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &subscribe_msg,
+                &[coin(100 - 1, "in_denom")],
+            )
+            .unwrap();
+
+        // Set time to end time
+        app.set_block(BlockInfo {
+            time: end_time.plus_seconds(20),
+            height: 2,
+            chain_id: "test".to_string(),
+        });
+
+        // Try finalizing stream should fail as threshold is not met
+        let finalize_stream_msg = StreamSwapExecuteMsg::FinalizeStream { new_treasury: None };
+        let _err = app
+            .execute_contract(
+                test_accounts.creator_1.clone(),
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &finalize_stream_msg,
+                &[],
+            )
+            .unwrap_err();
+        // Threshold cancel stream
+        let cancel_stream_msg = StreamSwapExecuteMsg::CancelStreamWithThreshold {};
+        let res = app
+            .execute_contract(
+                test_accounts.creator_1.clone(),
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &cancel_stream_msg,
+                &[],
+            )
+            .unwrap();
+        let res_funds = get_funds_from_res(res.clone());
+        assert_eq!(
+            res_funds,
+            vec![
+                (test_accounts.creator_1.to_string(), out_coin),
+                (test_accounts.creator_1.to_string(), pool_creation_fee),
+                (test_accounts.creator_1.to_string(), pool_out_coin),
+            ]
+        );
+    }
+
+    #[test]
+    fn cancel_stream_stream_admin() {
+        let Suite {
+            mut app,
+            test_accounts,
+            stream_swap_code_id,
+            stream_swap_controller_code_id,
+            vesting_code_id,
+        } = SuiteBuilder::default().build();
+
+        let msg = get_controller_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
+        let controller_address = app
+            .instantiate_contract(
+                stream_swap_controller_code_id,
+                test_accounts.admin.clone(),
+                &msg,
+                &[],
+                "Controller".to_string(),
+                None,
+            )
+            .unwrap();
+
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
+        let out_supply = 1_000_000u128;
+        // pool amount is %20 of out_supply
+        let out_clp_amount = 200_000u128;
+        let out_denom = "out_denom";
+
+        let out_coin = coin(out_supply, out_denom);
+        let pool_out_coin = coin(out_clp_amount, out_denom);
+        let pool_creation_fee = coin(1000000, "fee_denom");
+        let stream_creation_fee = coin(100, "fee_denom");
+        let in_denom = "in_denom";
+
+        let create_stream_msg = get_create_stream_msg(
+            "stream",
+            None,
+            test_accounts.creator_1.as_ref(),
+            out_coin.clone(),
+            in_denom,
+            bootstrapping_start_time,
+            start_time,
+            end_time,
+            Some(Uint256::from(100u128)),
+            Some(CreatePool {
+                out_amount_clp: out_clp_amount.into(),
+                msg_create_pool: MsgCreateConcentratedPool {
+                    sender: test_accounts.creator_1.to_string(),
+                    denom0: out_denom.to_string(),
+                    denom1: in_denom.to_string(),
+                    tick_spacing: 100,
+                    spread_factor: "10".to_string(),
+                },
+            }),
+            None,
+        );
+
+        let res = app
+            .execute_contract(
+                test_accounts.creator_1.clone(),
+                controller_address.clone(),
+                &create_stream_msg,
+                &[
+                    pool_creation_fee.clone(),
+                    pool_out_coin.clone(),
+                    out_coin.clone(),
+                    stream_creation_fee,
+                ],
+            )
+            .unwrap();
+
+        // Stream is started at waiting status
+        let stream_swap_contract_address = get_contract_address_from_res(res);
+        // Query stream status
+        let query_res: StreamResponse = app
+            .wrap()
+            .query_wasm_smart(
+                &stream_swap_contract_address,
+                &StreamSwapQueryMsg::Stream {},
+            )
+            .unwrap();
+        assert_eq!(query_res.status, Status::Waiting);
+
+        // Execute cancel stream with stream admin
+        let cancel_stream_msg = StreamSwapExecuteMsg::StreamAdminCancel {};
+        let res = app
+            .execute_contract(
+                test_accounts.creator_1.clone(),
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &cancel_stream_msg,
+                &[],
+            )
+            .unwrap();
+        let res_funds = get_funds_from_res(res.clone());
+        assert_eq!(
+            res_funds,
+            vec![
+                (test_accounts.creator_1.to_string(), out_coin),
+                (test_accounts.creator_1.to_string(), pool_creation_fee),
+                (test_accounts.creator_1.to_string(), pool_out_coin),
             ]
         );
     }
