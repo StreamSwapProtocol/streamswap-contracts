@@ -1,19 +1,13 @@
 use core::str;
 use std::env;
-
-use crate::helpers::{check_name_and_url, get_decimals, validate_stream_times};
+use crate::helpers::{build_u128_bank_send_msg, check_name_and_url, get_decimals, validate_stream_times};
 use crate::killswitch::execute_cancel_stream_with_threshold;
 use crate::stream::{compute_shares_amount, sync_stream, sync_stream_status};
 use crate::{killswitch, ContractError};
-use cosmwasm_std::{
-    attr, coin, entry_point, to_json_binary, Attribute, BankMsg, Binary, CodeInfoResponse, Coin,
-    CosmosMsg, Decimal256, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult,
-    Timestamp, Uint128, Uint256, WasmMsg,
-};
+use cosmwasm_std::{attr, coin, entry_point, to_json_binary, Attribute, BankMsg, Binary, CodeInfoResponse, Coin, CosmosMsg, Decimal256, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult, Timestamp, Uint128, Uint256, WasmMsg};
 use cw2::{ensure_from_older_version, set_contract_version};
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay};
-use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
 use streamswap_types::stream::ThresholdState;
 use streamswap_types::stream::{
     AveragePriceResponse, ExecuteMsg, LatestStreamedPriceResponse, PositionResponse,
@@ -22,9 +16,9 @@ use streamswap_types::stream::{
 use streamswap_utils::payment_checker::check_payment;
 use streamswap_utils::to_uint256;
 
-use crate::pool::{build_create_initial_position_msg, calculate_in_amount_clp};
+use crate::pool::{build_create_initial_position_msg, calculate_in_amount_clp, next_pool_id};
 use crate::state::{CONTROLLER_PARAMS, POSITIONS, STREAM, VESTING};
-use streamswap_types::controller::Params as ControllerParams;
+use streamswap_types::controller::{Params as ControllerParams, Params};
 use streamswap_types::controller::{CreateStreamMsg, MigrateMsg};
 use streamswap_types::stream::{Position, Status, Stream};
 
@@ -447,38 +441,15 @@ pub fn execute_finalize_stream(
     let mut messages = vec![];
     let mut attributes = vec![];
 
+    let mut creator_revenue= stream.spent_in;
+
     // Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
     let swap_fee = Decimal256::from_ratio(stream.spent_in, Uint128::one())
         .checked_mul(controller_params.exit_fee_percent)?
         * Uint256::one();
 
-    let creator_revenue = stream.spent_in.checked_sub(swap_fee)?;
-
-    let uint128_creator_revenue = Uint128::try_from(creator_revenue)?;
-    //Creator's revenue claimed at finalize
-    let revenue_msg = CosmosMsg::Bank(BankMsg::Send {
-        to_address: treasury.to_string(),
-        amount: vec![Coin {
-            denom: stream.in_denom.clone(),
-            amount: uint128_creator_revenue,
-        }],
-    });
-    messages.push(revenue_msg);
-
-    let uint128_swap_fee = Uint128::try_from(swap_fee)?;
-    let swap_fee_msg = CosmosMsg::Bank(BankMsg::Send {
-        to_address: controller_params.fee_collector.to_string(),
-        amount: vec![Coin {
-            denom: stream.in_denom.clone(),
-            amount: uint128_swap_fee,
-        }],
-    });
-    messages.push(swap_fee_msg);
-
-    // if no spent, remove all messages to prevent failure
-    if stream.spent_in == Uint256::zero() {
-        messages = vec![]
-    }
+    // extract swap_fee from last amount
+    creator_revenue = creator_revenue.checked_sub(swap_fee)?;
 
     // In case the stream is ended without any shares in it. We need to refund the remaining
     // out tokens although that is unlikely to happen.
@@ -494,13 +465,10 @@ pub fn execute_finalize_stream(
         });
         messages.push(remaining_msg);
     }
+
     // if create_pool is set, create a pool for the stream and send initial position
     if let Some(pool) = stream.create_pool {
-        // query the number of pools to get the pool id
-        let current_num_of_pools = PoolmanagerQuerier::new(&deps.querier)
-            .num_pools()?
-            .num_pools;
-        let pool_id = current_num_of_pools + 1;
+        let pool_id = next_pool_id(&deps)?;
 
         // amount of in tokens allocated for clp
         let in_clp = calculate_in_amount_clp(
@@ -508,6 +476,9 @@ pub fn execute_finalize_stream(
             pool.out_amount_clp,
             stream.spent_in,
         );
+
+        // extract in_clp from last revenue
+        creator_revenue = creator_revenue.checked_sub(in_clp)?;
 
         // Create initial position message
         let create_initial_position_msg = build_create_initial_position_msg(
@@ -525,6 +496,18 @@ pub fn execute_finalize_stream(
         attributes.push(attr("pool_id", pool_id.clone().to_string()));
         attributes.push(attr("pool_out_amount", pool.out_amount_clp));
         attributes.push(attr("pool_in_amount", in_clp));
+    }
+
+    let swap_fee_msg = build_u128_bank_send_msg(stream.in_denom.clone(), controller_params.fee_collector.to_string(), swap_fee)?;
+    let revenue_msg = build_u128_bank_send_msg(stream.in_denom, treasury.to_string(), creator_revenue)?;
+
+    messages.push(revenue_msg);
+    messages.push(swap_fee_msg);
+
+    // if no spent, remove all messages to prevent failure
+    // TODO: not sure of this
+    if stream.spent_in == Uint256::zero() {
+        messages = vec![]
     }
 
     attributes.extend(vec![
@@ -550,6 +533,7 @@ pub fn execute_finalize_stream(
         .add_messages(messages)
         .add_attributes(attributes))
 }
+
 
 pub fn execute_exit_stream(
     deps: DepsMut,

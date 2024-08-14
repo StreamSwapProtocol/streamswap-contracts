@@ -1,7 +1,8 @@
 use crate::ContractError;
-use cosmwasm_std::{Decimal256, Timestamp};
+use cosmwasm_std::{BankMsg, Coin, CosmosMsg, Decimal256, Timestamp, Uint128, Uint256};
 use std::str::FromStr;
-use streamswap_types::controller::Params as ControllerParams;
+use streamswap_types::controller::{Params as ControllerParams, Params};
+use streamswap_types::stream::Stream;
 
 /// Stream validation related constants
 const MIN_NAME_LENGTH: usize = 2;
@@ -100,4 +101,16 @@ pub fn validate_stream_times(
         return Err(ContractError::StreamWaitingDurationTooShort {});
     }
     Ok(())
+}
+
+pub fn build_u128_bank_send_msg(denom: String, to_addr: String, amount: Uint256) -> Result<CosmosMsg, ContractError> {
+    let u128_amount= Uint128::try_from(amount)?;
+    let revenue_msg = CosmosMsg::Bank(BankMsg::Send {
+        to_address: to_addr,
+        amount: vec![Coin {
+            denom: denom,
+            amount: u128_amount,
+        }],
+    });
+    Ok(revenue_msg)
 }

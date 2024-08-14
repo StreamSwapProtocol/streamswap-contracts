@@ -1,5 +1,7 @@
-use cosmwasm_std::Uint256;
+use cosmwasm_std::{DepsMut, Uint256};
 use osmosis_std::types::osmosis::concentratedliquidity::v1beta1::MsgCreatePosition;
+use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
+use crate::ContractError;
 
 /// This function is used to calculate the in amount of the pool
 pub fn calculate_in_amount_clp(
@@ -37,6 +39,15 @@ pub fn build_create_initial_position_msg(
         token_min_amount0: "0".to_string(),
         token_min_amount1: "0".to_string(),
     }
+}
+
+pub fn next_pool_id(deps: &DepsMut) -> Result<u64, ContractError> {
+    // query the number of pools to get the pool id
+    let current_num_of_pools = PoolmanagerQuerier::new(&deps.querier)
+        .num_pools()?
+        .num_pools;
+    let pool_id = current_num_of_pools + 1;
+    Ok(pool_id)
 }
 
 #[cfg(test)]
