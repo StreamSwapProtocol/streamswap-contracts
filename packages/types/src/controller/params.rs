@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Coin, Decimal256};
+use cosmwasm_std::{Addr, Attribute, Coin, Decimal256};
 
 #[cw_serde]
 pub struct Params {
@@ -22,4 +22,31 @@ pub struct Params {
     pub min_bootstrapping_duration: u64,
     // Minimum time of waiting status, bootstrapping_start_time - creation_time_of_stream
     pub min_waiting_duration: u64,
+}
+
+impl Params {
+    // Converts Params to attributes
+    pub fn to_attributes(&self) -> Vec<Attribute> {
+        vec![
+            Attribute::new("protocol_admin", self.protocol_admin.to_string()),
+            Attribute::new("fee_collector", self.fee_collector.to_string()),
+            Attribute::new("stream_creation_fee", self.stream_creation_fee.to_string()),
+            Attribute::new("exit_fee_percent", self.exit_fee_percent.to_string()),
+            Attribute::new(
+                "stream_contract_code_id",
+                self.stream_contract_code_id.to_string(),
+            ),
+            Attribute::new("vesting_code_id", self.vesting_code_id.to_string()),
+            Attribute::new("accepted_in_denoms", self.accepted_in_denoms.join(",")),
+            Attribute::new("min_stream_duration", self.min_stream_duration.to_string()),
+            Attribute::new(
+                "min_bootstrapping_duration",
+                self.min_bootstrapping_duration.to_string(),
+            ),
+            Attribute::new(
+                "min_waiting_duration",
+                self.min_waiting_duration.to_string(),
+            ),
+        ]
+    }
 }

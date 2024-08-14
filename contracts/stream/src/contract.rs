@@ -86,7 +86,7 @@ pub fn instantiate(
         env.block.time,
         name.clone(),
         treasury.clone(),
-        stream_admin,
+        stream_admin.clone(),
         url.clone(),
         out_asset.clone(),
         in_denom.clone(),
@@ -101,17 +101,23 @@ pub fn instantiate(
     let threshold_state = ThresholdState::new();
     threshold_state.set_threshold_if_any(threshold, deps.storage)?;
 
-    let attr = vec![
-        attr("action", "create_stream"),
-        attr("treasury", treasury),
+    // return response with attributes
+    let res = Response::new().add_attributes(vec![
+        attr("action", "instantiate"),
         attr("name", name),
+        attr("treasury", treasury),
+        attr("stream_admin", stream_admin),
+        attr("url", url.unwrap_or("".to_string())),
+        attr("out_asset", out_asset.denom),
         attr("in_denom", in_denom),
-        attr("out_denom", out_asset.denom),
-        attr("out_supply", out_asset.amount.to_string()),
         attr("start_time", start_time.to_string()),
         attr("end_time", end_time.to_string()),
-    ];
-    Ok(Response::default().add_attributes(attr))
+        attr(
+            "bootstrapping_start_time",
+            bootstraping_start_time.to_string(),
+        ),
+    ]);
+    Ok(res)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -156,7 +162,15 @@ pub fn execute_sync_stream(deps: DepsMut, env: Env) -> Result<Response, Contract
 
     let attrs = vec![
         attr("action", "sync_stream"),
-        // attr("new_distribution_amount", dist_amount),
+        attr("out_remaining", stream.out_remaining),
+        attr("spent_in", stream.spent_in),
+        attr(
+            "current_streamed_price",
+            stream.current_streamed_price.to_string(),
+        ),
+        attr("in_supply", stream.in_supply),
+        attr("shares", stream.shares),
+        attr("status_info", stream.status_info.status.to_string()),
         attr("dist_index", stream.dist_index.to_string()),
     ];
     let res = Response::new().add_attributes(attrs);
@@ -192,10 +206,15 @@ pub fn execute_sync_position(
     )?;
     POSITIONS.save(deps.storage, &position.owner, &position)?;
 
-    Ok(Response::new()
-        .add_attribute("action", "sync_position")
-        .add_attribute("purchased", purchased)
-        .add_attribute("spent", spent))
+    // return response with attributes
+    let res = Response::new().add_attributes(vec![
+        attr("action", "sync_position"),
+        attr("dist_index", stream.dist_index.to_string()),
+        attr("status", stream.status_info.status.to_string()),
+        attr("purchased", purchased),
+        attr("spent", spent),
+    ]);
+    Ok(res)
 }
 
 // calculate the user purchase based on the positions index and the global index.
@@ -310,8 +329,12 @@ pub fn execute_subscribe(
 
     let res = Response::new()
         .add_attribute("action", "subscribe")
+        .add_attribute("status info", stream.status_info.status.to_string())
         .add_attribute("in_supply", stream.in_supply)
-        .add_attribute("in_amount", in_amount);
+        .add_attribute("in_amount", in_amount)
+        .add_attribute("subscriber_shares", new_shares)
+        .add_attribute("total_shares", stream.shares)
+        .add_attribute("dist_index", stream.dist_index.to_string());
 
     Ok(res)
 }
@@ -365,22 +388,21 @@ pub fn execute_withdraw(
     STREAM.save(deps.storage, &stream)?;
     POSITIONS.save(deps.storage, &position.owner, &position)?;
 
-    let attributes = vec![
-        attr("action", "withdraw"),
-        attr("withdraw_amount", withdraw_amount),
-    ];
-
     let uint128_withdraw_amount = Uint128::try_from(withdraw_amount)?;
+    let fund_transfer_msg: CosmosMsg = CosmosMsg::Bank(BankMsg::Send {
+        to_address: info.sender.to_string(),
+        amount: vec![Coin {
+            denom: stream.in_denom,
+            amount: uint128_withdraw_amount,
+        }],
+    });
     // send funds to withdraw address or to the sender
     let res = Response::new()
-        .add_message(CosmosMsg::Bank(BankMsg::Send {
-            to_address: info.sender.to_string(),
-            amount: vec![Coin {
-                denom: stream.in_denom,
-                amount: uint128_withdraw_amount,
-            }],
-        }))
-        .add_attributes(attributes);
+        .add_message(fund_transfer_msg)
+        .add_attribute("action", "withdraw")
+        .add_attribute("withdraw_amount", withdraw_amount)
+        .add_attribute("shares_amount", shares_amount)
+        .add_attribute("status_info", stream.status_info.status.to_string());
 
     Ok(res)
 }
@@ -456,6 +478,7 @@ pub fn execute_finalize_stream(
         messages = vec![]
     }
 
+    let mut attributes = vec![];
     // In case the stream is ended without any shares in it. We need to refund the remaining
     // out tokens although that is unlikely to happen.
     if stream.out_remaining > Uint256::zero() {
@@ -479,6 +502,9 @@ pub fn execute_finalize_stream(
             .num_pools()?
             .num_pools;
         let pool_id = current_num_of_pools + 1;
+        attributes.push(attr("pool_id", pool_id.clone().to_string()));
+        attributes.push(attr("pool_out_amount", pool.out_amount_clp));
+        attributes.push(attr("pool_in_amount", in_clp));
 
         let create_initial_position_msg = MsgCreatePosition {
             pool_id,
@@ -501,24 +527,32 @@ pub fn execute_finalize_stream(
         messages.push(create_initial_position_msg.into());
     }
 
-    Ok(Response::new().add_messages(messages).add_attributes(vec![
-        attr("action", "finalize_stream"),
-        attr("treasury", treasury.as_str()),
-        attr("fee_collector", controller_params.fee_collector.to_string()),
-        attr("creators_revenue", creator_revenue),
-        attr("refunded_out_remaining", stream.out_remaining.to_string()),
-        attr(
-            "total_sold",
-            to_uint256(stream.out_asset.amount)
-                .checked_sub(stream.out_remaining)?
-                .to_string(),
-        ),
-        attr("swap_fee", swap_fee),
-        attr(
-            "creation_fee_amount",
-            controller_params.stream_creation_fee.amount.to_string(),
-        ),
-    ]))
+    attributes.push(attr("action", "finalize_stream"));
+    attributes.push(attr("treasury", treasury.to_string()));
+    attributes.push(attr(
+        "fee_collector",
+        controller_params.fee_collector.to_string(),
+    ));
+    attributes.push(attr("creators_revenue", creator_revenue));
+    attributes.push(attr(
+        "refunded_out_remaining",
+        stream.out_remaining.to_string(),
+    ));
+    attributes.push(attr(
+        "total_sold",
+        to_uint256(stream.out_asset.amount)
+            .checked_sub(stream.out_remaining)?
+            .to_string(),
+    ));
+    attributes.push(attr("swap_fee", swap_fee));
+    attributes.push(attr(
+        "creation_fee_amount",
+        controller_params.stream_creation_fee.amount.to_string(),
+    ));
+
+    Ok(Response::new()
+        .add_messages(messages)
+        .add_attributes(attributes))
 }
 
 pub fn execute_exit_stream(
@@ -576,6 +610,7 @@ pub fn execute_exit_stream(
     // if vesting is set, instantiate a vested release contract for user and send
     // the out tokens to the contract
     let uint128_purchased = Uint128::try_from(position.purchased)?;
+
     if let Some(mut vesting) = stream.vesting {
         let salt = salt.ok_or(ContractError::InvalidSalt {})?;
 
@@ -660,9 +695,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Params {} => to_json_binary(&query_params(deps)?),
         QueryMsg::Stream {} => to_json_binary(&query_stream(deps, env)?),
         QueryMsg::Position { owner } => to_json_binary(&query_position(deps, env, owner)?),
-        // QueryMsg::ListStreams { start_after, limit } => {
-        //     to_json_binary(&list_streams(deps, start_after, limit)?)
-        // }
         QueryMsg::ListPositions { start_after, limit } => {
             to_json_binary(&list_positions(deps, start_after, limit)?)
         }
