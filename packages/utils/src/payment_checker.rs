@@ -28,6 +28,8 @@ pub fn check_payment(
         sent_balance += coin.clone();
     }
     sent_balance.normalize();
+    println!("expected_balance: {:?}", expected_balance);
+    println!("sent_balance: {:?}", sent_balance);
 
     if expected_balance != sent_balance {
         return Err(CustomPaymentError::InsufficientFunds {

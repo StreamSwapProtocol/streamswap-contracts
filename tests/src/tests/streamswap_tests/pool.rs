@@ -29,17 +29,14 @@ mod pool {
         let in_denom = "in_denom";
         let out_supply = 1_000_000u128;
         let out_denom = "out_denom";
-        // %20 of out_supply will go to pool
         let out_clp_amount = 200_000u128;
-        // this is mocked by querier at test_helpers.rs
-        // pool_creation_fee = 1000000;
-        // pool_creation_denom = "fee_denom";
-        let stream_creation_denom = "fee_denom";
-        let stream_creation_fee = 100;
+        let pool_creation_fee: Coin = coin(1000000, "fee_denom");
 
         let subs1_token = Coin::new(1_000_000_000, in_denom);
         let subs2_token = Coin::new(3_000_000_000, in_denom);
         let in_supply = 4_000_000_000u128;
+
+        let stream_creation_fee = coin(100, "fee_denom");
 
         let msg = get_controller_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
         let controller_address = app
@@ -80,8 +77,10 @@ mod pool {
                 controller_address.clone(),
                 &create_stream_msg,
                 &[
-                    coin(stream_creation_fee, stream_creation_denom),
+                    pool_creation_fee,
                     coin(1_000_000, out_denom),
+                    coin(out_clp_amount, out_denom),
+                    stream_creation_fee,
                 ],
             )
             .unwrap();
@@ -163,7 +162,11 @@ mod pool {
         // pool amount is %20 of out_supply
         let out_clp_amount = 200_000u128;
         let out_denom = "out_denom";
-        let out_coin = coin(out_supply + out_clp_amount, out_denom);
+
+        let out_coin = coin(out_supply, out_denom);
+        let pool_out_coin = coin(out_clp_amount, out_denom);
+        let pool_creation_fee = coin(1000000, "fee_denom");
+        let stream_creation_fee = coin(100, "fee_denom");
         let in_denom = "in_denom";
 
         let create_stream_msg = get_create_stream_msg(
@@ -195,8 +198,10 @@ mod pool {
                 controller_address.clone(),
                 &create_stream_msg,
                 &[
-                    coin(100, "fee_denom"),
-                    coin(out_supply + out_clp_amount, out_denom),
+                    pool_creation_fee,
+                    pool_out_coin.clone(),
+                    out_coin,
+                    stream_creation_fee,
                 ],
             )
             .unwrap();

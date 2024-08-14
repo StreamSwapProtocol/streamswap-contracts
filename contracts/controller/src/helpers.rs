@@ -34,7 +34,7 @@ pub fn get_pool_creation_fee(deps: &DepsMut) -> Result<Vec<Coin>, ContractError>
         .params
         .unwrap()
         .pool_creation_fee;
-
+    println!("pool_creation_fee_vec: {:?}", pool_creation_fee_vec);
     let mut cosmwasm_std_coin_vec = Vec::new();
 
     for coin in pool_creation_fee_vec.iter() {
