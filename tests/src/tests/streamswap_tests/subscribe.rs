@@ -703,9 +703,9 @@ mod subscribe {
             .unwrap();
         assert_eq!(
             error,
-            &StreamSwapError::StreamWrongStatus {
-                expected: vec!["Active".to_string(), "Bootstrapping".to_string()],
-                actual: "Waiting".to_string()
+            &StreamSwapError::WrongStatus {
+                expected_one_of_status: vec!["Active".to_string(), "Bootstrapping".to_string()],
+                actual_status: "Waiting".to_string()
             }
         );
 

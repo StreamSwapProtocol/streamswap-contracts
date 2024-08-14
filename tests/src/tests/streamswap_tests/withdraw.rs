@@ -613,9 +613,9 @@ mod withdraw {
         let error = error.downcast_ref::<StreamSwapError>().unwrap();
         assert_eq!(
             error,
-            &StreamSwapError::StreamWrongStatus {
-                expected: vec!["Active".to_string(), "Bootstrapping".to_string()],
-                actual: "Cancelled".to_string(),
+            &StreamSwapError::WrongStatus {
+                expected_one_of_status: vec!["Active".to_string(), "Bootstrapping".to_string()],
+                actual_status: "Cancelled".to_string(),
             }
         );
     }

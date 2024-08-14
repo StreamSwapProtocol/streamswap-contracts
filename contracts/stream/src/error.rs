@@ -146,8 +146,8 @@ pub enum ContractError {
     StreamWaitingDurationTooShort {},
 
     #[error("Stream wrong status")]
-    StreamWrongStatus {
-        expected: Vec<String>,
-        actual: String,
+    WrongStatus {
+        expected_one_of_status: Vec<String>,
+        actual_status: String,
     },
 }
