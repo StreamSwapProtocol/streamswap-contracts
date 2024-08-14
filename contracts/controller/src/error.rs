@@ -6,8 +6,6 @@ use cw_utils::PaymentError;
 use std::convert::Infallible;
 use streamswap_utils::payment_checker::CustomPaymentError;
 use thiserror::Error;
-// the `?` operator can only be used in a closure that returns `Result` or `Option` (or another type that implements `FromResidual`)
-// the trait `FromResidual<std::result::Result<Infallible, StdError>>` is not implemented for `cosmwasm_std::Coin`rustcClick for full compiler diagnostic
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
     #[error("{0}")]
