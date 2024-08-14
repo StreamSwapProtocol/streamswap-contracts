@@ -159,6 +159,7 @@ pub fn execute_create_stream(
         let pool = create_pool.unwrap();
         validate_create_pool(pool.clone(), &out_asset, &in_denom)?;
         let uint128_pool_out_amount = Uint128::try_from(pool.clone().out_amount_clp)?;
+        // Pool out amount is separate from out asset to be streamed.
         let pool_out_amount = Coin {
             denom: out_asset.denom.clone(),
             amount: uint128_pool_out_amount,

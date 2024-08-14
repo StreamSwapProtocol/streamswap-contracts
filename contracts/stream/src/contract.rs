@@ -19,7 +19,6 @@ use streamswap_types::stream::{
     AveragePriceResponse, ExecuteMsg, LatestStreamedPriceResponse, PositionResponse,
     PositionsResponse, QueryMsg, StreamResponse,
 };
-use streamswap_utils::payment_checker::check_payment;
 use streamswap_utils::to_uint256;
 
 use crate::pool::{build_create_initial_position_msg, calculate_in_amount_clp, next_pool_id};
@@ -63,7 +62,6 @@ pub fn instantiate(
         vesting,
         salt: _,
     } = msg;
-    check_payment(&info.funds, &[out_asset.clone()])?;
 
     validate_stream_times(
         env.block.time,
