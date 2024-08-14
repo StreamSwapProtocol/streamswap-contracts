@@ -67,24 +67,8 @@ pub enum ContractError {
     #[error("No bond")]
     NoBond {},
 
-    #[error("Stream not ended")]
-    StreamNotEnded {},
-
-    #[error("Stream is started update stream")]
-    StreamIsStarted {},
-
     #[error("sync position")]
     SyncPosition {},
-
-    #[error("Stream duration is too short")]
-    StreamDurationTooShort {},
-
-    #[error("Stream duration is too long")]
-    StreamDurationTooLong {},
-
-    #[error("Stream starts too soon")]
-    StreamStartsTooSoon {},
-
     #[error("Stream bootstrapping starts too soon")]
     StreamBootstrappingStartsTooSoon {},
 
@@ -100,26 +84,8 @@ pub enum ContractError {
     #[error("Creation fee amount do not match the supplied funds")]
     StreamCreationFeeRequired {},
 
-    #[error("Stream Ended")]
-    StreamEnded {},
-
-    #[error("Stream not started")]
-    StreamNotStarted {},
-
     #[error("Invalid decimals")]
     InvalidDecimals {},
-
-    #[error("Stream not cancelled")]
-    StreamNotCancelled {},
-
-    #[error("Stream is cancelled")]
-    StreamIsCancelled {},
-
-    #[error("Stream killswitch is active")]
-    StreamKillswitchActive {},
-
-    #[error("Stream is already finalized")]
-    StreamAlreadyFinalized {},
 
     #[error("Contract is frozen")]
     ContractIsFrozen {},

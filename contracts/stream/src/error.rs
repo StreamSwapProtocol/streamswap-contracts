@@ -85,20 +85,11 @@ pub enum ContractError {
     #[error("Stream not ended")]
     StreamNotEnded {},
 
-    #[error("Stream is started update stream")]
-    StreamIsStarted {},
-
     #[error("sync position")]
     SyncPosition {},
 
     #[error("Stream duration is too short")]
     StreamDurationTooShort {},
-
-    #[error("Stream duration is too long")]
-    StreamDurationTooLong {},
-
-    #[error("Stream starts too soon")]
-    StreamStartsTooSoon {},
 
     #[error("Invalid start time")]
     StreamInvalidStartTime {},
@@ -108,12 +99,6 @@ pub enum ContractError {
 
     #[error("Creation fee amount do not match the supplied funds")]
     StreamCreationFeeRequired {},
-
-    #[error("Stream Ended")]
-    StreamEnded {},
-
-    #[error("Stream not started")]
-    StreamNotStarted {},
 
     #[error("Invalid decimals")]
     InvalidDecimals {},
