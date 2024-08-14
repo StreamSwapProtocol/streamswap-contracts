@@ -198,7 +198,7 @@ mod pool {
                 controller_address.clone(),
                 &create_stream_msg,
                 &[
-                    pool_creation_fee,
+                    pool_creation_fee.clone(),
                     pool_out_coin.clone(),
                     out_coin,
                     stream_creation_fee,
@@ -241,10 +241,16 @@ mod pool {
 
         assert_eq!(stream_status, "cancelled".to_string());
         // clp amount should be added
-        let res_amount = coin(out_supply + out_clp_amount, out_denom);
+        let res_pool_amount = coin(out_clp_amount, out_denom);
+        let res_refund_out_amount = coin(out_supply, out_denom);
+
         assert_eq!(
             fund_transfer,
-            vec![(test_accounts.creator_1.to_string(), res_amount)]
+            vec![
+                (test_accounts.creator_1.to_string(), res_refund_out_amount),
+                (test_accounts.creator_1.to_string(), pool_creation_fee),
+                (test_accounts.creator_1.to_string(), res_pool_amount),
+            ]
         );
     }
 }
