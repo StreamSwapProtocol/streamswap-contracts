@@ -1,231 +1,133 @@
-# Streamswap
+# StreamSwap Smart Contracts
+
+[![GitHub tag (with filter)](https://img.shields.io/github/v/tag/StreamSwapProtocol/streamswap-contracts?label=Latest%20version&logo=github)](https://github.com/StreamSwapProtocol/streamswap-contracts/releases/latest)
+![Codecov](https://img.shields.io/codecov/c/github/StreamSwapProtocol/streamswap-contracts)
+![GitHub](https://img.shields.io/github/license/StreamSwapProtocol/streamswap-contracts)
+![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/StreamSwap_io)
+
 ![alt text](https://i.imgur.com/P7hF5uG.png)
-## Abstract
 
-Streamswap is a new and innovative way of having a token sale.
-The mechanism allows anyone to create a new Sale event and sell any
-amount of tokens in a more democratic way than the traditional solutions.
+## Overview
+[StreamSwap](https://www.streamswap.io/) introduces a novel approach to token sales, allowing for a continuous and dynamic sale process. This smart
+contract platform enables users to create and participate in token sales that unfold over time, providing a more
+equitable distribution mechanism compared to traditional methods.
 
-## Context
+## Why?
 
-Since the first ICO boom, token sale mechanisms were one of the driving
-force for web3 onboarding.
-The promise of cheap tokens which can quickly accrue value is very attractive
-to any sort of investors. Easy way of fundraising opened doors for cohorts
+Since the first ICO boom, token sale mechanisms have been one of the driving
+forces for web3 onboarding.
+The promise of cheap tokens that can quickly accrue value is very attractive
+to all types of investors. The easy way of fundraising opened doors for cohorts
 of new teams to focus on building.
 
-Traditional mechanisms of token sale included:
+Traditional mechanisms of token sales include:
 
 - Automated ICO, where the team decides the issuance price, and the sale
   happens through a swap controlled by a smart contract.
-- Regulated, centralized ICO - token sale controlled by a dedicated company,
-  which will perform all operations using centralized services meeting
-  regulatory requirements (KYC...). Example: Coinlist sales.
-- Balancer style ICO: a novel solution to utilize the Dutch Auction mechanism to
+- Regulated, centralized ICO - token sales controlled by a dedicated company,
+  which performs all operations using centralized services meeting
+  regulatory requirements (KYC, etc.). Example: Coinlist sales.
+- Balancer-style ICO: a novel solution that utilizes the Dutch Auction mechanism to
   find a fair strike price.
 
 The first two mechanisms are not well suited for early-stage startups, where
-the token sale price is usually defined by a founding team and can't be
+the token sale price is usually defined by the founding team and can't be
 impacted by the ecosystem's wisdom. False marketing actions are usually set up
-to support their initial price.
+to support the initial price.
 
-The latter mechanism is not democratic - big entities can control the
-price movements by placing big orders leaving smaller investors with nothing.
+The latter mechanism is not democratic - large entities can control the
+price movements by placing big orders, leaving smaller investors with nothing.
 
-Stream swap is a new mechanism which allows anyone to create a new sale event where the sale happens continuously over a period of time.
+StreamSwap is a new mechanism that allows anyone to create a new sale event where the sale happens continuously over a
+period of time.
 You can imagine it as two flasks of liquid, mixing together over time, reaching equilibrium.
 
-The price is determined on the fly as sell/buy balance fluctuate as buy supply increases with incoming subscriptions.
-Sell side is distributed among the subscribers, by the proportion of their subscription amount to the total subscription amount.
-Buy side is spent with respect to remaining end date of the sale event.
-Example: When the stream ends, the tokens of a buyer who subscribed at 80 percent of the stream will be fully spent much like the tokens of a buyer who subscribed at the beginning of the stream.
+The price is determined on the fly as the sell/buy balance fluctuates with the buy supply increasing through incoming
+subscriptions.
+The sell side is distributed among the subscribers, in proportion to their subscription amount relative to the total
+subscription amount.
+The buy side is spent according to the remaining time until the end date of the sale event.
+Example: When the stream ends, the tokens of a buyer who subscribed at 80 percent of the stream will be fully spent,
+just like the tokens of a buyer who subscribed at the beginning of the stream.
 
-## Design
+## Architecture
 
-### Stream Creation
+StreamSwap's architecture is designed to support the continuous and fair execution of token sales. The main components include:
 
-Anyone can create a `Stream` by sending [`CreateStream`](https://github.com/osmosis-labs/osmosis/blob/robert%2Fstreamswap-spec/proto/osmosis/streamswap/v1/tx.proto#L21) transaction.
-Treasury owner must send creation fee tokens and `out_denom` tokens to contract at `CreateStream`.
-Creation fees will be collected at an address later to be withdrawn after a sale finalizes.
-The fee amount is determined by governance voting through sudo contract execution.
+- **Controller Contract**: Manages the creation of new streams (sales) and handles protocol-level operations.
+- **Stream Contract**: Implements the logic for managing individual token sales, including subscription, distribution, and finalization.
 
-## Subscription
+![alt text](https://gist.github.com/user-attachments/assets/fa8e3b0b-6b31-48c4-86da-b0f1bae5bc45)
 
-Anyone can join a sale by sending a [SubscribeMsg](https://github.com/osmosis-labs/osmosis/blob/main/proto/osmosis/streamswap/v1/tx.proto#L13) transaction.
-When doing so, the transaction author has to send the `amount` he wants to spend in transaction funds.
-That `amount` will be credited from the tx author and pledged to the sale.
-`SubscribeMsg` can be submitted at any time after the sale is created and before its end_block.
-New shares will be minted to the owner of the position.
-Share calculation works in this manner:
 
-```
-if shares == 0 || amount_in == 0 {
-    return amount_in
-}
-new_shares = stream.shares * amount_in;
-if round_up {
-    new_shares = (new_shares + in_supply - 1) / in_supply
-} else {
-    new_shares = new_shares / in_supply
-}
-return new_shares
-```
+## Stream Lifecycle
 
-From that moment, the investor will join the **token sale distribution stream**:
+The lifecycle of a StreamSwap sale is divided into several states:
 
-At any time an investor can increase his participation in the sale by sending again `SubscribeMsg`
-(his pledge will increase accordingly) or cancel it by sending `WithdrawMsg`. When canceling, the module will send back
-unspent pledged tokens to the investor and keep the purchased tokens until the sale end_block.
+1. **Waiting**: The stream has been created but is not yet active. No interactions are allowed.
+2. **Bootstrapping**: Participants can subscribe to the stream, but distribution has not yet started. No assets can be spent.
+3. **Active**: The stream is live, and tokens are distributed according to the subscription amounts and timing.
+4. **Ended**: The sale has concluded. Participants can exit the stream, and the creator can finalize and collect the proceeds.
+5. **Finalized**: The stream is finalized. The creator can withdraw any remaining tokens, and vesting or pools (if configured) are set up.
+6. **Cancelled**: The stream is cancelled. Participants can withdraw their assets, and the creator can reclaim any unsold tokens.
 
-### Distribution
+## Smart Contracts
 
-Stream distribution is done based on the total amount of shares and block passed.
-On each `sync_stream` call, the contract will calculate the amount to be distributed to the investors.
+Here’s a breakdown of the main contracts in the StreamSwap system:
 
-```
-diff = (stream.last_updated_block - now_block) / (stream.end_block - stream.last_updated_block)
-new_distribution_balance = stream.out_remaining_token * diff
-spent_in = stream.in_token_supply * diff
-stream.in_supply -= spent_in
-stream.out_remaining -= new_distribution_balance
-stream.current_streamed_price = spent_in / new_distribution_balance
+| Contract Name                   | Description                                                                                                    |
+|---------------------------------|----------------------------------------------------------------------------------------------------------------|
+| [controller](contracts/factory) | Handles the creation of new streams and manages protocol-wide functions.                                       |
+| [stream](contracts/stream)      | Manages individual sales, including user subscriptions and token distribution, pool creation, vesting and more |
+
+## Getting Started
+
+### Prerequisites
+
+Ensure you have Rust installed with the `wasm32-unknown-unknown` target. You can install it using:
+
+```bash
+rustup target add wasm32-unknown-unknown
 ```
 
-The `new_distribution_balance` will be distributed to shares.
-Distribution index becomes this:
+### Building
 
-```
-stream.dist_index += new_distribution_balance / shares
-```
+Navigate to the workspace directory and compile the contracts:
 
-### Purchase / Spending
-
-Spend calculation happens when `update_position` is called. Distribution and spending work as lazy accounting. Meaning
-the calculations are done continuously, with no action required. `sync_stream` and `update_position` updates the current state of the stream and position.
-
-When `update_position` is called, the contract will calculate the amount of tokens spent and accumulated so far by the investor.
-sync position updates distribution index first.
-
-```
-index_diff = stream.dist_index - position.index;
-purchased = position.shares * index_diff;
-in_remaining = stream.in_supply * position.shares / stream.shares;
-spent = position.in_balance - in_remaining;
-
-position.spent += spent;
-position.in_balance = in_remaining;
-position.purchased += purchased;
-position.index = stream.dist_index;
+```bash
+cargo build
 ```
 
-After the calculation, the position balance, spent amount, and purchased amount will be updated.
+### Testing
 
-### Withdraw
+To ensure everything is working correctly, you can run the tests from the workspace root:
 
-When a position owner wants to withdraw unspent tokens in the position, he can send `WithdrawMsg` transaction.
-The contract will send back unspent tokens to the owner and keep the purchased tokens to be released after sale end_block.
-
-On withdraw user's share is reduced.
-
-```
-// decrease in supply and shares
-let shares_amount = if withdraw_amount == position.in_balance {
-    position.shares
-  } else {
-    (shares + self.in_supply - Uint128::one()) / self.in_supply;
-};
+```bash
+cargo test
 ```
 
-### Exit Stream
+### Production Build
 
-When participating in a sale, investors receive a stream of sale tokens.
-These tokens are locked until the sale ends to avoid second market creation during
-the sale. Once the sale is finished (block height is after `stream.end_block`), every
-investor can send [`ExitMsg`](https://github.com/osmosis-labs/osmosis/blob/main/proto/osmosis/streamswap/v1/tx.proto#L37)
-to close his position, withdraw purchased tokens to his account, and claim unspent tokens.
-Before exiting both stream and position are updated for calculating the amount of position spent/bought.
-On exit, the position data is removed to save space.
+For a production-ready build, run the following command to generate optimized contracts:
 
-### Finalize Stream
+```bash
+cargo run-script optimize
+```
 
-To withdraw earned tokens to the `stream.treasury` account treasury account can send a
-transaction with [`FinalizeMsg`](https://github.com/osmosis-labs/osmosis/blob/main/proto/osmosis/streamswap/v1/tx.proto#L42) after the `sale.end_block`.
-On finalize stream, exit fee on whole sale is applied to tokens spent on buy side and sent to fee collector address.
+The optimized contracts will be placed in the artifacts/ directory.
 
-### Price
+## Deployed Contract Addresses
 
-Average price of the sale: `stream.spent_in / (stream.out_supply - stream.out_remaining)`.
-Last streamed price: `spent_in / new_distribution_balance` at the latest `sync_stream`.
+The addresses of the deployed contracts will be listed here once available.
 
-### Creation Fee
+**TODO**: Add deployed contract addresses
 
-A creation fee is collected to prevent spams. Fee collection will be run during finalize stream.
-The fee will be collected at `config.fee_collector` which is the address of the multisig/distribution among parties
-involved in developing and maintaining the project.
+## Audit
 
-## DAO
+The security audit of the StreamSwap contracts will be published here.
 
-We intend to use the DAO to govern the contract. The DAO will be able to change the fee amount, fee collector address, and exit fee amount.
-Collected fees will be distributed to the DAO treasury to compansate people's effort and ensure project is funded for future development.
-Deployment of the project is done through governance. This makes the owner of the contract to be the governance.
+**TODO**: Add audit report
 
-### Stream
+## License
 
-`Stream` object represents a particular token sale/stream event and describes the main
-required parameters conducting the streaming process:
-
-- `name`: name of the stream
-- `url`: an external resource describing a sale. Can be an IPFS link or a
-  commonwealth post.
-- `treasury`: the address where the sale earnings will go. When the sale is over,
-  treasury can trigger a [`MsgFinalizeSale`](https://github.com/osmosis-labs/osmosis/blob/main/proto/osmosis/streamswap/v1/tx.proto#L42)
-  to clean up the sale state and move the earnings to the treasury.
-- `id`: the unique identifier of the sale.
-- `out_denom`: the denom to sale (distributed to the investors).
-  Also known as a base currency.
-- `in_denom`: payment denom - used to buy `out_token`.
-  Also known as the quote currency.
-- `out_supply`: total initial supply of `token_out` to sale.
-- `in_supply`: total supply of in tokens at latest distribution.
-- `spent_in`:total number of `token_in` spent at latest state
-- `start_block`: Block height when stream starts.
-- `end_block`: Block height when the stream ends.
-- `current_streamed_price`: current price of the stream.
-- `dist_index`: variable to hold the latest distribution index. Used to calculate how much proportionally
-  a position holder is entitled to receive from the stream.
-- `last_updated_block`: last updated block of stream
-- `out_remaining`: total number of remaining out tokens at the time of update
-- `shares`: total number of shares in the stream
-
-### Position
-
-`Position` object represents a particular position in a stream. It is created
-when a user subscribes to a stream.
-
-- `owner`: owner of the position.
-- `last_updated_block`: last updated block of position
-- `shares`: number of shares of the position.
-- `in_balance`: balance of `token_in` currently in the position.
-- `index`: index of the position. Used to calculate incoming distribution belonging to the position
-- `purchased`: the total amount of `token_out` purchased in tokens at the latest calculation
-- `spent`: the total amount of `token_in` spent tokens at the latest calculation
-- `operator`: the operator of the position. Can be used to delegate position management to another account.
-- `pending_purchase`: Accumulated decimals of position.purchased on update_position.
-
-## Consequences
-
-- The new sale mechanism provides a truly democratic way for token distribution and sale.
-- It can be easily integrated with AMM pools: proceedings from the sale can
-  automatically be pledged to AMM.
-
-## Future directions
-
-- Providing incentives for sales with `OSMO` or `ATOM` used as a base currency.
-- Basic DAO for distributing collected fees to maintainers of the project and deciding on the fee distribution percentage.
-
-## URLs
-
-- [App URL](https://app.streamswap.io/) 
-- [Twitter](https://twitter.com/StreamSwap_io) 
-- [Telegram](https://t.me/StreamSwap_io)
-- [Audit Report by Oak Security](https://github.com/oak-security/audit-reports/blob/master/Streamswap/2023-03-16%20Audit%20Report%20-%20Streamswap%20v1.1.pdf)
+This repo is licensed under [Apache 2.0](LICENSE).
