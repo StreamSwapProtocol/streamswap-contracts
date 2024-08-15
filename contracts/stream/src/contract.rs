@@ -488,10 +488,10 @@ pub fn execute_finalize_stream(
         // Create initial position message
         let create_initial_position_msg = build_create_initial_position_msg(
             pool_id,
-            treasury.as_str(),
-            &stream.in_denom,
+            env.contract.address.to_string(),
+            stream.in_denom.clone(),
             in_clp,
-            &stream.out_asset.denom,
+            stream.out_asset.denom.clone(),
             pool.out_amount_clp,
         );
 

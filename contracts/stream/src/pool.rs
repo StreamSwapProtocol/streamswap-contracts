@@ -17,15 +17,15 @@ pub fn calculate_in_amount_clp(
 /// This function is used to build the MsgCreatePosition for the initial pool position
 pub fn build_create_initial_position_msg(
     pool_id: u64,
-    treasury: &str,
-    stream_in_denom: &str,
+    sender: String,
+    stream_in_denom: String,
     in_clp: Uint256,
-    stream_out_asset_denom: &str,
+    stream_out_asset_denom: String,
     pool_out_amount_clp: Uint256,
 ) -> MsgCreatePosition {
     MsgCreatePosition {
         pool_id,
-        sender: treasury.to_string(),
+        sender,
         lower_tick: 0,
         upper_tick: i64::MAX,
         tokens_provided: vec![
