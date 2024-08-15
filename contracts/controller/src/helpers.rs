@@ -9,7 +9,6 @@ use streamswap_utils::to_uint256;
 pub fn validate_create_pool(
     create_pool: CreatePool,
     out_asset: &Coin,
-    in_denom: &str,
 ) -> Result<(), ContractError> {
     // pool cant be bigger than out_asset amount
     if create_pool.out_amount_clp > to_uint256(out_asset.amount) {
@@ -18,12 +17,6 @@ pub fn validate_create_pool(
     // pool out amount cant be zero
     if create_pool.out_amount_clp.is_zero() {
         return Err(ContractError::InvalidPoolOutAmount {});
-    }
-    if create_pool.msg_create_pool.denom0 != out_asset.denom {
-        return Err(ContractError::InvalidPoolDenom {});
-    }
-    if create_pool.msg_create_pool.denom1 != in_denom {
-        return Err(ContractError::InvalidPoolDenom {});
     }
     Ok(())
 }
