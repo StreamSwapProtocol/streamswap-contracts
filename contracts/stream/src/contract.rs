@@ -23,7 +23,7 @@ use streamswap_utils::to_uint256;
 
 use crate::pool::{build_create_initial_position_msg, calculate_in_amount_clp, next_pool_id};
 use crate::state::{CONTROLLER_PARAMS, POSITIONS, STREAM, VESTING};
-use streamswap_types::controller::Params as ControllerParams;
+use streamswap_types::controller::{to_osmosis_create_clp_message, Params as ControllerParams};
 use streamswap_types::controller::{CreateStreamMsg, MigrateMsg};
 use streamswap_types::stream::{Position, Status, Stream};
 
@@ -488,14 +488,22 @@ pub fn execute_finalize_stream(
         // Create initial position message
         let create_initial_position_msg = build_create_initial_position_msg(
             pool_id,
-            treasury.as_str(),
-            &stream.in_denom,
+            env.contract.address.to_string(),
+            stream.in_denom.clone(),
             in_clp,
-            &stream.out_asset.denom,
+            stream.out_asset.denom.clone(),
             pool.out_amount_clp,
         );
 
-        messages.push(pool.msg_create_pool.into());
+        // convert msg create pool to osmosis create clp pool msg
+        let osmosis_create_clp_pool_msg = to_osmosis_create_clp_message(
+            pool.msg_create_pool,
+            env.contract.address.to_string(),
+            stream.in_denom.clone(),
+            stream.out_asset.denom.clone(),
+        );
+
+        messages.push(osmosis_create_clp_pool_msg.into());
         messages.push(create_initial_position_msg.into());
 
         attributes.push(attr("pool_id", pool_id.clone().to_string()));

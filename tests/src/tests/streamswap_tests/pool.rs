@@ -7,8 +7,7 @@ mod pool {
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Uint256};
     use cw_multi_test::Executor;
-    use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
-    use streamswap_types::controller::CreatePool;
+    use streamswap_types::controller::{CreatePool, MsgCreateConcentratedPool};
     use streamswap_types::stream::ExecuteMsg as StreamSwapExecuteMsg;
     use streamswap_types::stream::QueryMsg as StreamSwapQueryMsg;
     use streamswap_types::stream::Status;
@@ -64,9 +63,6 @@ mod pool {
             Some(CreatePool {
                 out_amount_clp: out_clp_amount.into(),
                 msg_create_pool: MsgCreateConcentratedPool {
-                    sender: test_accounts.creator_1.to_string(),
-                    denom0: out_denom.to_string(),
-                    denom1: in_denom.to_string(),
                     tick_spacing: 100,
                     spread_factor: "10".to_string(),
                 },
@@ -184,9 +180,6 @@ mod pool {
             Some(CreatePool {
                 out_amount_clp: out_clp_amount.into(),
                 msg_create_pool: MsgCreateConcentratedPool {
-                    sender: test_accounts.creator_1.to_string(),
-                    denom0: out_denom.to_string(),
-                    denom1: in_denom.to_string(),
                     tick_spacing: 100,
                     spread_factor: "10".to_string(),
                 },
@@ -304,9 +297,6 @@ mod pool {
             Some(CreatePool {
                 out_amount_clp: out_clp_amount.into(),
                 msg_create_pool: MsgCreateConcentratedPool {
-                    sender: test_accounts.creator_1.to_string(),
-                    denom0: out_denom.to_string(),
-                    denom1: in_denom.to_string(),
                     tick_spacing: 100,
                     spread_factor: "10".to_string(),
                 },
@@ -434,9 +424,6 @@ mod pool {
             Some(CreatePool {
                 out_amount_clp: out_clp_amount.into(),
                 msg_create_pool: MsgCreateConcentratedPool {
-                    sender: test_accounts.creator_1.to_string(),
-                    denom0: out_denom.to_string(),
-                    denom1: in_denom.to_string(),
                     tick_spacing: 100,
                     spread_factor: "10".to_string(),
                 },

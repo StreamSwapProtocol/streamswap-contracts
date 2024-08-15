@@ -157,7 +157,7 @@ pub fn execute_create_stream(
         // Get pool creation fee vector
         let pool_creation_fee_vec = get_pool_creation_fee(&deps)?;
         let pool = create_pool.unwrap();
-        validate_create_pool(pool.clone(), &out_asset, &in_denom)?;
+        validate_create_pool(pool.clone(), &out_asset)?;
         let uint128_pool_out_amount = Uint128::try_from(pool.clone().out_amount_clp)?;
         // Pool out amount is separate from out asset to be streamed.
         let pool_out_amount = Coin {

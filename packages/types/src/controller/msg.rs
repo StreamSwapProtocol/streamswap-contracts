@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Binary, Coin, Decimal256, Timestamp, Uint256};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
-use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
+use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool as OsmosisMsgCreateConcentratedPool;
 
 #[cw_serde]
 /// Message used to instantiate the controller contract.
@@ -85,6 +85,28 @@ pub struct CreatePool {
     pub out_amount_clp: Uint256,
     // osmosis concentration pool creation message
     pub msg_create_pool: MsgCreateConcentratedPool,
+}
+
+// OsmosisCreateCLPMessage contains information to create a concentrated liquidity pool
+#[cw_serde]
+pub struct MsgCreateConcentratedPool {
+    pub tick_spacing: u64,
+    pub spread_factor: String,
+}
+
+pub fn to_osmosis_create_clp_message(
+    msg: MsgCreateConcentratedPool,
+    sender: String,
+    denom0: String,
+    denom1: String,
+) -> OsmosisMsgCreateConcentratedPool {
+    OsmosisMsgCreateConcentratedPool {
+        sender,
+        denom0,
+        denom1,
+        tick_spacing: msg.tick_spacing,
+        spread_factor: msg.spread_factor,
+    }
 }
 
 #[cw_serde]
