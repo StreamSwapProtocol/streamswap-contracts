@@ -103,10 +103,10 @@ mod pool_test {
 
         let result = build_create_initial_position_msg(
             pool_id,
-            treasury,
-            stream_in_denom,
+            treasury.to_string(),
+            stream_in_denom.to_string(),
             in_clp,
-            stream_out_asset_denom,
+            stream_out_asset_denom.to_string(),
             pool_out_amount_clp,
         );
 
