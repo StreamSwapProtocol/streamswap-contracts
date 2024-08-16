@@ -157,5 +157,7 @@ mod vesting {
 
         // Not the best test :(
         assert_eq!(contract_data.code_id, vesting_code_id);
+        assert_eq!(contract_data.admin, None);
+        assert_eq!(contract_data.label, "Streamswap vested release");
     }
 }

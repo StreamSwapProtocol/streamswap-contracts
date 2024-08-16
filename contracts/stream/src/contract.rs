@@ -636,10 +636,7 @@ pub fn execute_exit_stream(
         let vesting_instantiate_msg = WasmMsg::Instantiate2 {
             admin: None,
             code_id: controller_params.vesting_code_id,
-            label: format!(
-                "streamswap: Stream Addr {} Released to {}",
-                env.contract.address, info.sender
-            ),
+            label: "Streamswap vested release".to_string(),
             msg: to_json_binary(&vesting)?,
             funds: vec![coin(uint128_purchased.u128(), stream.out_asset.denom)],
             salt,
