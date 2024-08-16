@@ -501,8 +501,8 @@ pub fn execute_finalize_stream(
         let osmosis_create_clp_pool_msg = to_osmosis_create_clp_message(
             pool.msg_create_pool,
             env.contract.address.to_string(),
-            stream.in_denom.clone(),
             stream.out_asset.denom.clone(),
+            stream.in_denom.clone(),
         );
 
         messages.push(osmosis_create_clp_pool_msg.into());

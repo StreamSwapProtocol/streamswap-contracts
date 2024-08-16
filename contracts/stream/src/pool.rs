@@ -30,12 +30,12 @@ pub fn build_create_initial_position_msg(
         upper_tick: i64::MAX,
         tokens_provided: vec![
             osmosis_std::types::cosmos::base::v1beta1::Coin {
-                denom: stream_in_denom.to_string(),
-                amount: in_clp.to_string(),
-            },
-            osmosis_std::types::cosmos::base::v1beta1::Coin {
                 denom: stream_out_asset_denom.to_string(),
                 amount: pool_out_amount_clp.to_string(),
+            },
+            osmosis_std::types::cosmos::base::v1beta1::Coin {
+                denom: stream_in_denom.to_string(),
+                amount: in_clp.to_string(),
             },
         ],
         token_min_amount0: "0".to_string(),
@@ -117,12 +117,12 @@ mod pool_test {
             upper_tick: i64::MAX,
             tokens_provided: vec![
                 Coin {
-                    denom: stream_in_denom.to_string(),
-                    amount: in_clp.to_string(),
-                },
-                Coin {
                     denom: stream_out_asset_denom.to_string(),
                     amount: pool_out_amount_clp.to_string(),
+                },
+                Coin {
+                    denom: stream_in_denom.to_string(),
+                    amount: in_clp.to_string(),
                 },
             ],
             token_min_amount0: "0".to_string(),
