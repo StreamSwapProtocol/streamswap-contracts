@@ -1,7 +1,6 @@
-use crate::controller::CreatePool;
+use crate::controller::{CreatePool, VestingConfig};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin, Decimal256, Timestamp, Uint256};
-use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use streamswap_utils::to_uint256;
 
 #[cw_serde]
@@ -37,7 +36,7 @@ pub struct Stream {
     /// Create pool message, used to create a pool for the stream once the stream ends
     pub create_pool: Option<CreatePool>,
     /// Vesting configuration, used to create a vesting contract for subscribers once the stream ends
-    pub vesting: Option<VestingInstantiateMsg>,
+    pub vesting: Option<VestingConfig>,
 }
 
 #[cw_serde]
@@ -117,7 +116,7 @@ impl Stream {
         start_time: Timestamp,
         end_time: Timestamp,
         create_pool: Option<CreatePool>,
-        vesting: Option<VestingInstantiateMsg>,
+        vesting: Option<VestingConfig>,
     ) -> Self {
         Stream {
             name,

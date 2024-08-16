@@ -7,9 +7,9 @@ mod vesting {
     };
     use cosmwasm_std::{coin, Addr, Binary, Coin, Uint128};
     use cw_multi_test::Executor;
-    use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
     use cw_vesting::vesting::Schedule;
-    use cw_vesting::UncheckedDenom;
+    use cw_vesting::CheckedDenom;
+    use streamswap_types::controller::VestingConfig;
     use streamswap_types::stream::{
         ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg, Status, StreamResponse,
     };
@@ -38,15 +38,9 @@ mod vesting {
             )
             .unwrap();
 
-        let vesting_msg = VestingInstantiateMsg {
-            owner: None,
+        let vesting_msg = VestingConfig {
             recipient: test_accounts.subscriber_1.to_string(),
-            title: "Streamswap vesting".to_string(),
-            description: None,
-            total: Uint128::new(0),
-            denom: UncheckedDenom::Native("out_denom".to_string()),
             schedule: Schedule::SaturatingLinear,
-            start_time: None,
             vesting_duration_seconds: 150,
             unbonding_duration_seconds: 0,
         };
@@ -153,11 +147,29 @@ mod vesting {
             .unwrap();
 
         let vesting_addr = get_wasm_attribute_with_key(res, "vesting_address".to_string());
-        let contract_data = app.contract_data(&Addr::unchecked(vesting_addr)).unwrap();
+        let contract_data = app
+            .contract_data(&Addr::unchecked(vesting_addr.clone()))
+            .unwrap();
+
+        let res: cw_vesting::vesting::Vest = app
+            .wrap()
+            .query_wasm_smart(
+                Addr::unchecked(vesting_addr.clone()),
+                &cw_vesting::msg::QueryMsg::Info {},
+            )
+            .unwrap();
+        assert_eq!(res.denom, CheckedDenom::Native("out_denom".to_string()));
+        assert_eq!(res.recipient, test_accounts.subscriber_1.to_string());
+        assert_eq!(res.status, cw_vesting::vesting::Status::Funded);
+        assert_eq!(res.title,   "Stream addr cosmwasm1kdd9vp4j37tualwzsgdkn6cynmzss508r9n9ru7ngcwhlt2y2e0qyy6pcp released to cosmwasm1u8ujald9pvutf00eq8ehwaw2nj608aklznw7lpvnej8klw73thpqrhyz88" );
+        assert_eq!(res.description, None);
 
         // Not the best test :(
         assert_eq!(contract_data.code_id, vesting_code_id);
         assert_eq!(contract_data.admin, None);
-        assert_eq!(contract_data.label, "Streamswap vested release");
+        assert_eq!(
+            contract_data.label,
+            "out_denom-cosmwasm1u8ujald9pvutf00eq8ehwaw2nj608aklznw7lpvnej8klw73thpqrhyz88"
+        );
     }
 }
