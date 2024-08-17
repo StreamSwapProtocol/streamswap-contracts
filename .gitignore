@@ -14,8 +14,18 @@
 *.iml
 .idea
 
-# tarpaulin-docs
-/tarpaulin-docs
 
 # ts-codegen
 ts/node_modules
+
+# build artifacts
+artifacts/
+
+# tests
+tarpaulin-report.*
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+**/.editorconfig
