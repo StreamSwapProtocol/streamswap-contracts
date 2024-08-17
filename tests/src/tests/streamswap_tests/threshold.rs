@@ -147,7 +147,10 @@ mod threshold {
         assert_eq!(funds[0].1.denom, "out_denom".to_string());
 
         // Creator finalizes the stream
-        let finalize_msg = StreamSwapExecuteMsg::FinalizeStream { new_treasury: None };
+        let finalize_msg = StreamSwapExecuteMsg::FinalizeStream {
+            new_treasury: None,
+            create_pool: None,
+        };
 
         let res = app
             .execute_contract(
@@ -270,7 +273,10 @@ mod threshold {
             .unwrap_err();
 
         // Finalize should not be possible
-        let finalize_msg = StreamSwapExecuteMsg::FinalizeStream { new_treasury: None };
+        let finalize_msg = StreamSwapExecuteMsg::FinalizeStream {
+            new_treasury: None,
+            create_pool: None,
+        };
 
         let err = app
             .execute_contract(
@@ -325,7 +331,10 @@ mod threshold {
         assert_eq!(creator_funds[0].1.denom, "out_denom".to_string());
 
         // Creator can not finalize the stream
-        let finalize_msg = StreamSwapExecuteMsg::FinalizeStream { new_treasury: None };
+        let finalize_msg = StreamSwapExecuteMsg::FinalizeStream {
+            new_treasury: None,
+            create_pool: None,
+        };
 
         let err = app
             .execute_contract(

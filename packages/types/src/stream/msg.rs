@@ -1,3 +1,4 @@
+use crate::controller::CreatePool;
 use crate::stream::Status;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Binary, Coin, Decimal256, Timestamp, Uint128, Uint256};
@@ -20,6 +21,7 @@ pub enum ExecuteMsg {
     /// call this method.
     FinalizeStream {
         new_treasury: Option<String>,
+        create_pool: Option<CreatePool>,
     },
     /// ExitStream withdraws (by a user who subscribed to the stream) purchased
     /// tokens_out from the pool and remained tokens_in. Must be called after

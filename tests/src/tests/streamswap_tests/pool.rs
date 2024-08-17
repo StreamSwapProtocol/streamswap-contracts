@@ -7,7 +7,7 @@ mod pool {
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Uint256};
     use cw_multi_test::Executor;
-    use streamswap_types::controller::{CreatePool, MsgCreateConcentratedPool};
+    use streamswap_types::controller::{CreatePool, PoolConfig};
     use streamswap_types::stream::ExecuteMsg as StreamSwapExecuteMsg;
     use streamswap_types::stream::QueryMsg as StreamSwapQueryMsg;
     use streamswap_types::stream::Status;
@@ -60,12 +60,8 @@ mod pool {
             start_time,
             end_time,
             None,
-            Some(CreatePool {
+            Some(PoolConfig::ConcentratedLiquidity {
                 out_amount_clp: out_clp_amount.into(),
-                msg_create_pool: MsgCreateConcentratedPool {
-                    tick_spacing: 100,
-                    spread_factor: "10".to_string(),
-                },
             }),
             None,
         );
@@ -113,7 +109,15 @@ mod pool {
             .execute_contract(
                 test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::FinalizeStream { new_treasury: None },
+                &StreamSwapExecuteMsg::FinalizeStream {
+                    new_treasury: None,
+                    create_pool: Some(CreatePool::ConcentratedLiquidity {
+                        lower_tick: 500,
+                        upper_tick: 100000,
+                        tick_spacing: 100,
+                        spread_factor: "0.01".to_string(),
+                    }),
+                },
                 &[],
             )
             .unwrap();
@@ -177,12 +181,8 @@ mod pool {
             start_time,
             end_time,
             Some(Uint256::from(100u128)),
-            Some(CreatePool {
+            Some(PoolConfig::ConcentratedLiquidity {
                 out_amount_clp: out_clp_amount.into(),
-                msg_create_pool: MsgCreateConcentratedPool {
-                    tick_spacing: 100,
-                    spread_factor: "10".to_string(),
-                },
             }),
             None,
         );
@@ -294,12 +294,8 @@ mod pool {
             start_time,
             end_time,
             Some(Uint256::from(100u128)),
-            Some(CreatePool {
+            Some(PoolConfig::ConcentratedLiquidity {
                 out_amount_clp: out_clp_amount.into(),
-                msg_create_pool: MsgCreateConcentratedPool {
-                    tick_spacing: 100,
-                    spread_factor: "10".to_string(),
-                },
             }),
             None,
         );
@@ -345,7 +341,10 @@ mod pool {
         });
 
         // Try finalizing stream should fail as threshold is not met
-        let finalize_stream_msg = StreamSwapExecuteMsg::FinalizeStream { new_treasury: None };
+        let finalize_stream_msg = StreamSwapExecuteMsg::FinalizeStream {
+            new_treasury: None,
+            create_pool: None,
+        };
         let _err = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
@@ -421,12 +420,8 @@ mod pool {
             start_time,
             end_time,
             Some(Uint256::from(100u128)),
-            Some(CreatePool {
+            Some(PoolConfig::ConcentratedLiquidity {
                 out_amount_clp: out_clp_amount.into(),
-                msg_create_pool: MsgCreateConcentratedPool {
-                    tick_spacing: 100,
-                    spread_factor: "10".to_string(),
-                },
             }),
             None,
         );

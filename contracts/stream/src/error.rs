@@ -147,4 +147,13 @@ pub enum ContractError {
 
     #[error("Operation not allowed in ths current state {current_status}")]
     OperationNotAllowed { current_status: String },
+
+    #[error("Pool config not provided")]
+    PoolConfigNotProvided {},
+
+    #[error("Create pool not provided")]
+    CreatePoolNotProvided {},
+
+    #[error("Invalid pool config")]
+    InvalidPoolConfig {},
 }

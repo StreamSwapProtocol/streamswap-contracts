@@ -1,5 +1,5 @@
 use crate::error::ContractError;
-use crate::helpers::{get_pool_creation_fee, validate_create_pool};
+use crate::helpers::get_pool_creation_fee;
 use crate::state::{FREEZESTATE, LAST_STREAM_ID, PARAMS, STREAMS};
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Coin, CosmosMsg, Decimal256, Deps, DepsMut, Env,
@@ -8,8 +8,8 @@ use cosmwasm_std::{
 use cw2::ensure_from_older_version;
 use cw_storage_plus::Bound;
 use streamswap_types::controller::{
-    CreateStreamMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, Params, QueryMsg, StreamResponse,
-    StreamsResponse,
+    CreateStreamMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, Params, PoolConfig, QueryMsg,
+    StreamResponse, StreamsResponse,
 };
 use streamswap_utils::payment_checker::check_payment;
 
@@ -132,7 +132,7 @@ pub fn execute_create_stream(
         stream_admin: _,
         threshold: _,
         url: _,
-        create_pool,
+        pool_config: create_pool,
         vesting: _,
         bootstraping_start_time: _,
         salt,
@@ -153,25 +153,34 @@ pub fn execute_create_stream(
     // These funds shall be sent to the stream contract
     let mut instantiate_funds: Vec<Coin> = vec![out_asset.clone()];
 
-    if create_pool.is_some() {
-        // Get pool creation fee vector
-        let pool_creation_fee_vec = get_pool_creation_fee(&deps)?;
-        let pool = create_pool.unwrap();
-        validate_create_pool(pool.clone(), &out_asset)?;
-        let uint128_pool_out_amount = Uint128::try_from(pool.clone().out_amount_clp)?;
-        // Pool out amount is separate from out asset to be streamed.
-        let pool_out_amount = Coin {
-            denom: out_asset.denom.clone(),
-            amount: uint128_pool_out_amount,
-        };
-        // Add the pool out amount to instantiate funds as well
-        instantiate_funds.push(pool_out_amount.clone());
-        // Add the pool out amount to expected funds
-        expected_funds.push(pool_out_amount);
-        // Merge the pool creation fee with instantiate funds
-        instantiate_funds.extend(pool_creation_fee_vec.clone());
-        // Merge the pool creation fee with expected funds
-        expected_funds.extend(pool_creation_fee_vec);
+    if let Some(create_pool) = create_pool {
+        match create_pool {
+            PoolConfig::ConcentratedLiquidity { out_amount_clp } => {
+                let uint128_pool_out_amount = Uint128::try_from(out_amount_clp)?;
+                if uint128_pool_out_amount > out_asset.amount {
+                    return Err(ContractError::InvalidPoolOutAmount {});
+                }
+                if uint128_pool_out_amount.is_zero() {
+                    return Err(ContractError::InvalidPoolOutAmount {});
+                }
+
+                // Get pool creation fee vector
+                let pool_creation_fee_vec = get_pool_creation_fee(&deps)?;
+                // Pool out amount is separate from out asset to be streamed.
+                let pool_out_amount = Coin {
+                    denom: out_asset.denom.clone(),
+                    amount: uint128_pool_out_amount,
+                };
+                // Add the pool out amount to instantiate funds as well
+                instantiate_funds.push(pool_out_amount.clone());
+                // Add the pool out amount to expected funds
+                expected_funds.push(pool_out_amount);
+                // Merge the pool creation fee with instantiate funds
+                instantiate_funds.extend(pool_creation_fee_vec.clone());
+                // Merge the pool creation fee with expected funds
+                expected_funds.extend(pool_creation_fee_vec);
+            }
+        }
     }
     check_payment(&info.funds, &expected_funds)?;
 

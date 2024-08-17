@@ -1,4 +1,4 @@
-use crate::pool::get_pool_creation_fee;
+use crate::pool::pool_refund;
 use crate::state::{CONTROLLER_PARAMS, POSITIONS, STREAM};
 use crate::stream::{sync_stream, sync_stream_status};
 use crate::ContractError;
@@ -98,16 +98,10 @@ pub fn execute_cancel_stream(
 
     // Refund all out tokens to stream creator(treasury)
     let mut refund_coins = vec![stream.out_asset.clone()];
+    let pool_refund_coins = pool_refund(&deps, stream.pool_config, stream.out_asset.denom.clone())?;
 
-    // if pool is configured return clp + pool creation fee
-    if let Some(pool) = stream.create_pool {
-        let pool_creation_fee_vec = get_pool_creation_fee(&deps)?;
-        refund_coins.extend(pool_creation_fee_vec);
-        refund_coins.push(Coin {
-            denom: stream.out_asset.denom,
-            amount: Uint128::try_from(pool.out_amount_clp)?,
-        });
-    }
+    refund_coins.extend(pool_refund_coins);
+
     let funds_msgs: Vec<CosmosMsg> = refund_coins
         .iter()
         .map(|coin| {
@@ -161,16 +155,10 @@ pub fn execute_cancel_stream_with_threshold(
 
     // Refund all out tokens to stream creator(treasury)
     let mut refund_coins = vec![stream.out_asset.clone()];
+    let pool_refund_coins = pool_refund(&deps, stream.pool_config, stream.out_asset.denom.clone())?;
 
-    // if pool is configured return clp + pool creation fee
-    if let Some(pool) = stream.create_pool {
-        let pool_creation_fee_vec = get_pool_creation_fee(&deps)?;
-        refund_coins.extend(pool_creation_fee_vec);
-        refund_coins.push(Coin {
-            denom: stream.out_asset.denom,
-            amount: Uint128::try_from(pool.out_amount_clp)?,
-        });
-    }
+    refund_coins.extend(pool_refund_coins);
+
     let funds_msgs: Vec<CosmosMsg> = refund_coins
         .iter()
         .map(|coin| {
@@ -211,16 +199,9 @@ pub fn execute_stream_admin_cancel(
 
     // Refund all out tokens to stream creator(treasury)
     let mut refund_coins = vec![stream.out_asset.clone()];
+    let pool_refund_coins = pool_refund(&deps, stream.pool_config, stream.out_asset.denom.clone())?;
 
-    // if pool is configured return clp + pool creation fee
-    if let Some(pool) = stream.create_pool {
-        let pool_creation_fee_vec = get_pool_creation_fee(&deps)?;
-        refund_coins.extend(pool_creation_fee_vec);
-        refund_coins.push(Coin {
-            denom: stream.out_asset.denom,
-            amount: Uint128::try_from(pool.out_amount_clp)?,
-        });
-    }
+    refund_coins.extend(pool_refund_coins);
     let funds_msgs: Vec<CosmosMsg> = refund_coins
         .iter()
         .map(|coin| {

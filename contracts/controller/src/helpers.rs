@@ -3,23 +3,6 @@ use std::str::FromStr;
 use crate::error::ContractError;
 use cosmwasm_std::{Coin, DepsMut, Uint128};
 use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
-use streamswap_types::controller::CreatePool;
-use streamswap_utils::to_uint256;
-
-pub fn validate_create_pool(
-    create_pool: CreatePool,
-    out_asset: &Coin,
-) -> Result<(), ContractError> {
-    // pool cant be bigger than out_asset amount
-    if create_pool.out_amount_clp > to_uint256(out_asset.amount) {
-        return Err(ContractError::InvalidPoolOutAmount {});
-    }
-    // pool out amount cant be zero
-    if create_pool.out_amount_clp.is_zero() {
-        return Err(ContractError::InvalidPoolOutAmount {});
-    }
-    Ok(())
-}
 
 pub fn get_pool_creation_fee(deps: &DepsMut) -> Result<Vec<Coin>, ContractError> {
     let pool_creation_fee_vec = PoolmanagerQuerier::new(&deps.querier)

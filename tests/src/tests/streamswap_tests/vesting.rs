@@ -81,7 +81,10 @@ mod vesting {
         // update block time
         app.update_block(|b| b.time = end_time.plus_seconds(5));
 
-        let finalized_msg = StreamSwapExecuteMsg::FinalizeStream { new_treasury: None };
+        let finalized_msg = StreamSwapExecuteMsg::FinalizeStream {
+            new_treasury: None,
+            create_pool: None,
+        };
         let res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),

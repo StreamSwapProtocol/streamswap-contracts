@@ -1,6 +1,6 @@
 use super::suite::TestAccounts;
 use cosmwasm_std::{Binary, Coin, Decimal256, Timestamp, Uint256};
-use streamswap_types::controller::{CreatePool, CreateStreamMsg, VestingConfig};
+use streamswap_types::controller::{CreateStreamMsg, PoolConfig, VestingConfig};
 use streamswap_types::controller::{
     ExecuteMsg as ControllerExecuteMsg, InstantiateMsg as ControllerInstantiateMsg,
 };
@@ -39,7 +39,7 @@ pub fn get_create_stream_msg(
     start_time: Timestamp,
     end_time: Timestamp,
     threshold: Option<Uint256>,
-    create_pool: Option<CreatePool>,
+    pool_config: Option<PoolConfig>,
     vesting: Option<VestingConfig>,
 ) -> ControllerExecuteMsg {
     ControllerExecuteMsg::CreateStream {
@@ -54,7 +54,7 @@ pub fn get_create_stream_msg(
             start_time,
             end_time,
             threshold,
-            create_pool,
+            pool_config,
             vesting,
             salt: Binary::from_base64("salt").unwrap(),
         }),

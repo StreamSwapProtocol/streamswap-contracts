@@ -77,7 +77,10 @@ mod finalize_stream_tests {
             time: end_time.plus_seconds(1),
             chain_id: "test".to_string(),
         });
-        let finalized_msg = StreamSwapExecuteMsg::FinalizeStream { new_treasury: None };
+        let finalized_msg = StreamSwapExecuteMsg::FinalizeStream {
+            new_treasury: None,
+            create_pool: None,
+        };
         let res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
@@ -187,7 +190,10 @@ mod finalize_stream_tests {
             )
             .unwrap();
         // Finalizing with wrong user
-        let finalized_msg = StreamSwapExecuteMsg::FinalizeStream { new_treasury: None };
+        let finalized_msg = StreamSwapExecuteMsg::FinalizeStream {
+            new_treasury: None,
+            create_pool: None,
+        };
         app.set_block(BlockInfo {
             height: 1_100,
             time: end_time.plus_seconds(100),
@@ -311,6 +317,7 @@ mod finalize_stream_tests {
         // Finalizing with wrong user with new treasury
         let finalized_msg = StreamSwapExecuteMsg::FinalizeStream {
             new_treasury: Some(test_accounts.creator_1.to_string()),
+            create_pool: None,
         };
         app.set_block(BlockInfo {
             height: 1_100,
@@ -328,6 +335,7 @@ mod finalize_stream_tests {
         // Finalize with correct user with new treasury as creator_2
         let finalized_msg = StreamSwapExecuteMsg::FinalizeStream {
             new_treasury: Some(test_accounts.creator_1.to_string()),
+            create_pool: None,
         };
         let res = app
             .execute_contract(

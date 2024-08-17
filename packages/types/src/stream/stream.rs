@@ -1,4 +1,4 @@
-use crate::controller::{CreatePool, VestingConfig};
+use crate::controller::{PoolConfig, VestingConfig};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin, Decimal256, Timestamp, Uint256};
 use streamswap_utils::to_uint256;
@@ -33,8 +33,8 @@ pub struct Stream {
     pub current_streamed_price: Decimal256,
     /// Status info of the stream
     pub status_info: StatusInfo,
-    /// Create pool message, used to create a pool for the stream once the stream ends
-    pub create_pool: Option<CreatePool>,
+    /// Pool Configuration for the pre stream
+    pub pool_config: Option<PoolConfig>,
     /// Vesting configuration, used to create a vesting contract for subscribers once the stream ends
     pub vesting: Option<VestingConfig>,
 }
@@ -115,7 +115,7 @@ impl Stream {
         bootstrapping_start_time: Timestamp,
         start_time: Timestamp,
         end_time: Timestamp,
-        create_pool: Option<CreatePool>,
+        pool_config: Option<PoolConfig>,
         vesting: Option<VestingConfig>,
     ) -> Self {
         Stream {
@@ -132,7 +132,7 @@ impl Stream {
             shares: Uint256::zero(),
             current_streamed_price: Decimal256::zero(),
             status_info: StatusInfo::new(now, bootstrapping_start_time, start_time, end_time),
-            create_pool,
+            pool_config,
             vesting,
         }
     }
