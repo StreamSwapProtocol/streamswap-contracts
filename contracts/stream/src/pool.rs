@@ -13,8 +13,7 @@ pub fn calculate_in_amount_clp(
     let ratio = Decimal256::from_ratio(pool_out_amount, out_amount);
     let dec_creators_revenue = Decimal256::from_ratio(creators_revenue, Uint256::from(1u64));
     let dec_clp_amount = ratio * dec_creators_revenue;
-    let clp_amount = dec_clp_amount * Uint256::from(1u64);
-    clp_amount
+    dec_clp_amount * Uint256::from(1u64)
 }
 
 /// This function is used to build the MsgCreatePosition for the initial pool position
