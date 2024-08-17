@@ -1,17 +1,20 @@
-use std::str::FromStr;
-
 use crate::ContractError;
-use cosmwasm_std::{Coin, DepsMut, Uint128, Uint256};
+use cosmwasm_std::{Coin, Decimal256, DepsMut, Uint128, Uint256};
 use osmosis_std::types::osmosis::concentratedliquidity::v1beta1::MsgCreatePosition;
 use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
+use std::str::FromStr;
 
 /// This function is used to calculate the in amount of the pool
 pub fn calculate_in_amount_clp(
     out_amount: Uint256,
     pool_out_amount: Uint256,
-    spent_in: Uint256,
+    creators_revenue: Uint256,
 ) -> Uint256 {
-    pool_out_amount / out_amount * spent_in
+    let ratio = Decimal256::from_ratio(pool_out_amount, out_amount);
+    let dec_creators_revenue = Decimal256::from_ratio(creators_revenue, Uint256::from(1u64));
+    let dec_clp_amount = ratio * dec_creators_revenue;
+    let clp_amount = dec_clp_amount * Uint256::from(1u64);
+    clp_amount
 }
 
 /// This function is used to build the MsgCreatePosition for the initial pool position
@@ -26,8 +29,8 @@ pub fn build_create_initial_position_msg(
     MsgCreatePosition {
         pool_id,
         sender,
-        lower_tick: 0,
-        upper_tick: i64::MAX,
+        lower_tick: 1000,
+        upper_tick: 10000,
         tokens_provided: vec![
             osmosis_std::types::cosmos::base::v1beta1::Coin {
                 denom: stream_out_asset_denom.to_string(),
