@@ -69,7 +69,7 @@ impl Stargate for MyStargateKeeper {
                     .range(Some(key.as_bytes()), None, cosmwasm_std::Order::Ascending)
                     .map(|item| {
                         let value = item.1;
-                        let pool: Pool = from_json(&value).expect("Failed to decode Pool");
+                        let pool: Pool = from_json(value).expect("Failed to decode Pool");
 
                         pool
                     })
