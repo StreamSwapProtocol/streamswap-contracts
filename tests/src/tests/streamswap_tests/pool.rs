@@ -129,11 +129,17 @@ mod pool {
         // exit rate is %1
         let swap_fee = in_supply / 100;
         assert_eq!(res_swap_fee, swap_fee.to_string());
-
         // last creator revenue = spent_in - swap_fee - in_clp;
-        let expected_creators_revenue =
-            (in_supply - swap_fee - (out_clp_amount / out_supply * in_supply)).to_string();
-        assert_eq!(res_creators_revenue, expected_creators_revenue);
+        let creators_revenue = in_supply - swap_fee;
+
+        let pool_out_ratio = out_clp_amount as f64 / out_supply as f64;
+
+        let creators_revenue_after_pool_creation =
+            creators_revenue - (pool_out_ratio * creators_revenue as f64) as u128;
+        assert_eq!(
+            res_creators_revenue,
+            creators_revenue_after_pool_creation.to_string()
+        );
     }
     #[test]
     fn cancel_stream_out_clp_returned() {

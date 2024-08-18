@@ -507,7 +507,7 @@ pub fn execute_finalize_stream(
             let in_clp = calculate_in_amount_clp(
                 to_uint256(stream.out_asset.amount),
                 out_amount_clp,
-                stream.spent_in,
+                creator_revenue,
             );
 
             // extract in_clp from last revenue

@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::ContractError;
-use cosmwasm_std::{Coin, DepsMut, Uint128, Uint256};
+use cosmwasm_std::{Coin, Decimal256, DepsMut, Uint128, Uint256};
 use osmosis_std::types::osmosis::concentratedliquidity::v1beta1::MsgCreatePosition;
 use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
 use streamswap_types::controller::PoolConfig;
@@ -10,9 +10,12 @@ use streamswap_types::controller::PoolConfig;
 pub fn calculate_in_amount_clp(
     out_amount: Uint256,
     pool_out_amount: Uint256,
-    spent_in: Uint256,
+    creators_revenue: Uint256,
 ) -> Uint256 {
-    pool_out_amount / out_amount * spent_in
+    let ratio = Decimal256::from_ratio(pool_out_amount, out_amount);
+    let dec_creators_revenue = Decimal256::from_ratio(creators_revenue, Uint256::from(1u64));
+    let dec_clp_amount = ratio * dec_creators_revenue;
+    dec_clp_amount * Uint256::from(1u64)
 }
 
 /// This function is used to build the MsgCreatePosition for the initial pool position
@@ -111,13 +114,15 @@ mod pool_test {
             in_clp,
             stream_out_asset_denom.to_string(),
             pool_out_amount_clp,
+            100,
+            1000,
         );
 
         let expected = MsgCreatePosition {
             pool_id,
             sender: treasury.to_string(),
-            lower_tick: 0,
-            upper_tick: i64::MAX,
+            lower_tick: 100,
+            upper_tick: 1000,
             tokens_provided: vec![
                 Coin {
                     denom: stream_out_asset_denom.to_string(),
