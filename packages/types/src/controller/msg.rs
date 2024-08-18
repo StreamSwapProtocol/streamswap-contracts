@@ -80,7 +80,6 @@ pub struct CreateStreamMsg {
 
 #[cw_serde]
 pub struct VestingConfig {
-    pub recipient: String,
     pub schedule: Schedule,
     pub vesting_duration_seconds: u64,
     pub unbonding_duration_seconds: u64,

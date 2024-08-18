@@ -39,7 +39,6 @@ mod vesting {
             .unwrap();
 
         let vesting_msg = VestingConfig {
-            recipient: test_accounts.subscriber_1.to_string(),
             schedule: Schedule::SaturatingLinear,
             vesting_duration_seconds: 150,
             unbonding_duration_seconds: 0,
