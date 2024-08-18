@@ -1,4 +1,4 @@
-use cosmwasm_std::{to_json_binary, Addr, Api, Binary, BlockInfo, Querier, Storage};
+use cosmwasm_std::{from_json, to_json_binary, Addr, Api, Binary, BlockInfo, Querier, Storage};
 use cw_multi_test::error::anyhow;
 use cw_multi_test::{error::AnyResult, AppResponse, CosmosRouter, Stargate};
 use osmosis_std::shim::Any;
@@ -6,7 +6,6 @@ use osmosis_std::types::cosmos::base::v1beta1::Coin;
 use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
 use osmosis_std::types::osmosis::concentratedliquidity::v1beta1::Pool;
 use osmosis_std::types::osmosis::poolmanager::v1beta1::{NumPoolsResponse, Params, ParamsResponse};
-use prost::{DecodeError, Message};
 use schemars::_serde_json::to_vec;
 
 pub struct MyStargateKeeper {}
@@ -23,8 +22,7 @@ impl Stargate for MyStargateKeeper {
         value: Binary,
     ) -> AnyResult<AppResponse> {
         if type_url == *"/osmosis.concentratedliquidity.poolmodel.concentrated.v1beta1.MsgCreateConcentratedPool" {
-            let parsed_msg: Result<MsgCreateConcentratedPool, DecodeError> = Message::decode(value.as_slice());
-            if let Ok(msg) = parsed_msg{
+            let msg: MsgCreateConcentratedPool = value.try_into()?;
                 let pool = Pool {
                   token0: msg.denom0.clone(),
                     token1: msg.denom1.clone(),
@@ -34,7 +32,6 @@ impl Stargate for MyStargateKeeper {
                 let key = format!("pools:{}", pool.id);
                 let serialized_pool = to_json_binary(&pool).expect("Failed to serialize Pool");
                 storage.set(key.as_bytes(), &serialized_pool);
-            }
         }
         Ok(AppResponse::default())
     }
@@ -72,8 +69,8 @@ impl Stargate for MyStargateKeeper {
                     .range(Some(key.as_bytes()), None, cosmwasm_std::Order::Ascending)
                     .map(|item| {
                         let value = item.1;
-                        let pool: Pool =
-                            Message::decode(value.as_slice()).expect("Failed to decode Pool");
+                        let pool: Pool = from_json(value).expect("Failed to decode Pool");
+
                         pool
                     })
                     .collect::<Vec<Pool>>();

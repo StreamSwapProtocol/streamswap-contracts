@@ -17,20 +17,20 @@ backtraces = ["cosmwasm-std/backtraces"]
 workspace = true
 
 [dependencies]
-cosmwasm-schema    = { workspace = true }
-cosmwasm-std       = { workspace = true }
-cw-controllers     = { workspace = true }
-cw-storage-plus    = { workspace = true }
-cw-utils           = { workspace = true }
-cw-vesting         = { workspace = true }
-cw2                = { workspace = true }
-osmosis-std        = { workspace = true }
-prost              = { workspace = true }
-schemars           = { workspace = true }
+cosmwasm-schema       = { workspace = true }
+cosmwasm-std          = { workspace = true }
+cw-controllers        = { workspace = true }
+cw-storage-plus       = { workspace = true }
+cw-utils              = { workspace = true }
+cw-vesting            = { workspace = true }
+cw2                   = { workspace = true }
+osmosis-std           = { workspace = true }
+osmosis_prost         = { workspace = true }
+schemars              = { workspace = true }
 streamswap-controller = { workspace = true }
-streamswap-stream  = { workspace = true }
-streamswap-types   = { workspace = true }
-streamswap-utils   = { workspace = true }
+streamswap-stream     = { workspace = true }
+streamswap-types      = { workspace = true }
+streamswap-utils      = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 cw-multi-test      = { workspace = true }
