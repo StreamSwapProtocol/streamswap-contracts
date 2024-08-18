@@ -1,7 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Binary, Coin, Decimal256, Timestamp, Uint256};
 use cw_vesting::vesting::Schedule;
-use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool as OsmosisMsgCreateConcentratedPool;
 
 #[cw_serde]
 /// Message used to instantiate the controller contract.
@@ -70,8 +69,8 @@ pub struct CreateStreamMsg {
     pub end_time: Timestamp,
     /// Optional threshold for the stream, if set, the stream will be cancelled if the threshold is not reached
     pub threshold: Option<Uint256>,
-    /// CreatePool Flag
-    pub create_pool: Option<CreatePool>,
+    /// Pool Configuration for the pre stream
+    pub pool_config: Option<PoolConfig>,
     /// Vesting configuration
     pub vesting: Option<VestingConfig>,
     // Salt is used to instantiate stream contracts deterministically.
@@ -81,40 +80,25 @@ pub struct CreateStreamMsg {
 
 #[cw_serde]
 pub struct VestingConfig {
-    pub recipient: String,
     pub schedule: Schedule,
     pub vesting_duration_seconds: u64,
     pub unbonding_duration_seconds: u64,
 }
 
 #[cw_serde]
-pub struct CreatePool {
-    // amount of out tokens that will be sent to the pool
-    pub out_amount_clp: Uint256,
-    // osmosis concentration pool creation message
-    pub msg_create_pool: MsgCreateConcentratedPool,
+pub enum PoolConfig {
+    ConcentratedLiquidity { out_amount_clp: Uint256 }, // Other pool types can be added here
 }
 
-// OsmosisCreateCLPMessage contains information to create a concentrated liquidity pool
+// CreatePool data is used to create a pool for the stream once the stream ends
 #[cw_serde]
-pub struct MsgCreateConcentratedPool {
-    pub tick_spacing: u64,
-    pub spread_factor: String,
-}
-
-pub fn to_osmosis_create_clp_message(
-    msg: MsgCreateConcentratedPool,
-    sender: String,
-    denom0: String,
-    denom1: String,
-) -> OsmosisMsgCreateConcentratedPool {
-    OsmosisMsgCreateConcentratedPool {
-        sender,
-        denom0,
-        denom1,
-        tick_spacing: msg.tick_spacing,
-        spread_factor: msg.spread_factor,
-    }
+pub enum CreatePool {
+    ConcentratedLiquidity {
+        lower_tick: i64,
+        upper_tick: i64,
+        tick_spacing: u64,
+        spread_factor: String,
+    }, // Other pool types can be added here
 }
 
 #[cw_serde]

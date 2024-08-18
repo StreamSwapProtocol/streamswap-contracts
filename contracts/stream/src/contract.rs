@@ -25,7 +25,8 @@ use crate::pool::{build_create_initial_position_msg, calculate_in_amount_clp, ne
 use crate::state::{CONTROLLER_PARAMS, POSITIONS, STREAM, VESTING};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use cw_vesting::UncheckedDenom;
-use streamswap_types::controller::{to_osmosis_create_clp_message, Params as ControllerParams};
+use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
+use streamswap_types::controller::{CreatePool, Params as ControllerParams, PoolConfig};
 use streamswap_types::controller::{CreateStreamMsg, MigrateMsg};
 use streamswap_types::stream::{Position, Status, Stream};
 
@@ -60,7 +61,7 @@ pub fn instantiate(
         out_asset,
         in_denom,
         stream_admin,
-        create_pool,
+        pool_config,
         vesting,
         salt: _,
     } = msg;
@@ -92,7 +93,7 @@ pub fn instantiate(
         bootstraping_start_time,
         start_time,
         end_time,
-        create_pool,
+        pool_config.clone(),
         vesting,
     );
     STREAM.save(deps.storage, &stream)?;
@@ -100,8 +101,7 @@ pub fn instantiate(
     let threshold_state = ThresholdState::new();
     threshold_state.set_threshold_if_any(threshold, deps.storage)?;
 
-    // return response with attributes
-    let res = Response::new().add_attributes(vec![
+    let mut attrs = vec![
         attr("action", "instantiate"),
         attr("name", name),
         attr("treasury", treasury),
@@ -114,7 +114,22 @@ pub fn instantiate(
             "bootstrapping_start_time",
             bootstraping_start_time.to_string(),
         ),
-    ]);
+    ];
+    // if pool config is set, add attributes
+    if let Some(pool_config) = pool_config {
+        match pool_config {
+            PoolConfig::ConcentratedLiquidity { out_amount_clp } => {
+                let attributes = vec![
+                    attr("pool_type", "clp".to_string()),
+                    attr("pool_out_amount", out_amount_clp),
+                ];
+                attrs.extend(attributes);
+            }
+        }
+    }
+
+    // return response with attributes
+    let res = Response::new().add_attributes(attrs);
     Ok(res)
 }
 
@@ -136,9 +151,10 @@ pub fn execute(
             let stream = STREAM.load(deps.storage)?;
             execute_withdraw(deps, env, info, stream, cap)
         }
-        ExecuteMsg::FinalizeStream { new_treasury } => {
-            execute_finalize_stream(deps, env, info, new_treasury)
-        }
+        ExecuteMsg::FinalizeStream {
+            new_treasury,
+            create_pool,
+        } => execute_finalize_stream(deps, env, info, new_treasury, create_pool),
         ExecuteMsg::ExitStream { salt } => execute_exit_stream(deps, env, info, salt),
         ExecuteMsg::CancelStream {} => killswitch::execute_cancel_stream(deps, env, info),
         ExecuteMsg::ExitCancelled {} => killswitch::execute_exit_cancelled(deps, env, info),
@@ -415,6 +431,7 @@ pub fn execute_finalize_stream(
     env: Env,
     info: MessageInfo,
     new_treasury: Option<String>,
+    create_pool: Option<CreatePool>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
     if stream.stream_admin != info.sender {
@@ -474,44 +491,66 @@ pub fn execute_finalize_stream(
     }
 
     // if create_pool is set, create a pool for the stream and send initial position
-    if let Some(pool) = stream.create_pool {
-        let pool_id = next_pool_id(&deps)?;
+    match (stream.pool_config, create_pool) {
+        (
+            Some(PoolConfig::ConcentratedLiquidity { out_amount_clp }),
+            Some(CreatePool::ConcentratedLiquidity {
+                lower_tick,
+                upper_tick,
+                tick_spacing,
+                spread_factor,
+            }),
+        ) => {
+            let pool_id = next_pool_id(&deps)?;
 
-        // amount of in tokens allocated for clp
-        let in_clp = calculate_in_amount_clp(
-            to_uint256(stream.out_asset.amount),
-            pool.out_amount_clp,
-            stream.spent_in,
-        );
+            // amount of in tokens allocated for clp
+            let in_clp = calculate_in_amount_clp(
+                to_uint256(stream.out_asset.amount),
+                out_amount_clp,
+                creator_revenue,
+            );
 
-        // extract in_clp from last revenue
-        creator_revenue = creator_revenue.checked_sub(in_clp)?;
+            // extract in_clp from last revenue
+            creator_revenue = creator_revenue.checked_sub(in_clp)?;
 
-        // Create initial position message
-        let create_initial_position_msg = build_create_initial_position_msg(
-            pool_id,
-            env.contract.address.to_string(),
-            stream.in_denom.clone(),
-            in_clp,
-            stream.out_asset.denom.clone(),
-            pool.out_amount_clp,
-        );
+            // Create initial position message
+            let create_initial_position_msg = build_create_initial_position_msg(
+                pool_id,
+                env.contract.address.to_string(),
+                stream.in_denom.clone(),
+                in_clp,
+                stream.out_asset.denom.clone(),
+                out_amount_clp,
+                lower_tick,
+                upper_tick,
+            );
 
-        // convert msg create pool to osmosis create clp pool msg
-        let osmosis_create_clp_pool_msg = to_osmosis_create_clp_message(
-            pool.msg_create_pool,
-            env.contract.address.to_string(),
-            stream.out_asset.denom.clone(),
-            stream.in_denom.clone(),
-        );
+            // convert msg create pool to osmosis create clp pool msg
+            let osmosis_create_clp_pool_msg = MsgCreateConcentratedPool {
+                sender: env.contract.address.to_string(),
+                denom0: stream.out_asset.denom.clone(),
+                denom1: stream.in_denom.clone(),
+                tick_spacing,
+                spread_factor: spread_factor.clone(),
+            };
 
-        messages.push(osmosis_create_clp_pool_msg.into());
-        messages.push(create_initial_position_msg.into());
+            messages.push(osmosis_create_clp_pool_msg.into());
+            messages.push(create_initial_position_msg.into());
 
-        attributes.push(attr("pool_id", pool_id.clone().to_string()));
-        attributes.push(attr("pool_out_amount", pool.out_amount_clp));
-        attributes.push(attr("pool_in_amount", in_clp));
-    }
+            attributes.push(attr("pool_id", pool_id.clone().to_string()));
+            attributes.push(attr("pool_type", "clp".to_string()));
+            attributes.push(attr("pool_out_amount", out_amount_clp));
+            attributes.push(attr("pool_in_amount", in_clp));
+            attributes.push(attr("pool_lower_tick", lower_tick.to_string()));
+            attributes.push(attr("pool_upper_tick", upper_tick.to_string()));
+            attributes.push(attr("pool_spread_factor", spread_factor.to_string()));
+            attributes.push(attr("pool_tick_spacing", tick_spacing.to_string()));
+            Ok(())
+        }
+        (None, None) => Ok(()),
+        // If either pool_config or create_pool is not set, return error
+        _ => Err(ContractError::InvalidPoolConfig {}),
+    }?;
 
     let swap_fee_msg = build_u128_bank_send_msg(
         stream.in_denom.clone(),

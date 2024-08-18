@@ -1,17 +1,21 @@
 use std::str::FromStr;
 
 use crate::ContractError;
-use cosmwasm_std::{Coin, DepsMut, Uint128, Uint256};
+use cosmwasm_std::{Coin, Decimal256, DepsMut, Uint128, Uint256};
 use osmosis_std::types::osmosis::concentratedliquidity::v1beta1::MsgCreatePosition;
 use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
+use streamswap_types::controller::PoolConfig;
 
 /// This function is used to calculate the in amount of the pool
 pub fn calculate_in_amount_clp(
     out_amount: Uint256,
     pool_out_amount: Uint256,
-    spent_in: Uint256,
+    creators_revenue: Uint256,
 ) -> Uint256 {
-    pool_out_amount / out_amount * spent_in
+    let ratio = Decimal256::from_ratio(pool_out_amount, out_amount);
+    let dec_creators_revenue = Decimal256::from_ratio(creators_revenue, Uint256::from(1u64));
+    let dec_clp_amount = ratio * dec_creators_revenue;
+    dec_clp_amount * Uint256::from(1u64)
 }
 
 /// This function is used to build the MsgCreatePosition for the initial pool position
@@ -22,12 +26,14 @@ pub fn build_create_initial_position_msg(
     in_clp: Uint256,
     stream_out_asset_denom: String,
     pool_out_amount_clp: Uint256,
+    lower_tick: i64,
+    upper_tick: i64,
 ) -> MsgCreatePosition {
     MsgCreatePosition {
         pool_id,
         sender,
-        lower_tick: 0,
-        upper_tick: i64::MAX,
+        lower_tick,
+        upper_tick,
         tokens_provided: vec![
             osmosis_std::types::cosmos::base::v1beta1::Coin {
                 denom: stream_out_asset_denom.to_string(),
@@ -108,13 +114,15 @@ mod pool_test {
             in_clp,
             stream_out_asset_denom.to_string(),
             pool_out_amount_clp,
+            100,
+            1000,
         );
 
         let expected = MsgCreatePosition {
             pool_id,
             sender: treasury.to_string(),
-            lower_tick: 0,
-            upper_tick: i64::MAX,
+            lower_tick: 100,
+            upper_tick: 1000,
             tokens_provided: vec![
                 Coin {
                     denom: stream_out_asset_denom.to_string(),
@@ -130,5 +138,28 @@ mod pool_test {
         };
 
         assert_eq!(result, expected);
+    }
+}
+
+pub fn pool_refund(
+    deps: &DepsMut,
+    pool_config: Option<PoolConfig>,
+    out_denom: String,
+) -> Result<Vec<Coin>, ContractError> {
+    if let Some(pool_config) = pool_config {
+        match pool_config {
+            PoolConfig::ConcentratedLiquidity { out_amount_clp } => {
+                let refund = vec![Coin {
+                    denom: out_denom,
+                    amount: Uint128::try_from(out_amount_clp)?,
+                }];
+                let mut pool_creation_fee_vec = get_pool_creation_fee(deps)?;
+                pool_creation_fee_vec.extend(refund);
+
+                Ok(pool_creation_fee_vec)
+            }
+        }
+    } else {
+        Ok(vec![])
     }
 }
