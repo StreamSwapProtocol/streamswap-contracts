@@ -113,7 +113,7 @@ mod pool {
                     new_treasury: None,
                     create_pool: Some(CreatePool::ConcentratedLiquidity {
                         lower_tick: 500,
-                        upper_tick: 100000,
+                        upper_tick: 800000000,
                         tick_spacing: 100,
                         spread_factor: "0.01".to_string(),
                     }),

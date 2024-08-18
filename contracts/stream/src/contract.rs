@@ -8,7 +8,7 @@ use core::str;
 use cosmwasm_std::{
     attr, coin, entry_point, to_json_binary, Attribute, BankMsg, Binary, CodeInfoResponse, Coin,
     CosmosMsg, Decimal256, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult,
-    Timestamp, Uint128, Uint256, WasmMsg,
+    Timestamp, Uint128, Uint256, Uint64, WasmMsg,
 };
 use cw2::{ensure_from_older_version, set_contract_version};
 use cw_storage_plus::Bound;
@@ -510,6 +510,11 @@ pub fn execute_finalize_stream(
                 creator_revenue,
             );
 
+            let in_clp_i64 = Uint64::try_from(in_clp)?.u64() as i64;
+            if lower_tick > in_clp_i64 || upper_tick < in_clp_i64 {
+                return Err(ContractError::PoolInvalidTickRange);
+            }
+
             // extract in_clp from last revenue
             creator_revenue = creator_revenue.checked_sub(in_clp)?;
 
@@ -525,7 +530,6 @@ pub fn execute_finalize_stream(
                 upper_tick,
             );
 
-            // convert msg create pool to osmosis create clp pool msg
             let osmosis_create_clp_pool_msg = MsgCreateConcentratedPool {
                 sender: env.contract.address.to_string(),
                 denom0: stream.out_asset.denom.clone(),

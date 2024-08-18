@@ -156,4 +156,7 @@ pub enum ContractError {
 
     #[error("Invalid pool config")]
     InvalidPoolConfig {},
+
+    #[error("Invalid pool tick range")]
+    PoolInvalidTickRange,
 }
