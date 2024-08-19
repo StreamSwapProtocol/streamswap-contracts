@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod exit_cancel {
     use crate::helpers::suite::SuiteBuilder;
+    use crate::helpers::utils::get_wasm_attribute_with_key;
     use crate::helpers::{
         mock_messages::{get_controller_inst_msg, get_create_stream_msg},
         suite::Suite,
@@ -164,18 +165,17 @@ mod exit_cancel {
             )
             .unwrap();
 
-        let _res = app
-            .execute_contract(
-                test_accounts.admin.clone(),
-                Addr::unchecked(stream_swap_contract_address.clone()),
-                &StreamSwapExecuteMsg::CancelStream {},
-                &[],
-            )
-            .unwrap();
+        app.execute_contract(
+            test_accounts.admin.clone(),
+            Addr::unchecked(stream_swap_contract_address.clone()),
+            &StreamSwapExecuteMsg::CancelStream {},
+            &[],
+        )
+        .unwrap();
 
         let exit_msg = StreamSwapExecuteMsg::ExitCancelled {};
 
-        let _res = app
+        let res = app
             .execute_contract(
                 test_accounts.subscriber_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
@@ -184,7 +184,16 @@ mod exit_cancel {
             )
             .unwrap();
 
-        let funds = get_funds_from_res(_res.clone());
+        let recipient = get_wasm_attribute_with_key(res.clone(), "to_address".to_string());
+        assert_eq!(recipient, test_accounts.subscriber_1.to_string());
+
+        let last_updated = get_wasm_attribute_with_key(res.clone(), "last_updated".to_string());
+        assert_eq!(last_updated, app.block_info().time.to_string());
+
+        let exit_date = get_wasm_attribute_with_key(res.clone(), "exit_date".to_string());
+        assert_eq!(exit_date, app.block_info().time.to_string());
+
+        let funds = get_funds_from_res(res.clone());
         assert_eq!(
             funds,
             vec![(

@@ -1,10 +1,9 @@
+use crate::helpers::build_u128_bank_send_msg;
 use crate::pool::pool_refund;
 use crate::state::{CONTROLLER_PARAMS, POSITIONS, STREAM};
 use crate::stream::{sync_stream, sync_stream_status};
 use crate::ContractError;
-use cosmwasm_std::{
-    attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Timestamp, Uint128,
-};
+use cosmwasm_std::{attr, BankMsg, CosmosMsg, DepsMut, Env, MessageInfo, Response, Timestamp};
 use streamswap_types::controller::Params;
 use streamswap_types::stream::ThresholdState;
 use streamswap_types::stream::{Status, ThresholdError};
@@ -50,23 +49,24 @@ pub fn execute_exit_cancelled(
     let total_balance = position.in_balance + position.spent;
     // sync position exit date
     position.exit_date = env.block.time;
+    position.last_updated = env.block.time;
     POSITIONS.save(deps.storage, &position.owner, &position)?;
 
+    let send_msg = build_u128_bank_send_msg(
+        stream.in_denom.clone(),
+        info.sender.to_string(),
+        total_balance,
+    )?;
     let attributes = vec![
-        attr("action", "withdraw_cancelled"),
+        attr("action", "exit_cancelled"),
+        attr("to_address", info.sender.to_string()),
         attr("total_balance", total_balance),
+        attr("exit_date", position.exit_date.to_string()),
+        attr("last_updated", position.last_updated.to_string()),
     ];
-
-    let uint128_total_balance = Uint128::try_from(total_balance)?;
     // send funds to the sender
     let res = Response::new()
-        .add_message(CosmosMsg::Bank(BankMsg::Send {
-            to_address: info.sender.to_string(),
-            amount: vec![Coin {
-                denom: stream.in_denom,
-                amount: uint128_total_balance,
-            }],
-        }))
+        .add_message(send_msg)
         .add_attributes(attributes);
 
     Ok(res)
