@@ -108,12 +108,12 @@ pub fn build_u128_bank_send_msg(
     amount: Uint256,
 ) -> Result<CosmosMsg, ContractError> {
     let u128_amount = Uint128::try_from(amount)?;
-    let revenue_msg = CosmosMsg::Bank(BankMsg::Send {
+    let bank_send = CosmosMsg::Bank(BankMsg::Send {
         to_address: to_addr,
         amount: vec![Coin {
             denom,
             amount: u128_amount,
         }],
     });
-    Ok(revenue_msg)
+    Ok(bank_send)
 }
