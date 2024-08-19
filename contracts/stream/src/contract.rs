@@ -564,12 +564,6 @@ pub fn execute_finalize_stream(
     messages.push(revenue_msg);
     messages.push(swap_fee_msg);
 
-    // // if no spent, remove all messages to prevent failure
-    // // TODO: not sure of this
-    // if stream.spent_in == Uint256::zero() {
-    //     messages = vec![]
-    // }
-
     attributes.extend(vec![
         attr("action", "finalize_stream"),
         attr("treasury", treasury.to_string()),
@@ -618,7 +612,6 @@ pub fn execute_exit_stream(
     threshold_state.error_if_not_reached(deps.storage, &stream)?;
 
     let mut position = POSITIONS.load(deps.storage, &info.sender)?;
-    // TODO: add test case for this
     if position.exit_date != Timestamp::from_seconds(0) {
         return Err(ContractError::SubscriberAlreadyExited {});
     }

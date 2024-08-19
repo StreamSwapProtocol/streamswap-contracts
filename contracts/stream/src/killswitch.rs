@@ -20,7 +20,6 @@ pub fn execute_exit_cancelled(
     if position.owner != info.sender {
         return Err(ContractError::Unauthorized {});
     }
-    // TODO: add test case for this
     if position.exit_date != Timestamp::from_seconds(0) {
         return Err(ContractError::SubscriberAlreadyExited {});
     }
