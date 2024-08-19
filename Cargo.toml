@@ -49,6 +49,7 @@ streamswap-utils = { path = "./packages/utils" }
 streamswap-interface = { path = "./packages/interface" }
 
 # tests
+streamswap-tests = { path = "./tests" }
 
 [workspace.metadata.scripts]
 optimize = """docker run --rm -v "$(pwd)":/code \
