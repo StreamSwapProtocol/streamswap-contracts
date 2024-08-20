@@ -64,7 +64,7 @@ jobs:
           command: clippy
           args: -- -D warnings
   ts:
-    name: TypeScript
+    name: TypeScript code generation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
