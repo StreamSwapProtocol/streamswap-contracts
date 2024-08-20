@@ -4,107 +4,80 @@
 * and run the @cosmwasm/ts-codegen generate command to regenerate this file.
 */
 
-export type Uint128 = string;
 export type Timestamp = Uint64;
 export type Uint64 = string;
-export type UncheckedDenom = {
-  native: string;
-} | {
-  cw20: string;
+export type Uint128 = string;
+export type PoolConfig = {
+  concentrated_liquidity: {
+    out_amount_clp: Uint256;
+  };
 };
+export type Uint256 = string;
+export type Binary = string;
 export type Schedule = "saturating_linear" | {
   piecewise_linear: [number, Uint128][];
 };
 export interface InstantiateMsg {
-  create_pool?: CreatePool | null;
+  bootstraping_start_time: Timestamp;
   end_time: Timestamp;
   in_denom: string;
   name: string;
   out_asset: Coin;
+  pool_config?: PoolConfig | null;
+  salt: Binary;
   start_time: Timestamp;
   stream_admin: string;
-  threshold?: Uint128 | null;
+  threshold?: Uint256 | null;
   treasury: string;
   url?: string | null;
-  vesting?: InstantiateMsg1 | null;
-}
-export interface CreatePool {
-  msg_create_pool: MsgCreateConcentratedPool;
-  out_amount_clp: Uint128;
-}
-export interface MsgCreateConcentratedPool {
-  denom0: string;
-  denom1: string;
-  sender: string;
-  spread_factor: string;
-  tick_spacing: number;
-  [k: string]: unknown;
+  vesting?: VestingConfig | null;
 }
 export interface Coin {
   amount: Uint128;
   denom: string;
   [k: string]: unknown;
 }
-export interface InstantiateMsg1 {
-  denom: UncheckedDenom;
-  description?: string | null;
-  owner?: string | null;
-  recipient: string;
+export interface VestingConfig {
   schedule: Schedule;
-  start_time?: Timestamp | null;
-  title: string;
-  total: Uint128;
   unbonding_duration_seconds: number;
   vesting_duration_seconds: number;
 }
 export type ExecuteMsg = {
   sync_stream: {};
 } | {
-  update_operator: {
-    new_operator?: string | null;
-  };
-} | {
-  subscribe: {
-    operator?: string | null;
-    operator_target?: string | null;
-  };
+  subscribe: {};
 } | {
   withdraw: {
-    cap?: Uint128 | null;
-    operator_target?: string | null;
+    cap?: Uint256 | null;
   };
 } | {
-  update_position: {
-    operator_target?: string | null;
-  };
+  sync_position: {};
 } | {
   finalize_stream: {
+    create_pool?: CreatePool | null;
     new_treasury?: string | null;
   };
 } | {
   exit_stream: {
-    operator_target?: string | null;
     salt?: Binary | null;
   };
 } | {
-  pause_stream: {};
-} | {
-  withdraw_paused: {
-    cap?: Uint128 | null;
-    operator_target?: string | null;
-  };
-} | {
-  exit_cancelled: {
-    operator_target?: string | null;
-  };
-} | {
-  resume_stream: {};
+  exit_cancelled: {};
 } | {
   cancel_stream: {};
 } | {
   cancel_stream_with_threshold: {};
+} | {
+  stream_admin_cancel: {};
 };
-export type Binary = string;
+export type CreatePool = {
+  concentrated_liquidity: {
+    lower_tick: number;
+    spread_factor: string;
+    tick_spacing: number;
+    upper_tick: number;
+  };
+};
 export type QueryMsg = {
   params: {};
 } | {
@@ -125,53 +98,52 @@ export type QueryMsg = {
 } | {
   threshold: {};
 };
-export type Decimal = string;
+export type Decimal256 = string;
 export interface AveragePriceResponse {
-  average_price: Decimal;
+  average_price: Decimal256;
 }
 export interface LatestStreamedPriceResponse {
-  current_streamed_price: Decimal;
+  current_streamed_price: Decimal256;
 }
-export type Decimal256 = string;
-export type Addr = string;
 export interface PositionsResponse {
   positions: PositionResponse[];
 }
 export interface PositionResponse {
-  in_balance: Uint128;
+  exit_date: Timestamp;
+  in_balance: Uint256;
   index: Decimal256;
   last_updated: Timestamp;
-  operator?: Addr | null;
   owner: string;
   pending_purchase: Decimal256;
-  purchased: Uint128;
-  shares: Uint128;
-  spent: Uint128;
+  purchased: Uint256;
+  shares: Uint256;
+  spent: Uint256;
 }
+export type Addr = string;
 export interface Params {
   accepted_in_denoms: string[];
-  exit_fee_percent: Decimal;
+  exit_fee_percent: Decimal256;
   fee_collector: Addr;
-  min_seconds_until_start_time: number;
-  min_stream_seconds: number;
+  min_bootstrapping_duration: number;
+  min_stream_duration: number;
+  min_waiting_duration: number;
   protocol_admin: Addr;
+  stream_contract_code_id: number;
   stream_creation_fee: Coin;
-  stream_swap_code_id: number;
   vesting_code_id: number;
 }
-export type Status = ("active" | "finalized" | "paused" | "cancelled") | "waiting";
+export type Status = "waiting" | "bootstrapping" | "active" | "ended" | "finalized" | "cancelled";
 export interface StreamResponse {
-  current_streamed_price: Decimal;
+  current_streamed_price: Decimal256;
   dist_index: Decimal256;
   end_time: Timestamp;
   in_denom: string;
-  in_supply: Uint128;
+  in_supply: Uint256;
   last_updated: Timestamp;
   out_asset: Coin;
-  out_remaining: Uint128;
-  pause_date?: Timestamp | null;
-  shares: Uint128;
-  spent_in: Uint128;
+  out_remaining: Uint256;
+  shares: Uint256;
+  spent_in: Uint256;
   start_time: Timestamp;
   status: Status;
   stream_admin: string;

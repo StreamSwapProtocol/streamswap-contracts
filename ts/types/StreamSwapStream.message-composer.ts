@@ -7,63 +7,34 @@
 import { MsgExecuteContractEncodeObject } from "@cosmjs/cosmwasm-stargate";
 import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
 import { toUtf8 } from "@cosmjs/encoding";
-import { Uint128, Timestamp, Uint64, UncheckedDenom, Schedule, InstantiateMsg, CreatePool, MsgCreateConcentratedPool, Coin, InstantiateMsg1, ExecuteMsg, Binary, QueryMsg, Decimal, AveragePriceResponse, LatestStreamedPriceResponse, Decimal256, Addr, PositionsResponse, PositionResponse, Params, Status, StreamResponse } from "./StreamSwapStream.types";
+import { Timestamp, Uint64, Uint128, PoolConfig, Uint256, Binary, Schedule, InstantiateMsg, Coin, VestingConfig, ExecuteMsg, CreatePool, QueryMsg, Decimal256, AveragePriceResponse, LatestStreamedPriceResponse, PositionsResponse, PositionResponse, Addr, Params, Status, StreamResponse } from "./StreamSwapStream.types";
 export interface StreamSwapStreamMsg {
   contractAddress: string;
   sender: string;
-  updateStream: (_funds?: Coin[]) => MsgExecuteContractEncodeObject;
-  updateOperator: ({
-    newOperator
-  }: {
-    newOperator?: string;
-  }, _funds?: Coin[]) => MsgExecuteContractEncodeObject;
-  subscribe: ({
-    operator,
-    operatorTarget
-  }: {
-    operator?: string;
-    operatorTarget?: string;
-  }, _funds?: Coin[]) => MsgExecuteContractEncodeObject;
+  syncStream: (_funds?: Coin[]) => MsgExecuteContractEncodeObject;
+  subscribe: (_funds?: Coin[]) => MsgExecuteContractEncodeObject;
   withdraw: ({
-    cap,
-    operatorTarget
+    cap
   }: {
-    cap?: Uint128;
-    operatorTarget?: string;
+    cap?: Uint256;
   }, _funds?: Coin[]) => MsgExecuteContractEncodeObject;
-  updatePosition: ({
-    operatorTarget
-  }: {
-    operatorTarget?: string;
-  }, _funds?: Coin[]) => MsgExecuteContractEncodeObject;
+  syncPosition: (_funds?: Coin[]) => MsgExecuteContractEncodeObject;
   finalizeStream: ({
+    createPool,
     newTreasury
   }: {
+    createPool?: CreatePool;
     newTreasury?: string;
   }, _funds?: Coin[]) => MsgExecuteContractEncodeObject;
   exitStream: ({
-    operatorTarget,
     salt
   }: {
-    operatorTarget?: string;
     salt?: Binary;
   }, _funds?: Coin[]) => MsgExecuteContractEncodeObject;
-  pauseStream: (_funds?: Coin[]) => MsgExecuteContractEncodeObject;
-  withdrawPaused: ({
-    cap,
-    operatorTarget
-  }: {
-    cap?: Uint128;
-    operatorTarget?: string;
-  }, _funds?: Coin[]) => MsgExecuteContractEncodeObject;
-  exitCancelled: ({
-    operatorTarget
-  }: {
-    operatorTarget?: string;
-  }, _funds?: Coin[]) => MsgExecuteContractEncodeObject;
-  resumeStream: (_funds?: Coin[]) => MsgExecuteContractEncodeObject;
+  exitCancelled: (_funds?: Coin[]) => MsgExecuteContractEncodeObject;
   cancelStream: (_funds?: Coin[]) => MsgExecuteContractEncodeObject;
   cancelStreamWithThreshold: (_funds?: Coin[]) => MsgExecuteContractEncodeObject;
+  streamAdminCancel: (_funds?: Coin[]) => MsgExecuteContractEncodeObject;
 }
 export class StreamSwapStreamMsgComposer implements StreamSwapStreamMsg {
   sender: string;
@@ -72,22 +43,19 @@ export class StreamSwapStreamMsgComposer implements StreamSwapStreamMsg {
   constructor(sender: string, contractAddress: string) {
     this.sender = sender;
     this.contractAddress = contractAddress;
-    this.updateStream = this.updateStream.bind(this);
-    this.updateOperator = this.updateOperator.bind(this);
+    this.syncStream = this.syncStream.bind(this);
     this.subscribe = this.subscribe.bind(this);
     this.withdraw = this.withdraw.bind(this);
-    this.updatePosition = this.updatePosition.bind(this);
+    this.syncPosition = this.syncPosition.bind(this);
     this.finalizeStream = this.finalizeStream.bind(this);
     this.exitStream = this.exitStream.bind(this);
-    this.pauseStream = this.pauseStream.bind(this);
-    this.withdrawPaused = this.withdrawPaused.bind(this);
     this.exitCancelled = this.exitCancelled.bind(this);
-    this.resumeStream = this.resumeStream.bind(this);
     this.cancelStream = this.cancelStream.bind(this);
     this.cancelStreamWithThreshold = this.cancelStreamWithThreshold.bind(this);
+    this.streamAdminCancel = this.streamAdminCancel.bind(this);
   }
 
-  updateStream = (_funds?: Coin[]): MsgExecuteContractEncodeObject => {
+  syncStream = (_funds?: Coin[]): MsgExecuteContractEncodeObject => {
     return {
       typeUrl: "/cosmwasm.wasm.v1.MsgExecuteContract",
       value: MsgExecuteContract.fromPartial({
@@ -100,53 +68,23 @@ export class StreamSwapStreamMsgComposer implements StreamSwapStreamMsg {
       })
     };
   };
-  updateOperator = ({
-    newOperator
-  }: {
-    newOperator?: string;
-  }, _funds?: Coin[]): MsgExecuteContractEncodeObject => {
+  subscribe = (_funds?: Coin[]): MsgExecuteContractEncodeObject => {
     return {
       typeUrl: "/cosmwasm.wasm.v1.MsgExecuteContract",
       value: MsgExecuteContract.fromPartial({
         sender: this.sender,
         contract: this.contractAddress,
         msg: toUtf8(JSON.stringify({
-          update_operator: {
-            new_operator: newOperator
-          }
-        })),
-        funds: _funds
-      })
-    };
-  };
-  subscribe = ({
-    operator,
-    operatorTarget
-  }: {
-    operator?: string;
-    operatorTarget?: string;
-  }, _funds?: Coin[]): MsgExecuteContractEncodeObject => {
-    return {
-      typeUrl: "/cosmwasm.wasm.v1.MsgExecuteContract",
-      value: MsgExecuteContract.fromPartial({
-        sender: this.sender,
-        contract: this.contractAddress,
-        msg: toUtf8(JSON.stringify({
-          subscribe: {
-            operator,
-            operator_target: operatorTarget
-          }
+          subscribe: {}
         })),
         funds: _funds
       })
     };
   };
   withdraw = ({
-    cap,
-    operatorTarget
+    cap
   }: {
-    cap?: Uint128;
-    operatorTarget?: string;
+    cap?: Uint256;
   }, _funds?: Coin[]): MsgExecuteContractEncodeObject => {
     return {
       typeUrl: "/cosmwasm.wasm.v1.MsgExecuteContract",
@@ -155,36 +93,31 @@ export class StreamSwapStreamMsgComposer implements StreamSwapStreamMsg {
         contract: this.contractAddress,
         msg: toUtf8(JSON.stringify({
           withdraw: {
-            cap,
-            operator_target: operatorTarget
+            cap
           }
         })),
         funds: _funds
       })
     };
   };
-  updatePosition = ({
-    operatorTarget
-  }: {
-    operatorTarget?: string;
-  }, _funds?: Coin[]): MsgExecuteContractEncodeObject => {
+  syncPosition = (_funds?: Coin[]): MsgExecuteContractEncodeObject => {
     return {
       typeUrl: "/cosmwasm.wasm.v1.MsgExecuteContract",
       value: MsgExecuteContract.fromPartial({
         sender: this.sender,
         contract: this.contractAddress,
         msg: toUtf8(JSON.stringify({
-          update_position: {
-            operator_target: operatorTarget
-          }
+          sync_position: {}
         })),
         funds: _funds
       })
     };
   };
   finalizeStream = ({
+    createPool,
     newTreasury
   }: {
+    createPool?: CreatePool;
     newTreasury?: string;
   }, _funds?: Coin[]): MsgExecuteContractEncodeObject => {
     return {
@@ -194,6 +127,7 @@ export class StreamSwapStreamMsgComposer implements StreamSwapStreamMsg {
         contract: this.contractAddress,
         msg: toUtf8(JSON.stringify({
           finalize_stream: {
+            create_pool: createPool,
             new_treasury: newTreasury
           }
         })),
@@ -202,10 +136,8 @@ export class StreamSwapStreamMsgComposer implements StreamSwapStreamMsg {
     };
   };
   exitStream = ({
-    operatorTarget,
     salt
   }: {
-    operatorTarget?: string;
     salt?: Binary;
   }, _funds?: Coin[]): MsgExecuteContractEncodeObject => {
     return {
@@ -215,7 +147,6 @@ export class StreamSwapStreamMsgComposer implements StreamSwapStreamMsg {
         contract: this.contractAddress,
         msg: toUtf8(JSON.stringify({
           exit_stream: {
-            operator_target: operatorTarget,
             salt
           }
         })),
@@ -223,68 +154,14 @@ export class StreamSwapStreamMsgComposer implements StreamSwapStreamMsg {
       })
     };
   };
-  pauseStream = (_funds?: Coin[]): MsgExecuteContractEncodeObject => {
+  exitCancelled = (_funds?: Coin[]): MsgExecuteContractEncodeObject => {
     return {
       typeUrl: "/cosmwasm.wasm.v1.MsgExecuteContract",
       value: MsgExecuteContract.fromPartial({
         sender: this.sender,
         contract: this.contractAddress,
         msg: toUtf8(JSON.stringify({
-          pause_stream: {}
-        })),
-        funds: _funds
-      })
-    };
-  };
-  withdrawPaused = ({
-    cap,
-    operatorTarget
-  }: {
-    cap?: Uint128;
-    operatorTarget?: string;
-  }, _funds?: Coin[]): MsgExecuteContractEncodeObject => {
-    return {
-      typeUrl: "/cosmwasm.wasm.v1.MsgExecuteContract",
-      value: MsgExecuteContract.fromPartial({
-        sender: this.sender,
-        contract: this.contractAddress,
-        msg: toUtf8(JSON.stringify({
-          withdraw_paused: {
-            cap,
-            operator_target: operatorTarget
-          }
-        })),
-        funds: _funds
-      })
-    };
-  };
-  exitCancelled = ({
-    operatorTarget
-  }: {
-    operatorTarget?: string;
-  }, _funds?: Coin[]): MsgExecuteContractEncodeObject => {
-    return {
-      typeUrl: "/cosmwasm.wasm.v1.MsgExecuteContract",
-      value: MsgExecuteContract.fromPartial({
-        sender: this.sender,
-        contract: this.contractAddress,
-        msg: toUtf8(JSON.stringify({
-          exit_cancelled: {
-            operator_target: operatorTarget
-          }
-        })),
-        funds: _funds
-      })
-    };
-  };
-  resumeStream = (_funds?: Coin[]): MsgExecuteContractEncodeObject => {
-    return {
-      typeUrl: "/cosmwasm.wasm.v1.MsgExecuteContract",
-      value: MsgExecuteContract.fromPartial({
-        sender: this.sender,
-        contract: this.contractAddress,
-        msg: toUtf8(JSON.stringify({
-          resume_stream: {}
+          exit_cancelled: {}
         })),
         funds: _funds
       })
@@ -311,6 +188,19 @@ export class StreamSwapStreamMsgComposer implements StreamSwapStreamMsg {
         contract: this.contractAddress,
         msg: toUtf8(JSON.stringify({
           cancel_stream_with_threshold: {}
+        })),
+        funds: _funds
+      })
+    };
+  };
+  streamAdminCancel = (_funds?: Coin[]): MsgExecuteContractEncodeObject => {
+    return {
+      typeUrl: "/cosmwasm.wasm.v1.MsgExecuteContract",
+      value: MsgExecuteContract.fromPartial({
+        sender: this.sender,
+        contract: this.contractAddress,
+        msg: toUtf8(JSON.stringify({
+          stream_admin_cancel: {}
         })),
         funds: _funds
       })
