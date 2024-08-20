@@ -9,11 +9,9 @@ use cw_multi_test::{
 };
 
 #[allow(dead_code)]
-
 pub const PREFIX: &str = "cosmwasm";
 
 #[allow(dead_code)]
-
 type AppType = App<
     BankKeeper,
     MockApiBech32,
@@ -28,7 +26,6 @@ type AppType = App<
 >;
 
 #[allow(dead_code)]
-
 pub(crate) struct Suite {
     pub app: AppType,
     pub test_accounts: TestAccounts,
@@ -102,7 +99,6 @@ impl SuiteBuilder {
 }
 
 #[allow(dead_code)]
-
 pub struct TestAccounts {
     pub admin: Addr,
     pub admin_2: Addr,
