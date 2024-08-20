@@ -34,10 +34,10 @@ StreamSwap's architecture is designed to support the continuous and fair executi
 
 Here’s a breakdown of the main contracts in the StreamSwap system:
 
-| Contract Name                   | Description                                                                                                    |
-|---------------------------------|----------------------------------------------------------------------------------------------------------------|
-| [controller](contracts/factory) | Handles the creation of new streams and manages protocol-wide functions.                                       |
-| [stream](contracts/stream)      | Manages individual sales, including user subscriptions and token distribution, pool creation, vesting and more |
+| Contract Name                      | Description                                                                                                    |
+|------------------------------------|----------------------------------------------------------------------------------------------------------------|
+| [controller](contracts/controller) | Handles the creation of new streams and manages protocol-wide functions.                                       |
+| [stream](contracts/stream)         | Manages individual sales, including user subscriptions and token distribution, pool creation, vesting and more |
 
 ### Stream Lifecycle
 
