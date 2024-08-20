@@ -78,3 +78,9 @@ jobs:
       - name: Run the script
         run: ./schema.sh
         working-directory: scripts
+      
+      - name: Check for changes
+        run: |
+          git diff --exit-code ts/types
+        working-directory: .
+        shell: bash
