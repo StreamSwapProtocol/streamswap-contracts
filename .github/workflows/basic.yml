@@ -63,6 +63,7 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
+
   schema:
     name: Schema Check
     runs-on: ubuntu-latest
