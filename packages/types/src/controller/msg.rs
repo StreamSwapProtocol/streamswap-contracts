@@ -101,6 +101,14 @@ pub enum CreatePool {
     }, // Other pool types can be added here
 }
 
+
+#[cw_serde]
+pub enum TestSchema{
+    TestSchema{
+        test: String,
+    }
+}
+
 #[cw_serde]
 #[derive(QueryResponses)]
 #[cfg_attr(feature = "interface", derive(cw_orch::QueryFns))]
