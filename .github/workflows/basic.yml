@@ -63,8 +63,8 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
-  ts:
-    name: TypeScript code generation
+  schema
+    name: Schema Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
