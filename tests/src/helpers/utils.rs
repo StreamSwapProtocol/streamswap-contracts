@@ -4,7 +4,6 @@ use cosmwasm_std::{Coin, Uint128};
 use cw_multi_test::AppResponse;
 
 #[allow(dead_code)]
-
 pub fn get_contract_address_from_res(res: AppResponse) -> String {
     res.events
         .iter()

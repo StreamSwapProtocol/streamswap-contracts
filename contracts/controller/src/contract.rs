@@ -64,7 +64,7 @@ pub fn instantiate(
     };
     PARAMS.save(deps.storage, &params)?;
 
-    // Initialize Freezestate
+    // Initialize Freeze state
     FREEZESTATE.save(deps.storage, &false)?;
 
     // Initialize Last Stream ID
