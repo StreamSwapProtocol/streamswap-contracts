@@ -37,7 +37,7 @@ jobs:
         env:
           RUSTFLAGS: "-C link-arg=-s"
 
-  lints:
+  Lint:
     name: Lints
     runs-on: ubuntu-latest
     steps:
@@ -50,20 +50,34 @@ jobs:
           profile: minimal
           toolchain: 1.76.0
           override: true
-          components: rustfmt, clippy
-
-      - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+          components: clippy
 
       - name: Run cargo clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
           args: -- -D warnings
+  Fmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
 
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.76.0
+          override: true
+          components: rustfmt
+
+      - name: Run cargo fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: -- --check
+          
   schema:
     name: Schema Check
     runs-on: ubuntu-latest
