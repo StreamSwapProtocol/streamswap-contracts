@@ -2,14 +2,6 @@
 name = "streamswap-controller"
 version = { workspace = true }
 edition = { workspace = true }
-exclude = [
-  # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
-  "contract.wasm",
-  "hash.txt",
-]
-
-[profile.release]
-overflow-checks = true
 
 [lints]
 workspace = true
