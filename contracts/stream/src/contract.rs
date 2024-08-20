@@ -1,7 +1,7 @@
+use crate::circuit_ops::execute_cancel_stream_with_threshold;
 use crate::helpers::{
     build_u128_bank_send_msg, check_name_and_url, get_decimals, validate_stream_times,
 };
-use crate::circuit_ops::execute_cancel_stream_with_threshold;
 use crate::stream::{compute_shares_amount, sync_stream, sync_stream_status};
 use crate::{circuit_ops, ContractError};
 use core::str;
