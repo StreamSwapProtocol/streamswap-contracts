@@ -137,6 +137,14 @@ cargo run-script optimize
 
 The optimized contracts will be placed in the artifacts/ directory.
 
+### Typescript Codegen
+
+To generate the typescript bindings for the contracts, run the following command:
+
+```bash
+scripts/schema.sh
+```
+
 ## Deployed Contract Addresses
 
 The addresses of the deployed contracts will be listed here once available.
