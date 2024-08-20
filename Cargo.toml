@@ -8,11 +8,11 @@ members = [
 resolver = "2"
 
 [workspace.package]
-authors =  ["Orkun Külçe <orkunkl@users.noreply.github.com>", "Adnan Deniz Çorlu<adenizcorlu@gmail.com"]
+authors =  ["Orkun Külçe <orkunkl@users.noreply.github.com>", "Adnan Deniz Çorlu<adenizcorlu@users.noreply.github.com"]
 edition    = "2021"
-homepage   = ""
+homepage   = "https://www.streamswap.io/"
 license    = "Apache-2.0"
-repository = ""
+repository = "https://github.com/StreamSwapProtocol/"
 version    = "0.1.0"
 
 [workspace.lints.clippy]

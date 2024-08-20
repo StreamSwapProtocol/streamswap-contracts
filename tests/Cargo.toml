@@ -1,5 +1,4 @@
 [package]
-authors    = ["Adnan Deniz Corlu <adenizcorlu@gmail.com>"]
 name       = "streamswap-tests"
 edition    = { workspace = true }
 version    = { workspace = true }
