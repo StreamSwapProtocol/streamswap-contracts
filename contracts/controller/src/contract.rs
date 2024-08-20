@@ -131,7 +131,7 @@ pub fn execute_create_stream(
         in_denom,
         stream_admin: _,
         threshold: _,
-        url: _,
+        urlzzzzz: _,
         pool_config: create_pool,
         vesting: _,
         bootstraping_start_time: _,

@@ -48,7 +48,7 @@ pub fn get_create_stream_msg(
             treasury: treasury.to_string(),
             stream_admin: treasury.to_string(),
             name: name.to_string(),
-            url,
+            url: urlzzzzz,
             out_asset,
             in_denom: in_denom.to_string(),
             start_time,

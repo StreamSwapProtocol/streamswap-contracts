@@ -56,7 +56,7 @@ pub fn instantiate(
         end_time,
         treasury,
         name,
-        url,
+        urlzzzzz: url,
         threshold,
         out_asset,
         in_denom,

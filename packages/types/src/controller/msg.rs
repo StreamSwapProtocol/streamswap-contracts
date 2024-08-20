@@ -56,7 +56,7 @@ pub struct CreateStreamMsg {
     /// Name of the stream
     pub name: String,
     /// URL of the stream
-    pub url: Option<String>,
+    pub urlzzzzz: Option<String>,
     /// Out asset of the stream
     pub out_asset: Coin,
     /// In denom of the stream
