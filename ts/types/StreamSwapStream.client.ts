@@ -6,7 +6,7 @@
 
 import { CosmWasmClient, SigningCosmWasmClient, ExecuteResult } from "@cosmjs/cosmwasm-stargate";
 import { StdFee } from "@cosmjs/amino";
-import { Uint128, Timestamp, Uint64, UncheckedDenom, Schedule, InstantiateMsg, CreatePool, MsgCreateConcentratedPool, Coin, InstantiateMsg1, ExecuteMsg, Binary, QueryMsg, Decimal, AveragePriceResponse, LatestStreamedPriceResponse, Decimal256, Addr, PositionsResponse, PositionResponse, Params, Status, StreamResponse } from "./StreamSwapStream.types";
+import { Timestamp, Uint64, Uint128, PoolConfig, Uint256, Binary, Schedule, InstantiateMsg, Coin, VestingConfig, ExecuteMsg, CreatePool, QueryMsg, Decimal256, AveragePriceResponse, LatestStreamedPriceResponse, PositionsResponse, PositionResponse, Addr, Params, Status, StreamResponse } from "./StreamSwapStream.types";
 export interface StreamSwapStreamReadOnlyInterface {
   contractAddress: string;
   params: () => Promise<Params>;
@@ -97,59 +97,30 @@ export class StreamSwapStreamQueryClient implements StreamSwapStreamReadOnlyInte
 export interface StreamSwapStreamInterface extends StreamSwapStreamReadOnlyInterface {
   contractAddress: string;
   sender: string;
-  updateStream: (fee?: number | StdFee | "auto", memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
-  updateOperator: ({
-    newOperator
-  }: {
-    newOperator?: string;
-  }, fee?: number | StdFee | "auto", memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
-  subscribe: ({
-    operator,
-    operatorTarget
-  }: {
-    operator?: string;
-    operatorTarget?: string;
-  }, fee?: number | StdFee | "auto", memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
+  syncStream: (fee?: number | StdFee | "auto", memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
+  subscribe: (fee?: number | StdFee | "auto", memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
   withdraw: ({
-    cap,
-    operatorTarget
+    cap
   }: {
-    cap?: Uint128;
-    operatorTarget?: string;
+    cap?: Uint256;
   }, fee?: number | StdFee | "auto", memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
-  updatePosition: ({
-    operatorTarget
-  }: {
-    operatorTarget?: string;
-  }, fee?: number | StdFee | "auto", memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
+  syncPosition: (fee?: number | StdFee | "auto", memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
   finalizeStream: ({
+    createPool,
     newTreasury
   }: {
+    createPool?: CreatePool;
     newTreasury?: string;
   }, fee?: number | StdFee | "auto", memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
   exitStream: ({
-    operatorTarget,
     salt
   }: {
-    operatorTarget?: string;
     salt?: Binary;
   }, fee?: number | StdFee | "auto", memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
-  pauseStream: (fee?: number | StdFee | "auto", memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
-  withdrawPaused: ({
-    cap,
-    operatorTarget
-  }: {
-    cap?: Uint128;
-    operatorTarget?: string;
-  }, fee?: number | StdFee | "auto", memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
-  exitCancelled: ({
-    operatorTarget
-  }: {
-    operatorTarget?: string;
-  }, fee?: number | StdFee | "auto", memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
-  resumeStream: (fee?: number | StdFee | "auto", memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
+  exitCancelled: (fee?: number | StdFee | "auto", memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
   cancelStream: (fee?: number | StdFee | "auto", memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
   cancelStreamWithThreshold: (fee?: number | StdFee | "auto", memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
+  streamAdminCancel: (fee?: number | StdFee | "auto", memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
 }
 export class StreamSwapStreamClient extends StreamSwapStreamQueryClient implements StreamSwapStreamInterface {
   client: SigningCosmWasmClient;
@@ -161,134 +132,72 @@ export class StreamSwapStreamClient extends StreamSwapStreamQueryClient implemen
     this.client = client;
     this.sender = sender;
     this.contractAddress = contractAddress;
-    this.updateStream = this.updateStream.bind(this);
-    this.updateOperator = this.updateOperator.bind(this);
+    this.syncStream = this.syncStream.bind(this);
     this.subscribe = this.subscribe.bind(this);
     this.withdraw = this.withdraw.bind(this);
-    this.updatePosition = this.updatePosition.bind(this);
+    this.syncPosition = this.syncPosition.bind(this);
     this.finalizeStream = this.finalizeStream.bind(this);
     this.exitStream = this.exitStream.bind(this);
-    this.pauseStream = this.pauseStream.bind(this);
-    this.withdrawPaused = this.withdrawPaused.bind(this);
     this.exitCancelled = this.exitCancelled.bind(this);
-    this.resumeStream = this.resumeStream.bind(this);
     this.cancelStream = this.cancelStream.bind(this);
     this.cancelStreamWithThreshold = this.cancelStreamWithThreshold.bind(this);
+    this.streamAdminCancel = this.streamAdminCancel.bind(this);
   }
 
-  updateStream = async (fee: number | StdFee | "auto" = "auto", memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
+  syncStream = async (fee: number | StdFee | "auto" = "auto", memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
       sync_stream: {}
     }, fee, memo, _funds);
   };
-  updateOperator = async ({
-    newOperator
-  }: {
-    newOperator?: string;
-  }, fee: number | StdFee | "auto" = "auto", memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
+  subscribe = async (fee: number | StdFee | "auto" = "auto", memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
-      update_operator: {
-        new_operator: newOperator
-      }
-    }, fee, memo, _funds);
-  };
-  subscribe = async ({
-    operator,
-    operatorTarget
-  }: {
-    operator?: string;
-    operatorTarget?: string;
-  }, fee: number | StdFee | "auto" = "auto", memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
-    return await this.client.execute(this.sender, this.contractAddress, {
-      subscribe: {
-        operator,
-        operator_target: operatorTarget
-      }
+      subscribe: {}
     }, fee, memo, _funds);
   };
   withdraw = async ({
-    cap,
-    operatorTarget
+    cap
   }: {
-    cap?: Uint128;
-    operatorTarget?: string;
+    cap?: Uint256;
   }, fee: number | StdFee | "auto" = "auto", memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
       withdraw: {
-        cap,
-        operator_target: operatorTarget
+        cap
       }
     }, fee, memo, _funds);
   };
-  updatePosition = async ({
-    operatorTarget
-  }: {
-    operatorTarget?: string;
-  }, fee: number | StdFee | "auto" = "auto", memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
+  syncPosition = async (fee: number | StdFee | "auto" = "auto", memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
-      update_position: {
-        operator_target: operatorTarget
-      }
+      sync_position: {}
     }, fee, memo, _funds);
   };
   finalizeStream = async ({
+    createPool,
     newTreasury
   }: {
+    createPool?: CreatePool;
     newTreasury?: string;
   }, fee: number | StdFee | "auto" = "auto", memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
       finalize_stream: {
+        create_pool: createPool,
         new_treasury: newTreasury
       }
     }, fee, memo, _funds);
   };
   exitStream = async ({
-    operatorTarget,
     salt
   }: {
-    operatorTarget?: string;
     salt?: Binary;
   }, fee: number | StdFee | "auto" = "auto", memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
       exit_stream: {
-        operator_target: operatorTarget,
         salt
       }
     }, fee, memo, _funds);
   };
-  pauseStream = async (fee: number | StdFee | "auto" = "auto", memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
+  exitCancelled = async (fee: number | StdFee | "auto" = "auto", memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
-      pause_stream: {}
-    }, fee, memo, _funds);
-  };
-  withdrawPaused = async ({
-    cap,
-    operatorTarget
-  }: {
-    cap?: Uint128;
-    operatorTarget?: string;
-  }, fee: number | StdFee | "auto" = "auto", memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
-    return await this.client.execute(this.sender, this.contractAddress, {
-      withdraw_paused: {
-        cap,
-        operator_target: operatorTarget
-      }
-    }, fee, memo, _funds);
-  };
-  exitCancelled = async ({
-    operatorTarget
-  }: {
-    operatorTarget?: string;
-  }, fee: number | StdFee | "auto" = "auto", memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
-    return await this.client.execute(this.sender, this.contractAddress, {
-      exit_cancelled: {
-        operator_target: operatorTarget
-      }
-    }, fee, memo, _funds);
-  };
-  resumeStream = async (fee: number | StdFee | "auto" = "auto", memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
-    return await this.client.execute(this.sender, this.contractAddress, {
-      resume_stream: {}
+      exit_cancelled: {}
     }, fee, memo, _funds);
   };
   cancelStream = async (fee: number | StdFee | "auto" = "auto", memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
@@ -299,6 +208,11 @@ export class StreamSwapStreamClient extends StreamSwapStreamQueryClient implemen
   cancelStreamWithThreshold = async (fee: number | StdFee | "auto" = "auto", memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
       cancel_stream_with_threshold: {}
+    }, fee, memo, _funds);
+  };
+  streamAdminCancel = async (fee: number | StdFee | "auto" = "auto", memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
+    return await this.client.execute(this.sender, this.contractAddress, {
+      stream_admin_cancel: {}
     }, fee, memo, _funds);
   };
 }

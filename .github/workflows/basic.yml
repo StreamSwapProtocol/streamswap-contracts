@@ -63,3 +63,25 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
+
+  schema:
+    name: Schema Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18.6.0'
+
+      - name: Run the script
+        run: ./schema.sh
+        working-directory: scripts
+      
+      - name: Check for changes
+        run: |
+          git diff --exit-code ts/types
+        working-directory: .
+        shell: bash
