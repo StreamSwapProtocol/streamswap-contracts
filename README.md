@@ -23,10 +23,10 @@ StreamSwap introduces a continuous token swap mechanism, allowing dynamic price 
 
 ## Architecture
 
-StreamSwap's architecture is designed to support the continuous and fair execution of token sales. The main components include:
+StreamSwap's architecture is designed to support the continuous and fair execution of token distribution. The main components include:
 
-- **Controller Contract**: Manages the creation of new streams (sales) and handles protocol-level operations.
-- **Stream Contract**: Implements the logic for managing individual token sales, including subscription, distribution, and finalization.
+- **Controller Contract**: Manages the creation of new streams and handles protocol-level operations.
+- **Stream Contract**: Implements the logic for managing individual token streams, including subscription, distribution, and finalization.
 
 ![alt text](https://gist.github.com/user-attachments/assets/fa8e3b0b-6b31-48c4-86da-b0f1bae5bc45)
 
@@ -37,16 +37,16 @@ Here’s a breakdown of the main contracts in the StreamSwap system:
 | Contract Name                      | Description                                                                                                    |
 |------------------------------------|----------------------------------------------------------------------------------------------------------------|
 | [controller](contracts/controller) | Handles the creation of new streams and manages protocol-wide functions.                                       |
-| [stream](contracts/stream)         | Manages individual sales, including user subscriptions and token distribution, pool creation, vesting and more |
+| [stream](contracts/stream)         | Manages individual streams, including user subscriptions and token distribution, pool creation, vesting and more |
 
 ### Stream Lifecycle
 
-The lifecycle of a StreamSwap sale is divided into several states:
+The lifecycle of a StreamSwap stream is divided into several states:
 
 1. **Waiting**: The stream has been created but is not yet active. No interactions are allowed.
 2. **Bootstrapping**: Participants can subscribe to the stream, but distribution has not yet started. No assets can be spent.
 3. **Active**: The stream is live, and tokens are distributed according to the subscription amounts and timing.
-4. **Ended**: The sale has concluded. Participants can exit the stream, and the creator can finalize and collect the proceeds.
+4. **Ended**: The stream has concluded. Participants can exit the stream, and the creator can finalize and collect the proceeds.
 5. **Finalized**: The stream is finalized. The creator can withdraw any remaining tokens, and vesting or pools (if configured) are set up.
 6. **Cancelled**: The stream is cancelled. Participants can withdraw their assets, and the creator can reclaim any unsold tokens.
 
