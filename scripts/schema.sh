@@ -18,6 +18,7 @@ done
 
 # go main directory/ts
 cd "$TS_DIR" || exit
+yarn install
 yarn generate-ts
 cd "$MAIN_DIR" || exit
 
