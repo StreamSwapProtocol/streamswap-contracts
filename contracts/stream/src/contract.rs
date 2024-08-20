@@ -1,9 +1,9 @@
 use crate::helpers::{
     build_u128_bank_send_msg, check_name_and_url, get_decimals, validate_stream_times,
 };
-use crate::killswitch::execute_cancel_stream_with_threshold;
+use crate::circuit_ops::execute_cancel_stream_with_threshold;
 use crate::stream::{compute_shares_amount, sync_stream, sync_stream_status};
-use crate::{killswitch, ContractError};
+use crate::{circuit_ops, ContractError};
 use core::str;
 use cosmwasm_std::{
     attr, coin, entry_point, to_json_binary, Attribute, BankMsg, Binary, CodeInfoResponse, Coin,
@@ -156,13 +156,13 @@ pub fn execute(
             create_pool,
         } => execute_finalize_stream(deps, env, info, new_treasury, create_pool),
         ExecuteMsg::ExitStream { salt } => execute_exit_stream(deps, env, info, salt),
-        ExecuteMsg::CancelStream {} => killswitch::execute_cancel_stream(deps, env, info),
-        ExecuteMsg::ExitCancelled {} => killswitch::execute_exit_cancelled(deps, env, info),
+        ExecuteMsg::CancelStream {} => circuit_ops::execute_cancel_stream(deps, env, info),
+        ExecuteMsg::ExitCancelled {} => circuit_ops::execute_exit_cancelled(deps, env, info),
         ExecuteMsg::CancelStreamWithThreshold {} => {
             execute_cancel_stream_with_threshold(deps, env, info)
         }
         ExecuteMsg::StreamAdminCancel {} => {
-            killswitch::execute_stream_admin_cancel(deps, env, info)
+            circuit_ops::execute_stream_admin_cancel(deps, env, info)
         }
     }
 }

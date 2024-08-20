@@ -31,7 +31,7 @@ pub enum ExecuteMsg {
         salt: Option<Binary>,
     },
     //
-    // Killswitch features
+    // Circuit features
     //
     /// ExitCancelled returns the whole balance user put in the stream, both spent and unspent.
     ExitCancelled {},
