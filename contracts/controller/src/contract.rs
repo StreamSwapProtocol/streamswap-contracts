@@ -112,7 +112,7 @@ pub fn execute(
 
 pub fn execute_create_stream(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: CreateStreamMsg,
 ) -> Result<Response, ContractError> {
@@ -202,7 +202,7 @@ pub fn execute_create_stream(
         .checksum;
     let canonical_contract_addr = cosmwasm_std::instantiate2_address(
         checksum.as_slice(),
-        &deps.api.addr_canonicalize(info.sender.as_ref())?,
+        &deps.api.addr_canonicalize(env.contract.address.as_ref())?,
         salt.as_slice(),
     )?;
 
