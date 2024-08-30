@@ -6,7 +6,7 @@ mod create_stream_tests {
         mock_messages::{get_controller_inst_msg, get_create_stream_msg},
         suite::Suite,
     };
-    use cosmwasm_std::{coin, Api, Binary, Uint256};
+    use cosmwasm_std::{coin, Uint256};
     use cw_multi_test::Executor;
     use streamswap_controller::error::ContractError as ControllerError;
     use streamswap_stream::ContractError as StreamSwapError;
@@ -574,26 +574,24 @@ mod create_stream_tests {
                 &[coin(100, "fee_denom"), coin(100, "out_denom")],
             )
             .unwrap();
-        // test contract address created deterministically
-        let checksum = app
-            .wrap()
-            .query_wasm_code_info(stream_swap_code_id)
-            .unwrap()
-            .checksum;
-        let canonical_contract_addr = cosmwasm_std::instantiate2_address(
-            checksum.as_slice(),
-            &app.api()
-                .addr_canonicalize(test_accounts.creator_1.clone().as_str())
-                .unwrap(),
-            Binary::from_base64("salt").unwrap().as_slice(),
-        )
-        .unwrap();
-        let contract_addr = app.api().addr_humanize(&canonical_contract_addr).unwrap();
+        // Test contract address created deterministically
+        // We predict the address upon creation of the stream and return address via wasm attribute "stream_contract_addr"
+        // Wasm releated attributes are stored in the "wasm" event type such as "execute", "instantiate" etc.
+        // Inside these attributes the contract to be created is stored in the "_contract_address" key
+        // We can use this to verify the contract address created
         let res_contract_addr =
-            get_wasm_attribute_with_key(res, "stream_contract_addr".to_string());
-        assert_eq!(contract_addr, res_contract_addr);
+            get_wasm_attribute_with_key(res.clone(), "stream_contract_addr".to_string());
+        // Iterate every event and print
+        let instantiate_event = res.events.iter().find(|e| e.ty == "instantiate").unwrap();
+        let instantiate_contract_addr = instantiate_event
+            .attributes
+            .iter()
+            .find(|a| a.key == "_contract_address")
+            .unwrap()
+            .value
+            .clone();
 
-        // Query stream with id
+        assert_eq!(res_contract_addr, instantiate_contract_addr);
         let query_msg = QueryMsg::LastStreamId {};
         let res: u32 = app
             .wrap()
