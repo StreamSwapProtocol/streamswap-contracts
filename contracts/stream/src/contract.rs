@@ -639,10 +639,10 @@ pub fn execute_exit_stream(
     let mut msgs: Vec<CosmosMsg> = vec![];
     let mut attrs: Vec<Attribute> = vec![];
 
-    // if vesting is set, instantiate a vested release contract for user and send
-    // the out tokens to the contract
     let uint128_purchased = Uint128::try_from(position.purchased)?;
 
+    // if vesting is set, instantiate a vested release contract for user and send
+    // the out tokens to the contract
     if let Some(vesting) = stream.vesting {
         let salt = salt.ok_or(ContractError::InvalidSalt {})?;
 
@@ -663,7 +663,6 @@ pub fn execute_exit_stream(
             unbonding_duration_seconds: vesting.unbonding_duration_seconds,
         };
 
-        // prepare instantiate msg msg
         let CodeInfoResponse { checksum, .. } = deps
             .querier
             .query_wasm_code_info(controller_params.vesting_code_id)?;
