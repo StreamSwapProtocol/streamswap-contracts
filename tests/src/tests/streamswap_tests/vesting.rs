@@ -169,9 +169,11 @@ mod vesting {
         // Not the best test :(
         assert_eq!(contract_data.code_id, vesting_code_id);
         assert_eq!(contract_data.admin, None);
-        assert_eq!(
-            contract_data.label,
-            "out_denom-cosmwasm1u8ujald9pvutf00eq8ehwaw2nj608aklznw7lpvnej8klw73thpqrhyz88"
+        let expected_label = format!(
+            "{}-{}",
+            "cosmwasm1u8ujald9pvutf00eq8ehwaw2nj608aklznw7lpvnej8klw73thpqrhyz88",
+            app.block_info().time
         );
+        assert_eq!(contract_data.label, expected_label);
     }
 }

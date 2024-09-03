@@ -681,7 +681,7 @@ pub fn execute_exit_stream(
         let vesting_instantiate_msg = WasmMsg::Instantiate2 {
             admin: None,
             code_id: controller_params.vesting_code_id,
-            label: format!("{}-{}", stream.out_asset.denom, info.sender),
+            label: format!("{}-{}", info.sender, env.block.time),
             msg: to_json_binary(&vesting_instantiate_msg)?,
             funds: vec![coin(uint128_purchased.u128(), stream.out_asset.denom)],
             salt,
