@@ -147,9 +147,17 @@ scripts/schema.sh
 
 ## Deployed Contract Addresses
 
-The addresses of the deployed contracts will be listed here once available.
 
-**TODO**: Add deployed contract addresses
+### v0.1 (current)
+
+| HOST CHAIN  | DENOM   | ADDRESS                                                         |
+|-------------|---------|-----------------------------------------------------------------|
+| osmosis-1   | uosmo   | osmo17kqws7fy2qnejdw68cqjlw456gdxcdukk0wq6026u826zlda3y7qdhzqlv |
+| osmosis-1   | uatom   | osmo10vsjh59l8mpncmsl9hggf6ryxpf0kne09qa9wtn8j6ar3mh2mdlsq9h7dh |
+| osmosis-1   | axlUSDC | osmo1fy25p87ulxm400dd0q4zp0fzsvhl4a8g2jrq9a670lgh2asrgfrsgy60rn |
+| injective-1 | inj     | inj1ajlv75ypg9d2arsg4f9syxmz0k7fkad7kyen2l                      |
+
+### v0.2 (N/A)
 
 ## Audit
 
