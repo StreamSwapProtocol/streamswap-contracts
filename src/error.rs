@@ -154,4 +154,7 @@ pub enum ContractError {
 
     #[error("Invalid exit fee")]
     InvalidStreamExitFee {},
+
+    #[error("Invalid terms of condition")]
+    InvalidTocVersion {},
 }

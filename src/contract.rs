@@ -50,6 +50,7 @@ pub fn instantiate(
         fee_collector: deps.api.addr_validate(&msg.fee_collector)?,
         protocol_admin: deps.api.addr_validate(&msg.protocol_admin)?,
         accepted_in_denom: msg.accepted_in_denom,
+        toc_version: msg.toc_version.clone(),
     };
     CONFIG.save(deps.storage, &config)?;
 
@@ -65,6 +66,7 @@ pub fn instantiate(
         attr("exit_fee_percent", msg.exit_fee_percent.to_string()),
         attr("fee_collector", msg.fee_collector),
         attr("protocol_admin", msg.protocol_admin),
+        attr("toc_version", msg.toc_version),
     ];
     Ok(Response::default().add_attributes(attrs))
 }
@@ -87,9 +89,21 @@ pub fn execute(
             start_time,
             end_time,
             threshold,
+            toc_version,
         } => execute_create_stream(
-            deps, env, info, treasury, name, url, in_denom, out_denom, out_supply, start_time,
-            end_time, threshold,
+            deps,
+            env,
+            info,
+            treasury,
+            name,
+            url,
+            in_denom,
+            out_denom,
+            out_supply,
+            start_time,
+            end_time,
+            threshold,
+            toc_version,
         ),
         ExecuteMsg::UpdateOperator {
             stream_id,
@@ -107,7 +121,12 @@ pub fn execute(
             stream_id,
             operator_target,
             operator,
+            toc_version,
         } => {
+            if toc_version != CONFIG.load(deps.storage)?.toc_version {
+                return Err(ContractError::InvalidTocVersion {});
+            }
+
             let stream = STREAMS.load(deps.storage, stream_id)?;
             if stream.start_time > env.block.time {
                 Ok(execute_subscribe_pending(
@@ -197,6 +216,7 @@ pub fn execute(
             fee_collector,
             accepted_in_denom,
             exit_fee_percent,
+            toc_version,
         } => execute_update_config(
             deps,
             env,
@@ -208,6 +228,7 @@ pub fn execute(
             fee_collector,
             accepted_in_denom,
             exit_fee_percent,
+            toc_version,
         ),
     }
 }
@@ -225,6 +246,7 @@ pub fn execute_create_stream(
     start_time: Timestamp,
     end_time: Timestamp,
     threshold: Option<Uint256>,
+    toc_version: String,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     if end_time < start_time {
@@ -251,6 +273,10 @@ pub fn execute_create_stream(
 
     if out_supply < Uint256::from(1u128) {
         return Err(ContractError::ZeroOutSupply {});
+    }
+
+    if toc_version != config.toc_version {
+        return Err(ContractError::InvalidTocVersion {});
     }
 
     if out_denom == config.stream_creation_denom {
@@ -1040,6 +1066,7 @@ pub fn execute_update_config(
     fee_collector: Option<String>,
     accepted_in_denom: Option<String>,
     exit_fee_percent: Option<Decimal256>,
+    toc_version: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut cfg = CONFIG.load(deps.storage)?;
 
@@ -1059,6 +1086,12 @@ pub fn execute_update_config(
         }
     }
 
+    if let Some(toc_version) = toc_version.clone() {
+        if toc_version != cfg.toc_version {
+            return Err(ContractError::InvalidTocVersion {});
+        }
+    }
+
     cfg.min_stream_seconds = min_stream_duration.unwrap_or(cfg.min_stream_seconds);
     cfg.min_seconds_until_start_time =
         min_duration_until_start_time.unwrap_or(cfg.min_seconds_until_start_time);
@@ -1068,6 +1101,7 @@ pub fn execute_update_config(
     let collector = maybe_addr(deps.api, fee_collector)?.unwrap_or(cfg.fee_collector);
     cfg.fee_collector = collector;
     cfg.exit_fee_percent = exit_fee_percent.unwrap_or(cfg.exit_fee_percent);
+    cfg.toc_version = toc_version.unwrap_or(cfg.toc_version);
 
     CONFIG.save(deps.storage, &cfg)?;
 
@@ -1081,6 +1115,7 @@ pub fn execute_update_config(
         attr("stream_creation_denom", cfg.stream_creation_denom),
         attr("stream_creation_fee", cfg.stream_creation_fee),
         attr("fee_collector", cfg.fee_collector),
+        attr("toc_version", cfg.toc_version),
     ];
 
     Ok(Response::default().add_attributes(attributes))

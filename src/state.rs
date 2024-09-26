@@ -1,6 +1,6 @@
 use crate::ContractError;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Decimal256, Storage, Timestamp, Uint128, Uint256, Uint64};
+use cosmwasm_std::{Addr, Binary, Decimal256, Storage, Timestamp, Uint128, Uint256, Uint64};
 use cw_storage_plus::{Item, Map};
 use std::ops::Mul;
 
@@ -22,6 +22,8 @@ pub struct Config {
     pub fee_collector: Addr,
     /// protocol admin can pause streams in case of emergency.
     pub protocol_admin: Addr,
+    /// Version or hash of terms and condition document
+    pub toc_version: String,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");
@@ -200,6 +202,9 @@ impl Position {
 // Position (stream_id, owner_addr) -> Position
 pub const POSITIONS: Map<(StreamId, &Addr), Position> = Map::new("positions");
 
+/// Terms and conditions ipfs link signature signed by user
+/// Both for creator and subscriber
+pub const TERMS_SIGNED: Map<(StreamId, &Addr), Binary> = Map::new("terms_signed");
 // Testing module
 #[cfg(test)]
 
