@@ -202,9 +202,9 @@ impl Position {
 // Position (stream_id, owner_addr) -> Position
 pub const POSITIONS: Map<(StreamId, &Addr), Position> = Map::new("positions");
 
-/// Terms and conditions ipfs link signature signed by user
+/// Terms and services ipfs link signature signed by user
 /// Both for creator and subscriber
-pub const TERMS_SIGNED: Map<(StreamId, &Addr), Binary> = Map::new("terms_signed");
+pub const TOS_SIGNED: Map<(StreamId, &Addr), String> = Map::new("tos_signed");
 // Testing module
 #[cfg(test)]
 

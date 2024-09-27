@@ -5,7 +5,7 @@ use crate::msg::{
     MigrateMsg, PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse,
     SudoMsg,
 };
-use crate::state::{next_stream_id, Config, Position, Status, Stream, CONFIG, POSITIONS, STREAMS};
+use crate::state::{next_stream_id, Config, Position, Status, Stream, CONFIG, POSITIONS, STREAMS, TOS_SIGNED};
 use crate::threshold::ThresholdState;
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
@@ -126,8 +126,10 @@ pub fn execute(
             if tos_version != CONFIG.load(deps.storage)?.tos_version {
                 return Err(ContractError::InvalidToSVersion {});
             }
-
             let stream = STREAMS.load(deps.storage, stream_id)?;
+            let config = CONFIG.load(deps.storage)?;
+            TOS_SIGNED.save(deps.storage, (stream_id, &info.sender), &config.tos_version)?;
+
             if stream.start_time > env.block.time {
                 Ok(execute_subscribe_pending(
                     deps.branch(),
@@ -340,6 +342,7 @@ pub fn execute_create_stream(
     );
     let id = next_stream_id(deps.storage)?;
     STREAMS.save(deps.storage, id, &stream)?;
+    TOS_SIGNED.save(deps.storage, (id, &info.sender), &config.tos_version)?;
 
     let threshold_state = ThresholdState::new();
     threshold_state.set_threshold_if_any(threshold, id, deps.storage)?;
