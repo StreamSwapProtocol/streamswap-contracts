@@ -73,7 +73,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let res =
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap_err();
@@ -89,7 +89,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let res =
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap_err();
@@ -104,7 +104,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -704,7 +704,7 @@ mod test_module {
             "random".to_string(),
         )
         .unwrap_err();
-        assert_eq!(res, ContractError::InvalidTocVersion {});
+        assert_eq!(res, ContractError::InvalidToSVersion {});
 
         // happy path
         let mut env = mock_env();
@@ -760,7 +760,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -799,7 +799,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
         assert_eq!(res, ContractError::StreamEnded {});
@@ -812,7 +812,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
         assert_eq!(res, PaymentError::NoFunds {}.into());
@@ -825,7 +825,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
         assert_eq!(res, PaymentError::MissingDenom("in".to_string()).into());
@@ -841,10 +841,10 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "random".to_string(),
+            tos_version: "random".to_string(),
         };
         let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
-        assert_eq!(res, ContractError::InvalidTocVersion {});
+        assert_eq!(res, ContractError::InvalidToSVersion {});
 
         // first subscribe
         let mut env = mock_env();
@@ -854,7 +854,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let _res = execute(deps.as_mut(), env, info, msg);
 
@@ -877,7 +877,7 @@ mod test_module {
             stream_id: 1,
             operator_target: Some("creator1".to_string()),
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
         assert_eq!(res, ContractError::Unauthorized {});
@@ -890,7 +890,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let _res = execute(deps.as_mut(), env.clone(), info, msg);
         // dist index updated
@@ -924,7 +924,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -964,7 +964,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap();
         assert_eq!(res.attributes[0].key, "action");
@@ -985,7 +985,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap();
         assert_eq!(res.attributes[0].key, "action");
@@ -1018,7 +1018,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap();
         assert_eq!(res.attributes[0].key, "action");
@@ -1106,7 +1106,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1145,7 +1145,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -1260,7 +1260,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1298,7 +1298,7 @@ mod test_module {
             stream_id: 1,
             operator_target: Some("creator1".to_string()),
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
         assert_eq!(res, ContractError::Unauthorized {});
@@ -1311,7 +1311,7 @@ mod test_module {
             stream_id: 1,
             operator_target: Some("creator1".to_string()),
             operator: Some("random".to_string()),
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
         assert_eq!(res, ContractError::Unauthorized {});
@@ -1324,7 +1324,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let _res = execute(deps.as_mut(), env, info, msg);
 
@@ -1399,7 +1399,7 @@ mod test_module {
             stream_id: 1,
             operator_target: Some("creator1".to_string()),
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap();
         assert_eq!(
@@ -1508,7 +1508,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1560,7 +1560,7 @@ mod test_module {
             stream_id: 1,
             operator_target: Some("creator1".to_string()),
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let _res = execute(deps.as_mut(), env, info, msg);
 
@@ -1602,7 +1602,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1641,7 +1641,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let _res = execute(deps.as_mut(), env, info, msg);
 
@@ -1714,7 +1714,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1753,7 +1753,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -1765,7 +1765,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -1881,7 +1881,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -1921,7 +1921,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -2027,7 +2027,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2067,7 +2067,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -2155,7 +2155,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: in_denom.to_string(),
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
         // Create stream
@@ -2193,7 +2193,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let _res = execute(deps.as_mut(), env, info, msg).unwrap();
         // Update
@@ -2259,7 +2259,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2299,7 +2299,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -2366,7 +2366,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2406,7 +2406,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -2419,7 +2419,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -2482,7 +2482,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2522,7 +2522,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -2551,7 +2551,7 @@ mod test_module {
             stream_id: 1,
             operator_target: None,
             operator: None,
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -2628,7 +2628,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2662,7 +2662,7 @@ mod test_module {
             fee_collector: "collector".to_string(),
             protocol_admin: "protocol_admin".to_string(),
             accepted_in_denom: "in".to_string(),
-            toc_version: "v1".to_string(),
+            tos_version: "v1".to_string(),
         };
         instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2689,7 +2689,7 @@ mod test_module {
             fee_collector: Some("collector2".to_string()),
             accepted_in_denom: Some("new_denom".to_string()),
             exit_fee_percent: Some(Decimal256::percent(2)),
-            toc_version: None,
+            tos_version: None,
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
         assert_eq!(res, ContractError::Unauthorized {});
@@ -2706,7 +2706,7 @@ mod test_module {
             fee_collector: Some("collector2".to_string()),
             accepted_in_denom: Some("new_denom".to_string()),
             exit_fee_percent: Some(Decimal256::percent(2)),
-            toc_version: None,
+            tos_version: None,
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
         assert_eq!(res, ContractError::InvalidStreamCreationFee {});
@@ -2723,7 +2723,7 @@ mod test_module {
             fee_collector: Some("collector2".to_string()),
             accepted_in_denom: Some("new_denom".to_string()),
             exit_fee_percent: Some(Decimal256::percent(101)),
-            toc_version: None,
+            tos_version: None,
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
         assert_eq!(res, ContractError::InvalidExitFeePercent {});
@@ -2740,7 +2740,7 @@ mod test_module {
             fee_collector: Some("collector2".to_string()),
             accepted_in_denom: Some("new_denom".to_string()),
             exit_fee_percent: Some(Decimal256::percent(2)),
-            toc_version: None,
+            tos_version: None,
         };
         execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -2803,7 +2803,7 @@ mod test_module {
             fee_collector: Some("collector3".to_string()),
             accepted_in_denom: Some("new_denom2".to_string()),
             exit_fee_percent: Some(Decimal256::percent(5)),
-            toc_version: None,
+            tos_version: None,
         };
         execute(deps.as_mut(), env, info, msg).unwrap();
         //query config
@@ -2861,7 +2861,7 @@ mod test_module {
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -2909,7 +2909,7 @@ mod test_module {
                 stream_id: 1,
                 operator_target: None,
                 operator: None,
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -2949,7 +2949,7 @@ mod test_module {
                 stream_id: 1,
                 operator_target: None,
                 operator: None,
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
             assert_eq!(res, ContractError::StreamKillswitchActive {});
@@ -2963,7 +2963,7 @@ mod test_module {
                 stream_id: 1,
                 operator_target: None,
                 operator: None,
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
             assert_eq!(res, ContractError::StreamKillswitchActive {});
@@ -3029,7 +3029,7 @@ mod test_module {
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -3069,7 +3069,7 @@ mod test_module {
                 stream_id: 1,
                 operator_target: None,
                 operator: None,
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -3095,7 +3095,7 @@ mod test_module {
                 stream_id: 1,
                 operator_target: None,
                 operator: None,
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
             assert_eq!(res, ContractError::StreamKillswitchActive {});
@@ -3122,7 +3122,7 @@ mod test_module {
                 stream_id: 1,
                 operator_target: None,
                 operator: None,
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             let res = execute(deps.as_mut(), env, info, msg).unwrap();
             assert_eq!(res.attributes[0].key, "action");
@@ -3177,7 +3177,7 @@ mod test_module {
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -3217,7 +3217,7 @@ mod test_module {
                 stream_id: 1,
                 operator_target: None,
                 operator: Some("operator".to_string()),
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -3306,7 +3306,7 @@ mod test_module {
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -3346,7 +3346,7 @@ mod test_module {
                 stream_id: 1,
                 operator_target: None,
                 operator: Some("operator".to_string()),
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -3501,7 +3501,7 @@ mod test_module {
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -3541,7 +3541,7 @@ mod test_module {
                 stream_id: 1,
                 operator_target: None,
                 operator: None,
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -3591,7 +3591,7 @@ mod test_module {
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -3671,7 +3671,7 @@ mod test_module {
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -3731,7 +3731,7 @@ mod test_module {
                 stream_id: 1,
                 operator_target: None,
                 operator: None,
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -3743,7 +3743,7 @@ mod test_module {
                 stream_id: 1,
                 operator_target: None,
                 operator: None,
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -3772,7 +3772,7 @@ mod test_module {
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: "in".to_string(),
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -3812,7 +3812,7 @@ mod test_module {
                 stream_id: 1,
                 operator_target: None,
                 operator: Some("operator".to_string()),
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -3928,7 +3928,7 @@ mod test_module {
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: in_denom.to_string(),
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -3968,7 +3968,7 @@ mod test_module {
                 stream_id: 1,
                 operator_target: None,
                 operator: Some("operator".to_string()),
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -4042,7 +4042,7 @@ mod test_module {
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: in_denom.to_string(),
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -4082,7 +4082,7 @@ mod test_module {
                 stream_id: 1,
                 operator_target: None,
                 operator: Some("operator".to_string()),
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             let _res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
@@ -4093,7 +4093,7 @@ mod test_module {
                 stream_id: 1,
                 operator_target: None,
                 operator: Some("operator".to_string()),
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             let _res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
@@ -4191,7 +4191,7 @@ mod test_module {
                 fee_collector: "collector".to_string(),
                 protocol_admin: "protocol_admin".to_string(),
                 accepted_in_denom: in_denom.to_string(),
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
 
@@ -4231,7 +4231,7 @@ mod test_module {
                 stream_id: 1,
                 operator_target: None,
                 operator: Some("operator".to_string()),
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             let _res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
@@ -4242,7 +4242,7 @@ mod test_module {
                 stream_id: 1,
                 operator_target: None,
                 operator: Some("operator".to_string()),
-                toc_version: "v1".to_string(),
+                tos_version: "v1".to_string(),
             };
             let _res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
             // Can not cancel stream before it ends

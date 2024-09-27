@@ -23,7 +23,7 @@ pub struct Config {
     /// protocol admin can pause streams in case of emergency.
     pub protocol_admin: Addr,
     /// Version or hash of terms and condition document
-    pub toc_version: String,
+    pub tos_version: String,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");
