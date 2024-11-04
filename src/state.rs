@@ -205,6 +205,30 @@ pub const POSITIONS: Map<(StreamId, &Addr), Position> = Map::new("positions");
 /// Terms and services ipfs link signature signed by user
 /// Both for creator and subscriber
 pub const TOS_SIGNED: Map<(StreamId, &Addr), String> = Map::new("tos_signed");
+
+pub struct TreasuryStreamCancelPeriod {
+    pub treasury: Addr,
+    pub cancel_period_start: Timestamp,
+    pub cancel_period_end: Timestamp,
+}
+
+pub const TREASURY_STREAM_CANCEL_PERIOD: Map<StreamId, TreasuryStreamCancelPeriod> =
+    Map::new("treasury_stream_cancel_period");
+
+impl TreasuryStreamCancelPeriod {
+    pub fn new(treasury: Addr, min_seconds_until_start_time: u64, now: Timestamp) -> Self {
+        TreasuryStreamCancelPeriod {
+            treasury,
+            cancel_period_start: now,
+            cancel_period_end: now.plus_seconds(min_seconds_until_start_time),
+        }
+    }
+    // Check if now is in the cancel period
+    pub fn is_in_cancel_period(&self, now: Timestamp) -> bool {
+        now >= self.cancel_period_start && now <= self.cancel_period_end
+    }
+}
+
 // Testing module
 #[cfg(test)]
 
