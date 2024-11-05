@@ -5,7 +5,9 @@ use crate::msg::{
     MigrateMsg, PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse,
     SudoMsg,
 };
-use crate::state::{next_stream_id, Config, Position, Status, Stream, CONFIG, POSITIONS, STREAMS, TOS_SIGNED};
+use crate::state::{
+    next_stream_id, Config, Position, Status, Stream, CONFIG, POSITIONS, STREAMS, TOS_SIGNED,
+};
 use crate::threshold::ThresholdState;
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
@@ -89,21 +91,9 @@ pub fn execute(
             start_time,
             end_time,
             threshold,
-            tos_version,
         } => execute_create_stream(
-            deps,
-            env,
-            info,
-            treasury,
-            name,
-            url,
-            in_denom,
-            out_denom,
-            out_supply,
-            start_time,
-            end_time,
-            threshold,
-            tos_version,
+            deps, env, info, treasury, name, url, in_denom, out_denom, out_supply, start_time,
+            end_time, threshold,
         ),
         ExecuteMsg::UpdateOperator {
             stream_id,
@@ -248,7 +238,6 @@ pub fn execute_create_stream(
     start_time: Timestamp,
     end_time: Timestamp,
     threshold: Option<Uint256>,
-    tos_version: String,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     if end_time < start_time {
@@ -275,10 +264,6 @@ pub fn execute_create_stream(
 
     if out_supply < Uint256::from(1u128) {
         return Err(ContractError::ZeroOutSupply {});
-    }
-
-    if tos_version != config.tos_version {
-        return Err(ContractError::InvalidToSVersion {});
     }
 
     if out_denom == config.stream_creation_denom {
@@ -339,6 +324,7 @@ pub fn execute_create_stream(
         config.stream_creation_denom,
         config.stream_creation_fee,
         config.exit_fee_percent,
+        config.tos_version.clone(),
     );
     let id = next_stream_id(deps.storage)?;
     STREAMS.save(deps.storage, id, &stream)?;
@@ -604,6 +590,7 @@ pub fn execute_subscribe(
                 Some(stream.dist_index),
                 env.block.time,
                 operator,
+                stream.tos_version.clone(),
             );
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
         }
@@ -676,6 +663,7 @@ pub fn execute_subscribe_pending(
                 Some(stream.dist_index),
                 env.block.time,
                 operator,
+                stream.tos_version.clone(),
             );
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
         }

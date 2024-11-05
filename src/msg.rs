@@ -49,8 +49,6 @@ pub enum ExecuteMsg {
         end_time: Timestamp,
         /// Minimum amount of `spent_in` for a stream to be finalized.
         threshold: Option<Uint256>,
-        /// Version or hash of terms and condition document
-        tos_version: String,
     },
     /// Update stream and calculates distribution state.
     UpdateStream {
