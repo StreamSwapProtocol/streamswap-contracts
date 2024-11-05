@@ -1077,11 +1077,6 @@ pub fn execute_update_config(
         }
     }
 
-    if let Some(tos_version) = tos_version.clone() {
-        if tos_version != cfg.tos_version {
-            return Err(ContractError::InvalidToSVersion {});
-        }
-    }
 
     cfg.min_stream_seconds = min_stream_duration.unwrap_or(cfg.min_stream_seconds);
     cfg.min_seconds_until_start_time =
