@@ -110,7 +110,7 @@ mod tests {
     use super::*;
     use crate::state::Stream;
     use cosmwasm_std::testing::MockStorage;
-    use cosmwasm_std::{Addr, Decimal, Decimal256, Timestamp, Uint128};
+    use cosmwasm_std::{Addr, Decimal256, Timestamp, Uint128};
 
     #[test]
     fn test_thresholds_state() {

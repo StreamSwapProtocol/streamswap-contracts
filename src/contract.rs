@@ -6,7 +6,8 @@ use crate::msg::{
     SudoMsg,
 };
 use crate::state::{
-    next_stream_id, Config, Position, Status, Stream, CONFIG, POSITIONS, STREAMS, TOS_SIGNED,
+    next_stream_id, Config, Position, Status, Stream, TreasuryCancelStreamPeriod, CONFIG,
+    POSITIONS, STREAMS, TOS_SIGNED, TREASURY_STREAM_CANCEL_PERIOD,
 };
 use crate::threshold::ThresholdState;
 use crate::{killswitch, ContractError};
@@ -91,9 +92,21 @@ pub fn execute(
             start_time,
             end_time,
             threshold,
+            tos_version,
         } => execute_create_stream(
-            deps, env, info, treasury, name, url, in_denom, out_denom, out_supply, start_time,
-            end_time, threshold,
+            deps,
+            env,
+            info,
+            treasury,
+            name,
+            url,
+            in_denom,
+            out_denom,
+            out_supply,
+            start_time,
+            end_time,
+            threshold,
+            tos_version,
         ),
         ExecuteMsg::UpdateOperator {
             stream_id,
@@ -119,7 +132,12 @@ pub fn execute(
             let stream = STREAMS.load(deps.storage, stream_id)?;
             let config = CONFIG.load(deps.storage)?;
             TOS_SIGNED.save(deps.storage, (stream_id, &info.sender), &config.tos_version)?;
-
+          
+            let treasury_cancel_period =
+                TREASURY_STREAM_CANCEL_PERIOD.load(deps.storage, stream_id)?;
+            if treasury_cancel_period.is_active(env.block.time) {
+                return Err(ContractError::TreasuryCancelPeriodActive {});
+            }
             if stream.start_time > env.block.time {
                 Ok(execute_subscribe_pending(
                     deps.branch(),
@@ -148,6 +166,11 @@ pub fn execute(
             operator_target,
         } => {
             let stream = STREAMS.load(deps.storage, stream_id)?;
+            let treasury_cancel_period =
+                TREASURY_STREAM_CANCEL_PERIOD.load(deps.storage, stream_id)?;
+            if treasury_cancel_period.is_active(env.block.time) {
+                return Err(ContractError::TreasuryCancelPeriodActive {});
+            }
             if stream.start_time > env.block.time {
                 Ok(execute_withdraw_pending(
                     deps.branch(),
@@ -200,6 +223,9 @@ pub fn execute(
         ExecuteMsg::UpdateProtocolAdmin {
             new_protocol_admin: new_admin,
         } => execute_update_protocol_admin(deps, env, info, new_admin),
+        ExecuteMsg::TreasuryCancelStream { stream_id } => {
+            killswitch::execute_treasury_cancel_stream(deps, env, info, stream_id)
+        }
         ExecuteMsg::UpdateConfig {
             min_stream_duration,
             min_duration_until_start_time,
@@ -238,6 +264,7 @@ pub fn execute_create_stream(
     start_time: Timestamp,
     end_time: Timestamp,
     threshold: Option<Uint256>,
+    tos_version: String,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     if end_time < start_time {
@@ -264,6 +291,10 @@ pub fn execute_create_stream(
 
     if out_supply < Uint256::from(1u128) {
         return Err(ContractError::ZeroOutSupply {});
+    }
+
+    if tos_version != config.tos_version {
+        return Err(ContractError::InvalidToSVersion {});
     }
 
     if out_denom == config.stream_creation_denom {
@@ -311,6 +342,12 @@ pub fn execute_create_stream(
 
     check_name_and_url(&name, &url)?;
 
+    let treasury_cancel_period =
+        TreasuryCancelStreamPeriod::new(config.min_seconds_until_start_time.u64(), env.block.time);
+
+    let id = next_stream_id(deps.storage)?;
+    TREASURY_STREAM_CANCEL_PERIOD.save(deps.storage, id.clone(), &treasury_cancel_period)?;
+
     let stream = Stream::new(
         name.clone(),
         deps.api.addr_validate(&treasury)?,
@@ -326,7 +363,6 @@ pub fn execute_create_stream(
         config.exit_fee_percent,
         config.tos_version.clone(),
     );
-    let id = next_stream_id(deps.storage)?;
     STREAMS.save(deps.storage, id, &stream)?;
     TOS_SIGNED.save(deps.storage, (id, &info.sender), &config.tos_version)?;
 
@@ -375,6 +411,10 @@ pub fn execute_update_stream(
     env: Env,
     stream_id: u64,
 ) -> Result<Response, ContractError> {
+    let treasury_cancel_period = TREASURY_STREAM_CANCEL_PERIOD.load(deps.storage, stream_id)?;
+    if treasury_cancel_period.is_active(env.block.time) {
+        return Err(ContractError::TreasuryCancelPeriodActive {});
+    }
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
     if stream.is_paused() {
         return Err(ContractError::StreamPaused {});
@@ -463,6 +503,10 @@ pub fn execute_update_position(
     stream_id: u64,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
+    let treasury_cancel_period = TREASURY_STREAM_CANCEL_PERIOD.load(deps.storage, stream_id)?;
+    if treasury_cancel_period.is_active(env.block.time) {
+        return Err(ContractError::TreasuryCancelPeriodActive {});
+    }
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
@@ -1076,7 +1120,6 @@ pub fn execute_update_config(
             return Err(ContractError::InvalidExitFeePercent {});
         }
     }
-
 
     cfg.min_stream_seconds = min_stream_duration.unwrap_or(cfg.min_stream_seconds);
     cfg.min_seconds_until_start_time =
