@@ -36,6 +36,7 @@ mod test_module {
             "fee".to_string(),
             Uint128::from(100u128),
             Decimal256::percent(10),
+            "v1".to_string(),
         );
 
         // add new shares
@@ -664,7 +665,9 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
-            None,   "v1".to_string(),
+            None,   
+"v1".to_string(),
+            None
         )
             .unwrap_err();
         assert_eq!(res, ContractError::StreamUrlTooLong {});

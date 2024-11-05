@@ -108,6 +108,7 @@ pub fn migrate_v0_2_1(storage: &mut dyn Storage) -> StdResult<()> {
                 stream.stream_exit_fee_percent.numerator(),
                 stream.stream_exit_fee_percent.denominator(),
             ),
+            tos_version: "".to_string(),
         };
         STREAMS.save(storage, id, &new_stream)?;
     }
@@ -128,6 +129,7 @@ pub fn migrate_v0_2_1(storage: &mut dyn Storage) -> StdResult<()> {
             pending_purchase: position.pending_purchase,
             spent: Uint256::from_uint128(position.spent),
             operator: position.operator,
+            tos_version: "".to_string(),
         };
         POSITIONS.save(storage, (stream_id, &owner), &new_position)?;
     }

@@ -137,6 +137,7 @@ mod tests {
             stream_creation_fee: Uint128::new(0),
             stream_exit_fee_percent: Decimal256::from_str("0.042").unwrap(),
             treasury: Addr::unchecked("treasury"),
+            tos_version: "".to_string(),
         };
         let threshold = Uint256::from(1_500_000_000_000u128);
         let stream_id = 1;

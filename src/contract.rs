@@ -132,13 +132,12 @@ pub fn execute(
             let stream = STREAMS.load(deps.storage, stream_id)?;
             let config = CONFIG.load(deps.storage)?;
             TOS_SIGNED.save(deps.storage, (stream_id, &info.sender), &config.tos_version)?;
-
+          
             let treasury_cancel_period =
                 TREASURY_STREAM_CANCEL_PERIOD.load(deps.storage, stream_id)?;
             if treasury_cancel_period.is_active(env.block.time) {
                 return Err(ContractError::TreasuryCancelPeriodActive {});
             }
-
             if stream.start_time > env.block.time {
                 Ok(execute_subscribe_pending(
                     deps.branch(),
@@ -362,6 +361,7 @@ pub fn execute_create_stream(
         config.stream_creation_denom,
         config.stream_creation_fee,
         config.exit_fee_percent,
+        config.tos_version.clone(),
     );
     STREAMS.save(deps.storage, id, &stream)?;
     TOS_SIGNED.save(deps.storage, (id, &info.sender), &config.tos_version)?;
@@ -634,6 +634,7 @@ pub fn execute_subscribe(
                 Some(stream.dist_index),
                 env.block.time,
                 operator,
+                stream.tos_version.clone(),
             );
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
         }
@@ -706,6 +707,7 @@ pub fn execute_subscribe_pending(
                 Some(stream.dist_index),
                 env.block.time,
                 operator,
+                stream.tos_version.clone(),
             );
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
         }
@@ -1116,12 +1118,6 @@ pub fn execute_update_config(
     if let Some(exit_fee_percent) = exit_fee_percent {
         if exit_fee_percent >= Decimal256::one() || exit_fee_percent < Decimal256::zero() {
             return Err(ContractError::InvalidExitFeePercent {});
-        }
-    }
-
-    if let Some(tos_version) = tos_version.clone() {
-        if tos_version != cfg.tos_version {
-            return Err(ContractError::InvalidToSVersion {});
         }
     }
 

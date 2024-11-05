@@ -157,7 +157,7 @@ pub enum ContractError {
 
     #[error("Invalid terms and services")]
     InvalidToSVersion {},
-
+  
     #[error("Treasury cancel period : Active")]
     TreasuryCancelPeriodActive {},
 
