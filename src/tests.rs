@@ -14,8 +14,8 @@ mod test_module {
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::StdError::{self};
     use cosmwasm_std::{
-        attr, coin, Addr, BankMsg, Coin, CosmosMsg, Decimal, Decimal256, Response, SubMsg,
-        Timestamp, Uint128, Uint256, Uint64,
+        attr, coin, Addr, BankMsg, Coin, CosmosMsg, Decimal256, Response, SubMsg, Timestamp,
+        Uint128, Uint256, Uint64,
     };
     use cw_utils::PaymentError;
     use std::ops::Sub;
@@ -917,7 +917,7 @@ mod test_module {
         env.block.time = Timestamp::from_seconds(100);
         let msg = crate::msg::InstantiateMsg {
             min_stream_seconds: Uint64::new(1000),
-            min_seconds_until_start_time: Uint64::new(1000),
+            min_seconds_until_start_time: Uint64::new(0),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
             exit_fee_percent: Decimal256::percent(1),
@@ -1099,7 +1099,7 @@ mod test_module {
         env.block.time = Timestamp::from_seconds(100);
         let msg = crate::msg::InstantiateMsg {
             min_stream_seconds: Uint64::new(1000),
-            min_seconds_until_start_time: Uint64::new(1000),
+            min_seconds_until_start_time: Uint64::new(0),
             stream_creation_denom: "fee".to_string(),
             stream_creation_fee: Uint128::new(100),
             exit_fee_percent: Decimal256::percent(1),
@@ -3892,6 +3892,130 @@ mod test_module {
                     amount: vec![Coin::new(2000000000000, "in")]
                 })
             );
+        }
+        #[test]
+        fn test_treasury_cancel_stream() {
+            use crate::killswitch::execute_treasury_cancel_stream;
+
+            let treasury = Addr::unchecked("treasury");
+            let start = Timestamp::from_seconds(1_000_000);
+            let end = Timestamp::from_seconds(5_000_000);
+            let out_supply = Uint256::from(500u128);
+            let out_denom = "out_denom";
+            let in_denom = "in_denom";
+
+            // instantiate
+            let mut deps = mock_dependencies();
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(0);
+            let msg = crate::msg::InstantiateMsg {
+                min_stream_seconds: Uint64::new(1000),
+                min_seconds_until_start_time: Uint64::new(100_000),
+                stream_creation_denom: "fee".to_string(),
+                stream_creation_fee: Uint128::new(100),
+                exit_fee_percent: Decimal256::percent(1),
+                fee_collector: "collector".to_string(),
+                protocol_admin: "protocol_admin".to_string(),
+                accepted_in_denom: in_denom.to_string(),
+                tos_version: "v1".to_string(),
+            };
+            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap();
+
+            // create stream
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(0);
+            let info = mock_info(
+                "creator",
+                &[
+                    Coin::new(out_supply.to_string().parse().unwrap(), out_denom),
+                    Coin::new(100, "fee"),
+                ],
+            );
+            execute_create_stream(
+                deps.as_mut(),
+                env,
+                info,
+                treasury.to_string(),
+                "test".to_string(),
+                Some("https://sample.url".to_string()),
+                in_denom.to_string(),
+                out_denom.to_string(),
+                out_supply,
+                start,
+                end,
+                Some(1_000u128.into()),
+                "v1".to_string(),
+            )
+            .unwrap();
+
+            // Cancel period should be ended Now+min_seconds_until_start_time
+
+            // Cancel stream with wrong address
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(100);
+
+            let error =
+                execute_treasury_cancel_stream(deps.as_mut(), env, mock_info("random", &[]), 1)
+                    .unwrap_err();
+            assert_eq!(error, ContractError::Unauthorized {});
+
+            // Try subscribing to the stream
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(100);
+            let funds = Coin::new(250, "in_denom");
+            let info = mock_info("subscriber", &[funds]);
+            let msg = crate::msg::ExecuteMsg::Subscribe {
+                stream_id: 1,
+                operator_target: None,
+                operator: Some("operator".to_string()),
+                tos_version: "v1".to_string(),
+            };
+            let err = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
+            assert_eq!(err, ContractError::TreasuryCancelPeriodActive {});
+
+            // Try canceling the stream outside the cancel period
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(100_000 + 1);
+            let error = execute_treasury_cancel_stream(
+                deps.as_mut(),
+                env.clone(),
+                mock_info("treasury", &[]),
+                1,
+            )
+            .unwrap_err();
+            assert_eq!(error, ContractError::TreasuryCancelPeriodEnded {});
+
+            // Query the stream
+            let _stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
+
+            // Cancel the stream
+            let mut env = mock_env();
+            env.block.time = Timestamp::from_seconds(100_000);
+            let response = execute_treasury_cancel_stream(
+                deps.as_mut(),
+                env.clone(),
+                mock_info("treasury", &[]),
+                1,
+            )
+            .unwrap();
+            assert_eq!(
+                response.messages,
+                [SubMsg {
+                    id: 0,
+                    msg: Bank(BankMsg::Send {
+                        to_address: "treasury".to_string(),
+                        amount: vec![Coin {
+                            denom: "out_denom".to_string(),
+                            amount: Uint128::new(500)
+                        }]
+                    }),
+                    gas_limit: None,
+                    reply_on: ReplyOn::Never
+                }]
+            );
+
+            // Query the stream again should return error because we removed the stream
+            let _stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap_err();
         }
     }
     mod threshold {

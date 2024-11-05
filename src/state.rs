@@ -1,6 +1,6 @@
 use crate::ContractError;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Binary, Decimal256, Storage, Timestamp, Uint128, Uint256, Uint64};
+use cosmwasm_std::{Addr, Decimal256, Storage, Timestamp, Uint128, Uint256, Uint64};
 use cw_storage_plus::{Item, Map};
 use std::ops::Mul;
 
@@ -206,25 +206,24 @@ pub const POSITIONS: Map<(StreamId, &Addr), Position> = Map::new("positions");
 /// Both for creator and subscriber
 pub const TOS_SIGNED: Map<(StreamId, &Addr), String> = Map::new("tos_signed");
 
-pub struct TreasuryStreamCancelPeriod {
-    pub treasury: Addr,
+#[cw_serde]
+pub struct TreasuryCancelStreamPeriod {
     pub cancel_period_start: Timestamp,
     pub cancel_period_end: Timestamp,
 }
 
-pub const TREASURY_STREAM_CANCEL_PERIOD: Map<StreamId, TreasuryStreamCancelPeriod> =
+pub const TREASURY_STREAM_CANCEL_PERIOD: Map<StreamId, TreasuryCancelStreamPeriod> =
     Map::new("treasury_stream_cancel_period");
-
-impl TreasuryStreamCancelPeriod {
-    pub fn new(treasury: Addr, min_seconds_until_start_time: u64, now: Timestamp) -> Self {
-        TreasuryStreamCancelPeriod {
-            treasury,
+// Implement default
+impl TreasuryCancelStreamPeriod {
+    pub fn new(min_seconds_until_start_time: u64, now: Timestamp) -> Self {
+        TreasuryCancelStreamPeriod {
             cancel_period_start: now,
             cancel_period_end: now.plus_seconds(min_seconds_until_start_time),
         }
     }
     // Check if now is in the cancel period
-    pub fn is_in_cancel_period(&self, now: Timestamp) -> bool {
+    pub fn is_active(&self, now: Timestamp) -> bool {
         now >= self.cancel_period_start && now <= self.cancel_period_end
     }
 }
