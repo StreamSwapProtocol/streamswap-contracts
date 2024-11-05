@@ -20,6 +20,8 @@ pub struct InstantiateMsg {
     pub protocol_admin: String,
     /// Accepted in_denom to buy out_tokens
     pub accepted_in_denom: String,
+    /// Version or hash of terms and condition document
+    pub tos_version: String,
 }
 
 #[cw_serde]
@@ -71,6 +73,8 @@ pub enum ExecuteMsg {
         operator_target: Option<String>,
         /// operator can subscribe/withdraw/update position.
         operator: Option<String>,
+        /// Version or hash of terms and condition document
+        tos_version: String,
     },
     /// Withdraw unspent tokens in balance.
     Withdraw {
@@ -133,6 +137,7 @@ pub enum ExecuteMsg {
         fee_collector: Option<String>,
         accepted_in_denom: Option<String>,
         exit_fee_percent: Option<Decimal256>,
+        tos_version: Option<String>,
     },
     ResumeStream {
         stream_id: u64,

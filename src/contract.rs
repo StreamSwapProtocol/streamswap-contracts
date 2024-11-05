@@ -5,7 +5,9 @@ use crate::msg::{
     MigrateMsg, PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse,
     SudoMsg,
 };
-use crate::state::{next_stream_id, Config, Position, Status, Stream, CONFIG, POSITIONS, STREAMS};
+use crate::state::{
+    next_stream_id, Config, Position, Status, Stream, CONFIG, POSITIONS, STREAMS, TOS_SIGNED,
+};
 use crate::threshold::ThresholdState;
 use crate::{killswitch, ContractError};
 use cosmwasm_std::{
@@ -50,6 +52,7 @@ pub fn instantiate(
         fee_collector: deps.api.addr_validate(&msg.fee_collector)?,
         protocol_admin: deps.api.addr_validate(&msg.protocol_admin)?,
         accepted_in_denom: msg.accepted_in_denom,
+        tos_version: msg.tos_version.clone(),
     };
     CONFIG.save(deps.storage, &config)?;
 
@@ -65,6 +68,7 @@ pub fn instantiate(
         attr("exit_fee_percent", msg.exit_fee_percent.to_string()),
         attr("fee_collector", msg.fee_collector),
         attr("protocol_admin", msg.protocol_admin),
+        attr("tos_version", msg.tos_version),
     ];
     Ok(Response::default().add_attributes(attrs))
 }
@@ -107,8 +111,15 @@ pub fn execute(
             stream_id,
             operator_target,
             operator,
+            tos_version,
         } => {
+            if tos_version != CONFIG.load(deps.storage)?.tos_version {
+                return Err(ContractError::InvalidToSVersion {});
+            }
             let stream = STREAMS.load(deps.storage, stream_id)?;
+            let config = CONFIG.load(deps.storage)?;
+            TOS_SIGNED.save(deps.storage, (stream_id, &info.sender), &config.tos_version)?;
+
             if stream.start_time > env.block.time {
                 Ok(execute_subscribe_pending(
                     deps.branch(),
@@ -197,6 +208,7 @@ pub fn execute(
             fee_collector,
             accepted_in_denom,
             exit_fee_percent,
+            tos_version,
         } => execute_update_config(
             deps,
             env,
@@ -208,6 +220,7 @@ pub fn execute(
             fee_collector,
             accepted_in_denom,
             exit_fee_percent,
+            tos_version,
         ),
     }
 }
@@ -311,9 +324,11 @@ pub fn execute_create_stream(
         config.stream_creation_denom,
         config.stream_creation_fee,
         config.exit_fee_percent,
+        config.tos_version.clone(),
     );
     let id = next_stream_id(deps.storage)?;
     STREAMS.save(deps.storage, id, &stream)?;
+    TOS_SIGNED.save(deps.storage, (id, &info.sender), &config.tos_version)?;
 
     let threshold_state = ThresholdState::new();
     threshold_state.set_threshold_if_any(threshold, id, deps.storage)?;
@@ -575,6 +590,7 @@ pub fn execute_subscribe(
                 Some(stream.dist_index),
                 env.block.time,
                 operator,
+                stream.tos_version.clone(),
             );
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
         }
@@ -647,6 +663,7 @@ pub fn execute_subscribe_pending(
                 Some(stream.dist_index),
                 env.block.time,
                 operator,
+                stream.tos_version.clone(),
             );
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
         }
@@ -1040,6 +1057,7 @@ pub fn execute_update_config(
     fee_collector: Option<String>,
     accepted_in_denom: Option<String>,
     exit_fee_percent: Option<Decimal256>,
+    tos_version: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut cfg = CONFIG.load(deps.storage)?;
 
@@ -1059,6 +1077,7 @@ pub fn execute_update_config(
         }
     }
 
+
     cfg.min_stream_seconds = min_stream_duration.unwrap_or(cfg.min_stream_seconds);
     cfg.min_seconds_until_start_time =
         min_duration_until_start_time.unwrap_or(cfg.min_seconds_until_start_time);
@@ -1068,6 +1087,7 @@ pub fn execute_update_config(
     let collector = maybe_addr(deps.api, fee_collector)?.unwrap_or(cfg.fee_collector);
     cfg.fee_collector = collector;
     cfg.exit_fee_percent = exit_fee_percent.unwrap_or(cfg.exit_fee_percent);
+    cfg.tos_version = tos_version.unwrap_or(cfg.tos_version);
 
     CONFIG.save(deps.storage, &cfg)?;
 
@@ -1081,6 +1101,7 @@ pub fn execute_update_config(
         attr("stream_creation_denom", cfg.stream_creation_denom),
         attr("stream_creation_fee", cfg.stream_creation_fee),
         attr("fee_collector", cfg.fee_collector),
+        attr("tos_version", cfg.tos_version),
     ];
 
     Ok(Response::default().add_attributes(attributes))

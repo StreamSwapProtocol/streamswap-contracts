@@ -1,6 +1,6 @@
 use crate::ContractError;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Decimal256, Storage, Timestamp, Uint128, Uint256, Uint64};
+use cosmwasm_std::{Addr, Binary, Decimal256, Storage, Timestamp, Uint128, Uint256, Uint64};
 use cw_storage_plus::{Item, Map};
 use std::ops::Mul;
 
@@ -22,6 +22,8 @@ pub struct Config {
     pub fee_collector: Addr,
     /// protocol admin can pause streams in case of emergency.
     pub protocol_admin: Addr,
+    /// Version or hash of terms and condition document
+    pub tos_version: String,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");
@@ -68,6 +70,8 @@ pub struct Stream {
     pub stream_creation_fee: Uint128,
     /// Stream swap fee in percent. Saved under here to avoid any changes in config to efect existing streams.
     pub stream_exit_fee_percent: Decimal256,
+    // Tos version
+    pub tos_version: String,
 }
 
 #[cw_serde]
@@ -94,6 +98,7 @@ impl Stream {
         stream_creation_denom: String,
         stream_creation_fee: Uint128,
         stream_exit_fee_percent: Decimal256,
+        tos_version: String,
     ) -> Self {
         Stream {
             name,
@@ -116,6 +121,7 @@ impl Stream {
             stream_creation_denom,
             stream_creation_fee,
             stream_exit_fee_percent,
+            tos_version,
         }
     }
 
@@ -172,6 +178,8 @@ pub struct Position {
     pub spent: Uint256,
     // operator can update position
     pub operator: Option<Addr>,
+    // signed tos version
+    pub tos_version: String,
 }
 
 impl Position {
@@ -182,6 +190,7 @@ impl Position {
         index: Option<Decimal256>,
         last_updated: Timestamp,
         operator: Option<Addr>,
+        tos_version: String,
     ) -> Self {
         Position {
             owner,
@@ -193,6 +202,7 @@ impl Position {
             pending_purchase: Decimal256::zero(),
             spent: Uint256::zero(),
             operator,
+            tos_version,
         }
     }
 }
@@ -200,6 +210,9 @@ impl Position {
 // Position (stream_id, owner_addr) -> Position
 pub const POSITIONS: Map<(StreamId, &Addr), Position> = Map::new("positions");
 
+/// Terms and services ipfs link signature signed by user
+/// Both for creator and subscriber
+pub const TOS_SIGNED: Map<(StreamId, &Addr), String> = Map::new("tos_signed");
 // Testing module
 #[cfg(test)]
 
@@ -231,6 +244,7 @@ mod tests {
             stream_creation_denom: "fee_denom".to_string(),
             stream_creation_fee: Uint128::from(150000000000000000000u128),
             stream_exit_fee_percent: Decimal256::percent(1),
+            tos_version: "".to_string(),
         };
 
         // Test when shares is zero
