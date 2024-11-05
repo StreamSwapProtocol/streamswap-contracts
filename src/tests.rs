@@ -667,7 +667,6 @@ mod test_module {
             end_time,
             None,   
 "v1".to_string(),
-            None
         )
             .unwrap_err();
         assert_eq!(res, ContractError::StreamUrlTooLong {});
