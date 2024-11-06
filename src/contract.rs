@@ -534,7 +534,7 @@ pub fn update_position(
         position.pending_purchase = decimals;
 
         // floors the decimal points
-        purchased_uint128 = (purchased * Uint256::one()).try_into()?;
+        purchased_uint128 = purchased * Uint256::one();
         position.purchased = position.purchased.checked_add(purchased_uint128)?;
     }
 
@@ -780,7 +780,7 @@ pub fn execute_withdraw(
             to_address: operator_target.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
-                amount: Uint128::from(withdraw_amount),
+                amount: withdraw_amount,
             }],
         }))
         .add_attributes(attributes);
@@ -1077,7 +1077,6 @@ pub fn execute_update_config(
         }
     }
 
-
     cfg.min_stream_seconds = min_stream_duration.unwrap_or(cfg.min_stream_seconds);
     cfg.min_seconds_until_start_time =
         min_duration_until_start_time.unwrap_or(cfg.min_seconds_until_start_time);
@@ -1115,7 +1114,7 @@ fn check_access(
     if position_owner.as_ref() != info.sender
         && position_operator
             .as_ref()
-            .map_or(true, |o| o != &info.sender)
+            .map_or(true, |o| o != info.sender)
     {
         return Err(ContractError::Unauthorized {});
     }

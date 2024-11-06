@@ -30,7 +30,7 @@ pub fn execute_withdraw_paused(
         && position
             .operator
             .as_ref()
-            .map_or(true, |o| o != &info.sender)
+            .map_or(true, |o| o != info.sender)
     {
         return Err(ContractError::Unauthorized {});
     }
@@ -114,7 +114,7 @@ pub fn execute_exit_cancelled(
         // Stream should not be paused
         // If stream paused now_block can exceed end_block
         // Stream being appeared as ended only happens when its paused or cancelled
-        if stream.is_paused() == true {
+        if stream.is_paused() {
             return Err(ContractError::StreamNotCancelled {});
         }
         // Stream should be ended
@@ -133,7 +133,7 @@ pub fn execute_exit_cancelled(
         && position
             .operator
             .as_ref()
-            .map_or(true, |o| o != &info.sender)
+            .map_or(true, |o| o != info.sender)
     {
         return Err(ContractError::Unauthorized {});
     }
