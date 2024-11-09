@@ -1,10 +1,10 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    Addr, Decimal, Decimal256, Fraction, StdResult, Storage, Timestamp, Uint128, Uint256,
+    Addr, Decimal, Decimal256, Fraction, StdResult, Storage, Timestamp, Uint128, Uint256, Uint64,
 };
-use cw_storage_plus::Map;
+use cw_storage_plus::{Item, Map};
 
-use crate::state::{Position, Status, Stream, StreamId, POSITIONS, STREAMS};
+use crate::state::{Position, Status, Stream, StreamId, CONFIG, POSITIONS, STREAMS};
 
 #[cw_serde]
 pub struct StreamV0_2_0 {
@@ -70,8 +70,29 @@ pub struct PositionV0_2_0 {
     pub operator: Option<Addr>,
 }
 
+#[cw_serde]
+pub struct ConfigV0_2_0 {
+    /// Minimum sale duration in unix seconds
+    pub min_stream_seconds: Uint64,
+    /// Minimum duration between start time and current time in unix seconds
+    pub min_seconds_until_start_time: Uint64,
+    /// Accepted in_denom to buy out_tokens
+    pub accepted_in_denom: String,
+    /// Accepted stream creation fee denom
+    pub stream_creation_denom: String,
+    /// Stream creation fee amount
+    pub stream_creation_fee: Uint128,
+    /// in/buy token exit fee in percent
+    pub exit_fee_percent: Decimal256,
+    /// Address of the fee collector
+    pub fee_collector: Addr,
+    /// protocol admin can pause streams in case of emergency.
+    pub protocol_admin: Addr,
+}
+
 pub const OLD_STREAMS: Map<StreamId, StreamV0_2_0> = Map::new("stream");
 pub const OLD_POSITIONS: Map<(StreamId, &Addr), PositionV0_2_0> = Map::new("positions");
+pub const OLD_CONFIG: Item<ConfigV0_2_0> = Item::new("config");
 
 pub fn migrate_v0_2_1(storage: &mut dyn Storage) -> StdResult<()> {
     // Migrate the state from v0.2.0 to v0.2.1
@@ -133,6 +154,20 @@ pub fn migrate_v0_2_1(storage: &mut dyn Storage) -> StdResult<()> {
         };
         POSITIONS.save(storage, (stream_id, &owner), &new_position)?;
     }
+
+    let old_config = OLD_CONFIG.load(storage)?;
+    let new_config = crate::state::Config {
+        min_stream_seconds: old_config.min_stream_seconds,
+        min_seconds_until_start_time: old_config.min_seconds_until_start_time,
+        accepted_in_denom: old_config.accepted_in_denom,
+        stream_creation_denom: old_config.stream_creation_denom,
+        stream_creation_fee: old_config.stream_creation_fee,
+        exit_fee_percent: old_config.exit_fee_percent,
+        fee_collector: old_config.fee_collector,
+        protocol_admin: old_config.protocol_admin,
+        tos_version: "".to_string(),
+    };
+    CONFIG.save(storage, &new_config)?;
 
     Ok(())
 }
