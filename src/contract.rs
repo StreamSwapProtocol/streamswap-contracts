@@ -91,9 +91,21 @@ pub fn execute(
             start_time,
             end_time,
             threshold,
+            tos_version,
         } => execute_create_stream(
-            deps, env, info, treasury, name, url, in_denom, out_denom, out_supply, start_time,
-            end_time, threshold,
+            deps,
+            env,
+            info,
+            treasury,
+            name,
+            url,
+            in_denom,
+            out_denom,
+            out_supply,
+            start_time,
+            end_time,
+            threshold,
+            tos_version,
         ),
         ExecuteMsg::UpdateOperator {
             stream_id,
@@ -238,6 +250,7 @@ pub fn execute_create_stream(
     start_time: Timestamp,
     end_time: Timestamp,
     threshold: Option<Uint256>,
+    tos_version: String,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     if end_time < start_time {
@@ -264,6 +277,10 @@ pub fn execute_create_stream(
 
     if out_supply < Uint256::from(1u128) {
         return Err(ContractError::ZeroOutSupply {});
+    }
+
+    if config.tos_version != tos_version {
+        return Err(ContractError::InvalidToSVersion {});
     }
 
     if out_denom == config.stream_creation_denom {
