@@ -202,6 +202,9 @@ pub struct ConfigResponse {
     pub fee_collector: String,
     /// Address of the protocol admin.
     pub protocol_admin: String,
+    /// Version or hash of terms and condition document
+    /// that user agrees to.
+    pub tos_version: String,
 }
 
 #[cw_serde]

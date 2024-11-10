@@ -1206,6 +1206,7 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
         fee_collector: cfg.fee_collector.to_string(),
         protocol_admin: cfg.protocol_admin.to_string(),
         accepted_in_denom: cfg.accepted_in_denom,
+        tos_version: cfg.tos_version,
     })
 }
 
