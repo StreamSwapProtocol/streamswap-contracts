@@ -147,6 +147,9 @@ pub enum ExecuteMsg {
     CancelStream {
         stream_id: u64,
     },
+    TreasuryCancelStream {
+        stream_id: u64,
+    },
 }
 
 #[cw_serde]

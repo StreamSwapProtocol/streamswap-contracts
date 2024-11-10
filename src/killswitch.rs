@@ -1,5 +1,5 @@
 use crate::contract::{update_position, update_stream};
-use crate::state::{Status, Stream, CONFIG, POSITIONS, STREAMS};
+use crate::state::{Status, Stream, CONFIG, POSITIONS, STREAMS, TREASURY_STREAM_CANCEL_PERIOD};
 use crate::threshold::{ThresholdError, ThresholdState};
 use crate::ContractError;
 use cosmwasm_std::{
@@ -10,13 +10,18 @@ use cw_utils::maybe_addr;
 
 pub fn execute_withdraw_paused(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     stream_id: u64,
     cap: Option<Uint256>,
     operator_target: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAMS.load(deps.storage, stream_id)?;
+
+    let treasury_cancel_period = TREASURY_STREAM_CANCEL_PERIOD.load(deps.storage, stream_id)?;
+    if treasury_cancel_period.is_active(env.block.time) {
+        return Err(ContractError::TreasuryCancelPeriodActive {});
+    }
     // check if stream is paused
     if !stream.is_paused() {
         return Err(ContractError::StreamNotPaused {});
@@ -351,6 +356,52 @@ pub fn execute_cancel_stream_with_threshold(
         .add_attribute("status", "cancelled"))
 }
 
+pub fn execute_treasury_cancel_stream(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    stream_id: u64,
+) -> Result<Response, ContractError> {
+    let stream = STREAMS.load(deps.storage, stream_id)?;
+
+    let treasury_cancel_period = TREASURY_STREAM_CANCEL_PERIOD
+        .load(deps.storage, stream_id)
+        .map_err(|_| ContractError::TreasuryCancelPeriodNotSet {})?;
+
+    if !treasury_cancel_period.is_active(env.block.time) {
+        return Err(ContractError::TreasuryCancelPeriodEnded {});
+    }
+    // Only treasury can cancel stream in this period
+    if info.sender != stream.treasury {
+        return Err(ContractError::Unauthorized {});
+    }
+    // Stream should not be paused or cancelled
+    if stream.is_killswitch_active() {
+        return Err(ContractError::StreamKillswitchActive {});
+    }
+    if stream.status == Status::Finalized {
+        return Err(ContractError::StreamAlreadyFinalized {});
+    }
+
+    // If treasury cancels the stream in the period, we delete the stream
+    STREAMS.remove(deps.storage, stream_id);
+
+    //Refund all out tokens to stream creator(treasury)
+    let out_supply_u128: Uint128 = stream.out_supply.to_string().parse().unwrap();
+    let messages: Vec<CosmosMsg> = vec![CosmosMsg::Bank(BankMsg::Send {
+        to_address: stream.treasury.to_string(),
+        amount: vec![Coin {
+            denom: stream.out_denom,
+            amount: out_supply_u128,
+        }],
+    })];
+
+    Ok(Response::new()
+        .add_attribute("action", "cancel_stream")
+        .add_messages(messages)
+        .add_attribute("stream_id", stream_id.to_string())
+        .add_attribute("status", "cancelled"))
+}
 pub fn sudo_pause_stream(
     deps: DepsMut,
     env: Env,
