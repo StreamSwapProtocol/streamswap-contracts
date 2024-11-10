@@ -293,7 +293,7 @@ pub fn execute_create_stream(
         return Err(ContractError::ZeroOutSupply {});
     }
 
-    if tos_version != config.tos_version {
+    if config.tos_version != tos_version {
         return Err(ContractError::InvalidToSVersion {});
     }
 
@@ -578,7 +578,7 @@ pub fn update_position(
         position.pending_purchase = decimals;
 
         // floors the decimal points
-        purchased_uint128 = (purchased * Uint256::one()).try_into()?;
+        purchased_uint128 = purchased * Uint256::one();
         position.purchased = position.purchased.checked_add(purchased_uint128)?;
     }
 
@@ -824,7 +824,7 @@ pub fn execute_withdraw(
             to_address: operator_target.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
-                amount: Uint128::from(withdraw_amount),
+                amount: withdraw_amount,
             }],
         }))
         .add_attributes(attributes);
@@ -1158,7 +1158,7 @@ fn check_access(
     if position_owner.as_ref() != info.sender
         && position_operator
             .as_ref()
-            .map_or(true, |o| o != &info.sender)
+            .map_or(true, |o| o != info.sender)
     {
         return Err(ContractError::Unauthorized {});
     }
@@ -1233,6 +1233,7 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
         fee_collector: cfg.fee_collector.to_string(),
         protocol_admin: cfg.protocol_admin.to_string(),
         accepted_in_denom: cfg.accepted_in_denom,
+        tos_version: cfg.tos_version,
     })
 }
 
@@ -1325,6 +1326,7 @@ pub fn query_position(
         operator: position.operator,
         last_updated: position.last_updated,
         pending_purchase: position.pending_purchase,
+        tos_version: position.tos_version,
     };
     Ok(res)
 }
@@ -1356,6 +1358,7 @@ pub fn list_positions(
                 in_balance: position.in_balance,
                 shares: position.shares,
                 operator: position.operator,
+                tos_version: position.tos_version,
             };
             Ok(position)
         })

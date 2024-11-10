@@ -665,8 +665,8 @@ mod test_module {
             out_supply,
             start_time,
             end_time,
-            None,   
-"v1".to_string(),
+            None,
+            "v1".to_string(),
         )
             .unwrap_err();
         assert_eq!(res, ContractError::StreamUrlTooLong {});
@@ -1478,7 +1478,7 @@ mod test_module {
         env.block.time = end.plus_seconds(100);
         let res =
             execute_exit_stream(deps.as_mut(), env, info, 1, Some("creator1".to_string())).unwrap();
-        match res.messages.get(0).unwrap().msg.clone() {
+        match res.messages.first().unwrap().msg.clone() {
             CosmosMsg::Bank(BankMsg::Send {
                 to_address,
                 amount: _,
@@ -1986,7 +1986,7 @@ mod test_module {
         assert_eq!(position.spent, Uint256::from(499_993_773_466u128));
         assert_eq!(position.purchased, Uint256::from(249_999_999_998u128));
         assert_eq!(position.shares, Uint256::zero());
-        let msg = res.messages.get(0).unwrap();
+        let msg = res.messages.first().unwrap();
         assert_eq!(
             msg.msg,
             CosmosMsg::Bank(BankMsg::Send {
@@ -3886,7 +3886,7 @@ mod test_module {
             env.block.time = start.plus_seconds(3_000_000);
             let info = mock_info("creator1", &[]);
             let res = execute_exit_cancelled(deps.as_mut(), env, info, 1, None).unwrap();
-            let msg = res.messages.get(0).unwrap();
+            let msg = res.messages.first().unwrap();
             assert_eq!(
                 msg.msg,
                 Bank(BankMsg::Send {

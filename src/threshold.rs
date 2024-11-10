@@ -27,6 +27,12 @@ pub const THRESHOLDS_STATE_KEY: &str = "thresholds";
 
 pub struct ThresholdState<'a>(Map<'a, u64, Threshold>);
 
+impl<'a> Default for ThresholdState<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> ThresholdState<'a> {
     pub fn new() -> Self {
         ThresholdState(Map::new(THRESHOLDS_STATE_KEY))
@@ -148,9 +154,9 @@ mod tests {
 
         stream.spent_in = Uint256::from(1_500_000_000_000u128 - 1);
         let result = thresholds.error_if_not_reached(stream_id, &storage, &stream.clone());
-        assert_eq!(result.is_err(), true);
+        assert!(result.is_err());
         stream.spent_in = Uint256::from(1_500_000_000_000u128);
         let result = thresholds.error_if_not_reached(stream_id, &storage, &stream.clone());
-        assert_eq!(result.is_err(), false);
+        assert!(result.is_ok());
     }
 }

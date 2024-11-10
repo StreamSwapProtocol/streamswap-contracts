@@ -128,7 +128,7 @@ impl Stream {
     // compute amount of shares that should be minted for a new subscription amount
     pub fn compute_shares_amount(&self, amount_in: Uint256, round_up: bool) -> Uint256 {
         if self.shares.is_zero() || amount_in.is_zero() {
-            return amount_in.into();
+            return amount_in;
         }
         let mut shares = self.shares.mul(amount_in);
         if round_up {

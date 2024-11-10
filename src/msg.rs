@@ -49,7 +49,7 @@ pub enum ExecuteMsg {
         end_time: Timestamp,
         /// Minimum amount of `spent_in` for a stream to be finalized.
         threshold: Option<Uint256>,
-        /// Version or hash of terms and condition document
+        /// Tos version or hash of terms and condition document that user agrees to.
         tos_version: String,
     },
     /// Update stream and calculates distribution state.
@@ -205,6 +205,9 @@ pub struct ConfigResponse {
     pub fee_collector: String,
     /// Address of the protocol admin.
     pub protocol_admin: String,
+    /// Version or hash of terms and condition document
+    /// that user agrees to.
+    pub tos_version: String,
 }
 
 #[cw_serde]
@@ -272,6 +275,8 @@ pub struct PositionResponse {
     pub spent: Uint256,
     // operator can update position
     pub operator: Option<Addr>,
+    // tos version or hash of terms and condition document that user agrees to.
+    pub tos_version: String,
 }
 
 #[cw_serde]
