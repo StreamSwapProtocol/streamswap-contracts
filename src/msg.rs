@@ -272,6 +272,8 @@ pub struct PositionResponse {
     pub spent: Uint256,
     // operator can update position
     pub operator: Option<Addr>,
+    // tos version or hash of terms and condition document that user agrees to.
+    pub tos_version: String,
 }
 
 #[cw_serde]

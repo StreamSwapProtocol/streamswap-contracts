@@ -1299,6 +1299,7 @@ pub fn query_position(
         operator: position.operator,
         last_updated: position.last_updated,
         pending_purchase: position.pending_purchase,
+        tos_version: position.tos_version,
     };
     Ok(res)
 }
@@ -1330,6 +1331,7 @@ pub fn list_positions(
                 in_balance: position.in_balance,
                 shares: position.shares,
                 operator: position.operator,
+                tos_version: position.tos_version,
             };
             Ok(position)
         })
