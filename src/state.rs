@@ -152,7 +152,7 @@ impl Stream {
     }
 }
 pub type StreamId = u64;
-pub const STREAMS: Map<StreamId, Stream> = Map::new("stream");
+pub const STREAMS: Map<StreamId, Stream> = Map::new("streams");
 const STREAM_ID_COUNTER: Item<StreamId> = Item::new("stream_id_counter");
 pub fn next_stream_id(store: &mut dyn Storage) -> Result<u64, ContractError> {
     let id: u64 = STREAM_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
@@ -208,7 +208,7 @@ impl Position {
 }
 
 // Position (stream_id, owner_addr) -> Position
-pub const POSITIONS: Map<(StreamId, &Addr), Position> = Map::new("positions");
+pub const POSITIONS: Map<(StreamId, &Addr), Position> = Map::new("positions_v1_0_4");
 
 /// Terms and services ipfs link signature signed by user
 /// Both for creator and subscriber
