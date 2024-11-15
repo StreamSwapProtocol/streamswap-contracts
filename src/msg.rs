@@ -150,6 +150,9 @@ pub enum ExecuteMsg {
     TreasuryCancelStream {
         stream_id: u64,
     },
+    MigratePosition {
+        stream_id: u64,
+    },
 }
 
 #[cw_serde]

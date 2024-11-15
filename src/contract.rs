@@ -1,5 +1,5 @@
 use crate::killswitch::execute_cancel_stream_with_threshold;
-use crate::migrate_v0_2_1::migrate_v0_2_1;
+use crate::migrate_v0_1_4::OLD_POSITIONS;
 use crate::msg::{
     AveragePriceResponse, ConfigResponse, ExecuteMsg, InstantiateMsg, LatestStreamedPriceResponse,
     MigrateMsg, PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse,
@@ -132,7 +132,7 @@ pub fn execute(
             let stream = STREAMS.load(deps.storage, stream_id)?;
             let config = CONFIG.load(deps.storage)?;
             TOS_SIGNED.save(deps.storage, (stream_id, &info.sender), &config.tos_version)?;
-          
+
             let treasury_cancel_period =
                 TREASURY_STREAM_CANCEL_PERIOD.load(deps.storage, stream_id)?;
             if treasury_cancel_period.is_active(env.block.time) {
@@ -248,6 +248,9 @@ pub fn execute(
             exit_fee_percent,
             tos_version,
         ),
+        ExecuteMsg::MigratePosition { stream_id } => {
+            execute_migrate_position(deps, env, info, stream_id)
+        }
     }
 }
 #[allow(clippy::too_many_arguments)]
@@ -1149,6 +1152,36 @@ pub fn execute_update_config(
 
     Ok(Response::default().add_attributes(attributes))
 }
+pub fn execute_migrate_position(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    stream_id: u64,
+) -> Result<Response, ContractError> {
+    // Old positions state is loaded and saved in new format
+    let old_position = OLD_POSITIONS.load(deps.storage, (stream_id, info.sender.clone()))?;
+    let position: Position = Position {
+        owner: old_position.owner,
+        in_balance: Uint256::from_uint128(old_position.in_balance),
+        shares: Uint256::from_uint128(old_position.shares),
+        index: old_position.index,
+        last_updated: old_position.last_updated,
+        operator: old_position.operator,
+        tos_version: "".to_string(),
+        pending_purchase: old_position.pending_purchase,
+        purchased: Uint256::from_u128(old_position.purchased.into()),
+        spent: Uint256::from_u128(old_position.spent.into()),
+    };
+    OLD_POSITIONS.remove(deps.storage, (stream_id, info.sender.clone()));
+    POSITIONS.save(deps.storage, (stream_id, &info.sender.clone()), &position)?;
+
+    let attributes = vec![
+        attr("action", "migrate_position"),
+        attr("stream_id", stream_id.to_string()),
+        attr("owner", info.sender.clone()),
+    ];
+    Ok(Response::default().add_attributes(attributes))
+}
 
 fn check_access(
     info: &MessageInfo,
@@ -1176,21 +1209,24 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    const OLDER_CONTRACT_VERSION: &str = "0.1.4";
     let contract_info = get_contract_version(deps.storage)?;
     let storage_contract_name: String = contract_info.contract;
-    let storage_version: Version = contract_info.version.parse().map_err(from_semver)?;
-    let version: Version = CONTRACT_VERSION.parse().map_err(from_semver)?;
+    let storage_contract_version: Version = contract_info.version.parse().map_err(from_semver)?;
 
-    if storage_contract_name != CONTRACT_NAME {
+    if !(storage_contract_name == CONTRACT_NAME) {
         return Err(ContractError::CannotMigrate {
             previous_contract: storage_contract_name,
         });
     }
-    if storage_version < version {
-        set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-        // migrate v0.2.0 -> v0.2.1
-        migrate_v0_2_1(deps.storage)?;
+
+    if storage_contract_version.to_string() != OLDER_CONTRACT_VERSION {
+        return Err(ContractError::CannotMigrate {
+            previous_contract: storage_contract_name,
+        });
     }
+    // Set the new contract version
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     Ok(Response::default())
 }

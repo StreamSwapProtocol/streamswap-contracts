@@ -208,7 +208,7 @@ impl Position {
 }
 
 // Position (stream_id, owner_addr) -> Position
-pub const POSITIONS: Map<(StreamId, &Addr), Position> = Map::new("positions");
+pub const POSITIONS: Map<(StreamId, &Addr), Position> = Map::new("positions_v1_0_4");
 
 /// Terms and services ipfs link signature signed by user
 /// Both for creator and subscriber
