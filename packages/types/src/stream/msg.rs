@@ -22,6 +22,7 @@ pub enum ExecuteMsg {
     FinalizeStream {
         new_treasury: Option<String>,
         create_pool: Option<CreatePool>,
+        salt: Option<Binary>,
     },
     /// ExitStream withdraws (by a user who subscribed to the stream) purchased
     /// tokens_out from the pool and remained tokens_in. Must be called after

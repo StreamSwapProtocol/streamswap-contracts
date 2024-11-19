@@ -148,6 +148,7 @@ mod threshold {
         let finalize_msg = StreamSwapExecuteMsg::FinalizeStream {
             new_treasury: None,
             create_pool: None,
+            salt: None,
         };
 
         let res = app
@@ -273,6 +274,7 @@ mod threshold {
         let finalize_msg = StreamSwapExecuteMsg::FinalizeStream {
             new_treasury: None,
             create_pool: None,
+            salt: None,
         };
 
         let err = app
@@ -331,6 +333,7 @@ mod threshold {
         let finalize_msg = StreamSwapExecuteMsg::FinalizeStream {
             new_treasury: None,
             create_pool: None,
+            salt: None,
         };
 
         let err = app

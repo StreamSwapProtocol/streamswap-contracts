@@ -115,6 +115,7 @@ mod pool {
                         tick_spacing: 100,
                         spread_factor: "0.01".to_string(),
                     }),
+                    salt: None,
                 },
                 &[],
             )
@@ -346,6 +347,7 @@ mod pool {
         let finalize_stream_msg = StreamSwapExecuteMsg::FinalizeStream {
             new_treasury: None,
             create_pool: None,
+            salt: None,
         };
         let _err = app
             .execute_contract(

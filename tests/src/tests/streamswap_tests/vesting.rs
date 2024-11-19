@@ -81,6 +81,7 @@ mod vesting {
         let finalized_msg = StreamSwapExecuteMsg::FinalizeStream {
             new_treasury: None,
             create_pool: None,
+            salt: None,
         };
         let res = app
             .execute_contract(
@@ -146,7 +147,8 @@ mod vesting {
             )
             .unwrap();
 
-        let vesting_addr = get_wasm_attribute_with_key(res, "vesting_address".to_string());
+        let vesting_addr =
+            get_wasm_attribute_with_key(res, "subscriber_vesting_address".to_string());
         let contract_data = app
             .contract_data(&Addr::unchecked(vesting_addr.clone()))
             .unwrap();
