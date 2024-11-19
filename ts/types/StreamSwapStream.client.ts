@@ -6,7 +6,7 @@
 
 import { CosmWasmClient, SigningCosmWasmClient, ExecuteResult } from "@cosmjs/cosmwasm-stargate";
 import { StdFee } from "@cosmjs/amino";
-import { Timestamp, Uint64, Uint128, PoolConfig, Uint256, Binary, Schedule, InstantiateMsg, Coin, VestingConfig, ExecuteMsg, CreatePool, QueryMsg, Decimal256, AveragePriceResponse, LatestStreamedPriceResponse, PositionsResponse, PositionResponse, Addr, Params, Status, StreamResponse } from "./StreamSwapStream.types";
+import { Timestamp, Uint64, Schedule, Uint128, PoolConfig, Uint256, Binary, InstantiateMsg, VestingConfig, Coin, ExecuteMsg, CreatePool, QueryMsg, Decimal256, AveragePriceResponse, LatestStreamedPriceResponse, PositionsResponse, PositionResponse, Addr, Params, Status, StreamResponse } from "./StreamSwapStream.types";
 export interface StreamSwapStreamReadOnlyInterface {
   contractAddress: string;
   params: () => Promise<Params>;
@@ -107,10 +107,12 @@ export interface StreamSwapStreamInterface extends StreamSwapStreamReadOnlyInter
   syncPosition: (fee?: number | StdFee | "auto", memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
   finalizeStream: ({
     createPool,
-    newTreasury
+    newTreasury,
+    salt
   }: {
     createPool?: CreatePool;
     newTreasury?: string;
+    salt?: Binary;
   }, fee?: number | StdFee | "auto", memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
   exitStream: ({
     salt
@@ -172,15 +174,18 @@ export class StreamSwapStreamClient extends StreamSwapStreamQueryClient implemen
   };
   finalizeStream = async ({
     createPool,
-    newTreasury
+    newTreasury,
+    salt
   }: {
     createPool?: CreatePool;
     newTreasury?: string;
+    salt?: Binary;
   }, fee: number | StdFee | "auto" = "auto", memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
       finalize_stream: {
         create_pool: createPool,
-        new_treasury: newTreasury
+        new_treasury: newTreasury,
+        salt
       }
     }, fee, memo, _funds);
   };
