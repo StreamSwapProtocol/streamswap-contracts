@@ -23,6 +23,7 @@ mod shares {
             None,
             None,
             None,
+            "v1".to_string(),
         );
 
         // add new shares

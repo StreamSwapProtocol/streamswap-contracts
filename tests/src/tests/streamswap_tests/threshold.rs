@@ -36,6 +36,7 @@ mod threshold {
             None,
             None,
             None,
+            "v1".to_string(),
         );
         let threshold = Uint256::from(1_500_000_000_000u128);
 

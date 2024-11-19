@@ -39,6 +39,8 @@ pub struct Stream {
     pub subscriber_vesting: Option<VestingConfig>,
     /// Creator Vesting configuration, used to create a vesting contract for creator once the stream ends
     pub creator_vesting: Option<VestingConfig>,
+    // Tos version
+    pub tos_version: String,
 }
 
 #[cw_serde]
@@ -120,6 +122,7 @@ impl Stream {
         pool_config: Option<PoolConfig>,
         subscriber_vesting: Option<VestingConfig>,
         creator_vesting: Option<VestingConfig>,
+        tos_version: String,
     ) -> Self {
         Stream {
             name,
@@ -138,6 +141,7 @@ impl Stream {
             pool_config,
             subscriber_vesting,
             creator_vesting,
+            tos_version,
         }
     }
 

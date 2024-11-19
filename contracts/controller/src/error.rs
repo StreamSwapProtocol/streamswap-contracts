@@ -129,6 +129,9 @@ pub enum ContractError {
 
     #[error("Pool creation fee not found")]
     PoolCreationFeeNotFound {},
+
+    #[error("Invalid terms and services")]
+    InvalidToSVersion {},
 }
 
 impl From<ContractError> for StdError {

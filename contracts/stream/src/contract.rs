@@ -65,6 +65,7 @@ pub fn instantiate(
         subscriber_vesting,
         creator_vesting,
         salt: _,
+        tos_version,
     } = msg;
 
     validate_stream_times(
@@ -97,6 +98,7 @@ pub fn instantiate(
         pool_config.clone(),
         subscriber_vesting,
         creator_vesting,
+        tos_version,
     );
     STREAM.save(deps.storage, &stream)?;
 
@@ -320,6 +322,7 @@ pub fn execute_subscribe(
                 new_shares,
                 Some(stream.dist_index),
                 env.block.time,
+                stream.tos_version.clone(),
             );
             POSITIONS.save(deps.storage, &info.sender, &new_position)?;
         }
