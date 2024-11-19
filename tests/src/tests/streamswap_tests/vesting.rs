@@ -177,7 +177,6 @@ mod vesting {
 
     #[test]
     fn creator_vesting() {
-
         let Suite {
             mut app,
             test_accounts,
@@ -215,8 +214,8 @@ mod vesting {
             start_time,
             end_time,
         )
-            .creator_vesting(vesting_msg)
-            .build();
+        .creator_vesting(vesting_msg)
+        .build();
 
         let res = app
             .execute_contract(

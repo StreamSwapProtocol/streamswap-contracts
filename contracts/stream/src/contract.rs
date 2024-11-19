@@ -584,11 +584,9 @@ pub fn execute_finalize_stream(
         let creator = deps.api.addr_canonicalize(env.contract.address.as_str())?;
 
         // Calculate the address of the new contract
-        let creator_vesting_address = deps.api.addr_humanize(&cosmwasm_std::instantiate2_address(
-            checksum.as_ref(),
-            &creator,
-            &salt,
-        )?)?;
+        let creator_vesting_address = deps.api.addr_humanize(
+            &cosmwasm_std::instantiate2_address(checksum.as_ref(), &creator, &salt)?,
+        )?;
 
         CREATOR_VESTING.save(deps.storage, treasury.clone(), &creator_vesting_address)?;
 
