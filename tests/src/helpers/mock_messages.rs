@@ -44,6 +44,7 @@ pub struct CreateStreamMsgBuilder {
     salt: Binary,
 }
 
+#[allow(dead_code)]
 impl CreateStreamMsgBuilder {
     pub fn new(
         name: &str,
