@@ -6,6 +6,9 @@
 
 export type Timestamp = Uint64;
 export type Uint64 = string;
+export type Schedule = "saturating_linear" | {
+  piecewise_linear: [number, Uint128][];
+};
 export type Uint128 = string;
 export type PoolConfig = {
   concentrated_liquidity: {
@@ -14,11 +17,9 @@ export type PoolConfig = {
 };
 export type Uint256 = string;
 export type Binary = string;
-export type Schedule = "saturating_linear" | {
-  piecewise_linear: [number, Uint128][];
-};
 export interface InstantiateMsg {
   bootstraping_start_time: Timestamp;
+  creator_vesting?: VestingConfig | null;
   end_time: Timestamp;
   in_denom: string;
   name: string;
@@ -27,20 +28,20 @@ export interface InstantiateMsg {
   salt: Binary;
   start_time: Timestamp;
   stream_admin: string;
+  subscriber_vesting?: VestingConfig | null;
   threshold?: Uint256 | null;
   treasury: string;
   url?: string | null;
-  vesting?: VestingConfig | null;
-}
-export interface Coin {
-  amount: Uint128;
-  denom: string;
-  [k: string]: unknown;
 }
 export interface VestingConfig {
   schedule: Schedule;
   unbonding_duration_seconds: number;
   vesting_duration_seconds: number;
+}
+export interface Coin {
+  amount: Uint128;
+  denom: string;
+  [k: string]: unknown;
 }
 export type ExecuteMsg = {
   sync_stream: {};
@@ -56,6 +57,7 @@ export type ExecuteMsg = {
   finalize_stream: {
     create_pool?: CreatePool | null;
     new_treasury?: string | null;
+    salt?: Binary | null;
   };
 } | {
   exit_stream: {

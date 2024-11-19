@@ -6,7 +6,7 @@
 
 import { CosmWasmClient, SigningCosmWasmClient, ExecuteResult } from "@cosmjs/cosmwasm-stargate";
 import { StdFee } from "@cosmjs/amino";
-import { Decimal256, Uint128, InstantiateMsg, Coin, ExecuteMsg, Timestamp, Uint64, PoolConfig, Uint256, Binary, Schedule, CreateStreamMsg, VestingConfig, QueryMsg, Boolean, StreamsResponse, StreamResponse, Addr, Params } from "./StreamSwapController.types";
+import { Decimal256, Uint128, InstantiateMsg, Coin, ExecuteMsg, Timestamp, Uint64, Schedule, PoolConfig, Uint256, Binary, CreateStreamMsg, VestingConfig, QueryMsg, Boolean, StreamsResponse, StreamResponse, Addr, Params } from "./StreamSwapController.types";
 export interface StreamSwapControllerReadOnlyInterface {
   contractAddress: string;
   params: () => Promise<Params>;
