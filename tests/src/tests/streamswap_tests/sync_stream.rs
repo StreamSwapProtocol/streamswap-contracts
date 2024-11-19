@@ -5,11 +5,10 @@ mod sync_stream {
 
     use crate::helpers::suite::SuiteBuilder;
     use crate::helpers::{
-        mock_messages::{get_controller_inst_msg, get_create_stream_msg},
-        suite::Suite,
-        utils::get_contract_address_from_res,
+        mock_messages::get_controller_inst_msg, suite::Suite, utils::get_contract_address_from_res,
     };
 
+    use crate::helpers::mock_messages::CreateStreamMsgBuilder;
     use cosmwasm_std::{coin, Addr, BlockInfo, Decimal256, Uint256};
     use cw_multi_test::Executor;
     use streamswap_types::stream::{
@@ -41,20 +40,16 @@ mod sync_stream {
         let start_time = app.block_info().time.plus_seconds(100);
         let end_time = app.block_info().time.plus_seconds(200);
         let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
-
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             start_time,
             end_time,
-            None,
-            None,
-            None,
-        );
+        )
+        .build();
 
         let _res = app
             .execute_contract(
@@ -274,19 +269,16 @@ mod sync_stream {
         let end_time = app.block_info().time.plus_seconds(200);
         let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
 
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             start_time,
             end_time,
-            None,
-            None,
-            None,
-        );
+        )
+        .build();
 
         let _res = app
             .execute_contract(
@@ -400,19 +392,16 @@ mod sync_stream {
             )
             .unwrap();
 
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "Stream Swap tests",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(1_000, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             start_time,
             end_time,
-            None,
-            None,
-            None,
-        );
+        )
+        .build();
         // Create Stream
         let res = app
             .execute_contract(

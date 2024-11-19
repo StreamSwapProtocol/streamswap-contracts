@@ -1,8 +1,9 @@
 #[cfg(test)]
 mod cancel_stream {
+    use crate::helpers::mock_messages::CreateStreamMsgBuilder;
     use crate::helpers::suite::SuiteBuilder;
     use crate::helpers::{
-        mock_messages::{get_controller_inst_msg, get_create_stream_msg},
+        mock_messages::get_controller_inst_msg,
         suite::Suite,
         utils::{get_contract_address_from_res, get_funds_from_res, get_wasm_attribute_with_key},
     };
@@ -37,19 +38,17 @@ mod cancel_stream {
         let end_time = app.block_info().time.plus_seconds(200);
         let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
 
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             start_time,
             end_time,
-            Some(Uint256::from(100u128)),
-            None,
-            None,
-        );
+        )
+        .threshold(Uint256::from(100u128))
+        .build();
 
         let _res = app
             .execute_contract(
@@ -123,20 +122,17 @@ mod cancel_stream {
         let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
         let out_amount = coin(100, "out_denom");
 
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            None,
             test_accounts.creator_1.as_ref(),
             out_amount.clone(),
             "in_denom",
             bootstrapping_start_time,
             start_time,
             end_time,
-            Some(Uint256::from(100u128)),
-            None,
-            None,
-        );
-
+        )
+        .threshold(Uint256::from(100u128))
+        .build();
         let _res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
@@ -212,19 +208,17 @@ mod cancel_stream {
         let end_time = app.block_info().time.plus_seconds(200);
         let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
 
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             start_time,
             end_time,
-            Some(Uint256::from(100u128)),
-            None,
-            None,
-        );
+        )
+        .threshold(Uint256::from(100u128))
+        .build();
 
         let _res = app
             .execute_contract(

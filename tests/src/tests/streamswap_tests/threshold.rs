@@ -1,12 +1,10 @@
 #[cfg(test)]
 mod threshold {
 
+    use crate::helpers::mock_messages::CreateStreamMsgBuilder;
     use crate::helpers::suite::SuiteBuilder;
     use crate::helpers::utils::{get_contract_address_from_res, get_funds_from_res};
-    use crate::helpers::{
-        mock_messages::{get_controller_inst_msg, get_create_stream_msg},
-        suite::Suite,
-    };
+    use crate::helpers::{mock_messages::get_controller_inst_msg, suite::Suite};
     use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Timestamp, Uint128, Uint256};
     use cw_multi_test::Executor;
@@ -77,19 +75,18 @@ mod threshold {
             )
             .unwrap();
 
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "Stream Swap tests",
-            Some("https://sample.url".to_string()),
             test_accounts.creator_1.as_ref(),
             coin(500, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             start_time,
             end_time,
-            Some(threshold),
-            None,
-            None,
-        );
+        )
+        .url("https://sample.url".to_string())
+        .threshold(threshold)
+        .build();
 
         let res = app
             .execute_contract(
@@ -202,19 +199,18 @@ mod threshold {
             )
             .unwrap();
 
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "Stream Swap tests",
-            Some("https://sample.url".to_string()),
             test_accounts.creator_1.as_ref(),
             coin(500, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             start_time,
             end_time,
-            Some(threshold),
-            None,
-            None,
-        );
+        )
+        .url("https://sample.url".to_string())
+        .threshold(threshold)
+        .build();
 
         let res = app
             .execute_contract(
@@ -430,19 +426,18 @@ mod threshold {
             )
             .unwrap();
 
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "Stream Swap tests",
-            Some("https://sample.url".to_string()),
             test_accounts.creator_1.as_ref(),
             coin(500, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             start_time,
             end_time,
-            Some(threshold),
-            None,
-            None,
-        );
+        )
+        .url("https://sample.url".to_string())
+        .threshold(threshold)
+        .build();
 
         let res = app
             .execute_contract(

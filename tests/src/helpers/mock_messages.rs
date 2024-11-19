@@ -28,35 +28,90 @@ pub fn get_controller_inst_msg(
     }
 }
 
-#[allow(dead_code)]
-pub fn get_create_stream_msg(
-    name: &str,
+pub struct CreateStreamMsgBuilder {
+    name: String,
     url: Option<String>,
-    treasury: &str,
+    treasury: String,
     out_asset: Coin,
-    in_denom: &str,
+    in_denom: String,
     bootstrapping_start_time: Timestamp,
     start_time: Timestamp,
     end_time: Timestamp,
     threshold: Option<Uint256>,
     pool_config: Option<PoolConfig>,
     vesting: Option<VestingConfig>,
-) -> ControllerExecuteMsg {
-    ControllerExecuteMsg::CreateStream {
-        msg: Box::new(CreateStreamMsg {
-            bootstraping_start_time: bootstrapping_start_time,
-            treasury: treasury.to_string(),
-            stream_admin: treasury.to_string(),
+    salt: Binary,
+}
+
+impl CreateStreamMsgBuilder {
+    pub fn new(
+        name: &str,
+        treasury: &str,
+        out_asset: Coin,
+        in_denom: &str,
+        bootstrapping_start_time: Timestamp,
+        start_time: Timestamp,
+        end_time: Timestamp,
+    ) -> Self {
+        Self {
             name: name.to_string(),
-            url,
+            url: None,
+            treasury: treasury.to_string(),
             out_asset,
             in_denom: in_denom.to_string(),
+            bootstrapping_start_time,
             start_time,
             end_time,
-            threshold,
-            pool_config,
-            vesting,
+            threshold: None,
+            pool_config: None,
+            vesting: None,
             salt: Binary::from_base64("salt").unwrap(),
-        }),
+        }
+    }
+
+    pub fn url(mut self, url: String) -> Self {
+        self.url = Some(url);
+        self
+    }
+
+    pub fn threshold(mut self, threshold: Uint256) -> Self {
+        self.threshold = Some(threshold);
+        self
+    }
+
+    pub fn pool_config(mut self, pool_config: PoolConfig) -> Self {
+        self.pool_config = Some(pool_config);
+        self
+    }
+
+    pub fn vesting(mut self, vesting: VestingConfig) -> Self {
+        self.vesting = Some(vesting);
+        self
+    }
+
+    #[allow(dead_code)]
+    pub fn salt(mut self, salt: Binary) -> Self {
+        self.salt = salt;
+        self
+    }
+
+    pub fn build(self) -> ControllerExecuteMsg {
+        ControllerExecuteMsg::CreateStream {
+            msg: Box::new(CreateStreamMsg {
+                bootstraping_start_time: self.bootstrapping_start_time,
+                treasury: self.treasury.clone(),
+                stream_admin: self.treasury,
+                name: self.name,
+                url: self.url,
+                out_asset: self.out_asset,
+                in_denom: self.in_denom,
+                start_time: self.start_time,
+                end_time: self.end_time,
+                threshold: self.threshold,
+                pool_config: self.pool_config,
+                vesting: self.vesting,
+                salt: self.salt,
+            }),
+        }
     }
 }

@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod vesting {
-    use crate::helpers::mock_messages::{get_controller_inst_msg, get_create_stream_msg};
+    use crate::helpers::mock_messages::{get_controller_inst_msg, CreateStreamMsgBuilder};
     use crate::helpers::suite::{Suite, SuiteBuilder};
     use crate::helpers::utils::{
         get_contract_address_from_res, get_funds_from_res, get_wasm_attribute_with_key,
@@ -43,19 +43,17 @@ mod vesting {
             vesting_duration_seconds: 150,
             unbonding_duration_seconds: 0,
         };
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "Stream Swap tests",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(1_000_000, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             start_time,
             end_time,
-            None,
-            None,
-            Some(vesting_msg),
-        );
+        )
+        .vesting(vesting_msg)
+        .build();
         let res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
