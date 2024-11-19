@@ -40,6 +40,7 @@ pub struct CreateStreamMsgBuilder {
     threshold: Option<Uint256>,
     pool_config: Option<PoolConfig>,
     subscriber_vesting: Option<VestingConfig>,
+    creator_vesting: Option<VestingConfig>,
     salt: Binary,
 }
 
@@ -65,6 +66,7 @@ impl CreateStreamMsgBuilder {
             threshold: None,
             pool_config: None,
             subscriber_vesting: None,
+            creator_vesting: None,
             salt: Binary::from_base64("salt").unwrap(),
         }
     }
@@ -89,6 +91,11 @@ impl CreateStreamMsgBuilder {
         self
     }
 
+    pub fn creator_vesting(mut self, creator_vesting: VestingConfig) -> Self {
+        self.creator_vesting = Some(creator_vesting);
+        self
+    }
+
     #[allow(dead_code)]
     pub fn salt(mut self, salt: Binary) -> Self {
         self.salt = salt;
@@ -110,6 +117,7 @@ impl CreateStreamMsgBuilder {
                 threshold: self.threshold,
                 pool_config: self.pool_config,
                 subscriber_vesting: self.subscriber_vesting,
+                creator_vesting: self.creator_vesting,
                 salt: self.salt,
             }),
         }

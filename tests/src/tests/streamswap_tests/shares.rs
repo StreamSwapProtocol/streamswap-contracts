@@ -22,6 +22,7 @@ mod shares {
             Timestamp::from_seconds(0),
             None,
             None,
+            None,
         );
 
         // add new shares

@@ -135,6 +135,7 @@ pub fn execute_create_stream(
         pool_config: create_pool,
         subscriber_vesting: _,
         bootstraping_start_time: _,
+        creator_vesting: _,
         salt,
     } = msg.clone();
 

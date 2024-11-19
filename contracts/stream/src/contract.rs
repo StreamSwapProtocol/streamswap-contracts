@@ -63,6 +63,7 @@ pub fn instantiate(
         stream_admin,
         pool_config,
         subscriber_vesting,
+        creator_vesting,
         salt: _,
     } = msg;
 
@@ -95,6 +96,7 @@ pub fn instantiate(
         end_time,
         pool_config.clone(),
         subscriber_vesting,
+        creator_vesting,
     );
     STREAM.save(deps.storage, &stream)?;
 
