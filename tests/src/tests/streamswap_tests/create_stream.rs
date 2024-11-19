@@ -1,11 +1,9 @@
 #[cfg(test)]
 mod create_stream_tests {
+    use crate::helpers::mock_messages::CreateStreamMsgBuilder;
     use crate::helpers::suite::SuiteBuilder;
     use crate::helpers::utils::get_wasm_attribute_with_key;
-    use crate::helpers::{
-        mock_messages::{get_controller_inst_msg, get_create_stream_msg},
-        suite::Suite,
-    };
+    use crate::helpers::{mock_messages::get_controller_inst_msg, suite::Suite};
     use cosmwasm_std::{coin, Uint256};
     use cw_multi_test::Executor;
     use streamswap_controller::error::ContractError as ControllerError;
@@ -41,19 +39,16 @@ mod create_stream_tests {
             .unwrap();
         // Failed name checks
         // Name too short
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "s",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             start_time,
             end_time,
-            None,
-            None,
-            None,
-        );
+        )
+        .build();
 
         let res = app
             .execute_contract(
@@ -69,19 +64,16 @@ mod create_stream_tests {
         assert_eq!(*error, StreamSwapError::StreamNameTooShort {});
         // Name too long
         let long_name = "a".repeat(65);
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             &long_name,
-            None,
             test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             app.block_info().time.plus_seconds(100),
             app.block_info().time.plus_seconds(200),
-            None,
-            None,
-            None,
-        );
+        )
+        .build();
 
         let res = app
             .execute_contract(
@@ -97,19 +89,16 @@ mod create_stream_tests {
         assert_eq!(*error, StreamSwapError::StreamNameTooLong {});
 
         // Invalid name
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "abc~ß",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             app.block_info().time.plus_seconds(100),
             app.block_info().time.plus_seconds(200),
-            None,
-            None,
-            None,
-        );
+        )
+        .build();
 
         let res = app
             .execute_contract(
@@ -126,19 +115,17 @@ mod create_stream_tests {
 
         // Failed url checks
         // URL too short
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            Some("a".to_string()),
             test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             app.block_info().time.plus_seconds(100),
             app.block_info().time.plus_seconds(200),
-            None,
-            None,
-            None,
-        );
+        )
+        .url("a".to_string())
+        .build();
 
         let res = app
             .execute_contract(
@@ -156,19 +143,18 @@ mod create_stream_tests {
 
         // URL too long
         let long_url = "a".repeat(256);
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            Some(long_url),
             test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             app.block_info().time.plus_seconds(100),
             app.block_info().time.plus_seconds(200),
-            Some(Uint256::from(100u128)),
-            None,
-            None,
-        );
+        )
+        .url(long_url)
+        .threshold(Uint256::from(100u128))
+        .build();
 
         let res = app
             .execute_contract(
@@ -211,19 +197,17 @@ mod create_stream_tests {
             .unwrap();
 
         // Non permissioned in denom
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "invalid_in_denom",
             bootstrapping_start_time,
             start_time,
             end_time,
-            None,
-            None,
-            None,
-        );
+        )
+        .build();
+
         let res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
@@ -237,19 +221,16 @@ mod create_stream_tests {
         assert_eq!(*error, ControllerError::InDenomIsNotAccepted {});
 
         // Same in and out denom
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(100, "in_denom"),
             "in_denom",
             bootstrapping_start_time,
             app.block_info().time.plus_seconds(100),
             app.block_info().time.plus_seconds(200),
-            None,
-            None,
-            None,
-        );
+        )
+        .build();
         let res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
@@ -264,19 +245,17 @@ mod create_stream_tests {
         assert_eq!(*error, StreamSwapError::SameDenomOnEachSide {});
 
         // Zero out supply
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(0, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             app.block_info().time.plus_seconds(100),
             app.block_info().time.plus_seconds(200),
-            Some(Uint256::from(100u128)),
-            None,
-            None,
-        );
+        )
+        .threshold(Uint256::from(100u128))
+        .build();
 
         let res = app
             .execute_contract(
@@ -291,19 +270,16 @@ mod create_stream_tests {
         assert_eq!(*error, ControllerError::ZeroOutSupply {});
 
         // No funds sent
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             app.block_info().time.plus_seconds(100),
             app.block_info().time.plus_seconds(200),
-            None,
-            None,
-            None,
-        );
+        )
+        .build();
 
         let res = app
             .execute_contract(
@@ -325,19 +301,16 @@ mod create_stream_tests {
         );
 
         // Insufficient fee
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             app.block_info().time.plus_seconds(100),
             app.block_info().time.plus_seconds(200),
-            None,
-            None,
-            None,
-        );
+        )
+        .build();
 
         let res = app
             .execute_contract(
@@ -359,19 +332,16 @@ mod create_stream_tests {
         );
 
         // Extra funds sent
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             app.block_info().time.plus_seconds(100),
             app.block_info().time.plus_seconds(200),
-            None,
-            None,
-            None,
-        );
+        )
+        .build();
 
         let res = app
             .execute_contract(
@@ -402,19 +372,17 @@ mod create_stream_tests {
         );
 
         // Threshold zero
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             app.block_info().time.plus_seconds(100),
             app.block_info().time.plus_seconds(200),
-            Some(Uint256::from(0u128)),
-            None,
-            None,
-        );
+        )
+        .threshold(Uint256::from(0u128))
+        .build();
 
         let res = app
             .execute_contract(
@@ -469,19 +437,16 @@ mod create_stream_tests {
         let start_time = app.block_info().time.plus_seconds(100);
         let end_time = app.block_info().time.plus_seconds(200);
 
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstart_time,
             start_time,
             end_time,
-            None,
-            None,
-            None,
-        );
+        )
+        .build();
         let res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
@@ -499,19 +464,16 @@ mod create_stream_tests {
         let start_time = app.block_info().time.plus_seconds(100);
         let end_time = app.block_info().time.plus_seconds(101);
 
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstart_time,
             start_time,
             end_time,
-            None,
-            None,
-            None,
-        );
+        )
+        .build();
 
         let res = app
             .execute_contract(
@@ -552,19 +514,17 @@ mod create_stream_tests {
             )
             .unwrap();
 
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             start_time,
             end_time,
-            Some(Uint256::from(100u128)),
-            None,
-            None,
-        );
+        )
+        .threshold(Uint256::from(100u128))
+        .build();
 
         let res = app
             .execute_contract(

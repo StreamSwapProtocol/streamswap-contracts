@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod pool {
-    use crate::helpers::mock_messages::{get_controller_inst_msg, get_create_stream_msg};
+    use crate::helpers::mock_messages::{get_controller_inst_msg, CreateStreamMsgBuilder};
     use crate::helpers::suite::{Suite, SuiteBuilder};
     use crate::helpers::utils::{
         get_contract_address_from_res, get_funds_from_res, get_wasm_attribute_with_key,
@@ -50,21 +50,19 @@ mod pool {
                 None,
             )
             .unwrap();
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "Stream Swap tests",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(out_supply, out_denom),
             in_denom,
             bootstrapping_start_time,
             start_time,
             end_time,
-            None,
-            Some(PoolConfig::ConcentratedLiquidity {
-                out_amount_clp: out_clp_amount.into(),
-            }),
-            None,
-        );
+        )
+        .pool_config(PoolConfig::ConcentratedLiquidity {
+            out_amount_clp: out_clp_amount.into(),
+        })
+        .build();
         let res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
@@ -177,21 +175,20 @@ mod pool {
         let stream_creation_fee = coin(100, "fee_denom");
         let in_denom = "in_denom";
 
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            None,
             test_accounts.creator_1.as_ref(),
             out_coin.clone(),
             in_denom,
             bootstrapping_start_time,
             start_time,
             end_time,
-            Some(Uint256::from(100u128)),
-            Some(PoolConfig::ConcentratedLiquidity {
-                out_amount_clp: out_clp_amount.into(),
-            }),
-            None,
-        );
+        )
+        .threshold(Uint256::from(100u128))
+        .pool_config(PoolConfig::ConcentratedLiquidity {
+            out_amount_clp: out_clp_amount.into(),
+        })
+        .build();
 
         let _res = app
             .execute_contract(
@@ -290,21 +287,20 @@ mod pool {
         let stream_creation_fee = coin(100, "fee_denom");
         let in_denom = "in_denom";
 
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            None,
             test_accounts.creator_1.as_ref(),
             out_coin.clone(),
             in_denom,
             bootstrapping_start_time,
             start_time,
             end_time,
-            Some(Uint256::from(100u128)),
-            Some(PoolConfig::ConcentratedLiquidity {
-                out_amount_clp: out_clp_amount.into(),
-            }),
-            None,
-        );
+        )
+        .threshold(Uint256::from(100u128))
+        .pool_config(PoolConfig::ConcentratedLiquidity {
+            out_amount_clp: out_clp_amount.into(),
+        })
+        .build();
 
         let _res = app
             .execute_contract(
@@ -416,21 +412,20 @@ mod pool {
         let stream_creation_fee = coin(100, "fee_denom");
         let in_denom = "in_denom";
 
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            None,
             test_accounts.creator_1.as_ref(),
             out_coin.clone(),
             in_denom,
             bootstrapping_start_time,
             start_time,
             end_time,
-            Some(Uint256::from(100u128)),
-            Some(PoolConfig::ConcentratedLiquidity {
-                out_amount_clp: out_clp_amount.into(),
-            }),
-            None,
-        );
+        )
+        .threshold(Uint256::from(100u128))
+        .pool_config(PoolConfig::ConcentratedLiquidity {
+            out_amount_clp: out_clp_amount.into(),
+        })
+        .build();
 
         let res = app
             .execute_contract(

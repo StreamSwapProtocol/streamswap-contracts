@@ -1,9 +1,7 @@
 #![cfg(test)]
+use crate::helpers::mock_messages::CreateStreamMsgBuilder;
 use crate::helpers::suite::SuiteBuilder;
-use crate::helpers::{
-    mock_messages::{get_controller_inst_msg, get_create_stream_msg},
-    suite::Suite,
-};
+use crate::helpers::{mock_messages::get_controller_inst_msg, suite::Suite};
 use cosmwasm_std::coin;
 use cw_multi_test::Executor;
 use streamswap_controller::error::ContractError as ControllerError;
@@ -31,19 +29,17 @@ fn controller_freeze() {
         )
         .unwrap();
     // When controller is created, it is not frozen, Stream creation is allowed
-    let create_stream_msg = get_create_stream_msg(
+    let create_stream_msg = CreateStreamMsgBuilder::new(
         "stream",
-        None,
         test_accounts.creator_1.as_ref(),
         coin(100, "out_denom"),
         "in_denom",
         app.block_info().time.plus_seconds(50),
         app.block_info().time.plus_seconds(100),
         app.block_info().time.plus_seconds(200),
-        None,
-        None,
-        None,
-    );
+    )
+    .build();
+
     let _create_stream_res = app
         .execute_contract(
             test_accounts.creator_1.clone(),
@@ -85,19 +81,16 @@ fn controller_freeze() {
     assert!(res);
 
     // When controller is frozen, Stream creation is not allowed
-    let create_stream_msg = get_create_stream_msg(
+    let create_stream_msg = CreateStreamMsgBuilder::new(
         "stream",
-        None,
         test_accounts.creator_1.as_ref(),
         coin(100, "out_denom"),
         "in_denom",
         app.block_info().time.plus_seconds(50),
         app.block_info().time.plus_seconds(100),
         app.block_info().time.plus_seconds(200),
-        None,
-        None,
-        None,
-    );
+    )
+    .build();
     let res = app
         .execute_contract(
             test_accounts.creator_1.clone(),

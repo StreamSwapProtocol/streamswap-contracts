@@ -1,9 +1,10 @@
 #[cfg(test)]
 mod exit_cancel {
+    use crate::helpers::mock_messages::CreateStreamMsgBuilder;
     use crate::helpers::suite::SuiteBuilder;
     use crate::helpers::utils::get_wasm_attribute_with_key;
     use crate::helpers::{
-        mock_messages::{get_controller_inst_msg, get_create_stream_msg},
+        mock_messages::get_controller_inst_msg,
         suite::Suite,
         utils::{get_contract_address_from_res, get_funds_from_res},
     };
@@ -38,19 +39,16 @@ mod exit_cancel {
         let end_time = app.block_info().time.plus_seconds(200);
         let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
 
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             start_time,
             end_time,
-            None,
-            None,
-            None,
-        );
+        )
+        .build();
 
         let _res = app
             .execute_contract(
@@ -122,19 +120,17 @@ mod exit_cancel {
         let end_time = app.block_info().time.plus_seconds(200);
         let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
 
-        let create_stream_msg = get_create_stream_msg(
+        let create_stream_msg = CreateStreamMsgBuilder::new(
             "stream",
-            None,
             test_accounts.creator_1.as_ref(),
             coin(100, "out_denom"),
             "in_denom",
             bootstrapping_start_time,
             start_time,
             end_time,
-            Some(Uint256::from(100u128)),
-            None,
-            None,
-        );
+        )
+        .threshold(Uint256::from(100u128))
+        .build();
 
         let _res = app
             .execute_contract(
