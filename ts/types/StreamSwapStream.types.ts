@@ -30,6 +30,7 @@ export interface InstantiateMsg {
   stream_admin: string;
   subscriber_vesting?: VestingConfig | null;
   threshold?: Uint256 | null;
+  tos_version: string;
   treasury: string;
   url?: string | null;
 }
@@ -132,6 +133,7 @@ export interface Params {
   protocol_admin: Addr;
   stream_contract_code_id: number;
   stream_creation_fee: Coin;
+  tos_version: string;
   vesting_code_id: number;
 }
 export type Status = "waiting" | "bootstrapping" | "active" | "ended" | "finalized" | "cancelled";

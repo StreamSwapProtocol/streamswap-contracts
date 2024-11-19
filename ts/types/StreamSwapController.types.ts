@@ -16,6 +16,7 @@ export interface InstantiateMsg {
   protocol_admin?: string | null;
   stream_contract_code_id: number;
   stream_creation_fee: Coin;
+  tos_version: string;
   vesting_code_id: number;
 }
 export interface Coin {
@@ -67,6 +68,7 @@ export interface CreateStreamMsg {
   stream_admin: string;
   subscriber_vesting?: VestingConfig | null;
   threshold?: Uint256 | null;
+  tos_version: string;
   treasury: string;
   url?: string | null;
 }
@@ -106,5 +108,6 @@ export interface Params {
   protocol_admin: Addr;
   stream_contract_code_id: number;
   stream_creation_fee: Coin;
+  tos_version: string;
   vesting_code_id: number;
 }
