@@ -22,7 +22,7 @@ use streamswap_types::stream::{
 use streamswap_utils::to_uint256;
 
 use crate::pool::{build_create_initial_position_msg, calculate_in_amount_clp, next_pool_id};
-use crate::state::{CONTROLLER_PARAMS, POSITIONS, STREAM, VESTING};
+use crate::state::{CONTROLLER_PARAMS, POSITIONS, STREAM, SUBSCRIBER_VESTING};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use cw_vesting::UncheckedDenom;
 use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
@@ -62,7 +62,7 @@ pub fn instantiate(
         in_denom,
         stream_admin,
         pool_config,
-        vesting,
+        subscriber_vesting,
         salt: _,
     } = msg;
 
@@ -94,7 +94,7 @@ pub fn instantiate(
         start_time,
         end_time,
         pool_config.clone(),
-        vesting,
+        subscriber_vesting,
     );
     STREAM.save(deps.storage, &stream)?;
 
@@ -643,24 +643,24 @@ pub fn execute_exit_stream(
     // the out tokens to the contract
     let uint128_purchased = Uint128::try_from(position.purchased)?;
 
-    if let Some(vesting) = stream.vesting {
+    if let Some(sub_vesting) = stream.subscriber_vesting {
         let salt = salt.ok_or(ContractError::InvalidSalt {})?;
 
         let vesting_title = format!(
             "Stream addr {} released to {}",
             env.contract.address, info.sender
         );
-        let vesting_instantiate_msg = VestingInstantiateMsg {
+        let sub_vesting_instantiate_msg = VestingInstantiateMsg {
             owner: None,
             title: vesting_title,
             recipient: info.sender.to_string(),
             description: None,
             total: uint128_purchased,
             denom: UncheckedDenom::Native(stream.out_asset.denom.clone()),
-            schedule: vesting.schedule,
+            schedule: sub_vesting.schedule,
             start_time: Some(stream.status_info.end_time),
-            vesting_duration_seconds: vesting.vesting_duration_seconds,
-            unbonding_duration_seconds: vesting.unbonding_duration_seconds,
+            vesting_duration_seconds: sub_vesting.vesting_duration_seconds,
+            unbonding_duration_seconds: sub_vesting.unbonding_duration_seconds,
         };
 
         // prepare instantiate msg msg
@@ -676,13 +676,13 @@ pub fn execute_exit_stream(
             &salt,
         )?)?;
 
-        VESTING.save(deps.storage, info.sender.clone(), &address)?;
+        SUBSCRIBER_VESTING.save(deps.storage, info.sender.clone(), &address)?;
 
         let vesting_instantiate_msg = WasmMsg::Instantiate2 {
             admin: None,
             code_id: controller_params.vesting_code_id,
             label: format!("{}-{}", stream.out_asset.denom, info.sender),
-            msg: to_json_binary(&vesting_instantiate_msg)?,
+            msg: to_json_binary(&sub_vesting_instantiate_msg)?,
             funds: vec![coin(uint128_purchased.u128(), stream.out_asset.denom)],
             salt,
         };

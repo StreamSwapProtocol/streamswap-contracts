@@ -71,8 +71,8 @@ pub struct CreateStreamMsg {
     pub threshold: Option<Uint256>,
     /// Pool Configuration for the pre stream
     pub pool_config: Option<PoolConfig>,
-    /// Vesting configuration
-    pub vesting: Option<VestingConfig>,
+    /// Subscriber Vesting configuration
+    pub subscriber_vesting: Option<VestingConfig>,
     // Salt is used to instantiate stream contracts deterministically.
     // Pass randomly generated value here. bech32 hashed would be ideal.
     pub salt: Binary,

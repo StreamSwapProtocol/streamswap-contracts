@@ -52,7 +52,7 @@ mod vesting {
             start_time,
             end_time,
         )
-        .vesting(vesting_msg)
+        .subscriber_vesting(vesting_msg)
         .build();
         let res = app
             .execute_contract(

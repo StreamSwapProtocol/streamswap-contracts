@@ -39,7 +39,7 @@ pub struct CreateStreamMsgBuilder {
     end_time: Timestamp,
     threshold: Option<Uint256>,
     pool_config: Option<PoolConfig>,
-    vesting: Option<VestingConfig>,
+    subscriber_vesting: Option<VestingConfig>,
     salt: Binary,
 }
 
@@ -64,7 +64,7 @@ impl CreateStreamMsgBuilder {
             end_time,
             threshold: None,
             pool_config: None,
-            vesting: None,
+            subscriber_vesting: None,
             salt: Binary::from_base64("salt").unwrap(),
         }
     }
@@ -84,8 +84,8 @@ impl CreateStreamMsgBuilder {
         self
     }
 
-    pub fn vesting(mut self, vesting: VestingConfig) -> Self {
-        self.vesting = Some(vesting);
+    pub fn subscriber_vesting(mut self, subscriber_vesting: VestingConfig) -> Self {
+        self.subscriber_vesting = Some(subscriber_vesting);
         self
     }
 
@@ -109,7 +109,7 @@ impl CreateStreamMsgBuilder {
                 end_time: self.end_time,
                 threshold: self.threshold,
                 pool_config: self.pool_config,
-                vesting: self.vesting,
+                subscriber_vesting: self.subscriber_vesting,
                 salt: self.salt,
             }),
         }

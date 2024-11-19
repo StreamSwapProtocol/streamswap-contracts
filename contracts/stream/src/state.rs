@@ -7,8 +7,8 @@ pub const CONTROLLER_PARAMS: Item<Params> = Item::new("params");
 
 pub const STREAM: Item<Stream> = Item::new("stream");
 
-// Vesting (owner_addr) -> (contract_addr)
-pub const VESTING: Map<Addr, Addr> = Map::new("vesting");
+// Subscriber Vesting (owner_addr) -> (contract_addr)
+pub const SUBSCRIBER_VESTING: Map<Addr, Addr> = Map::new("sub_vest");
 
 // Position (stream_id, owner_addr) -> Position
 pub const POSITIONS: Map<&Addr, Position> = Map::new("positions");
