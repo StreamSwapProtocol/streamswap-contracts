@@ -25,6 +25,7 @@ pub fn get_controller_inst_msg(
         min_waiting_duration: 49,
         min_bootstrapping_duration: 49,
         min_stream_duration: 99,
+        tos_version: "v1".to_string(),
     }
 }
 
@@ -42,6 +43,7 @@ pub struct CreateStreamMsgBuilder {
     subscriber_vesting: Option<VestingConfig>,
     creator_vesting: Option<VestingConfig>,
     salt: Binary,
+    tos_version: String,
 }
 
 #[allow(dead_code)]
@@ -69,6 +71,7 @@ impl CreateStreamMsgBuilder {
             subscriber_vesting: None,
             creator_vesting: None,
             salt: Binary::from_base64("salt").unwrap(),
+            tos_version: "v1".to_string(),
         }
     }
 
@@ -103,6 +106,12 @@ impl CreateStreamMsgBuilder {
         self
     }
 
+    #[allow(dead_code)]
+    pub fn tos_version(mut self, tos: String) -> Self {
+        self.tos_version = tos;
+        self
+    }
+
     pub fn build(self) -> ControllerExecuteMsg {
         ControllerExecuteMsg::CreateStream {
             msg: Box::new(CreateStreamMsg {
@@ -120,6 +129,7 @@ impl CreateStreamMsgBuilder {
                 subscriber_vesting: self.subscriber_vesting,
                 creator_vesting: self.creator_vesting,
                 salt: self.salt,
+                tos_version: self.tos_version,
             }),
         }
     }

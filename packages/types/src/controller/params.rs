@@ -22,6 +22,8 @@ pub struct Params {
     pub min_bootstrapping_duration: u64,
     // Minimum time of waiting status, bootstrapping_start_time - creation_time_of_stream
     pub min_waiting_duration: u64,
+    /// Version or hash of current terms and condition document
+    pub tos_version: String,
 }
 
 impl Params {

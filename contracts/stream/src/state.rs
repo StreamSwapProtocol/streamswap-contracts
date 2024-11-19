@@ -14,3 +14,7 @@ pub const CREATOR_VESTING: Map<Addr, Addr> = Map::new("cr_vest");
 
 // Position (stream_id, owner_addr) -> Position
 pub const POSITIONS: Map<&Addr, Position> = Map::new("positions");
+
+/// Terms and services ipfs link signature signed by user
+/// Both for creator and subscriber
+pub const TOS_SIGNED: Map<&Addr, String> = Map::new("tos_signed");

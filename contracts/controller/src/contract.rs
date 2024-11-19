@@ -34,6 +34,7 @@ pub fn instantiate(
         min_waiting_duration,
         min_bootstrapping_duration,
         min_stream_duration,
+        tos_version,
     } = msg;
 
     let protocol_admin = deps
@@ -61,6 +62,7 @@ pub fn instantiate(
         min_waiting_duration,
         min_bootstrapping_duration,
         min_stream_duration,
+        tos_version,
     };
     PARAMS.save(deps.storage, &params)?;
 
@@ -137,6 +139,7 @@ pub fn execute_create_stream(
         bootstraping_start_time: _,
         creator_vesting: _,
         salt,
+        tos_version,
     } = msg.clone();
 
     let params = PARAMS.load(deps.storage)?;
@@ -149,6 +152,11 @@ pub fn execute_create_stream(
     if out_asset.amount.is_zero() {
         return Err(ContractError::ZeroOutSupply {});
     }
+
+    if tos_version != params.tos_version {
+        return Err(ContractError::InvalidToSVersion {});
+    }
+
     // These funds shall be sent to controller, after the control these funds will be distributed to the stream contract and fee_collector
     let mut expected_funds = vec![stream_creation_fee.clone(), out_asset.clone()];
     // These funds shall be sent to the stream contract

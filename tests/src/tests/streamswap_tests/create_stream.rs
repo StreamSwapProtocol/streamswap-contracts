@@ -7,6 +7,7 @@ mod create_stream_tests {
     use cosmwasm_std::{coin, Uint256};
     use cw_multi_test::Executor;
     use streamswap_controller::error::ContractError as ControllerError;
+    use streamswap_controller::error::ContractError::InvalidToSVersion;
     use streamswap_stream::ContractError as StreamSwapError;
     use streamswap_types::controller::Params as ControllerParams;
     use streamswap_types::controller::QueryMsg;
@@ -487,6 +488,57 @@ mod create_stream_tests {
         let err = res.source().unwrap().source().unwrap();
         let error = err.downcast_ref::<StreamSwapError>().unwrap();
         assert_eq!(*error, StreamSwapError::StreamDurationTooShort {});
+    }
+
+    #[test]
+    fn create_stream_failed_tos_version() {
+        let Suite {
+            mut app,
+            test_accounts,
+            stream_swap_code_id,
+            stream_swap_controller_code_id,
+            vesting_code_id,
+        } = SuiteBuilder::default().build();
+
+        let msg = get_controller_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
+        let controller_address = app
+            .instantiate_contract(
+                stream_swap_controller_code_id,
+                test_accounts.admin.clone(),
+                &msg,
+                &[],
+                "Controller".to_string(),
+                None,
+            )
+            .unwrap();
+
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
+
+        let create_stream_msg = CreateStreamMsgBuilder::new(
+            "stream",
+            test_accounts.creator_1.as_ref(),
+            coin(100, "out_denom"),
+            "in_denom",
+            bootstrapping_start_time,
+            start_time,
+            end_time,
+        )
+        .tos_version("invalid".to_string())
+        .build();
+
+        let res = app
+            .execute_contract(
+                test_accounts.creator_1.clone(),
+                controller_address.clone(),
+                &create_stream_msg,
+                &[coin(100, "fee_denom"), coin(100, "out_denom")],
+            )
+            .unwrap_err();
+        let err = res.source().unwrap();
+        let error = err.downcast_ref::<ControllerError>().unwrap();
+        assert_eq!(*error, InvalidToSVersion {});
     }
 
     #[test]

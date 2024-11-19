@@ -25,6 +25,8 @@ pub struct InstantiateMsg {
     pub min_bootstrapping_duration: u64,
     // Minimum time of waiting status, bootstrapping_start_time - creation_time_of_stream
     pub min_waiting_duration: u64,
+    // Tos version
+    pub tos_version: String,
 }
 
 #[cw_serde]
@@ -78,6 +80,8 @@ pub struct CreateStreamMsg {
     // Salt is used to instantiate stream contracts deterministically.
     // Pass randomly generated value here. bech32 hashed would be ideal.
     pub salt: Binary,
+    // Tos version
+    pub tos_version: String,
 }
 
 #[cw_serde]
