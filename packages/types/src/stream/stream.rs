@@ -35,8 +35,10 @@ pub struct Stream {
     pub status_info: StatusInfo,
     /// Pool Configuration for the pre stream
     pub pool_config: Option<PoolConfig>,
-    /// Vesting configuration, used to create a vesting contract for subscribers once the stream ends
-    pub vesting: Option<VestingConfig>,
+    /// Subscriber Vesting configuration, used to create a vesting contract for subscribers once the stream ends
+    pub subscriber_vesting: Option<VestingConfig>,
+    /// Creator Vesting configuration, used to create a vesting contract for creator once the stream ends
+    pub creator_vesting: Option<VestingConfig>,
 }
 
 #[cw_serde]
@@ -116,7 +118,8 @@ impl Stream {
         start_time: Timestamp,
         end_time: Timestamp,
         pool_config: Option<PoolConfig>,
-        vesting: Option<VestingConfig>,
+        subscriber_vesting: Option<VestingConfig>,
+        creator_vesting: Option<VestingConfig>,
     ) -> Self {
         Stream {
             name,
@@ -133,7 +136,8 @@ impl Stream {
             current_streamed_price: Decimal256::zero(),
             status_info: StatusInfo::new(now, bootstrapping_start_time, start_time, end_time),
             pool_config,
-            vesting,
+            subscriber_vesting,
+            creator_vesting,
         }
     }
 

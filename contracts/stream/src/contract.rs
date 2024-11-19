@@ -22,7 +22,7 @@ use streamswap_types::stream::{
 use streamswap_utils::to_uint256;
 
 use crate::pool::{build_create_initial_position_msg, calculate_in_amount_clp, next_pool_id};
-use crate::state::{CONTROLLER_PARAMS, POSITIONS, STREAM, VESTING};
+use crate::state::{CONTROLLER_PARAMS, CREATOR_VESTING, POSITIONS, STREAM, SUBSCRIBER_VESTING};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use cw_vesting::UncheckedDenom;
 use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
@@ -62,7 +62,8 @@ pub fn instantiate(
         in_denom,
         stream_admin,
         pool_config,
-        vesting,
+        subscriber_vesting,
+        creator_vesting,
         salt: _,
     } = msg;
 
@@ -94,7 +95,8 @@ pub fn instantiate(
         start_time,
         end_time,
         pool_config.clone(),
-        vesting,
+        subscriber_vesting,
+        creator_vesting,
     );
     STREAM.save(deps.storage, &stream)?;
 
@@ -154,7 +156,8 @@ pub fn execute(
         ExecuteMsg::FinalizeStream {
             new_treasury,
             create_pool,
-        } => execute_finalize_stream(deps, env, info, new_treasury, create_pool),
+            salt,
+        } => execute_finalize_stream(deps, env, info, new_treasury, create_pool, salt),
         ExecuteMsg::ExitStream { salt } => execute_exit_stream(deps, env, info, salt),
         ExecuteMsg::CancelStream {} => circuit_ops::execute_cancel_stream(deps, env, info),
         ExecuteMsg::ExitCancelled {} => circuit_ops::execute_exit_cancelled(deps, env, info),
@@ -432,6 +435,7 @@ pub fn execute_finalize_stream(
     info: MessageInfo,
     new_treasury: Option<String>,
     create_pool: Option<CreatePool>,
+    salt: Option<Binary>,
 ) -> Result<Response, ContractError> {
     let mut stream = STREAM.load(deps.storage)?;
     if stream.stream_admin != info.sender {
@@ -472,6 +476,7 @@ pub fn execute_finalize_stream(
 
     // extract swap_fee from last amount
     creator_revenue = creator_revenue.checked_sub(swap_fee)?;
+    let creator_revenue_u128 = Uint128::try_from(creator_revenue)?;
 
     // In case the stream is ended without any shares in it. We need to refund the remaining
     // out tokens although that is unlikely to happen.
@@ -552,16 +557,67 @@ pub fn execute_finalize_stream(
         _ => Err(ContractError::InvalidPoolConfig {}),
     }?;
 
+    if let Some(creator_vesting) = stream.creator_vesting {
+        let salt = salt.ok_or(ContractError::InvalidSalt {})?;
+
+        let vesting_title = format!(
+            "Stream addr {} released to {}",
+            env.contract.address, info.sender
+        );
+        let creator_vesting_instantiate_msg = VestingInstantiateMsg {
+            owner: None,
+            title: vesting_title,
+            recipient: info.sender.to_string(),
+            description: None,
+            total: creator_revenue_u128,
+            denom: UncheckedDenom::Native(stream.out_asset.denom.clone()),
+            schedule: creator_vesting.schedule,
+            start_time: Some(stream.status_info.end_time),
+            vesting_duration_seconds: creator_vesting.vesting_duration_seconds,
+            unbonding_duration_seconds: creator_vesting.unbonding_duration_seconds,
+        };
+
+        // prepare instantiate msg msg
+        let CodeInfoResponse { checksum, .. } = deps
+            .querier
+            .query_wasm_code_info(controller_params.vesting_code_id)?;
+        let creator = deps.api.addr_canonicalize(env.contract.address.as_str())?;
+
+        // Calculate the address of the new contract
+        let creator_vesting_address = deps.api.addr_humanize(
+            &cosmwasm_std::instantiate2_address(checksum.as_ref(), &creator, &salt)?,
+        )?;
+
+        CREATOR_VESTING.save(deps.storage, treasury.clone(), &creator_vesting_address)?;
+
+        let vesting_instantiate_msg = WasmMsg::Instantiate2 {
+            admin: None,
+            code_id: controller_params.vesting_code_id,
+            label: format!("{}-{}", stream.in_denom, treasury),
+            msg: to_json_binary(&creator_vesting_instantiate_msg)?,
+            funds: vec![coin(creator_revenue_u128.u128(), stream.out_asset.denom)],
+            salt,
+        };
+
+        messages.push(vesting_instantiate_msg.into());
+        attributes.push(attr("creator_vesting_address", creator_vesting_address));
+    } else {
+        let send_msg = CosmosMsg::Bank(BankMsg::Send {
+            to_address: treasury.to_string(),
+            amount: vec![Coin {
+                denom: stream.in_denom.clone(),
+                amount: creator_revenue_u128,
+            }],
+        });
+        messages.push(send_msg);
+    }
+
     let swap_fee_msg = build_u128_bank_send_msg(
         stream.in_denom.clone(),
         controller_params.fee_collector.to_string(),
         swap_fee,
     )?;
 
-    let revenue_msg =
-        build_u128_bank_send_msg(stream.in_denom, treasury.to_string(), creator_revenue)?;
-
-    messages.push(revenue_msg);
     messages.push(swap_fee_msg);
 
     attributes.extend(vec![
@@ -643,24 +699,24 @@ pub fn execute_exit_stream(
     // the out tokens to the contract
     let uint128_purchased = Uint128::try_from(position.purchased)?;
 
-    if let Some(vesting) = stream.vesting {
+    if let Some(sub_vesting) = stream.subscriber_vesting {
         let salt = salt.ok_or(ContractError::InvalidSalt {})?;
 
         let vesting_title = format!(
             "Stream addr {} released to {}",
             env.contract.address, info.sender
         );
-        let vesting_instantiate_msg = VestingInstantiateMsg {
+        let sub_vesting_instantiate_msg = VestingInstantiateMsg {
             owner: None,
             title: vesting_title,
             recipient: info.sender.to_string(),
             description: None,
             total: uint128_purchased,
             denom: UncheckedDenom::Native(stream.out_asset.denom.clone()),
-            schedule: vesting.schedule,
+            schedule: sub_vesting.schedule,
             start_time: Some(stream.status_info.end_time),
-            vesting_duration_seconds: vesting.vesting_duration_seconds,
-            unbonding_duration_seconds: vesting.unbonding_duration_seconds,
+            vesting_duration_seconds: sub_vesting.vesting_duration_seconds,
+            unbonding_duration_seconds: sub_vesting.unbonding_duration_seconds,
         };
 
         // prepare instantiate msg msg
@@ -676,19 +732,19 @@ pub fn execute_exit_stream(
             &salt,
         )?)?;
 
-        VESTING.save(deps.storage, info.sender.clone(), &address)?;
+        SUBSCRIBER_VESTING.save(deps.storage, info.sender.clone(), &address)?;
 
         let vesting_instantiate_msg = WasmMsg::Instantiate2 {
             admin: None,
             code_id: controller_params.vesting_code_id,
             label: format!("{}-{}", stream.out_asset.denom, info.sender),
-            msg: to_json_binary(&vesting_instantiate_msg)?,
+            msg: to_json_binary(&sub_vesting_instantiate_msg)?,
             funds: vec![coin(uint128_purchased.u128(), stream.out_asset.denom)],
             salt,
         };
 
         msgs.push(vesting_instantiate_msg.into());
-        attrs.push(attr("vesting_address", address));
+        attrs.push(attr("subscriber_vesting_address", address));
     } else {
         let send_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: info.sender.to_string(),

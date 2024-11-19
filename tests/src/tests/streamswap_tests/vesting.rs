@@ -15,7 +15,7 @@ mod vesting {
     };
 
     #[test]
-    fn vesting() {
+    fn subscriber_vesting() {
         let Suite {
             mut app,
             test_accounts,
@@ -52,7 +52,7 @@ mod vesting {
             start_time,
             end_time,
         )
-        .vesting(vesting_msg)
+        .subscriber_vesting(vesting_msg)
         .build();
         let res = app
             .execute_contract(
@@ -81,6 +81,7 @@ mod vesting {
         let finalized_msg = StreamSwapExecuteMsg::FinalizeStream {
             new_treasury: None,
             create_pool: None,
+            salt: None,
         };
         let res = app
             .execute_contract(
@@ -146,7 +147,8 @@ mod vesting {
             )
             .unwrap();
 
-        let vesting_addr = get_wasm_attribute_with_key(res, "vesting_address".to_string());
+        let vesting_addr =
+            get_wasm_attribute_with_key(res, "subscriber_vesting_address".to_string());
         let contract_data = app
             .contract_data(&Addr::unchecked(vesting_addr.clone()))
             .unwrap();
@@ -170,6 +172,139 @@ mod vesting {
         assert_eq!(
             contract_data.label,
             "out_denom-cosmwasm1u8ujald9pvutf00eq8ehwaw2nj608aklznw7lpvnej8klw73thpqrhyz88"
+        );
+    }
+
+    #[test]
+    fn creator_vesting() {
+        let Suite {
+            mut app,
+            test_accounts,
+            stream_swap_code_id,
+            stream_swap_controller_code_id,
+            vesting_code_id,
+        } = SuiteBuilder::default().build();
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
+        let msg = get_controller_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
+        let controller_address = app
+            .instantiate_contract(
+                stream_swap_controller_code_id,
+                test_accounts.admin.clone(),
+                &msg,
+                &[],
+                "Controller".to_string(),
+                None,
+            )
+            .unwrap();
+
+        let vesting_msg = VestingConfig {
+            schedule: Schedule::SaturatingLinear,
+            vesting_duration_seconds: 150,
+            unbonding_duration_seconds: 0,
+        };
+
+        let create_stream_msg = CreateStreamMsgBuilder::new(
+            "Stream Swap tests",
+            test_accounts.creator_1.as_ref(),
+            coin(1_000_000, "out_denom"),
+            "in_denom",
+            bootstrapping_start_time,
+            start_time,
+            end_time,
+        )
+        .creator_vesting(vesting_msg)
+        .build();
+
+        let res = app
+            .execute_contract(
+                test_accounts.creator_1.clone(),
+                controller_address.clone(),
+                &create_stream_msg,
+                &[coin(100, "fee_denom"), coin(1_000_000, "out_denom")],
+            )
+            .unwrap();
+        let stream_swap_contract_address: String = get_contract_address_from_res(res);
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
+        app.update_block(|b| b.time = start_time);
+        // First subscription
+        let _res = app
+            .execute_contract(
+                test_accounts.subscriber_1.clone(),
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &subscribe_msg,
+                &[coin(200, "in_denom")],
+            )
+            .unwrap();
+
+        // update block time
+        app.update_block(|b| b.time = end_time.plus_seconds(5));
+
+        let finalized_msg = StreamSwapExecuteMsg::FinalizeStream {
+            new_treasury: None,
+            create_pool: None,
+            salt: Some(Binary::from_base64("salt").unwrap()),
+        };
+        let res = app
+            .execute_contract(
+                test_accounts.creator_1.clone(),
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &finalized_msg,
+                &[],
+            )
+            .unwrap();
+
+        let stream_swap_funds = get_funds_from_res(res.clone());
+        assert_eq!(
+            stream_swap_funds,
+            vec![
+                // no revenur
+                (
+                    String::from(test_accounts.admin.clone(),),
+                    Coin {
+                        denom: "in_denom".to_string(),
+                        amount: Uint128::new(2)
+                    }
+                ),
+            ]
+        );
+        // Query the stream status
+        let stream: StreamResponse = app
+            .wrap()
+            .query_wasm_smart(
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &StreamSwapQueryMsg::Stream {},
+            )
+            .unwrap();
+
+        assert_eq!(stream.status, Status::Finalized);
+
+        let vesting_addr =
+            get_wasm_attribute_with_key(res.clone(), "creator_vesting_address".to_string());
+        let contract_data = app
+            .contract_data(&Addr::unchecked(vesting_addr.clone()))
+            .unwrap();
+
+        let res: cw_vesting::vesting::Vest = app
+            .wrap()
+            .query_wasm_smart(
+                Addr::unchecked(vesting_addr.clone()),
+                &cw_vesting::msg::QueryMsg::Info {},
+            )
+            .unwrap();
+        assert_eq!(res.denom, CheckedDenom::Native("out_denom".to_string()));
+        assert_eq!(res.recipient, test_accounts.creator_1.to_string());
+        assert_eq!(res.status, cw_vesting::vesting::Status::Funded);
+        assert_eq!(res.title,   "Stream addr cosmwasm1kdd9vp4j37tualwzsgdkn6cynmzss508r9n9ru7ngcwhlt2y2e0qyy6pcp released to cosmwasm12gsczjjdz9d73prnx0nvrn23h6x7fqawlrrphv63v0jy7uhegmus0vfkrm" );
+        assert_eq!(res.description, None);
+
+        // Not the best test :(
+        assert_eq!(contract_data.code_id, vesting_code_id);
+        assert_eq!(contract_data.admin, None);
+        assert_eq!(
+            contract_data.label,
+            "in_denom-cosmwasm12gsczjjdz9d73prnx0nvrn23h6x7fqawlrrphv63v0jy7uhegmus0vfkrm"
         );
     }
 }

@@ -133,8 +133,9 @@ pub fn execute_create_stream(
         threshold: _,
         url: _,
         pool_config: create_pool,
-        vesting: _,
+        subscriber_vesting: _,
         bootstraping_start_time: _,
+        creator_vesting: _,
         salt,
     } = msg.clone();
 

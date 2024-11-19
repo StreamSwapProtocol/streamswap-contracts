@@ -35,6 +35,7 @@ mod threshold {
             Timestamp::from_seconds(0),
             None,
             None,
+            None,
         );
         let threshold = Uint256::from(1_500_000_000_000u128);
 
@@ -147,6 +148,7 @@ mod threshold {
         let finalize_msg = StreamSwapExecuteMsg::FinalizeStream {
             new_treasury: None,
             create_pool: None,
+            salt: None,
         };
 
         let res = app
@@ -272,6 +274,7 @@ mod threshold {
         let finalize_msg = StreamSwapExecuteMsg::FinalizeStream {
             new_treasury: None,
             create_pool: None,
+            salt: None,
         };
 
         let err = app
@@ -330,6 +333,7 @@ mod threshold {
         let finalize_msg = StreamSwapExecuteMsg::FinalizeStream {
             new_treasury: None,
             create_pool: None,
+            salt: None,
         };
 
         let err = app

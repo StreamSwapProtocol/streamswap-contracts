@@ -75,6 +75,7 @@ mod finalize_stream_tests {
         let finalized_msg = StreamSwapExecuteMsg::FinalizeStream {
             new_treasury: None,
             create_pool: None,
+            salt: None,
         };
         let res = app
             .execute_contract(
@@ -185,6 +186,7 @@ mod finalize_stream_tests {
         let finalized_msg = StreamSwapExecuteMsg::FinalizeStream {
             new_treasury: None,
             create_pool: None,
+            salt: None,
         };
         app.set_block(BlockInfo {
             height: 1_100,
@@ -307,6 +309,7 @@ mod finalize_stream_tests {
         let finalized_msg = StreamSwapExecuteMsg::FinalizeStream {
             new_treasury: Some(test_accounts.creator_1.to_string()),
             create_pool: None,
+            salt: None,
         };
         app.set_block(BlockInfo {
             height: 1_100,
@@ -325,6 +328,7 @@ mod finalize_stream_tests {
         let finalized_msg = StreamSwapExecuteMsg::FinalizeStream {
             new_treasury: Some(test_accounts.creator_1.to_string()),
             create_pool: None,
+            salt: None,
         };
         let res = app
             .execute_contract(
