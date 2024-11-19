@@ -22,7 +22,7 @@ use streamswap_types::stream::{
 use streamswap_utils::to_uint256;
 
 use crate::pool::{build_create_initial_position_msg, calculate_in_amount_clp, next_pool_id};
-use crate::state::{CONTROLLER_PARAMS, POSITIONS, STREAM, SUBSCRIBER_VESTING};
+use crate::state::{CONTROLLER_PARAMS, CREATOR_VESTING, POSITIONS, STREAM, SUBSCRIBER_VESTING};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use cw_vesting::UncheckedDenom;
 use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
@@ -584,25 +584,25 @@ pub fn execute_finalize_stream(
         let creator = deps.api.addr_canonicalize(env.contract.address.as_str())?;
 
         // Calculate the address of the new contract
-        let address = deps.api.addr_humanize(&cosmwasm_std::instantiate2_address(
+        let creator_vesting_address = deps.api.addr_humanize(&cosmwasm_std::instantiate2_address(
             checksum.as_ref(),
             &creator,
             &salt,
         )?)?;
 
-        SUBSCRIBER_VESTING.save(deps.storage, info.sender.clone(), &address)?;
+        CREATOR_VESTING.save(deps.storage, treasury.clone(), &creator_vesting_address)?;
 
         let vesting_instantiate_msg = WasmMsg::Instantiate2 {
             admin: None,
             code_id: controller_params.vesting_code_id,
-            label: format!("{}-{}", stream.out_asset.denom, info.sender),
+            label: format!("{}-{}", stream.in_denom, treasury),
             msg: to_json_binary(&creator_vesting_instantiate_msg)?,
             funds: vec![coin(creator_revenue_u128.u128(), stream.out_asset.denom)],
             salt,
         };
 
         messages.push(vesting_instantiate_msg.into());
-        attributes.push(attr("creator_vesting_address", address));
+        attributes.push(attr("creator_vesting_address", creator_vesting_address));
     } else {
         let send_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: treasury.to_string(),
