@@ -7,7 +7,7 @@
 import { MsgExecuteContractEncodeObject } from "@cosmjs/cosmwasm-stargate";
 import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
 import { toUtf8 } from "@cosmjs/encoding";
-import { Decimal256, Uint128, InstantiateMsg, Coin, ExecuteMsg, Timestamp, Uint64, PoolConfig, Uint256, Binary, Schedule, CreateStreamMsg, VestingConfig, QueryMsg, Boolean, StreamsResponse, StreamResponse, Addr, Params } from "./StreamSwapController.types";
+import { Decimal256, Uint128, InstantiateMsg, Coin, ExecuteMsg, Timestamp, Uint64, Schedule, PoolConfig, Uint256, Binary, CreateStreamMsg, VestingConfig, QueryMsg, Boolean, StreamsResponse, StreamResponse, Addr, Params } from "./StreamSwapController.types";
 export interface StreamSwapControllerMsg {
   contractAddress: string;
   sender: string;

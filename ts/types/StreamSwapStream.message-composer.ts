@@ -7,7 +7,7 @@
 import { MsgExecuteContractEncodeObject } from "@cosmjs/cosmwasm-stargate";
 import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
 import { toUtf8 } from "@cosmjs/encoding";
-import { Timestamp, Uint64, Uint128, PoolConfig, Uint256, Binary, Schedule, InstantiateMsg, Coin, VestingConfig, ExecuteMsg, CreatePool, QueryMsg, Decimal256, AveragePriceResponse, LatestStreamedPriceResponse, PositionsResponse, PositionResponse, Addr, Params, Status, StreamResponse } from "./StreamSwapStream.types";
+import { Timestamp, Uint64, Schedule, Uint128, PoolConfig, Uint256, Binary, InstantiateMsg, VestingConfig, Coin, ExecuteMsg, CreatePool, QueryMsg, Decimal256, AveragePriceResponse, LatestStreamedPriceResponse, PositionsResponse, PositionResponse, Addr, Params, Status, StreamResponse } from "./StreamSwapStream.types";
 export interface StreamSwapStreamMsg {
   contractAddress: string;
   sender: string;
@@ -21,10 +21,12 @@ export interface StreamSwapStreamMsg {
   syncPosition: (_funds?: Coin[]) => MsgExecuteContractEncodeObject;
   finalizeStream: ({
     createPool,
-    newTreasury
+    newTreasury,
+    salt
   }: {
     createPool?: CreatePool;
     newTreasury?: string;
+    salt?: Binary;
   }, _funds?: Coin[]) => MsgExecuteContractEncodeObject;
   exitStream: ({
     salt
@@ -115,10 +117,12 @@ export class StreamSwapStreamMsgComposer implements StreamSwapStreamMsg {
   };
   finalizeStream = ({
     createPool,
-    newTreasury
+    newTreasury,
+    salt
   }: {
     createPool?: CreatePool;
     newTreasury?: string;
+    salt?: Binary;
   }, _funds?: Coin[]): MsgExecuteContractEncodeObject => {
     return {
       typeUrl: "/cosmwasm.wasm.v1.MsgExecuteContract",
@@ -128,7 +132,8 @@ export class StreamSwapStreamMsgComposer implements StreamSwapStreamMsg {
         msg: toUtf8(JSON.stringify({
           finalize_stream: {
             create_pool: createPool,
-            new_treasury: newTreasury
+            new_treasury: newTreasury,
+            salt
           }
         })),
         funds: _funds
