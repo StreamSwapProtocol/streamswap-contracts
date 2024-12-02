@@ -1,7 +1,6 @@
 use crate::controller::{PoolConfig, VestingConfig};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin, Decimal256, Timestamp, Uint256};
-use osmosis_std::types::cosmos::crypto::keyring::v1::record::Item;
 use streamswap_utils::to_uint256;
 
 /// Active stream status information

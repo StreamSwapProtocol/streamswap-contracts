@@ -11,20 +11,16 @@ mod threshold {
     use streamswap_stream::ContractError as StreamSwapError;
     use streamswap_types::stream::{
         ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg, StreamResponse,
-        ThresholdError,
+        StreamState, ThresholdError,
     };
-    use streamswap_types::stream::{Status, Stream, ThresholdState};
+    use streamswap_types::stream::{Status, ThresholdState};
 
     #[test]
     fn thresholds_state() {
         let mut storage = MockStorage::new();
         let thresholds = ThresholdState::new();
-        let mut stream = Stream::new(
+        let mut stream = StreamState::new(
             Timestamp::from_seconds(0),
-            "test".to_string(),
-            Addr::unchecked("treasury"),
-            Addr::unchecked("stream_admin"),
-            Some("url".to_string()),
             Coin {
                 denom: "out_denom".to_string(),
                 amount: Uint128::from(100u128),
@@ -33,10 +29,6 @@ mod threshold {
             Timestamp::from_seconds(0),
             Timestamp::from_seconds(100),
             Timestamp::from_seconds(0),
-            None,
-            None,
-            None,
-            "v1".to_string(),
         );
         let threshold = Uint256::from(1_500_000_000_000u128);
 
