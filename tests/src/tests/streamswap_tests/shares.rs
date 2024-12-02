@@ -1,17 +1,13 @@
 #[cfg(test)]
 mod shares {
-    use cosmwasm_std::{Addr, Coin, Timestamp, Uint128, Uint256};
+    use cosmwasm_std::{Coin, Timestamp, Uint128, Uint256};
     use streamswap_stream::stream::compute_shares_amount;
-    use streamswap_types::stream::Stream;
+    use streamswap_types::stream::StreamState;
 
     #[test]
     fn test_compute_shares_amount() {
-        let mut stream = Stream::new(
+        let mut stream = StreamState::new(
             Timestamp::from_seconds(0),
-            "test".to_string(),
-            Addr::unchecked("treasury"),
-            Addr::unchecked("stream_admin"),
-            Some("url".to_string()),
             Coin {
                 denom: "out_denom".to_string(),
                 amount: Uint128::from(100u128),
@@ -20,10 +16,6 @@ mod shares {
             Timestamp::from_seconds(0),
             Timestamp::from_seconds(100),
             Timestamp::from_seconds(0),
-            None,
-            None,
-            None,
-            "v1".to_string(),
         );
 
         // add new shares
