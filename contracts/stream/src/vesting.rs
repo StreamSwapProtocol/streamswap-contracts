@@ -35,8 +35,6 @@ pub fn vesting_operations(
         unbonding_duration_seconds: vesting_config.unbonding_duration_seconds,
     };
 
-    // prepare instantiate msg
-
     // Calculate the address of the new contract
     let vesting_address = deps.api.addr_humanize(&cosmwasm_std::instantiate2_address(
         vesting_checksum.as_ref(),
