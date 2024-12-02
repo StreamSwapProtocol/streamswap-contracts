@@ -1,6 +1,6 @@
 use crate::helpers::build_u128_bank_send_msg;
 use crate::pool::pool_refund;
-use crate::state::{CONTROLLER_PARAMS, POSITIONS, STREAM};
+use crate::state::{CONTROLLER_PARAMS, POSITIONS, STREAM_STATE};
 use crate::stream::{sync_stream, sync_stream_status};
 use crate::ContractError;
 use cosmwasm_std::{attr, BankMsg, CosmosMsg, DepsMut, Env, MessageInfo, Response, Timestamp};
@@ -13,7 +13,7 @@ pub fn execute_exit_cancelled(
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
-    let mut stream = STREAM.load(deps.storage)?;
+    let mut stream = STREAM_STATE.load(deps.storage)?;
 
     let mut position = POSITIONS.load(deps.storage, &info.sender)?;
     if position.owner != info.sender {
@@ -82,7 +82,7 @@ pub fn execute_cancel_stream(
     if controller_params.protocol_admin != info.sender {
         return Err(ContractError::Unauthorized {});
     }
-    let mut stream = STREAM.load(deps.storage)?;
+    let mut stream = STREAM_STATE.load(deps.storage)?;
     sync_stream_status(&mut stream, env.block.time);
 
     if stream.is_finalized() || stream.is_cancelled() {
@@ -93,7 +93,7 @@ pub fn execute_cancel_stream(
     stream.status_info.status = Status::Cancelled;
 
     sync_stream(&mut stream, env.block.time);
-    STREAM.save(deps.storage, &stream)?;
+    STREAM_STATE.save(deps.storage, &stream)?;
 
     // Refund all out tokens to stream creator(treasury)
     let mut refund_coins = vec![stream.out_asset.clone()];
@@ -122,7 +122,7 @@ pub fn execute_cancel_stream_with_threshold(
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
-    let mut stream = STREAM.load(deps.storage)?;
+    let mut stream = STREAM_STATE.load(deps.storage)?;
     // Only stream creator can cancel the stream with threshold not reached
     if info.sender != stream.stream_admin {
         return Err(ContractError::Unauthorized {});
@@ -150,7 +150,7 @@ pub fn execute_cancel_stream_with_threshold(
 
     stream.status_info.status = Status::Cancelled;
 
-    STREAM.save(deps.storage, &stream)?;
+    STREAM_STATE.save(deps.storage, &stream)?;
 
     // Refund all out tokens to stream creator(treasury)
     let mut refund_coins = vec![stream.out_asset.clone()];
@@ -178,7 +178,7 @@ pub fn execute_stream_admin_cancel(
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
-    let mut stream = STREAM.load(deps.storage)?;
+    let mut stream = STREAM_STATE.load(deps.storage)?;
     // Only stream admin can cancel the stream with this method
     if info.sender != stream.stream_admin {
         return Err(ContractError::Unauthorized {});
@@ -194,7 +194,7 @@ pub fn execute_stream_admin_cancel(
     }
     stream.status_info.status = Status::Cancelled;
     sync_stream(&mut stream, env.block.time);
-    STREAM.save(deps.storage, &stream)?;
+    STREAM_STATE.save(deps.storage, &stream)?;
 
     // Refund all out tokens to stream creator(treasury)
     let mut refund_coins = vec![stream.out_asset.clone()];

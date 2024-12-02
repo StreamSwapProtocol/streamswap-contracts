@@ -1,10 +1,76 @@
 use std::str::FromStr;
 
 use crate::ContractError;
-use cosmwasm_std::{Coin, Decimal256, DepsMut, Uint128, Uint256};
+use cosmwasm_std::{attr, Attribute, Coin, CosmosMsg, Decimal256, DepsMut, Env, Uint128, Uint256};
 use osmosis_std::types::osmosis::concentratedliquidity::v1beta1::MsgCreatePosition;
 use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
-use streamswap_types::controller::PoolConfig;
+use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
+use streamswap_types::controller::{CreatePool, PoolConfig};
+use streamswap_types::stream::StreamState;
+use streamswap_utils::to_uint256;
+
+pub fn pool_operations(deps: &DepsMut, env: &Env, create_pool: CreatePool, mut stream_state: &mut StreamState, messages: &mut Vec<CosmosMsg>, attributes: &mut Vec<Attribute>, mut creator_revenue: Uint256, pool_config: PoolConfig) -> Result<(), ContractError> {
+    match (pool_config, create_pool) {
+        (
+            Some(PoolConfig::ConcentratedLiquidity { out_amount_clp }),
+            Some(CreatePool::ConcentratedLiquidity {
+                     lower_tick,
+                     upper_tick,
+                     tick_spacing,
+                     spread_factor,
+                 }),
+        ) => {
+            let pool_id = next_pool_id(&deps)?;
+
+            // amount of in tokens allocated for clp
+            let in_clp = calculate_in_amount_clp(
+                to_uint256(stream_state.out_asset.amount),
+                out_amount_clp,
+                creator_revenue,
+            );
+
+            // extract in_clp from last revenue
+            creator_revenue = creator_revenue.checked_sub(in_clp)?;
+
+            // Create initial position message
+            let create_initial_position_msg = build_create_initial_position_msg(
+                pool_id,
+                env.contract.address.to_string(),
+                stream_state.in_denom.clone(),
+                in_clp,
+                stream_state.out_asset.denom.clone(),
+                out_amount_clp,
+                lower_tick,
+                upper_tick,
+            );
+
+            // convert msg create pool to osmosis create clp pool msg
+            let osmosis_create_clp_pool_msg = MsgCreateConcentratedPool {
+                sender: env.contract.address.to_string(),
+                denom0: stream_state.out_asset.denom.clone(),
+                denom1: stream_state.in_denom.clone(),
+                tick_spacing,
+                spread_factor: spread_factor.clone(),
+            };
+
+            messages.push(osmosis_create_clp_pool_msg.into());
+            messages.push(create_initial_position_msg.into());
+
+            attributes.push(attr("pool_id", pool_id.clone().to_string()));
+            attributes.push(attr("pool_type", "clp".to_string()));
+            attributes.push(attr("pool_out_amount", out_amount_clp));
+            attributes.push(attr("pool_in_amount", in_clp));
+            attributes.push(attr("pool_lower_tick", lower_tick.to_string()));
+            attributes.push(attr("pool_upper_tick", upper_tick.to_string()));
+            attributes.push(attr("pool_spread_factor", spread_factor.to_string()));
+            attributes.push(attr("pool_tick_spacing", tick_spacing.to_string()));
+            Ok(())
+        }
+        (None, None) => Ok(()),
+        // If either pool_config or create_pool is not set, return error
+        _ => Err(ContractError::InvalidPoolConfig {}),
+    }
+}
 
 /// This function is used to calculate the in amount of the pool
 pub fn calculate_in_amount_clp(

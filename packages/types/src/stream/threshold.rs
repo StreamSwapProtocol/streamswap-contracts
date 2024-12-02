@@ -1,4 +1,4 @@
-use crate::stream::{Stream, ThresholdError};
+use crate::stream::{StreamState, ThresholdError};
 use cosmwasm_std::{StdError, Storage, Uint256};
 use cw_storage_plus::Item;
 
@@ -32,13 +32,13 @@ impl<'a> ThresholdState<'a> {
     pub fn error_if_not_reached(
         &self,
         storage: &dyn Storage,
-        stream: &Stream,
+        state: &StreamState,
     ) -> Result<(), ThresholdError> {
         // If threshold is not set, It returns ok
         // If threshold is set, It returns error if threshold is not reached
         let threshold = self.0.may_load(storage)?;
         if let Some(threshold) = threshold {
-            if stream.spent_in < threshold {
+            if state.spent_in < threshold {
                 Err(ThresholdError::ThresholdNotReached {})
             } else {
                 Ok(())
@@ -51,11 +51,11 @@ impl<'a> ThresholdState<'a> {
     pub fn error_if_reached(
         &self,
         storage: &dyn Storage,
-        stream: &Stream,
+        state: &StreamState,
     ) -> Result<(), ThresholdError> {
         let threshold = self.0.may_load(storage)?;
         if let Some(threshold) = threshold {
-            if stream.spent_in >= threshold {
+            if state.spent_in >= threshold {
                 Err(ThresholdError::ThresholdReached {})
             } else {
                 Ok(())
