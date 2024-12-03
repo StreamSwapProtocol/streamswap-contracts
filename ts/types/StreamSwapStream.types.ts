@@ -100,6 +100,10 @@ export type QueryMsg = {
   last_streamed_price: {};
 } | {
   threshold: {};
+} | {
+  to_s: {
+    addr?: string | null;
+  };
 };
 export type Decimal256 = string;
 export interface AveragePriceResponse {
@@ -154,3 +158,4 @@ export interface StreamResponse {
   treasury: string;
   url?: string | null;
 }
+export type String = string;
