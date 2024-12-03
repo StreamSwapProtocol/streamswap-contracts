@@ -6,9 +6,9 @@ use crate::stream::{compute_shares_amount, sync_stream, sync_stream_status};
 use crate::{circuit_ops, ContractError};
 use core::str;
 use cosmwasm_std::{
-    attr, entry_point, to_json_binary, Attribute, BankMsg, Binary, Coin, CosmosMsg, Decimal256,
-    Deps, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult, Timestamp, Uint128,
-    Uint256,
+    attr, entry_point, to_json_binary, Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg,
+    Decimal256, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult, Timestamp,
+    Uint128, Uint256,
 };
 use cw2::{ensure_from_older_version, set_contract_version};
 use cw_storage_plus::Bound;
@@ -24,7 +24,7 @@ use streamswap_utils::to_uint256;
 use crate::pool::pool_operations;
 use crate::state::{
     CONTROLLER_PARAMS, CREATOR_VESTING, POSITIONS, POST_STREAM, STREAM_INFO, STREAM_STATE,
-    SUBSCRIBER_VESTING,
+    SUBSCRIBER_VESTING, TOS, TOS_SIGNED,
 };
 use crate::vesting::vesting_operations;
 use streamswap_types::controller::{CreatePool, Params as ControllerParams, PoolConfig};
@@ -95,13 +95,7 @@ pub fn instantiate(
     );
     STREAM_STATE.save(deps.storage, &stream_state)?;
 
-    let stream_info = StreamInfo::new(
-        stream_admin.clone(),
-        name.clone(),
-        treasury.clone(),
-        url,
-        tos_version,
-    );
+    let stream_info = StreamInfo::new(stream_admin.clone(), name.clone(), treasury.clone(), url);
     STREAM_INFO.save(deps.storage, &stream_info)?;
 
     let post_stream_actions =
@@ -110,6 +104,8 @@ pub fn instantiate(
 
     let threshold_state = ThresholdState::new();
     threshold_state.set_threshold_if_any(threshold, deps.storage)?;
+
+    TOS.save(deps.storage, &tos_version)?;
 
     let mut attrs = vec![
         attr("action", "instantiate"),
@@ -322,16 +318,18 @@ pub fn execute_subscribe(
             sync_stream(&mut stream_state, env.block.time);
             new_shares = compute_shares_amount(&stream_state, uint256_in_amount, false);
             // new positions do not update purchase as it has no effect on distribution
-            let stream_info = STREAM_INFO.load(deps.storage)?;
             let new_position = Position::new(
                 info.sender.clone(),
                 uint256_in_amount,
                 new_shares,
                 Some(stream_state.dist_index),
                 env.block.time,
-                stream_info.tos_version.clone(),
             );
             POSITIONS.save(deps.storage, &info.sender, &new_position)?;
+
+            // Save signed TOS
+            let tos_version = TOS.load(deps.storage)?;
+            TOS_SIGNED.save(deps.storage, &info.sender, &tos_version)?;
         }
         Some(mut position) => {
             if position.owner != info.sender {
@@ -746,6 +744,16 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::AveragePrice {} => to_json_binary(&query_average_price(deps, env)?),
         QueryMsg::LastStreamedPrice {} => to_json_binary(&query_last_streamed_price(deps, env)?),
         QueryMsg::Threshold {} => to_json_binary(&query_threshold_state(deps, env)?),
+        QueryMsg::ToS { addr } => {
+            if let Some(addr) = addr {
+                to_json_binary(&query_tos_signed(
+                    deps,
+                    &deps.api.addr_validate(addr.as_str())?,
+                )?)
+            } else {
+                to_json_binary(&query_tos(deps)?)
+            }
+        }
     }
 }
 pub fn query_params(deps: Deps) -> StdResult<ControllerParams> {
@@ -843,4 +851,14 @@ pub fn query_threshold_state(deps: Deps, _env: Env) -> Result<Option<Uint256>, S
     let threshold_state = ThresholdState::new();
     let threshold = threshold_state.get_threshold(deps.storage)?;
     Ok(threshold)
+}
+
+pub fn query_tos(deps: Deps) -> StdResult<String> {
+    let tos = TOS.load(deps.storage)?;
+    Ok(tos)
+}
+
+pub fn query_tos_signed(deps: Deps, addr: &Addr) -> StdResult<String> {
+    let tos = TOS_SIGNED.load(deps.storage, addr)?;
+    Ok(tos)
 }

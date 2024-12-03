@@ -137,6 +137,27 @@ mod subscribe {
         assert_eq!(position.in_balance, Uint256::from(150u128));
         assert_eq!(position.spent, Uint256::zero());
 
+        // check tos
+        let tos: String = app
+            .wrap()
+            .query_wasm_smart(
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &StreamSwapQueryMsg::ToS { addr: None },
+            )
+            .unwrap();
+
+        // query position
+        let tos_signed: String = app
+            .wrap()
+            .query_wasm_smart(
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &StreamSwapQueryMsg::ToS {
+                    addr: Some(position.owner),
+                },
+            )
+            .unwrap();
+        assert_eq!(tos, tos_signed);
+
         // Update stream
         app.set_block(BlockInfo {
             height: 2_200,

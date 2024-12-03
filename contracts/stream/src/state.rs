@@ -14,8 +14,6 @@ pub const STREAM_INFO: Item<StreamInfo> = Item::new("si");
 // Post Stream Action Related Information
 pub const POST_STREAM: Item<PostStreamActions> = Item::new("ps");
 
-pub const TOS: Item<String> = Item::new("tos");
-
 // Subscriber Vesting (owner_addr) -> (contract_addr)
 pub const SUBSCRIBER_VESTING: Map<Addr, Addr> = Map::new("sub_vest");
 
@@ -25,6 +23,7 @@ pub const CREATOR_VESTING: Item<Addr> = Item::new("cr_vest");
 // Position (stream_id, owner_addr) -> Position
 pub const POSITIONS: Map<&Addr, Position> = Map::new("positions");
 
-/// Terms and services ipfs link signature signed by user
+/// Terms and services ipfs link
+pub const TOS: Item<String> = Item::new("tos");
 /// Both for creator and subscriber
 pub const TOS_SIGNED: Map<&Addr, String> = Map::new("tos_signed");
