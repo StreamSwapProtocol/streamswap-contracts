@@ -1,10 +1,77 @@
 use std::str::FromStr;
 
 use crate::ContractError;
-use cosmwasm_std::{Coin, Decimal256, DepsMut, Uint128, Uint256};
+use cosmwasm_std::{attr, Addr, Attribute, Coin, CosmosMsg, Decimal256, DepsMut, Uint128, Uint256};
+use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
 use osmosis_std::types::osmosis::concentratedliquidity::v1beta1::MsgCreatePosition;
 use osmosis_std::types::osmosis::poolmanager::v1beta1::PoolmanagerQuerier;
-use streamswap_types::controller::PoolConfig;
+use streamswap_types::controller::{CreatePool, PoolConfig};
+use streamswap_utils::to_uint256;
+
+pub fn pool_operations(
+    deps: &DepsMut,
+    create_pool: CreatePool,
+    stream_addr: Addr,
+    in_denom: String,
+    out_denom: String,
+    out_amount: Uint128,
+    mut creator_revenue: Uint256,
+    pool_config: PoolConfig,
+) -> Result<(Vec<CosmosMsg>, Vec<Attribute>, Uint256), ContractError> {
+    let PoolConfig::ConcentratedLiquidity { out_amount_clp } = pool_config;
+    let CreatePool::ConcentratedLiquidity {
+        lower_tick,
+        upper_tick,
+        tick_spacing,
+        spread_factor,
+    } = create_pool;
+
+    let pool_id = next_pool_id(deps)?;
+
+    // amount of in tokens allocated for clp
+    let in_clp = calculate_in_amount_clp(to_uint256(out_amount), out_amount_clp, creator_revenue);
+
+    // extract in_clp from last revenue
+    creator_revenue = creator_revenue.checked_sub(in_clp)?;
+
+    // Create initial position message
+    let create_initial_position_msg = build_create_initial_position_msg(
+        pool_id,
+        stream_addr.to_string(),
+        in_denom.clone(),
+        creator_revenue,
+        out_denom.clone(),
+        out_amount_clp,
+        lower_tick,
+        upper_tick,
+    );
+
+    // convert msg create pool to osmosis create clp pool msg
+    let osmosis_create_clp_pool_msg = MsgCreateConcentratedPool {
+        sender: stream_addr.to_string(),
+        denom0: out_denom,
+        denom1: in_denom,
+        tick_spacing,
+        spread_factor: spread_factor.clone(),
+    };
+
+    let mut messages: Vec<CosmosMsg> = Vec::new();
+    let mut attributes: Vec<Attribute> = Vec::new();
+
+    messages.push(osmosis_create_clp_pool_msg.into());
+    messages.push(create_initial_position_msg.into());
+
+    attributes.push(attr("pool_id", pool_id.clone().to_string()));
+    attributes.push(attr("pool_type", "clp".to_string()));
+    attributes.push(attr("pool_out_amount", out_amount_clp));
+    attributes.push(attr("pool_in_amount", creator_revenue));
+    attributes.push(attr("pool_lower_tick", lower_tick.to_string()));
+    attributes.push(attr("pool_upper_tick", upper_tick.to_string()));
+    attributes.push(attr("pool_spread_factor", spread_factor.to_string()));
+    attributes.push(attr("pool_tick_spacing", tick_spacing.to_string()));
+
+    Ok((messages, attributes, creator_revenue))
+}
 
 /// This function is used to calculate the in amount of the pool
 pub fn calculate_in_amount_clp(

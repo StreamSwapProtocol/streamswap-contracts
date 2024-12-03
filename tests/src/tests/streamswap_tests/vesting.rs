@@ -147,8 +147,7 @@ mod vesting {
             )
             .unwrap();
 
-        let vesting_addr =
-            get_wasm_attribute_with_key(res, "subscriber_vesting_address".to_string());
+        let vesting_addr = get_wasm_attribute_with_key(res, "vesting_address".to_string());
         let contract_data = app
             .contract_data(&Addr::unchecked(vesting_addr.clone()))
             .unwrap();
@@ -280,8 +279,7 @@ mod vesting {
 
         assert_eq!(stream.status, Status::Finalized);
 
-        let vesting_addr =
-            get_wasm_attribute_with_key(res.clone(), "creator_vesting_address".to_string());
+        let vesting_addr = get_wasm_attribute_with_key(res.clone(), "vesting_address".to_string());
         let contract_data = app
             .contract_data(&Addr::unchecked(vesting_addr.clone()))
             .unwrap();
@@ -293,7 +291,7 @@ mod vesting {
                 &cw_vesting::msg::QueryMsg::Info {},
             )
             .unwrap();
-        assert_eq!(res.denom, CheckedDenom::Native("out_denom".to_string()));
+        assert_eq!(res.denom, CheckedDenom::Native("in_denom".to_string()));
         assert_eq!(res.recipient, test_accounts.creator_1.to_string());
         assert_eq!(res.status, cw_vesting::vesting::Status::Funded);
         assert_eq!(res.title,   "Stream addr cosmwasm1kdd9vp4j37tualwzsgdkn6cynmzss508r9n9ru7ngcwhlt2y2e0qyy6pcp released to cosmwasm12gsczjjdz9d73prnx0nvrn23h6x7fqawlrrphv63v0jy7uhegmus0vfkrm" );

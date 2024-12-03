@@ -1,8 +1,8 @@
 use cosmwasm_std::{Decimal, Decimal256, Fraction, Timestamp, Uint256};
 use std::ops::Mul;
-use streamswap_types::stream::{Status, Stream};
+use streamswap_types::stream::{Status, StreamState};
 
-pub fn sync_stream_status(stream: &mut Stream, now: Timestamp) {
+pub fn sync_stream_status(stream: &mut StreamState, now: Timestamp) {
     if matches!(
         stream.status_info.status,
         Status::Finalized | Status::Cancelled
@@ -24,7 +24,7 @@ pub fn sync_stream_status(stream: &mut Stream, now: Timestamp) {
     };
 }
 
-pub fn compute_shares_amount(stream: &Stream, amount_in: Uint256, round_up: bool) -> Uint256 {
+pub fn compute_shares_amount(stream: &StreamState, amount_in: Uint256, round_up: bool) -> Uint256 {
     if stream.shares.is_zero() || amount_in.is_zero() {
         return amount_in;
     }
@@ -35,7 +35,7 @@ pub fn compute_shares_amount(stream: &Stream, amount_in: Uint256, round_up: bool
         shares / stream.in_supply
     }
 }
-pub fn sync_stream(stream: &mut Stream, now: Timestamp) {
+pub fn sync_stream(stream: &mut StreamState, now: Timestamp) {
     let diff = calculate_diff(
         stream.status_info.start_time,
         stream.status_info.end_time,

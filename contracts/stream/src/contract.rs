@@ -6,29 +6,30 @@ use crate::stream::{compute_shares_amount, sync_stream, sync_stream_status};
 use crate::{circuit_ops, ContractError};
 use core::str;
 use cosmwasm_std::{
-    attr, coin, entry_point, to_json_binary, Attribute, BankMsg, Binary, CodeInfoResponse, Coin,
-    CosmosMsg, Decimal256, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult,
-    Timestamp, Uint128, Uint256, WasmMsg,
+    attr, entry_point, to_json_binary, Attribute, BankMsg, Binary, Coin, CosmosMsg, Decimal256,
+    Deps, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult, Timestamp, Uint128,
+    Uint256,
 };
 use cw2::{ensure_from_older_version, set_contract_version};
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay};
 use std::env;
-use streamswap_types::stream::ThresholdState;
 use streamswap_types::stream::{
     AveragePriceResponse, ExecuteMsg, LatestStreamedPriceResponse, PositionResponse,
     PositionsResponse, QueryMsg, StreamResponse,
 };
+use streamswap_types::stream::{PostStreamActions, StreamInfo, StreamState, ThresholdState};
 use streamswap_utils::to_uint256;
 
-use crate::pool::{build_create_initial_position_msg, calculate_in_amount_clp, next_pool_id};
-use crate::state::{CONTROLLER_PARAMS, CREATOR_VESTING, POSITIONS, STREAM, SUBSCRIBER_VESTING};
-use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
-use cw_vesting::UncheckedDenom;
-use osmosis_std::types::osmosis::concentratedliquidity::poolmodel::concentrated::v1beta1::MsgCreateConcentratedPool;
+use crate::pool::pool_operations;
+use crate::state::{
+    CONTROLLER_PARAMS, CREATOR_VESTING, POSITIONS, POST_STREAM, STREAM_INFO, STREAM_STATE,
+    SUBSCRIBER_VESTING,
+};
+use crate::vesting::vesting_operations;
 use streamswap_types::controller::{CreatePool, Params as ControllerParams, PoolConfig};
 use streamswap_types::controller::{CreateStreamMsg, MigrateMsg};
-use streamswap_types::stream::{Position, Status, Stream};
+use streamswap_types::stream::{Position, Status};
 
 // Version and contract info for migration
 const CONTRACT_NAME: &str = "crates.io:streamswap-stream";
@@ -84,23 +85,28 @@ pub fn instantiate(
 
     check_name_and_url(&name, &url)?;
 
-    let stream = Stream::new(
+    let stream_state = StreamState::new(
         env.block.time,
-        name.clone(),
-        treasury.clone(),
-        stream_admin.clone(),
-        url.clone(),
         out_asset.clone(),
         in_denom.clone(),
         bootstraping_start_time,
         start_time,
         end_time,
-        pool_config.clone(),
-        subscriber_vesting,
-        creator_vesting,
+    );
+    STREAM_STATE.save(deps.storage, &stream_state)?;
+
+    let stream_info = StreamInfo::new(
+        stream_admin.clone(),
+        name.clone(),
+        treasury.clone(),
+        url,
         tos_version,
     );
-    STREAM.save(deps.storage, &stream)?;
+    STREAM_INFO.save(deps.storage, &stream_info)?;
+
+    let post_stream_actions =
+        PostStreamActions::new(pool_config.clone(), subscriber_vesting, creator_vesting);
+    POST_STREAM.save(deps.storage, &post_stream_actions)?;
 
     let threshold_state = ThresholdState::new();
     threshold_state.set_threshold_if_any(threshold, deps.storage)?;
@@ -148,11 +154,11 @@ pub fn execute(
         ExecuteMsg::SyncPosition {} => execute_sync_position(deps, env, info),
         ExecuteMsg::SyncStream {} => execute_sync_stream(deps, env),
         ExecuteMsg::Subscribe {} => {
-            let stream = STREAM.load(deps.storage)?;
+            let stream = STREAM_STATE.load(deps.storage)?;
             execute_subscribe(deps, env, info, stream)
         }
         ExecuteMsg::Withdraw { cap } => {
-            let stream = STREAM.load(deps.storage)?;
+            let stream = STREAM_STATE.load(deps.storage)?;
             execute_withdraw(deps, env, info, stream, cap)
         }
         ExecuteMsg::FinalizeStream {
@@ -174,7 +180,7 @@ pub fn execute(
 
 /// Syncs stream to calculate released distribution and spent amount
 pub fn execute_sync_stream(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
-    let mut stream = STREAM.load(deps.storage)?;
+    let mut stream = STREAM_STATE.load(deps.storage)?;
     sync_stream_status(&mut stream, env.block.time);
     if stream.is_cancelled() {
         return Err(ContractError::OperationNotAllowed {
@@ -182,7 +188,7 @@ pub fn execute_sync_stream(deps: DepsMut, env: Env) -> Result<Response, Contract
         });
     }
     sync_stream(&mut stream, env.block.time);
-    STREAM.save(deps.storage, &stream)?;
+    STREAM_STATE.save(deps.storage, &stream)?;
 
     let attrs = vec![
         attr("action", "sync_stream"),
@@ -208,7 +214,7 @@ pub fn execute_sync_position(
 ) -> Result<Response, ContractError> {
     let mut position = POSITIONS.load(deps.storage, &info.sender)?;
 
-    let mut stream = STREAM.load(deps.storage)?;
+    let mut stream = STREAM_STATE.load(deps.storage)?;
     sync_stream_status(&mut stream, env.block.time);
     // check and return error if stream is cancelled
     if stream.is_cancelled() {
@@ -219,7 +225,7 @@ pub fn execute_sync_position(
 
     // sync stream
     sync_stream(&mut stream, env.block.time);
-    STREAM.save(deps.storage, &stream)?;
+    STREAM_STATE.save(deps.storage, &stream)?;
 
     // updates position to latest distribution. Returns the amount of out tokens that has been purchased
     // and in tokens that has been spent.
@@ -294,18 +300,18 @@ pub fn execute_subscribe(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    mut stream: Stream,
+    mut stream_state: StreamState,
 ) -> Result<Response, ContractError> {
     // Update stream status
-    sync_stream_status(&mut stream, env.block.time);
+    sync_stream_status(&mut stream_state, env.block.time);
 
-    if !(stream.is_active() || stream.is_bootstrapping()) {
+    if !(stream_state.is_active() || stream_state.is_bootstrapping()) {
         return Err(ContractError::OperationNotAllowed {
-            current_status: stream.status_info.status.to_string(),
+            current_status: stream_state.status_info.status.to_string(),
         });
     }
 
-    let in_amount = must_pay(&info, &stream.in_denom)?;
+    let in_amount = must_pay(&info, &stream_state.in_denom)?;
     let uint256_in_amount = Uint256::from(in_amount.u128());
     let new_shares;
 
@@ -313,16 +319,17 @@ pub fn execute_subscribe(
     match position {
         None => {
             // incoming tokens should not participate in prev distribution
-            sync_stream(&mut stream, env.block.time);
-            new_shares = compute_shares_amount(&stream, uint256_in_amount, false);
+            sync_stream(&mut stream_state, env.block.time);
+            new_shares = compute_shares_amount(&stream_state, uint256_in_amount, false);
             // new positions do not update purchase as it has no effect on distribution
+            let stream_info = STREAM_INFO.load(deps.storage)?;
             let new_position = Position::new(
                 info.sender.clone(),
                 uint256_in_amount,
                 new_shares,
-                Some(stream.dist_index),
+                Some(stream_state.dist_index),
                 env.block.time,
-                stream.tos_version.clone(),
+                stream_info.tos_version.clone(),
             );
             POSITIONS.save(deps.storage, &info.sender, &new_position)?;
         }
@@ -331,13 +338,13 @@ pub fn execute_subscribe(
                 return Err(ContractError::Unauthorized {});
             }
             // incoming tokens should not participate in prev distribution
-            sync_stream(&mut stream, env.block.time);
-            new_shares = compute_shares_amount(&stream, uint256_in_amount, false);
+            sync_stream(&mut stream_state, env.block.time);
+            new_shares = compute_shares_amount(&stream_state, uint256_in_amount, false);
             sync_position(
-                stream.dist_index,
-                stream.shares,
-                stream.status_info.last_updated,
-                stream.in_supply,
+                stream_state.dist_index,
+                stream_state.shares,
+                stream_state.status_info.last_updated,
+                stream_state.in_supply,
                 &mut position,
             )?;
 
@@ -348,18 +355,18 @@ pub fn execute_subscribe(
     }
 
     // increase in supply and shares
-    stream.in_supply = stream.in_supply.checked_add(uint256_in_amount)?;
-    stream.shares = stream.shares.checked_add(new_shares)?;
-    STREAM.save(deps.storage, &stream)?;
+    stream_state.in_supply = stream_state.in_supply.checked_add(uint256_in_amount)?;
+    stream_state.shares = stream_state.shares.checked_add(new_shares)?;
+    STREAM_STATE.save(deps.storage, &stream_state)?;
 
     let res = Response::new()
         .add_attribute("action", "subscribe")
-        .add_attribute("status info", stream.status_info.status.to_string())
-        .add_attribute("in_supply", stream.in_supply)
+        .add_attribute("status info", stream_state.status_info.status.to_string())
+        .add_attribute("in_supply", stream_state.in_supply)
         .add_attribute("in_amount", in_amount)
         .add_attribute("subscriber_shares", new_shares)
-        .add_attribute("total_shares", stream.shares)
-        .add_attribute("dist_index", stream.dist_index.to_string());
+        .add_attribute("total_shares", stream_state.shares)
+        .add_attribute("dist_index", stream_state.dist_index.to_string());
 
     Ok(res)
 }
@@ -368,7 +375,7 @@ pub fn execute_withdraw(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    mut stream: Stream,
+    mut stream: StreamState,
     cap: Option<Uint256>,
 ) -> Result<Response, ContractError> {
     sync_stream_status(&mut stream, env.block.time);
@@ -411,7 +418,7 @@ pub fn execute_withdraw(
     position.in_balance = position.in_balance.checked_sub(withdraw_amount)?;
     position.shares = position.shares.checked_sub(shares_amount)?;
 
-    STREAM.save(deps.storage, &stream)?;
+    STREAM_STATE.save(deps.storage, &stream)?;
     POSITIONS.save(deps.storage, &position.owner, &position)?;
 
     let uint128_withdraw_amount = Uint128::try_from(withdraw_amount)?;
@@ -440,40 +447,43 @@ pub fn execute_finalize_stream(
     create_pool: Option<CreatePool>,
     salt: Option<Binary>,
 ) -> Result<Response, ContractError> {
-    let mut stream = STREAM.load(deps.storage)?;
-    if stream.stream_admin != info.sender {
+    let stream_info = STREAM_INFO.load(deps.storage)?;
+    if stream_info.stream_admin != info.sender {
         return Err(ContractError::Unauthorized {});
     }
-    sync_stream_status(&mut stream, env.block.time);
 
-    if stream.is_finalized() || stream.is_cancelled() || !stream.is_ended() {
+    let mut stream_state = STREAM_STATE.load(deps.storage)?;
+    sync_stream_status(&mut stream_state, env.block.time);
+
+    if stream_state.is_finalized() || stream_state.is_cancelled() || !stream_state.is_ended() {
         return Err(ContractError::OperationNotAllowed {
-            current_status: stream.status_info.status.to_string(),
+            current_status: stream_state.status_info.status.to_string(),
         });
     }
-    sync_stream(&mut stream, env.block.time);
+    sync_stream(&mut stream_state, env.block.time);
 
-    stream.status_info.status = Status::Finalized;
+    stream_state.status_info.status = Status::Finalized;
 
     // If threshold is set and not reached, finalize will fail
     // Creator should execute cancel_stream_with_threshold to cancel the stream
     // Only returns error if threshold is set and not reached
     let thresholds_state = ThresholdState::new();
-    thresholds_state.error_if_not_reached(deps.storage, &stream)?;
+    thresholds_state.error_if_not_reached(deps.storage, &stream_state)?;
 
-    STREAM.save(deps.storage, &stream)?;
+    STREAM_STATE.save(deps.storage, &stream_state)?;
 
     let controller_params = CONTROLLER_PARAMS.load(deps.storage)?;
-    let treasury = maybe_addr(deps.api, new_treasury)?.unwrap_or_else(|| stream.treasury.clone());
+    let treasury =
+        maybe_addr(deps.api, new_treasury)?.unwrap_or_else(|| stream_info.treasury.clone());
 
     let mut messages = vec![];
     let mut attributes = vec![];
 
     // last creator revenue = spent_in - swap_fee - in_clp;
-    let mut creator_revenue = stream.spent_in;
+    let mut creator_revenue = stream_state.spent_in;
 
     // Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
-    let swap_fee = Decimal256::from_ratio(stream.spent_in, Uint128::one())
+    let swap_fee = Decimal256::from_ratio(stream_state.spent_in, Uint128::one())
         .checked_mul(controller_params.exit_fee_percent)?
         * Uint256::one();
 
@@ -483,132 +493,80 @@ pub fn execute_finalize_stream(
 
     // In case the stream is ended without any shares in it. We need to refund the remaining
     // out tokens although that is unlikely to happen.
-    if stream.out_remaining > Uint256::zero() {
-        let remaining_out = stream.out_remaining;
+    if stream_state.out_remaining > Uint256::zero() {
+        let remaining_out = stream_state.out_remaining;
         let uint128_remaining_out = Uint128::try_from(remaining_out)?;
         // Sub remaining out tokens from out_asset
-        stream.out_asset.amount = stream.out_asset.amount.checked_sub(uint128_remaining_out)?;
+        stream_state.out_asset.amount = stream_state
+            .out_asset
+            .amount
+            .checked_sub(uint128_remaining_out)?;
         let remaining_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: treasury.to_string(),
             amount: vec![Coin {
-                denom: stream.out_asset.denom.clone(),
+                denom: stream_state.out_asset.denom.clone(),
                 amount: uint128_remaining_out,
             }],
         });
         messages.push(remaining_msg);
     }
 
-    // if create_pool is set, create a pool for the stream and send initial position
-    match (stream.pool_config, create_pool) {
-        (
-            Some(PoolConfig::ConcentratedLiquidity { out_amount_clp }),
-            Some(CreatePool::ConcentratedLiquidity {
-                lower_tick,
-                upper_tick,
-                tick_spacing,
-                spread_factor,
-            }),
-        ) => {
-            let pool_id = next_pool_id(&deps)?;
+    // if vesting is not set we need to send the creator revenue to the treasury in outer scope
+    let mut vesting_flag = false;
+    // execute post stream actions
+    let post_stream_actions = POST_STREAM.may_load(deps.storage)?;
+    if let Some(post_stream_actions) = post_stream_actions {
+        // if pool config and create pool is set, create a pool for the stream
+        creator_revenue = match (post_stream_actions.pool_config, create_pool) {
+            (Some(pool_config), Some(create_pool)) => {
+                let (msgs, attrs, creator_revenue) = pool_operations(
+                    &deps,
+                    create_pool,
+                    env.contract.address.clone(),
+                    stream_state.in_denom.clone(),
+                    stream_state.out_asset.denom.clone(),
+                    stream_state.out_asset.amount,
+                    creator_revenue,
+                    pool_config,
+                )?;
+                messages.extend(msgs);
+                attributes.extend(attrs);
+                Ok(creator_revenue)
+            }
+            (None, None) => Ok(creator_revenue),
+            _ => Err(ContractError::InvalidPoolConfig {}),
+        }?;
 
-            // amount of in tokens allocated for clp
-            let in_clp = calculate_in_amount_clp(
-                to_uint256(stream.out_asset.amount),
-                out_amount_clp,
-                creator_revenue,
-            );
-
-            // extract in_clp from last revenue
-            creator_revenue = creator_revenue.checked_sub(in_clp)?;
-
-            // Create initial position message
-            let create_initial_position_msg = build_create_initial_position_msg(
-                pool_id,
-                env.contract.address.to_string(),
-                stream.in_denom.clone(),
-                in_clp,
-                stream.out_asset.denom.clone(),
-                out_amount_clp,
-                lower_tick,
-                upper_tick,
-            );
-
-            // convert msg create pool to osmosis create clp pool msg
-            let osmosis_create_clp_pool_msg = MsgCreateConcentratedPool {
-                sender: env.contract.address.to_string(),
-                denom0: stream.out_asset.denom.clone(),
-                denom1: stream.in_denom.clone(),
-                tick_spacing,
-                spread_factor: spread_factor.clone(),
-            };
-
-            messages.push(osmosis_create_clp_pool_msg.into());
-            messages.push(create_initial_position_msg.into());
-
-            attributes.push(attr("pool_id", pool_id.clone().to_string()));
-            attributes.push(attr("pool_type", "clp".to_string()));
-            attributes.push(attr("pool_out_amount", out_amount_clp));
-            attributes.push(attr("pool_in_amount", in_clp));
-            attributes.push(attr("pool_lower_tick", lower_tick.to_string()));
-            attributes.push(attr("pool_upper_tick", upper_tick.to_string()));
-            attributes.push(attr("pool_spread_factor", spread_factor.to_string()));
-            attributes.push(attr("pool_tick_spacing", tick_spacing.to_string()));
-            Ok(())
+        // if subscriber vesting is set, instantiate a vested release contract for user and send
+        if let Some(creator_vesting) = post_stream_actions.creator_vesting {
+            let vesting_checksum = deps
+                .querier
+                .query_wasm_code_info(controller_params.vesting_code_id)?
+                .checksum;
+            let (vesting_msgs, vesting_attributes, vesting_addr) = vesting_operations(
+                &deps,
+                env.contract.address,
+                vesting_checksum,
+                treasury.clone(),
+                salt,
+                stream_state.status_info.end_time,
+                controller_params.vesting_code_id,
+                creator_revenue_u128,
+                stream_state.in_denom.clone(),
+                creator_vesting,
+            )?;
+            messages.extend(vesting_msgs);
+            attributes.extend(vesting_attributes);
+            CREATOR_VESTING.save(deps.storage, &vesting_addr)?;
+            vesting_flag = true;
         }
-        (None, None) => Ok(()),
-        // If either pool_config or create_pool is not set, return error
-        _ => Err(ContractError::InvalidPoolConfig {}),
-    }?;
+    }
 
-    if let Some(creator_vesting) = stream.creator_vesting {
-        let salt = salt.ok_or(ContractError::InvalidSalt {})?;
-
-        let vesting_title = format!(
-            "Stream addr {} released to {}",
-            env.contract.address, info.sender
-        );
-        let creator_vesting_instantiate_msg = VestingInstantiateMsg {
-            owner: None,
-            title: vesting_title,
-            recipient: info.sender.to_string(),
-            description: None,
-            total: creator_revenue_u128,
-            denom: UncheckedDenom::Native(stream.out_asset.denom.clone()),
-            schedule: creator_vesting.schedule,
-            start_time: Some(stream.status_info.end_time),
-            vesting_duration_seconds: creator_vesting.vesting_duration_seconds,
-            unbonding_duration_seconds: creator_vesting.unbonding_duration_seconds,
-        };
-
-        // prepare instantiate msg msg
-        let CodeInfoResponse { checksum, .. } = deps
-            .querier
-            .query_wasm_code_info(controller_params.vesting_code_id)?;
-        let creator = deps.api.addr_canonicalize(env.contract.address.as_str())?;
-
-        // Calculate the address of the new contract
-        let creator_vesting_address = deps.api.addr_humanize(
-            &cosmwasm_std::instantiate2_address(checksum.as_ref(), &creator, &salt)?,
-        )?;
-
-        CREATOR_VESTING.save(deps.storage, treasury.clone(), &creator_vesting_address)?;
-
-        let vesting_instantiate_msg = WasmMsg::Instantiate2 {
-            admin: None,
-            code_id: controller_params.vesting_code_id,
-            label: format!("{}-{}", stream.in_denom, treasury),
-            msg: to_json_binary(&creator_vesting_instantiate_msg)?,
-            funds: vec![coin(creator_revenue_u128.u128(), stream.out_asset.denom)],
-            salt,
-        };
-
-        messages.push(vesting_instantiate_msg.into());
-        attributes.push(attr("creator_vesting_address", creator_vesting_address));
-    } else {
+    if !vesting_flag {
         let send_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: treasury.to_string(),
             amount: vec![Coin {
-                denom: stream.in_denom.clone(),
+                denom: stream_state.in_denom.clone(),
                 amount: creator_revenue_u128,
             }],
         });
@@ -616,11 +574,10 @@ pub fn execute_finalize_stream(
     }
 
     let swap_fee_msg = build_u128_bank_send_msg(
-        stream.in_denom.clone(),
+        stream_state.in_denom.clone(),
         controller_params.fee_collector.to_string(),
         swap_fee,
     )?;
-
     messages.push(swap_fee_msg);
 
     attributes.extend(vec![
@@ -628,11 +585,14 @@ pub fn execute_finalize_stream(
         attr("treasury", treasury.to_string()),
         attr("fee_collector", controller_params.fee_collector.to_string()),
         attr("creators_revenue", creator_revenue),
-        attr("refunded_out_remaining", stream.out_remaining.to_string()),
+        attr(
+            "refunded_out_remaining",
+            stream_state.out_remaining.to_string(),
+        ),
         attr(
             "total_sold",
-            to_uint256(stream.out_asset.amount)
-                .checked_sub(stream.out_remaining)?
+            to_uint256(stream_state.out_asset.amount)
+                .checked_sub(stream_state.out_remaining)?
                 .to_string(),
         ),
         attr("swap_fee", swap_fee),
@@ -653,22 +613,22 @@ pub fn execute_exit_stream(
     info: MessageInfo,
     salt: Option<Binary>,
 ) -> Result<Response, ContractError> {
-    let mut stream = STREAM.load(deps.storage)?;
+    let mut stream_state = STREAM_STATE.load(deps.storage)?;
     let controller_params = CONTROLLER_PARAMS.load(deps.storage)?;
     // check if stream is paused
-    sync_stream_status(&mut stream, env.block.time);
+    sync_stream_status(&mut stream_state, env.block.time);
 
-    if stream.is_cancelled() || !(stream.is_ended() || stream.is_finalized()) {
+    if stream_state.is_cancelled() || !(stream_state.is_ended() || stream_state.is_finalized()) {
         return Err(ContractError::OperationNotAllowed {
-            current_status: stream.status_info.status.to_string(),
+            current_status: stream_state.status_info.status.to_string(),
         });
     }
 
-    sync_stream(&mut stream, env.block.time);
+    sync_stream(&mut stream_state, env.block.time);
 
     let threshold_state = ThresholdState::new();
 
-    threshold_state.error_if_not_reached(deps.storage, &stream)?;
+    threshold_state.error_if_not_reached(deps.storage, &stream_state)?;
 
     let mut position = POSITIONS.load(deps.storage, &info.sender)?;
     if position.exit_date != Timestamp::from_seconds(0) {
@@ -677,15 +637,15 @@ pub fn execute_exit_stream(
 
     // sync position before exit
     sync_position(
-        stream.dist_index,
-        stream.shares,
-        stream.status_info.last_updated,
-        stream.in_supply,
+        stream_state.dist_index,
+        stream_state.shares,
+        stream_state.status_info.last_updated,
+        stream_state.in_supply,
         &mut position,
     )?;
-    stream.shares = stream.shares.checked_sub(position.shares)?;
+    stream_state.shares = stream_state.shares.checked_sub(position.shares)?;
 
-    STREAM.save(deps.storage, &stream)?;
+    STREAM_STATE.save(deps.storage, &stream_state)?;
     // sync position exit date
     position.exit_date = env.block.time;
     POSITIONS.save(deps.storage, &position.owner, &position)?;
@@ -695,69 +655,53 @@ pub fn execute_exit_stream(
         .checked_mul(controller_params.exit_fee_percent)?
         * Uint256::one();
 
-    let mut msgs: Vec<CosmosMsg> = vec![];
-    let mut attrs: Vec<Attribute> = vec![];
+    let mut messages: Vec<CosmosMsg> = vec![];
+    let mut attributes: Vec<Attribute> = vec![];
 
     // if vesting is set, instantiate a vested release contract for user and send
     // the out tokens to the contract
     let uint128_purchased = Uint128::try_from(position.purchased)?;
 
-    if let Some(sub_vesting) = stream.subscriber_vesting {
-        let salt = salt.ok_or(ContractError::InvalidSalt {})?;
+    let mut vesting_flag = false;
 
-        let vesting_title = format!(
-            "Stream addr {} released to {}",
-            env.contract.address, info.sender
-        );
-        let sub_vesting_instantiate_msg = VestingInstantiateMsg {
-            owner: None,
-            title: vesting_title,
-            recipient: info.sender.to_string(),
-            description: None,
-            total: uint128_purchased,
-            denom: UncheckedDenom::Native(stream.out_asset.denom.clone()),
-            schedule: sub_vesting.schedule,
-            start_time: Some(stream.status_info.end_time),
-            vesting_duration_seconds: sub_vesting.vesting_duration_seconds,
-            unbonding_duration_seconds: sub_vesting.unbonding_duration_seconds,
-        };
+    let post_stream_actions = POST_STREAM.may_load(deps.storage)?;
+    if let Some(post_stream_actions) = post_stream_actions {
+        if let Some(vesting_config) = post_stream_actions.subscriber_vesting {
+            let vesting_checksum = deps
+                .querier
+                .query_wasm_code_info(controller_params.vesting_code_id)?
+                .checksum;
+            let (vesting_msgs, vesting_attributes, vesting_addr) = vesting_operations(
+                &deps,
+                env.contract.address,
+                vesting_checksum,
+                info.sender.clone(),
+                salt,
+                stream_state.status_info.end_time,
+                controller_params.vesting_code_id,
+                uint128_purchased,
+                stream_state.out_asset.denom.clone(),
+                vesting_config,
+            )?;
+            messages.extend(vesting_msgs);
+            attributes.extend(vesting_attributes);
+            SUBSCRIBER_VESTING.save(deps.storage, info.sender.clone(), &vesting_addr)?;
+            vesting_flag = true;
+        }
+    }
 
-        // prepare instantiate msg msg
-        let CodeInfoResponse { checksum, .. } = deps
-            .querier
-            .query_wasm_code_info(controller_params.vesting_code_id)?;
-        let creator = deps.api.addr_canonicalize(env.contract.address.as_str())?;
-
-        // Calculate the address of the new contract
-        let address = deps.api.addr_humanize(&cosmwasm_std::instantiate2_address(
-            checksum.as_ref(),
-            &creator,
-            &salt,
-        )?)?;
-
-        SUBSCRIBER_VESTING.save(deps.storage, info.sender.clone(), &address)?;
-
-        let vesting_instantiate_msg = WasmMsg::Instantiate2 {
-            admin: None,
-            code_id: controller_params.vesting_code_id,
-            label: format!("{}-{}", stream.out_asset.denom, info.sender),
-            msg: to_json_binary(&sub_vesting_instantiate_msg)?,
-            funds: vec![coin(uint128_purchased.u128(), stream.out_asset.denom)],
-            salt,
-        };
-
-        msgs.push(vesting_instantiate_msg.into());
-        attrs.push(attr("subscriber_vesting_address", address));
-    } else {
+    // if vesting is not set we need to send the out tokens to the user
+    if !vesting_flag {
         let send_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: info.sender.to_string(),
             amount: vec![Coin {
-                denom: stream.out_asset.denom.to_string(),
+                denom: stream_state.out_asset.denom.to_string(),
                 amount: uint128_purchased,
             }],
         });
-        msgs.push(send_msg);
+        messages.push(send_msg);
     }
+
     // if there is any unspent in balance, send it back to the user
     if !position.in_balance.is_zero() {
         let unspent = position.in_balance;
@@ -765,21 +709,23 @@ pub fn execute_exit_stream(
         let unspent_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: info.sender.to_string(),
             amount: vec![Coin {
-                denom: stream.in_denom,
+                denom: stream_state.in_denom,
                 amount: uint128_unspent,
             }],
         });
-        msgs.push(unspent_msg);
+        messages.push(unspent_msg);
     }
 
-    attrs.extend(vec![
+    attributes.extend(vec![
         attr("action", "exit_stream"),
         attr("spent", position.spent.checked_sub(swap_fee)?),
         attr("purchased", position.purchased),
         attr("swap_fee_paid", swap_fee),
     ]);
 
-    Ok(Response::new().add_messages(msgs).add_attributes(attrs))
+    Ok(Response::new()
+        .add_messages(messages)
+        .add_attributes(attributes))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -808,9 +754,10 @@ pub fn query_params(deps: Deps) -> StdResult<ControllerParams> {
 }
 
 pub fn query_stream(deps: Deps, _env: Env) -> StdResult<StreamResponse> {
-    let stream = STREAM.load(deps.storage)?;
+    let stream = STREAM_STATE.load(deps.storage)?;
+    let stream_info = STREAM_INFO.load(deps.storage)?;
     let stream = StreamResponse {
-        treasury: stream.treasury.to_string(),
+        treasury: stream_info.treasury.to_string(),
         in_denom: stream.in_denom,
         out_asset: stream.out_asset,
         start_time: stream.status_info.start_time,
@@ -822,9 +769,9 @@ pub fn query_stream(deps: Deps, _env: Env) -> StdResult<StreamResponse> {
         in_supply: stream.in_supply,
         shares: stream.shares,
         status: stream.status_info.status,
-        url: stream.url,
+        url: stream_info.url,
         current_streamed_price: stream.current_streamed_price,
-        stream_admin: stream.stream_admin.into_string(),
+        stream_admin: stream_info.stream_admin.into_string(),
     };
     Ok(stream)
 }
@@ -879,14 +826,14 @@ pub fn list_positions(
 }
 
 pub fn query_average_price(deps: Deps, _env: Env) -> StdResult<AveragePriceResponse> {
-    let stream = STREAM.load(deps.storage)?;
+    let stream = STREAM_STATE.load(deps.storage)?;
     let total_purchased = to_uint256(stream.out_asset.amount) - stream.out_remaining;
     let average_price = Decimal256::from_ratio(stream.spent_in, total_purchased);
     Ok(AveragePriceResponse { average_price })
 }
 
 pub fn query_last_streamed_price(deps: Deps, _env: Env) -> StdResult<LatestStreamedPriceResponse> {
-    let stream = STREAM.load(deps.storage)?;
+    let stream = STREAM_STATE.load(deps.storage)?;
     Ok(LatestStreamedPriceResponse {
         current_streamed_price: stream.current_streamed_price,
     })
