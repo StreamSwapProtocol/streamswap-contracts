@@ -74,6 +74,8 @@ pub enum QueryMsg {
     LastStreamedPrice {},
     #[returns(Uint128)]
     Threshold {},
+    #[returns(String)]
+    ToS { addr: Option<String> },
 }
 
 #[cw_serde]
@@ -140,18 +142,19 @@ pub struct PositionResponse {
     pub owner: String,
     /// Current amount of tokens in buy pool
     pub in_balance: Uint256,
+    /// Shares amount position owns
     pub shares: Uint256,
-    // Index is used to calculate the distribution a position has
+    /// Index is used to calculate the distribution a position has
     pub index: Decimal256,
-    // Last_updated_time is the time when the position was last updated
+    /// Last_updated_time is the time when the position was last updated
     pub last_updated: Timestamp,
-    // Total amount of `token_out` purchased in tokens at latest calculation
+    /// Total amount of `token_out` purchased in tokens at latest calculation
     pub purchased: Uint256,
-    // Pending purchased accumulates purchases after decimal truncation
+    /// Pending purchased accumulates purchases after decimal truncation
     pub pending_purchase: Decimal256,
-    // Total amount of `token_in` spent tokens at latest calculation
+    /// Total amount of `token_in` spent tokens at latest calculation
     pub spent: Uint256,
-    // Exit date of the position
+    /// Exit date of the position
     pub exit_date: Timestamp,
 }
 
@@ -168,6 +171,11 @@ pub struct AveragePriceResponse {
 #[cw_serde]
 pub struct LatestStreamedPriceResponse {
     pub current_streamed_price: Decimal256,
+}
+
+#[cw_serde]
+pub struct TosResponse {
+    pub tos: String,
 }
 
 #[cw_serde]

@@ -20,8 +20,6 @@ pub struct Position {
     pub spent: Uint256,
     // Exit date of the position
     pub exit_date: Timestamp,
-    // signed tos version
-    pub tos_version: String,
 }
 
 impl Position {
@@ -31,7 +29,6 @@ impl Position {
         shares: Uint256,
         index: Option<Decimal256>,
         last_updated: Timestamp,
-        tos_version: String,
     ) -> Self {
         Position {
             owner,
@@ -43,7 +40,6 @@ impl Position {
             pending_purchase: Decimal256::zero(),
             spent: Uint256::zero(),
             exit_date: Timestamp::from_nanos(0),
-            tos_version,
         }
     }
 }
