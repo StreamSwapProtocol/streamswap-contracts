@@ -78,7 +78,7 @@ mod exit_cancel {
             )
             .unwrap();
 
-        let exit_msg = StreamSwapExecuteMsg::ExitCancelled {};
+        let exit_msg = StreamSwapExecuteMsg::ExitStream { salt: None };
 
         let res = app
             .execute_contract(
@@ -169,7 +169,7 @@ mod exit_cancel {
         )
         .unwrap();
 
-        let exit_msg = StreamSwapExecuteMsg::ExitCancelled {};
+        let exit_msg = StreamSwapExecuteMsg::ExitStream { salt: None };
 
         let res = app
             .execute_contract(

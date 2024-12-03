@@ -19,6 +19,13 @@ pub fn sync_stream_status(stream: &mut StreamState, now: Timestamp) {
         _ if now >= stream.status_info.start_time && now < stream.status_info.end_time => {
             Status::Active
         }
+        _ if now >= stream.status_info.end_time && stream.threshold.is_some() => {
+            if stream.spent_in >= stream.threshold.unwrap() {
+                Status::Ended
+            } else {
+                Status::ThresholdNotReached
+            }
+        }
         _ if now >= stream.status_info.end_time => Status::Ended,
         _ => stream.status_info.status.clone(),
     };

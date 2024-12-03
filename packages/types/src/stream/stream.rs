@@ -25,6 +25,8 @@ pub struct StreamState {
     pub out_asset: Coin,
     /// Status info of the stream
     pub status_info: StatusInfo,
+    /// Threshold amount of the stream
+    pub threshold: Option<Uint256>,
 }
 
 impl StreamState {
@@ -35,6 +37,7 @@ impl StreamState {
         bootstrapping_start_time: Timestamp,
         start_time: Timestamp,
         end_time: Timestamp,
+        threshold: Option<Uint256>,
     ) -> Self {
         StreamState {
             dist_index: Decimal256::zero(),
@@ -46,6 +49,7 @@ impl StreamState {
             shares: Uint256::zero(),
             current_streamed_price: Decimal256::zero(),
             status_info: StatusInfo::new(now, bootstrapping_start_time, start_time, end_time),
+            threshold,
         }
     }
 
@@ -139,6 +143,8 @@ pub enum Status {
     /// In this status, Subscriber can exit the stream and collect full in assets.
     /// Creator can collect full out assets.
     Cancelled,
+
+    ThresholdNotReached,
 }
 
 impl std::fmt::Display for Status {
@@ -150,6 +156,7 @@ impl std::fmt::Display for Status {
             Status::Ended => write!(f, "Ended"),
             Status::Finalized => write!(f, "Finalized"),
             Status::Cancelled => write!(f, "Cancelled"),
+            Status::ThresholdNotReached => write!(f, "ThresholdNotReached"),
         }
     }
 }
