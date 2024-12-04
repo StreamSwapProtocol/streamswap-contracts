@@ -6,18 +6,18 @@ use crate::{circuit_ops, ContractError};
 use core::str;
 use cosmwasm_std::{
     attr, entry_point, to_json_binary, Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg,
-    Decimal256, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult, Timestamp,
-    Uint128, Uint256,
+    Decimal256, Deps, DepsMut, Env, MessageInfo, Order, Response, StdResult, Timestamp, Uint128,
+    Uint256,
 };
 use cw2::{ensure_from_older_version, set_contract_version};
 use cw_storage_plus::Bound;
-use cw_utils::{maybe_addr, must_pay};
+use cw_utils::{maybe_addr, must_pay, NativeBalance};
 use std::env;
 use streamswap_types::stream::{
     AveragePriceResponse, ExecuteMsg, FinalizedStatus, LatestStreamedPriceResponse,
     PositionResponse, PositionsResponse, QueryMsg, StreamResponse,
 };
-use streamswap_types::stream::{PostStreamActions, StreamInfo, StreamState, ThresholdState};
+use streamswap_types::stream::{PostStreamActions, StreamInfo, StreamState};
 use streamswap_utils::to_uint256;
 
 use crate::pool::{pool_operations, pool_refund};
@@ -447,12 +447,14 @@ pub fn execute_finalize_stream(
     let mut stream_state = STREAM_STATE.load(deps.storage)?;
     sync_stream(&mut stream_state, env.block.time);
     sync_stream_status(&mut stream_state, env.block.time);
+    let treasury =
+        maybe_addr(deps.api, new_treasury)?.unwrap_or_else(|| stream_info.treasury.clone());
 
-    match stream_state.status_info.status {
-        Status::Ended => {
-            let treasury =
-                maybe_addr(deps.api, new_treasury)?.unwrap_or_else(|| stream_info.treasury.clone());
-
+    match (
+        stream_state.status_info.clone().status,
+        stream_state.check_threshold(),
+    ) {
+        (Status::Ended, true) => {
             let mut messages = vec![];
             let mut attributes = vec![];
 
@@ -557,6 +559,9 @@ pub fn execute_finalize_stream(
             )?;
             messages.push(swap_fee_msg);
 
+            stream_state.status_info.status = Status::Finalized(FinalizedStatus::ThresholdReached);
+            STREAM_STATE.save(deps.storage, &stream_state)?;
+
             attributes.extend(vec![
                 attr("action", "finalize_stream"),
                 attr("treasury", treasury.to_string()),
@@ -583,9 +588,51 @@ pub fn execute_finalize_stream(
                 .add_messages(messages)
                 .add_attributes(attributes))
         }
-        _ => Err(ContractError::OperationNotAllowed {
-            current_status: stream_state.status_info.status.to_string(),
-        }),
+        (Status::Ended, false) => {
+            // if stream is ended and threshold is not reached, return all in tokens to treasury
+            // Refund all out tokens to stream creator(treasury)
+            let mut refund_coins = NativeBalance::default() + stream_state.out_asset.clone();
+
+            // refund pool creation if any
+            let post_stream_ops = POST_STREAM.may_load(deps.storage)?;
+            if let Some(post_stream_ops) = post_stream_ops {
+                let pool_refund_coins = pool_refund(
+                    &deps,
+                    post_stream_ops.pool_config,
+                    stream_state.out_asset.denom.clone(),
+                )?;
+                for coin in pool_refund_coins {
+                    refund_coins += coin;
+                }
+            }
+            refund_coins.normalize();
+
+            let funds_msgs: Vec<CosmosMsg> = refund_coins
+                .into_vec()
+                .iter()
+                .map(|coin| {
+                    CosmosMsg::Bank(BankMsg::Send {
+                        to_address: stream_info.treasury.to_string(),
+                        amount: vec![coin.clone()],
+                    })
+                })
+                .collect();
+
+            stream_state.status_info.status =
+                Status::Finalized(FinalizedStatus::ThresholdNotReached);
+            STREAM_STATE.save(deps.storage, &stream_state)?;
+
+            Ok(Response::new()
+                .add_attribute("action", "finalize_stream")
+                .add_attribute("status", "threshold_not_reached")
+                .add_attribute("treasury", stream_info.treasury.to_string())
+                .add_messages(funds_msgs))
+        }
+        _ => {
+            return Err(ContractError::OperationNotAllowed {
+                current_status: stream_state.status_info.status.to_string(),
+            });
+        }
     }
 }
 pub fn execute_exit_stream(
