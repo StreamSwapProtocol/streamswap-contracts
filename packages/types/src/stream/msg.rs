@@ -33,11 +33,7 @@ pub enum ExecuteMsg {
     },
     //
     // Circuit features
-    //
-    /// ExitCancelled returns the whole balance user put in the stream, both spent and unspent.
-    ExitCancelled {},
     CancelStream {},
-    CancelStreamWithThreshold {},
     StreamAdminCancel {},
 }
 
@@ -72,8 +68,7 @@ pub enum QueryMsg {
     /// Returns currently streaming price of a sale.
     #[returns(LatestStreamedPriceResponse)]
     LastStreamedPrice {},
-    #[returns(Uint128)]
-    Threshold {},
+    /// Returns the terms of service.
     #[returns(String)]
     ToS { addr: Option<String> },
 }

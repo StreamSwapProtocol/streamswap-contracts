@@ -25,6 +25,8 @@ pub struct StreamState {
     pub out_asset: Coin,
     /// Status info of the stream
     pub status_info: StatusInfo,
+    /// Threshold amount of the stream
+    pub threshold: Option<Uint256>,
 }
 
 impl StreamState {
@@ -35,6 +37,7 @@ impl StreamState {
         bootstrapping_start_time: Timestamp,
         start_time: Timestamp,
         end_time: Timestamp,
+        threshold: Option<Uint256>,
     ) -> Self {
         StreamState {
             dist_index: Decimal256::zero(),
@@ -46,6 +49,7 @@ impl StreamState {
             shares: Uint256::zero(),
             current_streamed_price: Decimal256::zero(),
             status_info: StatusInfo::new(now, bootstrapping_start_time, start_time, end_time),
+            threshold,
         }
     }
 
@@ -54,7 +58,8 @@ impl StreamState {
     }
 
     pub fn is_finalized(&self) -> bool {
-        self.status_info.status == Status::Finalized
+        self.status_info.status == Status::Finalized(FinalizedStatus::ThresholdReached)
+            || self.status_info.status == Status::Finalized(FinalizedStatus::ThresholdNotReached)
     }
 
     pub fn is_waiting(&self) -> bool {
@@ -71,6 +76,12 @@ impl StreamState {
 
     pub fn is_ended(&self) -> bool {
         self.status_info.status == Status::Ended
+    }
+    pub fn check_threshold(&self) -> bool {
+        match self.threshold {
+            Some(threshold) => self.spent_in >= threshold,
+            None => true,
+        }
     }
 }
 
@@ -126,19 +137,37 @@ pub enum Status {
     /// Waiting status is when the stream is created. In this status, no one can interact with the stream.
     Waiting,
     /// Bootstrapping status is when the stream is bootstrapping.
-    /// In this status, subscriber and withdraw are permitted. But no spending is allowed on each side
+    /// In this status, subscriber and withdraw are permitted. But no spending is allowed on each side.
     Bootstrapping,
     /// Active status is when the stream is active. In this status, spending is allowed on each side.
     Active,
     /// Ended status is when the stream is ended.
     /// In this status, Subscriber can exit the stream, creator can finalize and collect accumulated in assets.
     Ended,
-    /// Finalized status is when the stream is finalized. In this status, Subscriber can exit the stream.
-    Finalized,
+    /// Finalized status indicates the stream has reached its final state. This can be one of two outcomes:
+    Finalized(FinalizedStatus),
     /// Cancelled status is when the stream is cancelled.
     /// In this status, Subscriber can exit the stream and collect full in assets.
     /// Creator can collect full out assets.
     Cancelled,
+}
+
+/// Represents whether the stream's threshold was reached or not in the finalized state.
+#[cw_serde]
+pub enum FinalizedStatus {
+    /// Indicates that the stream's threshold was reached.
+    ThresholdReached,
+    /// Indicates that the stream's threshold was not reached.
+    ThresholdNotReached,
+}
+
+impl std::fmt::Display for FinalizedStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            FinalizedStatus::ThresholdReached => write!(f, "ThresholdReached"),
+            FinalizedStatus::ThresholdNotReached => write!(f, "ThresholdNotReached"),
+        }
+    }
 }
 
 impl std::fmt::Display for Status {
@@ -148,8 +177,8 @@ impl std::fmt::Display for Status {
             Status::Bootstrapping => write!(f, "Bootstrapping"),
             Status::Active => write!(f, "Active"),
             Status::Ended => write!(f, "Ended"),
-            Status::Finalized => write!(f, "Finalized"),
             Status::Cancelled => write!(f, "Cancelled"),
+            Status::Finalized(finalized_status) => write!(f, "Finalized({})", finalized_status),
         }
     }
 }

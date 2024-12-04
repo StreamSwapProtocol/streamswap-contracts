@@ -1,11 +1,13 @@
 use cosmwasm_std::{Decimal, Decimal256, Fraction, Timestamp, Uint256};
 use std::ops::Mul;
-use streamswap_types::stream::{Status, StreamState};
+use streamswap_types::stream::{FinalizedStatus, Status, StreamState};
 
 pub fn sync_stream_status(stream: &mut StreamState, now: Timestamp) {
     if matches!(
         stream.status_info.status,
-        Status::Finalized | Status::Cancelled
+        Status::Cancelled
+            | Status::Finalized(FinalizedStatus::ThresholdNotReached)
+            | Status::Finalized(FinalizedStatus::ThresholdReached)
     ) {
         return;
     }
