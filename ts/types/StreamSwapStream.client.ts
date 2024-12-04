@@ -6,7 +6,7 @@
 
 import { CosmWasmClient, SigningCosmWasmClient, ExecuteResult } from "@cosmjs/cosmwasm-stargate";
 import { StdFee } from "@cosmjs/amino";
-import { Timestamp, Uint64, Schedule, Uint128, PoolConfig, Uint256, Binary, InstantiateMsg, VestingConfig, Coin, ExecuteMsg, CreatePool, QueryMsg, Decimal256, AveragePriceResponse, LatestStreamedPriceResponse, PositionsResponse, PositionResponse, Addr, Params, Status, StreamResponse } from "./StreamSwapStream.types";
+import { Timestamp, Uint64, Schedule, Uint128, PoolConfig, Uint256, Binary, InstantiateMsg, VestingConfig, Coin, ExecuteMsg, CreatePool, QueryMsg, Decimal256, AveragePriceResponse, LatestStreamedPriceResponse, PositionsResponse, PositionResponse, Addr, Params, Status, StreamResponse, String } from "./StreamSwapStream.types";
 export interface StreamSwapStreamReadOnlyInterface {
   contractAddress: string;
   params: () => Promise<Params>;
@@ -26,6 +26,11 @@ export interface StreamSwapStreamReadOnlyInterface {
   averagePrice: () => Promise<AveragePriceResponse>;
   lastStreamedPrice: () => Promise<LatestStreamedPriceResponse>;
   threshold: () => Promise<Uint128>;
+  toS: ({
+    addr
+  }: {
+    addr?: string;
+  }) => Promise<String>;
 }
 export class StreamSwapStreamQueryClient implements StreamSwapStreamReadOnlyInterface {
   client: CosmWasmClient;
@@ -41,6 +46,7 @@ export class StreamSwapStreamQueryClient implements StreamSwapStreamReadOnlyInte
     this.averagePrice = this.averagePrice.bind(this);
     this.lastStreamedPrice = this.lastStreamedPrice.bind(this);
     this.threshold = this.threshold.bind(this);
+    this.toS = this.toS.bind(this);
   }
 
   params = async (): Promise<Params> => {
@@ -91,6 +97,17 @@ export class StreamSwapStreamQueryClient implements StreamSwapStreamReadOnlyInte
   threshold = async (): Promise<Uint128> => {
     return this.client.queryContractSmart(this.contractAddress, {
       threshold: {}
+    });
+  };
+  toS = async ({
+    addr
+  }: {
+    addr?: string;
+  }): Promise<String> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      to_s: {
+        addr
+      }
     });
   };
 }

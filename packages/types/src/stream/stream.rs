@@ -84,24 +84,15 @@ pub struct StreamInfo {
     /// Stream admin address, where the stream creator can manage the stream, like canceling it in waiting status
     /// or finalizing it in ended status
     pub url: Option<String>,
-    // Tos version
-    pub tos_version: String,
 }
 
 impl StreamInfo {
-    pub fn new(
-        stream_admin: Addr,
-        name: String,
-        treasury: Addr,
-        url: Option<String>,
-        tos_version: String,
-    ) -> Self {
+    pub fn new(stream_admin: Addr, name: String, treasury: Addr, url: Option<String>) -> Self {
         StreamInfo {
             stream_admin,
             name,
             treasury,
             url,
-            tos_version,
         }
     }
 }
