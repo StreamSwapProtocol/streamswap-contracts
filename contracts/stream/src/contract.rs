@@ -463,7 +463,7 @@ pub fn execute_finalize_stream(
             let mut messages = vec![];
             let mut attributes = vec![];
 
-            // last creator revenue = spent_in - swap_fee - in_clp;
+            // creator revenue = spent_in - swap_fee - in_clp;
             let mut creator_revenue = stream_state.spent_in;
 
             // Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
@@ -655,6 +655,14 @@ pub fn execute_exit_stream(
     }
     sync_stream_status(&mut stream_state, env.block.time);
     sync_stream(&mut stream_state, env.block.time);
+
+    // Exit is handled differently based on the stream status
+    // If stream is ended and threshold is reached, we need to calculate the final position and send the funds
+    // This is the normal exit scenario
+    // If stream is ended and threshold is not reached, we need to refund the in tokens to the subscriber
+    // This is a full refund exit scenario
+    // If stream is cancelled, we need to refund the in tokens to the subscriber
+    // This is also a full refund exit scenario
 
     match (
         stream_state.status_info.clone().status,
