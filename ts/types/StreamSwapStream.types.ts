@@ -65,11 +65,7 @@ export type ExecuteMsg = {
     salt?: Binary | null;
   };
 } | {
-  exit_cancelled: {};
-} | {
   cancel_stream: {};
-} | {
-  cancel_stream_with_threshold: {};
 } | {
   stream_admin_cancel: {};
 };
@@ -98,8 +94,6 @@ export type QueryMsg = {
   average_price: {};
 } | {
   last_streamed_price: {};
-} | {
-  threshold: {};
 } | {
   to_s: {
     addr?: string | null;
@@ -140,7 +134,10 @@ export interface Params {
   tos_version: string;
   vesting_code_id: number;
 }
-export type Status = "waiting" | "bootstrapping" | "active" | "ended" | "finalized" | "cancelled";
+export type Status = "waiting" | "bootstrapping" | "active" | "ended" | {
+  finalized: FinalizedStatus;
+} | "cancelled";
+export type FinalizedStatus = "threshold_reached" | "threshold_not_reached";
 export interface StreamResponse {
   current_streamed_price: Decimal256;
   dist_index: Decimal256;
