@@ -646,153 +646,183 @@ pub fn execute_exit_stream(
     info: MessageInfo,
     salt: Option<Binary>,
 ) -> Result<Response, ContractError> {
+    // Load stream state and controller parameters
     let mut stream_state = STREAM_STATE.load(deps.storage)?;
     let controller_params = CONTROLLER_PARAMS.load(deps.storage)?;
 
+    // Load the position for the sender
     let mut position = POSITIONS.load(deps.storage, &info.sender)?;
+
+    // Ensure the sender has not already exited
     if position.exit_date != Timestamp::from_seconds(0) {
         return Err(ContractError::SubscriberAlreadyExited {});
     }
+
+    // Sync stream status and position
     sync_stream_status(&mut stream_state, env.block.time);
     sync_stream(&mut stream_state, env.block.time);
 
-    // Exit is handled differently based on the stream status
-    // If stream is ended and threshold is reached, we need to calculate the final position and send the funds
-    // This is the normal exit scenario
-    // If stream is ended and threshold is not reached, we need to refund the in tokens to the subscriber
-    // This is a full refund exit scenario
-    // If stream is cancelled, we need to refund the in tokens to the subscriber
-    // This is also a full refund exit scenario
-
+    // Match on stream status and threshold to determine exit behavior
     match (
         stream_state.status_info.clone().status,
         stream_state.check_threshold(),
     ) {
+        // Normal exit scenario: stream is ended and threshold is reached
         (Status::Ended, true) | (Status::Finalized(FinalizedStatus::ThresholdReached), _) => {
-            let mut position = POSITIONS.load(deps.storage, &info.sender)?;
-            sync_position(
-                stream_state.dist_index,
-                stream_state.shares,
-                stream_state.status_info.last_updated,
-                stream_state.in_supply,
+            return handle_normal_exit(
+                deps,
+                env,
+                info,
+                salt,
+                &mut stream_state,
+                &controller_params,
                 &mut position,
-            )?;
-
-            stream_state.shares = stream_state.shares.checked_sub(position.shares)?;
-
-            STREAM_STATE.save(deps.storage, &stream_state)?;
-            position.exit_date = env.block.time;
-            POSITIONS.save(deps.storage, &position.owner, &position)?;
-
-            let swap_fee = Decimal256::from_ratio(position.spent, Uint128::one())
-                .checked_mul(controller_params.exit_fee_percent)?
-                * Uint256::one();
-
-            let mut messages: Vec<CosmosMsg> = vec![];
-            let mut attributes: Vec<Attribute> = vec![];
-
-            let uint128_purchased = Uint128::try_from(position.purchased)?;
-
-            let mut vesting_flag = false;
-
-            let post_stream_actions = POST_STREAM.may_load(deps.storage)?;
-
-            if let Some(post_stream_actions) = post_stream_actions {
-                if let Some(vesting_config) = post_stream_actions.subscriber_vesting {
-                    let vesting_checksum = deps
-                        .querier
-                        .query_wasm_code_info(controller_params.vesting_code_id)?
-                        .checksum;
-                    let (vesting_msgs, vesting_attributes, vesting_addr) = vesting_operations(
-                        &deps,
-                        env.contract.address,
-                        vesting_checksum,
-                        info.sender.clone(),
-                        salt,
-                        stream_state.status_info.end_time,
-                        controller_params.vesting_code_id,
-                        uint128_purchased,
-                        stream_state.out_asset.denom.clone(),
-                        vesting_config,
-                    )?;
-                    messages.extend(vesting_msgs);
-                    attributes.extend(vesting_attributes);
-                    SUBSCRIBER_VESTING.save(deps.storage, info.sender.clone(), &vesting_addr)?;
-                    vesting_flag = true;
-                }
-            }
-
-            if !vesting_flag {
-                let send_msg = CosmosMsg::Bank(BankMsg::Send {
-                    to_address: info.sender.to_string(),
-                    amount: vec![Coin {
-                        denom: stream_state.out_asset.denom.to_string(),
-                        amount: uint128_purchased,
-                    }],
-                });
-                messages.push(send_msg);
-            }
-
-            if !position.in_balance.is_zero() {
-                let unspent = position.in_balance;
-                let uint128_unspent = Uint128::try_from(unspent)?;
-                let unspent_msg = CosmosMsg::Bank(BankMsg::Send {
-                    to_address: info.sender.to_string(),
-                    amount: vec![Coin {
-                        denom: stream_state.in_denom,
-                        amount: uint128_unspent,
-                    }],
-                });
-                messages.push(unspent_msg);
-            }
-
-            attributes.extend(vec![
-                attr("action", "exit_stream"),
-                attr("spent", position.spent.checked_sub(swap_fee)?),
-                attr("purchased", position.purchased),
-                attr("swap_fee_paid", swap_fee),
-            ]);
-
-            Ok(Response::new()
-                .add_messages(messages)
-                .add_attributes(attributes))
+            );
         }
 
+        // Full refund exit scenario: stream ended with threshold not reached or cancelled
         (Status::Ended, false)
         | (Status::Finalized(FinalizedStatus::ThresholdNotReached), _)
         | (Status::Cancelled, _) => {
-            // no need to sync position here, we just need to return total balance
-            let total_balance = position.in_balance + position.spent;
-            // sync position exit date
-            position.exit_date = env.block.time;
-            position.last_updated = env.block.time;
-            POSITIONS.save(deps.storage, &position.owner, &position)?;
-
-            let send_msg = build_u128_bank_send_msg(
-                stream_state.in_denom.clone(),
-                info.sender.to_string(),
-                total_balance,
-            )?;
-            let attributes = vec![
-                attr("action", "exit_cancelled"),
-                attr("to_address", info.sender.to_string()),
-                attr("total_balance", total_balance),
-                attr("exit_date", position.exit_date.to_string()),
-                attr("last_updated", position.last_updated.to_string()),
-            ];
-            // send funds to the sender
-            let res = Response::new()
-                .add_message(send_msg)
-                .add_attributes(attributes);
-
-            Ok(res)
+            return handle_full_refund_exit(deps, env, info, &mut stream_state, &mut position);
         }
-        _ => {
-            return Err(ContractError::OperationNotAllowed {
-                current_status: stream_state.status_info.status.to_string(),
-            });
+
+        // Error case: operation not allowed
+        _ => Err(ContractError::OperationNotAllowed {
+            current_status: stream_state.status_info.status.to_string(),
+        }),
+    }
+}
+
+/// Handles the normal exit scenario where the stream has ended and the threshold is reached
+fn handle_normal_exit(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    salt: Option<Binary>,
+    stream_state: &mut StreamState,
+    controller_params: &ControllerParams,
+    position: &mut Position,
+) -> Result<Response, ContractError> {
+    sync_position(
+        stream_state.dist_index,
+        stream_state.shares,
+        stream_state.status_info.last_updated,
+        stream_state.in_supply,
+        position,
+    )?;
+
+    // Update stream shares and position exit date
+    stream_state.shares = stream_state.shares.checked_sub(position.shares)?;
+    STREAM_STATE.save(deps.storage, &stream_state)?;
+    position.exit_date = env.block.time;
+    POSITIONS.save(deps.storage, &position.owner, &position)?;
+
+    // Calculate exit fee
+    let swap_fee = Decimal256::from_ratio(position.spent, Uint128::one())
+        .checked_mul(controller_params.exit_fee_percent)?
+        * Uint256::one();
+
+    // Prepare messages and attributes for the response
+    let mut messages = vec![];
+    let mut attributes = vec![];
+
+    let uint128_purchased = Uint128::try_from(position.purchased)?;
+    let mut vesting_flag = false;
+
+    if let Some(post_stream_actions) = POST_STREAM.may_load(deps.storage)? {
+        if let Some(vesting_config) = post_stream_actions.subscriber_vesting {
+            let vesting_checksum = deps
+                .querier
+                .query_wasm_code_info(controller_params.vesting_code_id)?
+                .checksum;
+
+            let (vesting_msgs, vesting_attributes, vesting_addr) = vesting_operations(
+                &deps,
+                env.contract.address,
+                vesting_checksum,
+                info.sender.clone(),
+                salt,
+                stream_state.status_info.end_time,
+                controller_params.vesting_code_id,
+                uint128_purchased,
+                stream_state.out_asset.denom.clone(),
+                vesting_config,
+            )?;
+            messages.extend(vesting_msgs);
+            attributes.extend(vesting_attributes);
+            SUBSCRIBER_VESTING.save(deps.storage, info.sender.clone(), &vesting_addr)?;
+            vesting_flag = true;
         }
     }
+
+    if !vesting_flag {
+        let send_msg = CosmosMsg::Bank(BankMsg::Send {
+            to_address: info.sender.to_string(),
+            amount: vec![Coin {
+                denom: stream_state.out_asset.denom.to_string(),
+                amount: uint128_purchased,
+            }],
+        });
+        messages.push(send_msg);
+    }
+
+    if !position.in_balance.is_zero() {
+        let unspent = position.in_balance;
+        let uint128_unspent = Uint128::try_from(unspent)?;
+        let unspent_msg = CosmosMsg::Bank(BankMsg::Send {
+            to_address: info.sender.to_string(),
+            amount: vec![Coin {
+                denom: stream_state.in_denom.clone(),
+                amount: uint128_unspent,
+            }],
+        });
+        messages.push(unspent_msg);
+    }
+
+    attributes.extend(vec![
+        attr("action", "exit_stream"),
+        attr("spent", position.spent.checked_sub(swap_fee)?),
+        attr("purchased", position.purchased),
+        attr("swap_fee_paid", swap_fee),
+    ]);
+
+    Ok(Response::new()
+        .add_messages(messages)
+        .add_attributes(attributes))
+}
+
+/// Handles the full refund exit scenario, where the stream is cancelled or threshold is not reached
+fn handle_full_refund_exit(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    stream_state: &mut StreamState,
+    position: &mut Position,
+) -> Result<Response, ContractError> {
+    // Calculate total balance and update exit date
+    let total_balance = position.in_balance + position.spent;
+    position.exit_date = env.block.time;
+    position.last_updated = env.block.time;
+    POSITIONS.save(deps.storage, &position.owner, &position)?;
+
+    let send_msg = build_u128_bank_send_msg(
+        stream_state.in_denom.clone(),
+        info.sender.to_string(),
+        total_balance,
+    )?;
+    let attributes = vec![
+        attr("action", "exit_cancelled"),
+        attr("to_address", info.sender.to_string()),
+        attr("total_balance", total_balance),
+        attr("exit_date", position.exit_date.to_string()),
+        attr("last_updated", position.last_updated.to_string()),
+    ];
+
+    // Return the funds to the sender
+    Ok(Response::new()
+        .add_message(send_msg)
+        .add_attributes(attributes))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

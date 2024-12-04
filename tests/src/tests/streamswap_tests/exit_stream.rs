@@ -93,6 +93,12 @@ mod exit_stream {
                 &[],
             )
             .unwrap();
+
+        let funds = get_funds_from_res(res);
+
+        assert_eq!(funds[0].1.amount, Uint128::from(100u128));
+        assert_eq!(funds[0].1.denom, "out_denom");
+        assert_eq!(funds.len(), 1);
     }
 
     #[test]
@@ -444,7 +450,7 @@ mod exit_stream {
         // Attempting to exit without a position
         let exit_msg = StreamSwapExecuteMsg::ExitStream { salt: None };
 
-        let err = app
+        let _err = app
             .execute_contract(
                 test_accounts.subscriber_2.clone(), // No position for this subscriber
                 Addr::unchecked(stream_swap_contract_address.clone()),
