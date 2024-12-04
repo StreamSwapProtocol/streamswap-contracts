@@ -5,9 +5,8 @@ use crate::stream::{compute_shares_amount, sync_stream, sync_stream_status};
 use crate::{circuit_ops, ContractError};
 use core::str;
 use cosmwasm_std::{
-    attr, entry_point, to_json_binary, Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg,
-    Decimal256, Deps, DepsMut, Env, MessageInfo, Order, Response, StdResult, Timestamp, Uint128,
-    Uint256,
+    attr, entry_point, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal256, Deps,
+    DepsMut, Env, MessageInfo, Order, Response, StdResult, Timestamp, Uint128, Uint256,
 };
 use cw2::{ensure_from_older_version, set_contract_version};
 use cw_storage_plus::Bound;
