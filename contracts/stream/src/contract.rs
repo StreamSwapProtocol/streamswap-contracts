@@ -79,6 +79,11 @@ pub fn instantiate(
     if in_denom == out_asset.denom {
         return Err(ContractError::SameDenomOnEachSide {});
     }
+    if let Some(threshold) = threshold {
+        if threshold.is_zero() {
+            return Err(ContractError::InvalidThreshold {});
+        }
+    }
     let stream_admin = deps.api.addr_validate(&stream_admin)?;
     let treasury = deps.api.addr_validate(&treasury)?;
 

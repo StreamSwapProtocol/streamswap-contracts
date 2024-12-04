@@ -11,7 +11,6 @@ mod create_stream_tests {
     use streamswap_stream::ContractError as StreamSwapError;
     use streamswap_types::controller::Params as ControllerParams;
     use streamswap_types::controller::QueryMsg;
-    use streamswap_types::stream::ThresholdError;
     use streamswap_utils::payment_checker::CustomPaymentError;
 
     #[test]
@@ -396,10 +395,7 @@ mod create_stream_tests {
 
         let err = res.source().unwrap().source().unwrap();
         let error = err.downcast_ref::<StreamSwapError>().unwrap();
-        assert_eq!(
-            *error,
-            StreamSwapError::ThresholdError(ThresholdError::ThresholdZero {})
-        );
+        assert_eq!(*error, StreamSwapError::InvalidThreshold {});
     }
 
     #[test]

@@ -7,7 +7,8 @@ mod finalize_stream_tests {
     use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Uint128};
     use cw_multi_test::Executor;
     use streamswap_types::stream::{
-        ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg, Status, StreamResponse,
+        ExecuteMsg as StreamSwapExecuteMsg, FinalizedStatus, QueryMsg as StreamSwapQueryMsg,
+        Status, StreamResponse,
     };
 
     #[test]
@@ -113,7 +114,11 @@ mod finalize_stream_tests {
                 &StreamSwapQueryMsg::Stream {},
             )
             .unwrap();
-        assert_eq!(stream.status, Status::Finalized);
+
+        assert_eq!(
+            stream.status,
+            Status::Finalized(FinalizedStatus::ThresholdReached)
+        );
         // Creator_1 can finalize the stream only once
         let _res = app
             .execute_contract(
@@ -239,7 +244,10 @@ mod finalize_stream_tests {
             )
             .unwrap();
 
-        assert_eq!(stream.status, Status::Finalized);
+        assert_eq!(
+            stream.status,
+            Status::Finalized(FinalizedStatus::ThresholdReached)
+        );
     }
 
     #[test]
@@ -368,6 +376,9 @@ mod finalize_stream_tests {
             )
             .unwrap();
 
-        assert_eq!(stream.status, Status::Finalized);
+        assert_eq!(
+            stream.status,
+            Status::Finalized(FinalizedStatus::ThresholdReached)
+        );
     }
 }

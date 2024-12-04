@@ -7,6 +7,7 @@ mod pool {
     };
     use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Uint256};
     use cw_multi_test::Executor;
+    use cw_utils::NativeBalance;
     use streamswap_types::controller::{CreatePool, PoolConfig};
     use streamswap_types::stream::ExecuteMsg as StreamSwapExecuteMsg;
     use streamswap_types::stream::QueryMsg as StreamSwapQueryMsg;
@@ -243,17 +244,22 @@ mod pool {
         let res_pool_amount = coin(out_clp_amount, out_denom);
         let res_refund_out_amount = coin(out_supply, out_denom);
 
-        assert_eq!(
-            fund_transfer,
-            vec![
-                (test_accounts.creator_1.to_string(), res_refund_out_amount),
-                (test_accounts.creator_1.to_string(), pool_creation_fee),
-                (test_accounts.creator_1.to_string(), res_pool_amount),
-            ]
-        );
+        let mut expected: NativeBalance = NativeBalance::default()
+            + res_pool_amount.clone()
+            + pool_creation_fee.clone()
+            + res_refund_out_amount.clone();
+        expected.normalize();
+
+        let expected_res: Vec<(String, Coin)> = expected
+            .into_vec()
+            .iter()
+            .map(|coin| (test_accounts.creator_1.to_string(), coin.clone()))
+            .collect();
+
+        assert_eq!(fund_transfer, expected_res);
     }
     #[test]
-    fn cancel_stream_with_threshold_pool_clp_refund() {
+    fn finalize_stream_threshold_not_reached() {
         let Suite {
             mut app,
             test_accounts,
@@ -343,37 +349,38 @@ mod pool {
             chain_id: "test".to_string(),
         });
 
-        // Try finalizing stream should fail as threshold is not met
+        // Finalize stream
         let finalize_stream_msg = StreamSwapExecuteMsg::FinalizeStream {
             new_treasury: None,
             create_pool: None,
             salt: None,
         };
-        let _err = app
+        let res = app
             .execute_contract(
                 test_accounts.creator_1.clone(),
                 Addr::unchecked(stream_swap_contract_address.clone()),
                 &finalize_stream_msg,
                 &[],
             )
-            .unwrap_err();
-        // Threshold cancel stream
-        let cancel_stream_msg = StreamSwapExecuteMsg::CancelStreamWithThreshold {};
-        let res = app
-            .execute_contract(
-                test_accounts.creator_1.clone(),
-                Addr::unchecked(stream_swap_contract_address.clone()),
-                &cancel_stream_msg,
-                &[],
-            )
             .unwrap();
         let res_funds = get_funds_from_res(res.clone());
+        let mut expected: NativeBalance = NativeBalance::default()
+            + out_coin.clone()
+            + pool_creation_fee.clone()
+            + pool_out_coin.clone();
+        expected.normalize();
+
         assert_eq!(
             res_funds,
             vec![
-                (test_accounts.creator_1.to_string(), out_coin),
-                (test_accounts.creator_1.to_string(), pool_creation_fee),
-                (test_accounts.creator_1.to_string(), pool_out_coin),
+                (
+                    test_accounts.creator_1.to_string(),
+                    expected.clone().into_vec()[0].clone()
+                ),
+                (
+                    test_accounts.creator_1.to_string(),
+                    expected.into_vec()[1].clone()
+                ),
             ]
         );
     }
@@ -466,13 +473,17 @@ mod pool {
             )
             .unwrap();
         let res_funds = get_funds_from_res(res.clone());
-        assert_eq!(
-            res_funds,
-            vec![
-                (test_accounts.creator_1.to_string(), out_coin),
-                (test_accounts.creator_1.to_string(), pool_creation_fee),
-                (test_accounts.creator_1.to_string(), pool_out_coin),
-            ]
-        );
+        let mut expected_res_funds: NativeBalance = NativeBalance::default()
+            + out_coin.clone()
+            + pool_creation_fee.clone()
+            + pool_out_coin.clone();
+        expected_res_funds.normalize();
+
+        let expected_res: Vec<(String, Coin)> = expected_res_funds
+            .into_vec()
+            .iter()
+            .map(|coin| (test_accounts.creator_1.to_string(), coin.clone()))
+            .collect();
+        assert_eq!(res_funds, expected_res);
     }
 }

@@ -1,6 +1,6 @@
 mod cancel_stream;
 mod create_stream;
-mod exit_cancel;
+mod exit_stream;
 mod finalize_stream;
 mod pool;
 mod rounding_leftover;
