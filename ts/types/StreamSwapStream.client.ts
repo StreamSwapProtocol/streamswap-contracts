@@ -6,7 +6,7 @@
 
 import { CosmWasmClient, SigningCosmWasmClient, ExecuteResult } from "@cosmjs/cosmwasm-stargate";
 import { StdFee } from "@cosmjs/amino";
-import { Timestamp, Uint64, Schedule, Uint128, PoolConfig, Uint256, Binary, InstantiateMsg, VestingConfig, Coin, ExecuteMsg, CreatePool, QueryMsg, Decimal256, AveragePriceResponse, LatestStreamedPriceResponse, PositionsResponse, PositionResponse, Addr, Params, Status, FinalizedStatus, StreamResponse, String } from "./StreamSwapStream.types";
+import { Timestamp, Uint64, Schedule, Uint128, PoolConfig, Uint256, Binary, InstantiateMsg, VestingConfig, Coin, ExecuteMsg, CreatePool, QueryMsg, Decimal256, AveragePriceResponse, String, LatestStreamedPriceResponse, PositionsResponse, PositionResponse, Addr, Params, Status, FinalizedStatus, StreamResponse } from "./StreamSwapStream.types";
 export interface StreamSwapStreamReadOnlyInterface {
   contractAddress: string;
   params: () => Promise<Params>;
@@ -30,6 +30,12 @@ export interface StreamSwapStreamReadOnlyInterface {
   }: {
     addr?: string;
   }) => Promise<String>;
+  creatorVesting: () => Promise<String>;
+  subscriberVesting: ({
+    addr
+  }: {
+    addr: string;
+  }) => Promise<String>;
 }
 export class StreamSwapStreamQueryClient implements StreamSwapStreamReadOnlyInterface {
   client: CosmWasmClient;
@@ -45,6 +51,8 @@ export class StreamSwapStreamQueryClient implements StreamSwapStreamReadOnlyInte
     this.averagePrice = this.averagePrice.bind(this);
     this.lastStreamedPrice = this.lastStreamedPrice.bind(this);
     this.toS = this.toS.bind(this);
+    this.creatorVesting = this.creatorVesting.bind(this);
+    this.subscriberVesting = this.subscriberVesting.bind(this);
   }
 
   params = async (): Promise<Params> => {
@@ -99,6 +107,22 @@ export class StreamSwapStreamQueryClient implements StreamSwapStreamReadOnlyInte
   }): Promise<String> => {
     return this.client.queryContractSmart(this.contractAddress, {
       to_s: {
+        addr
+      }
+    });
+  };
+  creatorVesting = async (): Promise<String> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      creator_vesting: {}
+    });
+  };
+  subscriberVesting = async ({
+    addr
+  }: {
+    addr: string;
+  }): Promise<String> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      subscriber_vesting: {
         addr
       }
     });

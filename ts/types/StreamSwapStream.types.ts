@@ -98,11 +98,18 @@ export type QueryMsg = {
   to_s: {
     addr?: string | null;
   };
+} | {
+  creator_vesting: {};
+} | {
+  subscriber_vesting: {
+    addr: string;
+  };
 };
 export type Decimal256 = string;
 export interface AveragePriceResponse {
   average_price: Decimal256;
 }
+export type String = string;
 export interface LatestStreamedPriceResponse {
   current_streamed_price: Decimal256;
 }
@@ -155,4 +162,3 @@ export interface StreamResponse {
   treasury: string;
   url?: string | null;
 }
-export type String = string;

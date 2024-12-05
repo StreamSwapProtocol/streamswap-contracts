@@ -850,6 +850,19 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 to_json_binary(&query_tos(deps)?)
             }
         }
+        QueryMsg::CreatorVesting {} => {
+            let creator_vesting = CREATOR_VESTING
+                .load(deps.storage)
+                .unwrap_or(Addr::unchecked("".to_string()));
+            to_json_binary(&creator_vesting)
+        }
+        QueryMsg::SubscriberVesting { addr } => {
+            let addr = deps.api.addr_validate(&addr)?;
+            let subscriber_vesting = SUBSCRIBER_VESTING
+                .load(deps.storage, addr)
+                .unwrap_or(Addr::unchecked("".to_string()));
+            to_json_binary(&subscriber_vesting)
+        }
     }
 }
 pub fn query_params(deps: Deps) -> StdResult<ControllerParams> {

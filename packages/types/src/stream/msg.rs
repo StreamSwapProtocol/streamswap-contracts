@@ -71,6 +71,12 @@ pub enum QueryMsg {
     /// Returns the terms of service.
     #[returns(String)]
     ToS { addr: Option<String> },
+    /// Returns the instantiated vesting contract for the creator.
+    #[returns(String)]
+    CreatorVesting {},
+    /// Returns the instantiated contract contract of the subscriber.
+    #[returns(String)]
+    SubscriberVesting { addr: String },
 }
 
 #[cw_serde]

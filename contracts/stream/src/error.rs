@@ -154,4 +154,7 @@ pub enum ContractError {
 
     #[error("Threshold must be greater than zero")]
     InvalidThreshold {},
+
+    #[error("Vesting contract not found")]
+    VestingContractNotFound {},
 }
