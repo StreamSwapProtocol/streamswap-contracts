@@ -781,6 +781,7 @@ fn handle_normal_exit(
 
     attributes.extend(vec![
         attr("action", "exit_stream"),
+        attr("status_info", stream_state.status_info.status.to_string()),
         attr("spent", position.spent.checked_sub(swap_fee)?),
         attr("purchased", position.purchased),
         attr("swap_fee_paid", swap_fee),
@@ -811,11 +812,9 @@ fn handle_full_refund_exit(
         total_balance,
     )?;
     let attributes = vec![
-        attr("action", "exit_cancelled"),
-        attr("to_address", info.sender.to_string()),
+        attr("action", "exit_stream"),
         attr("total_balance", total_balance),
-        attr("exit_date", position.exit_date.to_string()),
-        attr("last_updated", position.last_updated.to_string()),
+        attr("status_info", stream_state.status_info.status.to_string()),
     ];
 
     // Return the funds to the sender
