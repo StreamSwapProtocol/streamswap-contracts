@@ -632,11 +632,9 @@ pub fn execute_finalize_stream(
                 .add_attribute("treasury", stream_info.treasury.to_string())
                 .add_messages(funds_msgs))
         }
-        _ => {
-            return Err(ContractError::OperationNotAllowed {
-                current_status: stream_state.status_info.status.to_string(),
-            });
-        }
+        _ => Err(ContractError::OperationNotAllowed {
+            current_status: stream_state.status_info.status.to_string(),
+        }),
     }
 }
 pub fn execute_exit_stream(
@@ -668,7 +666,7 @@ pub fn execute_exit_stream(
     ) {
         // Normal exit scenario: stream is ended and threshold is reached
         (Status::Ended, true) | (Status::Finalized(FinalizedStatus::ThresholdReached), _) => {
-            return handle_normal_exit(
+            handle_normal_exit(
                 deps,
                 env,
                 info,
@@ -676,14 +674,14 @@ pub fn execute_exit_stream(
                 &mut stream_state,
                 &controller_params,
                 &mut position,
-            );
+            )
         }
 
         // Full refund exit scenario: stream ended with threshold not reached or cancelled
         (Status::Ended, false)
         | (Status::Finalized(FinalizedStatus::ThresholdNotReached), _)
         | (Status::Cancelled, _) => {
-            return handle_full_refund_exit(deps, env, info, &mut stream_state, &mut position);
+            handle_full_refund_exit(deps, env, info, &mut stream_state, &mut position)
         }
 
         // Error case: operation not allowed
@@ -713,9 +711,9 @@ fn handle_normal_exit(
 
     // Update stream shares and position exit date
     stream_state.shares = stream_state.shares.checked_sub(position.shares)?;
-    STREAM_STATE.save(deps.storage, &stream_state)?;
+    STREAM_STATE.save(deps.storage, stream_state)?;
     position.exit_date = env.block.time;
-    POSITIONS.save(deps.storage, &position.owner, &position)?;
+    POSITIONS.save(deps.storage, &position.owner, position)?;
 
     // Calculate exit fee
     let swap_fee = Decimal256::from_ratio(position.spent, Uint128::one())
@@ -804,7 +802,7 @@ fn handle_full_refund_exit(
     let total_balance = position.in_balance + position.spent;
     position.exit_date = env.block.time;
     position.last_updated = env.block.time;
-    POSITIONS.save(deps.storage, &position.owner, &position)?;
+    POSITIONS.save(deps.storage, &position.owner, position)?;
 
     let send_msg = build_u128_bank_send_msg(
         stream_state.in_denom.clone(),
