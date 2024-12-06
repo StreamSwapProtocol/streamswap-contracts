@@ -28,6 +28,7 @@ use crate::vesting::vesting_operations;
 use streamswap_types::controller::{CreatePool, Params as ControllerParams, PoolConfig};
 use streamswap_types::controller::{CreateStreamMsg, MigrateMsg};
 use streamswap_types::stream::{Position, Status};
+use streamswap_utils::payment::Payments;
 
 // Version and contract info for migration
 const CONTRACT_NAME: &str = "crates.io:streamswap-stream";
@@ -454,6 +455,7 @@ pub fn execute_finalize_stream(
     let treasury =
         maybe_addr(deps.api, new_treasury)?.unwrap_or_else(|| stream_info.treasury.clone());
 
+    let mut payments = Payments::new();
     match (
         stream_state.status_info.clone().status,
         stream_state.check_threshold(),
@@ -484,14 +486,11 @@ pub fn execute_finalize_stream(
                     .out_asset
                     .amount
                     .checked_sub(uint128_remaining_out)?;
-                let remaining_msg = CosmosMsg::Bank(BankMsg::Send {
-                    to_address: treasury.to_string(),
-                    amount: vec![Coin {
-                        denom: stream_state.out_asset.denom.clone(),
-                        amount: uint128_remaining_out,
-                    }],
+
+                payments.add_payment(treasury.clone(), Coin {
+                    denom: stream_state.out_asset.denom.clone(),
+                    amount: uint128_remaining_out,
                 });
-                messages.push(remaining_msg);
             }
 
             // if vesting is not set we need to send the creator revenue to the treasury in outer scope
@@ -546,22 +545,16 @@ pub fn execute_finalize_stream(
             }
 
             if !vesting_flag {
-                let send_msg = CosmosMsg::Bank(BankMsg::Send {
-                    to_address: treasury.to_string(),
-                    amount: vec![Coin {
-                        denom: stream_state.in_denom.clone(),
-                        amount: creator_revenue_u128,
-                    }],
+                payments.add_payment(treasury.clone(), Coin {
+                    denom: stream_state.in_denom.clone(),
+                    amount: creator_revenue_u128,
                 });
-                messages.push(send_msg);
             }
 
-            let swap_fee_msg = build_u128_bank_send_msg(
-                stream_state.in_denom.clone(),
-                controller_params.fee_collector.to_string(),
-                swap_fee,
-            )?;
-            messages.push(swap_fee_msg);
+            payments.add_payment(controller_params.fee_collector.clone(), Coin {
+                denom: stream_state.in_denom.clone(),
+                amount: Uint128::try_from(swap_fee)?,
+            });
 
             stream_state.status_info.status = Status::Finalized(FinalizedStatus::ThresholdReached);
             STREAM_STATE.save(deps.storage, &stream_state)?;
@@ -588,14 +581,13 @@ pub fn execute_finalize_stream(
                 ),
             ]);
 
+            let payments = payments.to_cosmos_msgs();
             Ok(Response::new()
                 .add_messages(messages)
+                .add_messages(payments)
                 .add_attributes(attributes))
         }
         (Status::Ended, false) => {
-            // if stream is ended and threshold is not reached, return all in tokens to treasury
-            // Refund all out tokens to stream creator(treasury)
-            let mut refund_coins = NativeBalance::default() + stream_state.out_asset.clone();
 
             // refund pool creation if any
             let post_stream_ops = POST_STREAM.may_load(deps.storage)?;
@@ -605,32 +597,18 @@ pub fn execute_finalize_stream(
                     post_stream_ops.pool_config,
                     stream_state.out_asset.denom.clone(),
                 )?;
-                for coin in pool_refund_coins {
-                    refund_coins += coin;
-                }
+                payments.add_payments(treasury.clone(), pool_refund_coins.clone());
             }
-            refund_coins.normalize();
-
-            let funds_msgs: Vec<CosmosMsg> = refund_coins
-                .into_vec()
-                .iter()
-                .map(|coin| {
-                    CosmosMsg::Bank(BankMsg::Send {
-                        to_address: stream_info.treasury.to_string(),
-                        amount: vec![coin.clone()],
-                    })
-                })
-                .collect();
 
             stream_state.status_info.status =
                 Status::Finalized(FinalizedStatus::ThresholdNotReached);
             STREAM_STATE.save(deps.storage, &stream_state)?;
 
             Ok(Response::new()
+                .add_messages(payments.to_cosmos_msgs())
                 .add_attribute("action", "finalize_stream")
                 .add_attribute("status", "threshold_not_reached")
-                .add_attribute("treasury", stream_info.treasury.to_string())
-                .add_messages(funds_msgs))
+                .add_attribute("treasury", stream_info.treasury.to_string()))
         }
         _ => Err(ContractError::OperationNotAllowed {
             current_status: stream_state.status_info.status.to_string(),
@@ -727,6 +705,7 @@ fn handle_normal_exit(
     let uint128_purchased = Uint128::try_from(position.purchased)?;
     let mut vesting_flag = false;
 
+    let mut payments = Payments::new();
     if let Some(post_stream_actions) = POST_STREAM.may_load(deps.storage)? {
         if let Some(vesting_config) = post_stream_actions.subscriber_vesting {
             let vesting_checksum = deps
@@ -754,27 +733,19 @@ fn handle_normal_exit(
     }
 
     if !vesting_flag {
-        let send_msg = CosmosMsg::Bank(BankMsg::Send {
-            to_address: info.sender.to_string(),
-            amount: vec![Coin {
-                denom: stream_state.out_asset.denom.to_string(),
-                amount: uint128_purchased,
-            }],
+        payments.add_payment(info.sender.clone(), Coin {
+            denom: stream_state.out_asset.denom.clone(),
+            amount: uint128_purchased,
         });
-        messages.push(send_msg);
     }
 
     if !position.in_balance.is_zero() {
         let unspent = position.in_balance;
         let uint128_unspent = Uint128::try_from(unspent)?;
-        let unspent_msg = CosmosMsg::Bank(BankMsg::Send {
-            to_address: info.sender.to_string(),
-            amount: vec![Coin {
-                denom: stream_state.in_denom.clone(),
-                amount: uint128_unspent,
-            }],
+        payments.add_payment(info.sender.clone(), Coin {
+            denom: stream_state.in_denom.clone(),
+            amount: uint128_unspent,
         });
-        messages.push(unspent_msg);
     }
 
     attributes.extend(vec![
@@ -787,6 +758,7 @@ fn handle_normal_exit(
 
     Ok(Response::new()
         .add_messages(messages)
+        .add_messages(payments.to_cosmos_msgs())
         .add_attributes(attributes))
 }
 
@@ -804,11 +776,11 @@ fn handle_full_refund_exit(
     position.last_updated = env.block.time;
     POSITIONS.save(deps.storage, &position.owner, position)?;
 
-    let send_msg = build_u128_bank_send_msg(
-        stream_state.in_denom.clone(),
-        info.sender.to_string(),
-        total_balance,
-    )?;
+    let mut payments = Payments::new();
+    payments.add_payment(info.sender.clone(), Coin {
+        denom: stream_state.in_denom.clone(),
+        amount: Uint128::try_from(total_balance)?,
+    });
     let attributes = vec![
         attr("action", "exit_stream"),
         attr("total_balance", total_balance),
@@ -817,7 +789,7 @@ fn handle_full_refund_exit(
 
     // Return the funds to the sender
     Ok(Response::new()
-        .add_message(send_msg)
+        .add_messages(payments.to_cosmos_msgs())
         .add_attributes(attributes))
 }
 
