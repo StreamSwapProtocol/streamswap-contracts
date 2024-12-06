@@ -1,8 +1,5 @@
 use crate::ContractError;
-use cosmwasm_std::{
-    attr, coin, to_json_binary, Addr, Attribute, Binary, CosmosMsg, DepsMut, HexBinary, Timestamp,
-    Uint128, WasmMsg,
-};
+use cosmwasm_std::{attr, coin, to_json_binary, Addr, Attribute, Binary, Checksum, CosmosMsg, DepsMut, Timestamp, WasmMsg};
 use cw_vesting::msg::InstantiateMsg as VestingInstantiateMsg;
 use cw_vesting::UncheckedDenom;
 use streamswap_types::controller::VestingConfig;
@@ -10,12 +7,12 @@ use streamswap_types::controller::VestingConfig;
 pub fn vesting_operations(
     deps: &DepsMut,
     stream_addr: Addr,
-    vesting_checksum: HexBinary,
+    vesting_checksum: Checksum,
     recipient: Addr,
     salt: Option<Binary>,
     start_time: Timestamp,
     vesting_code_id: u64,
-    amount: Uint128,
+    amount: cosmwasm_std::Uint128,
     denom: String,
     vesting_config: VestingConfig,
 ) -> Result<(Vec<CosmosMsg>, Vec<Attribute>, Addr), ContractError> {

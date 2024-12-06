@@ -6,9 +6,9 @@ pub type Threshold = Uint256;
 
 pub const THRESHOLDS_STATE_KEY: &str = "thresholds";
 
-pub struct ThresholdState<'a>(Item<'a, Threshold>);
+pub struct ThresholdState(Item<Threshold>);
 
-impl<'a> ThresholdState<'a> {
+impl ThresholdState {
     pub fn new() -> Self {
         ThresholdState(Item::new(THRESHOLDS_STATE_KEY))
     }
@@ -74,7 +74,7 @@ impl<'a> ThresholdState<'a> {
     }
 }
 
-impl<'a> Default for ThresholdState<'a> {
+impl Default for ThresholdState {
     fn default() -> Self {
         ThresholdState::new()
     }

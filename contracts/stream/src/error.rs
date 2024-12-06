@@ -52,7 +52,7 @@ pub enum ContractError {
     #[error("Required denom not found in funds")]
     NoFundsSent {},
 
-    #[error("In_denom does not match config")]
+    #[error("In_denom does not match config.toml")]
     InDenomIsNotAccepted {},
 
     #[error("Out_denom can not be the same as in_denom")]
@@ -148,12 +148,12 @@ pub enum ContractError {
     #[error("Operation not allowed in ths current state {current_status}")]
     OperationNotAllowed { current_status: String },
 
-    #[error("Pool config not provided")]
+    #[error("Pool config.toml not provided")]
     PoolConfigNotProvided {},
 
     #[error("Create pool not provided")]
     CreatePoolNotProvided {},
 
-    #[error("Invalid pool config")]
+    #[error("Invalid pool config.toml")]
     InvalidPoolConfig {},
 }

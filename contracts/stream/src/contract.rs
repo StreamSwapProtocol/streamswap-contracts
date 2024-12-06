@@ -121,7 +121,7 @@ pub fn instantiate(
             bootstraping_start_time.to_string(),
         ),
     ];
-    // if pool config is set, add attributes
+    // if pool config.toml is set, add attributes
     if let Some(pool_config) = pool_config {
         match pool_config {
             PoolConfig::ConcentratedLiquidity { out_amount_clp } => {
@@ -282,7 +282,8 @@ pub fn sync_position(
         position.pending_purchase = decimals;
 
         // floors the decimal points
-        uint256_purchased = purchased * Uint256::one();
+        uint256_purchased = purchased.to_uint_floor();
+
         position.purchased = position.purchased.checked_add(uint256_purchased)?;
     }
 
@@ -482,8 +483,7 @@ pub fn execute_finalize_stream(
 
     // Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
     let swap_fee = Decimal256::from_ratio(stream_state.spent_in, Uint128::one())
-        .checked_mul(controller_params.exit_fee_percent)?
-        * Uint256::one();
+        .checked_mul(controller_params.exit_fee_percent)?.to_uint_floor();
 
     // extract swap_fee from last amount
     creator_revenue = creator_revenue.checked_sub(swap_fee)?;
@@ -514,7 +514,7 @@ pub fn execute_finalize_stream(
     // execute post stream actions
     let post_stream_actions = POST_STREAM.may_load(deps.storage)?;
     if let Some(post_stream_actions) = post_stream_actions {
-        // if pool config and create pool is set, create a pool for the stream
+        // if pool config.toml and create pool is set, create a pool for the stream
         creator_revenue = match (post_stream_actions.pool_config, create_pool) {
             (Some(pool_config), Some(create_pool)) => {
                 let (msgs, attrs, creator_revenue) = pool_operations(
@@ -650,8 +650,7 @@ pub fn execute_exit_stream(
 
     // Swap fee = fixed_rate*position.spent_in this calculation is only for execution reply attributes
     let swap_fee = Decimal256::from_ratio(position.spent, Uint128::one())
-        .checked_mul(controller_params.exit_fee_percent)?
-        * Uint256::one();
+        .checked_mul(controller_params.exit_fee_percent)?.to_uint_floor();
 
     let mut messages: Vec<CosmosMsg> = vec![];
     let mut attributes: Vec<Attribute> = vec![];

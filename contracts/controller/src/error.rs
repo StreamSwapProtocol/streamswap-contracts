@@ -47,7 +47,7 @@ pub enum ContractError {
     #[error("Required denom not found in funds")]
     NoFundsSent {},
 
-    #[error("In_denom does not match config")]
+    #[error("In_denom does not match config.toml")]
     InDenomIsNotAccepted {},
 
     #[error("Out_denom can not be the same as in_denom")]
