@@ -1,4 +1,3 @@
-use crate::circuit_ops::execute_cancel_stream_with_threshold;
 use crate::helpers::{
     build_u128_bank_send_msg, check_name_and_url, get_decimals, validate_stream_times,
 };
@@ -6,22 +5,21 @@ use crate::stream::{compute_shares_amount, sync_stream, sync_stream_status};
 use crate::{circuit_ops, ContractError};
 use core::str;
 use cosmwasm_std::{
-    attr, entry_point, to_json_binary, Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg,
-    Decimal256, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult, Timestamp,
-    Uint128, Uint256,
+    attr, entry_point, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal256, Deps,
+    DepsMut, Env, MessageInfo, Order, Response, StdResult, Timestamp, Uint128, Uint256,
 };
 use cw2::{ensure_from_older_version, set_contract_version};
 use cw_storage_plus::Bound;
-use cw_utils::{maybe_addr, must_pay};
+use cw_utils::{maybe_addr, must_pay, NativeBalance};
 use std::env;
 use streamswap_types::stream::{
-    AveragePriceResponse, ExecuteMsg, LatestStreamedPriceResponse, PositionResponse,
-    PositionsResponse, QueryMsg, StreamResponse,
+    AveragePriceResponse, ExecuteMsg, FinalizedStatus, LatestStreamedPriceResponse,
+    PositionResponse, PositionsResponse, QueryMsg, StreamResponse,
 };
-use streamswap_types::stream::{PostStreamActions, StreamInfo, StreamState, ThresholdState};
+use streamswap_types::stream::{PostStreamActions, StreamInfo, StreamState};
 use streamswap_utils::to_uint256;
 
-use crate::pool::pool_operations;
+use crate::pool::{pool_operations, pool_refund};
 use crate::state::{
     CONTROLLER_PARAMS, CREATOR_VESTING, POSITIONS, POST_STREAM, STREAM_INFO, STREAM_STATE,
     SUBSCRIBER_VESTING, TOS, TOS_SIGNED,
@@ -80,6 +78,11 @@ pub fn instantiate(
     if in_denom == out_asset.denom {
         return Err(ContractError::SameDenomOnEachSide {});
     }
+    if let Some(threshold) = threshold {
+        if threshold.is_zero() {
+            return Err(ContractError::InvalidThreshold {});
+        }
+    }
     let stream_admin = deps.api.addr_validate(&stream_admin)?;
     let treasury = deps.api.addr_validate(&treasury)?;
 
@@ -92,6 +95,7 @@ pub fn instantiate(
         bootstraping_start_time,
         start_time,
         end_time,
+        threshold,
     );
     STREAM_STATE.save(deps.storage, &stream_state)?;
 
@@ -101,9 +105,6 @@ pub fn instantiate(
     let post_stream_actions =
         PostStreamActions::new(pool_config.clone(), subscriber_vesting, creator_vesting);
     POST_STREAM.save(deps.storage, &post_stream_actions)?;
-
-    let threshold_state = ThresholdState::new();
-    threshold_state.set_threshold_if_any(threshold, deps.storage)?;
 
     TOS.save(deps.storage, &tos_version)?;
 
@@ -164,10 +165,6 @@ pub fn execute(
         } => execute_finalize_stream(deps, env, info, new_treasury, create_pool, salt),
         ExecuteMsg::ExitStream { salt } => execute_exit_stream(deps, env, info, salt),
         ExecuteMsg::CancelStream {} => circuit_ops::execute_cancel_stream(deps, env, info),
-        ExecuteMsg::ExitCancelled {} => circuit_ops::execute_exit_cancelled(deps, env, info),
-        ExecuteMsg::CancelStreamWithThreshold {} => {
-            execute_cancel_stream_with_threshold(deps, env, info)
-        }
         ExecuteMsg::StreamAdminCancel {} => {
             circuit_ops::execute_stream_admin_cancel(deps, env, info)
         }
@@ -303,7 +300,7 @@ pub fn execute_subscribe(
 
     if !(stream_state.is_active() || stream_state.is_bootstrapping()) {
         return Err(ContractError::OperationNotAllowed {
-            current_status: stream_state.status_info.status.to_string(),
+            current_status: stream_state.status_info.status.clone().to_string(),
         });
     }
 
@@ -446,229 +443,297 @@ pub fn execute_finalize_stream(
     salt: Option<Binary>,
 ) -> Result<Response, ContractError> {
     let stream_info = STREAM_INFO.load(deps.storage)?;
+    let controller_params = CONTROLLER_PARAMS.load(deps.storage)?;
     if stream_info.stream_admin != info.sender {
         return Err(ContractError::Unauthorized {});
     }
 
     let mut stream_state = STREAM_STATE.load(deps.storage)?;
-    sync_stream_status(&mut stream_state, env.block.time);
-
-    if stream_state.is_finalized() || stream_state.is_cancelled() || !stream_state.is_ended() {
-        return Err(ContractError::OperationNotAllowed {
-            current_status: stream_state.status_info.status.to_string(),
-        });
-    }
     sync_stream(&mut stream_state, env.block.time);
-
-    stream_state.status_info.status = Status::Finalized;
-
-    // If threshold is set and not reached, finalize will fail
-    // Creator should execute cancel_stream_with_threshold to cancel the stream
-    // Only returns error if threshold is set and not reached
-    let thresholds_state = ThresholdState::new();
-    thresholds_state.error_if_not_reached(deps.storage, &stream_state)?;
-
-    STREAM_STATE.save(deps.storage, &stream_state)?;
-
-    let controller_params = CONTROLLER_PARAMS.load(deps.storage)?;
+    sync_stream_status(&mut stream_state, env.block.time);
     let treasury =
         maybe_addr(deps.api, new_treasury)?.unwrap_or_else(|| stream_info.treasury.clone());
 
-    let mut messages = vec![];
-    let mut attributes = vec![];
+    match (
+        stream_state.status_info.clone().status,
+        stream_state.check_threshold(),
+    ) {
+        (Status::Ended, true) => {
+            let mut messages = vec![];
+            let mut attributes = vec![];
 
-    // last creator revenue = spent_in - swap_fee - in_clp;
-    let mut creator_revenue = stream_state.spent_in;
+            // creator revenue = spent_in - swap_fee - in_clp;
+            let mut creator_revenue = stream_state.spent_in;
 
-    // Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
-    let swap_fee = Decimal256::from_ratio(stream_state.spent_in, Uint128::one())
-        .checked_mul(controller_params.exit_fee_percent)?
-        * Uint256::one();
+            // Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
+            let swap_fee = Decimal256::from_ratio(stream_state.spent_in, Uint128::one())
+                .checked_mul(controller_params.exit_fee_percent)?
+                * Uint256::one();
 
-    // extract swap_fee from last amount
-    creator_revenue = creator_revenue.checked_sub(swap_fee)?;
-    let creator_revenue_u128 = Uint128::try_from(creator_revenue)?;
+            // extract swap_fee from last amount
+            creator_revenue = creator_revenue.checked_sub(swap_fee)?;
+            let creator_revenue_u128 = Uint128::try_from(creator_revenue)?;
 
-    // In case the stream is ended without any shares in it. We need to refund the remaining
-    // out tokens although that is unlikely to happen.
-    if stream_state.out_remaining > Uint256::zero() {
-        let remaining_out = stream_state.out_remaining;
-        let uint128_remaining_out = Uint128::try_from(remaining_out)?;
-        // Sub remaining out tokens from out_asset
-        stream_state.out_asset.amount = stream_state
-            .out_asset
-            .amount
-            .checked_sub(uint128_remaining_out)?;
-        let remaining_msg = CosmosMsg::Bank(BankMsg::Send {
-            to_address: treasury.to_string(),
-            amount: vec![Coin {
-                denom: stream_state.out_asset.denom.clone(),
-                amount: uint128_remaining_out,
-            }],
-        });
-        messages.push(remaining_msg);
-    }
-
-    // if vesting is not set we need to send the creator revenue to the treasury in outer scope
-    let mut vesting_flag = false;
-    // execute post stream actions
-    let post_stream_actions = POST_STREAM.may_load(deps.storage)?;
-    if let Some(post_stream_actions) = post_stream_actions {
-        // if pool config and create pool is set, create a pool for the stream
-        creator_revenue = match (post_stream_actions.pool_config, create_pool) {
-            (Some(pool_config), Some(create_pool)) => {
-                let (msgs, attrs, creator_revenue) = pool_operations(
-                    &deps,
-                    create_pool,
-                    env.contract.address.clone(),
-                    stream_state.in_denom.clone(),
-                    stream_state.out_asset.denom.clone(),
-                    stream_state.out_asset.amount,
-                    creator_revenue,
-                    pool_config,
-                )?;
-                messages.extend(msgs);
-                attributes.extend(attrs);
-                Ok(creator_revenue)
+            // In case the stream is ended without any shares in it. We need to refund the remaining
+            // out tokens although that is unlikely to happen.
+            if stream_state.out_remaining > Uint256::zero() {
+                let remaining_out = stream_state.out_remaining;
+                let uint128_remaining_out = Uint128::try_from(remaining_out)?;
+                // Sub remaining out tokens from out_asset
+                stream_state.out_asset.amount = stream_state
+                    .out_asset
+                    .amount
+                    .checked_sub(uint128_remaining_out)?;
+                let remaining_msg = CosmosMsg::Bank(BankMsg::Send {
+                    to_address: treasury.to_string(),
+                    amount: vec![Coin {
+                        denom: stream_state.out_asset.denom.clone(),
+                        amount: uint128_remaining_out,
+                    }],
+                });
+                messages.push(remaining_msg);
             }
-            (None, None) => Ok(creator_revenue),
-            _ => Err(ContractError::InvalidPoolConfig {}),
-        }?;
 
-        // if subscriber vesting is set, instantiate a vested release contract for user and send
-        if let Some(creator_vesting) = post_stream_actions.creator_vesting {
-            let vesting_checksum = deps
-                .querier
-                .query_wasm_code_info(controller_params.vesting_code_id)?
-                .checksum;
-            let (vesting_msgs, vesting_attributes, vesting_addr) = vesting_operations(
-                &deps,
-                env.contract.address,
-                vesting_checksum,
-                treasury.clone(),
-                salt,
-                stream_state.status_info.end_time,
-                controller_params.vesting_code_id,
-                creator_revenue_u128,
+            // if vesting is not set we need to send the creator revenue to the treasury in outer scope
+            let mut vesting_flag = false;
+            // execute post stream actions
+            let post_stream_actions = POST_STREAM.may_load(deps.storage)?;
+            if let Some(post_stream_actions) = post_stream_actions {
+                // if pool config and create pool is set, create a pool for the stream
+                creator_revenue = match (post_stream_actions.pool_config, create_pool) {
+                    (Some(pool_config), Some(create_pool)) => {
+                        let (msgs, attrs, creator_revenue) = pool_operations(
+                            &deps,
+                            create_pool,
+                            env.contract.address.clone(),
+                            stream_state.in_denom.clone(),
+                            stream_state.out_asset.denom.clone(),
+                            stream_state.out_asset.amount,
+                            creator_revenue,
+                            pool_config,
+                        )?;
+                        messages.extend(msgs);
+                        attributes.extend(attrs);
+                        Ok(creator_revenue)
+                    }
+                    (None, None) => Ok(creator_revenue),
+                    _ => Err(ContractError::InvalidPoolConfig {}),
+                }?;
+
+                // if subscriber vesting is set, instantiate a vested release contract for user and send
+                if let Some(creator_vesting) = post_stream_actions.creator_vesting {
+                    let vesting_checksum = deps
+                        .querier
+                        .query_wasm_code_info(controller_params.vesting_code_id)?
+                        .checksum;
+                    let (vesting_msgs, vesting_attributes, vesting_addr) = vesting_operations(
+                        &deps,
+                        env.contract.address,
+                        vesting_checksum,
+                        treasury.clone(),
+                        salt,
+                        stream_state.status_info.end_time,
+                        controller_params.vesting_code_id,
+                        creator_revenue_u128,
+                        stream_state.in_denom.clone(),
+                        creator_vesting,
+                    )?;
+                    messages.extend(vesting_msgs);
+                    attributes.extend(vesting_attributes);
+                    CREATOR_VESTING.save(deps.storage, &vesting_addr)?;
+                    vesting_flag = true;
+                }
+            }
+
+            if !vesting_flag {
+                let send_msg = CosmosMsg::Bank(BankMsg::Send {
+                    to_address: treasury.to_string(),
+                    amount: vec![Coin {
+                        denom: stream_state.in_denom.clone(),
+                        amount: creator_revenue_u128,
+                    }],
+                });
+                messages.push(send_msg);
+            }
+
+            let swap_fee_msg = build_u128_bank_send_msg(
                 stream_state.in_denom.clone(),
-                creator_vesting,
+                controller_params.fee_collector.to_string(),
+                swap_fee,
             )?;
-            messages.extend(vesting_msgs);
-            attributes.extend(vesting_attributes);
-            CREATOR_VESTING.save(deps.storage, &vesting_addr)?;
-            vesting_flag = true;
+            messages.push(swap_fee_msg);
+
+            stream_state.status_info.status = Status::Finalized(FinalizedStatus::ThresholdReached);
+            STREAM_STATE.save(deps.storage, &stream_state)?;
+
+            attributes.extend(vec![
+                attr("action", "finalize_stream"),
+                attr("treasury", treasury.to_string()),
+                attr("fee_collector", controller_params.fee_collector.to_string()),
+                attr("creators_revenue", creator_revenue),
+                attr(
+                    "refunded_out_remaining",
+                    stream_state.out_remaining.to_string(),
+                ),
+                attr(
+                    "total_sold",
+                    to_uint256(stream_state.out_asset.amount)
+                        .checked_sub(stream_state.out_remaining)?
+                        .to_string(),
+                ),
+                attr("swap_fee", swap_fee),
+                attr(
+                    "creation_fee_amount",
+                    controller_params.stream_creation_fee.amount.to_string(),
+                ),
+            ]);
+
+            Ok(Response::new()
+                .add_messages(messages)
+                .add_attributes(attributes))
         }
+        (Status::Ended, false) => {
+            // if stream is ended and threshold is not reached, return all in tokens to treasury
+            // Refund all out tokens to stream creator(treasury)
+            let mut refund_coins = NativeBalance::default() + stream_state.out_asset.clone();
+
+            // refund pool creation if any
+            let post_stream_ops = POST_STREAM.may_load(deps.storage)?;
+            if let Some(post_stream_ops) = post_stream_ops {
+                let pool_refund_coins = pool_refund(
+                    &deps,
+                    post_stream_ops.pool_config,
+                    stream_state.out_asset.denom.clone(),
+                )?;
+                for coin in pool_refund_coins {
+                    refund_coins += coin;
+                }
+            }
+            refund_coins.normalize();
+
+            let funds_msgs: Vec<CosmosMsg> = refund_coins
+                .into_vec()
+                .iter()
+                .map(|coin| {
+                    CosmosMsg::Bank(BankMsg::Send {
+                        to_address: stream_info.treasury.to_string(),
+                        amount: vec![coin.clone()],
+                    })
+                })
+                .collect();
+
+            stream_state.status_info.status =
+                Status::Finalized(FinalizedStatus::ThresholdNotReached);
+            STREAM_STATE.save(deps.storage, &stream_state)?;
+
+            Ok(Response::new()
+                .add_attribute("action", "finalize_stream")
+                .add_attribute("status", "threshold_not_reached")
+                .add_attribute("treasury", stream_info.treasury.to_string())
+                .add_messages(funds_msgs))
+        }
+        _ => Err(ContractError::OperationNotAllowed {
+            current_status: stream_state.status_info.status.to_string(),
+        }),
     }
-
-    if !vesting_flag {
-        let send_msg = CosmosMsg::Bank(BankMsg::Send {
-            to_address: treasury.to_string(),
-            amount: vec![Coin {
-                denom: stream_state.in_denom.clone(),
-                amount: creator_revenue_u128,
-            }],
-        });
-        messages.push(send_msg);
-    }
-
-    let swap_fee_msg = build_u128_bank_send_msg(
-        stream_state.in_denom.clone(),
-        controller_params.fee_collector.to_string(),
-        swap_fee,
-    )?;
-    messages.push(swap_fee_msg);
-
-    attributes.extend(vec![
-        attr("action", "finalize_stream"),
-        attr("treasury", treasury.to_string()),
-        attr("fee_collector", controller_params.fee_collector.to_string()),
-        attr("creators_revenue", creator_revenue),
-        attr(
-            "refunded_out_remaining",
-            stream_state.out_remaining.to_string(),
-        ),
-        attr(
-            "total_sold",
-            to_uint256(stream_state.out_asset.amount)
-                .checked_sub(stream_state.out_remaining)?
-                .to_string(),
-        ),
-        attr("swap_fee", swap_fee),
-        attr(
-            "creation_fee_amount",
-            controller_params.stream_creation_fee.amount.to_string(),
-        ),
-    ]);
-
-    Ok(Response::new()
-        .add_messages(messages)
-        .add_attributes(attributes))
 }
-
 pub fn execute_exit_stream(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     salt: Option<Binary>,
 ) -> Result<Response, ContractError> {
+    // Load stream state and controller parameters
     let mut stream_state = STREAM_STATE.load(deps.storage)?;
     let controller_params = CONTROLLER_PARAMS.load(deps.storage)?;
-    // check if stream is paused
-    sync_stream_status(&mut stream_state, env.block.time);
 
-    if stream_state.is_cancelled() || !(stream_state.is_ended() || stream_state.is_finalized()) {
-        return Err(ContractError::OperationNotAllowed {
-            current_status: stream_state.status_info.status.to_string(),
-        });
-    }
-
-    sync_stream(&mut stream_state, env.block.time);
-
-    let threshold_state = ThresholdState::new();
-
-    threshold_state.error_if_not_reached(deps.storage, &stream_state)?;
-
+    // Load the position for the sender
     let mut position = POSITIONS.load(deps.storage, &info.sender)?;
+
+    // Ensure the sender has not already exited
     if position.exit_date != Timestamp::from_seconds(0) {
         return Err(ContractError::SubscriberAlreadyExited {});
     }
 
-    // sync position before exit
+    // Sync stream status and position
+    sync_stream_status(&mut stream_state, env.block.time);
+    sync_stream(&mut stream_state, env.block.time);
+
+    // Match on stream status and threshold to determine exit behavior
+    match (
+        stream_state.status_info.clone().status,
+        stream_state.check_threshold(),
+    ) {
+        // Normal exit scenario: stream is ended and threshold is reached
+        (Status::Ended, true) | (Status::Finalized(FinalizedStatus::ThresholdReached), _) => {
+            handle_normal_exit(
+                deps,
+                env,
+                info,
+                salt,
+                &mut stream_state,
+                &controller_params,
+                &mut position,
+            )
+        }
+
+        // Full refund exit scenario: stream ended with threshold not reached or cancelled
+        (Status::Ended, false)
+        | (Status::Finalized(FinalizedStatus::ThresholdNotReached), _)
+        | (Status::Cancelled, _) => {
+            handle_full_refund_exit(deps, env, info, &mut stream_state, &mut position)
+        }
+
+        // Error case: operation not allowed
+        _ => Err(ContractError::OperationNotAllowed {
+            current_status: stream_state.status_info.status.to_string(),
+        }),
+    }
+}
+
+/// Handles the normal exit scenario where the stream has ended and the threshold is reached
+fn handle_normal_exit(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    salt: Option<Binary>,
+    stream_state: &mut StreamState,
+    controller_params: &ControllerParams,
+    position: &mut Position,
+) -> Result<Response, ContractError> {
     sync_position(
         stream_state.dist_index,
         stream_state.shares,
         stream_state.status_info.last_updated,
         stream_state.in_supply,
-        &mut position,
+        position,
     )?;
+
+    // Update stream shares and position exit date
     stream_state.shares = stream_state.shares.checked_sub(position.shares)?;
-
-    STREAM_STATE.save(deps.storage, &stream_state)?;
-    // sync position exit date
+    STREAM_STATE.save(deps.storage, stream_state)?;
     position.exit_date = env.block.time;
-    POSITIONS.save(deps.storage, &position.owner, &position)?;
+    POSITIONS.save(deps.storage, &position.owner, position)?;
 
-    // Swap fee = fixed_rate*position.spent_in this calculation is only for execution reply attributes
+    // Calculate exit fee
     let swap_fee = Decimal256::from_ratio(position.spent, Uint128::one())
         .checked_mul(controller_params.exit_fee_percent)?
         * Uint256::one();
 
-    let mut messages: Vec<CosmosMsg> = vec![];
-    let mut attributes: Vec<Attribute> = vec![];
+    // Prepare messages and attributes for the response
+    let mut messages = vec![];
+    let mut attributes = vec![];
 
-    // if vesting is set, instantiate a vested release contract for user and send
-    // the out tokens to the contract
     let uint128_purchased = Uint128::try_from(position.purchased)?;
-
     let mut vesting_flag = false;
 
-    let post_stream_actions = POST_STREAM.may_load(deps.storage)?;
-    if let Some(post_stream_actions) = post_stream_actions {
+    if let Some(post_stream_actions) = POST_STREAM.may_load(deps.storage)? {
         if let Some(vesting_config) = post_stream_actions.subscriber_vesting {
             let vesting_checksum = deps
                 .querier
                 .query_wasm_code_info(controller_params.vesting_code_id)?
                 .checksum;
+
             let (vesting_msgs, vesting_attributes, vesting_addr) = vesting_operations(
                 &deps,
                 env.contract.address,
@@ -688,7 +753,6 @@ pub fn execute_exit_stream(
         }
     }
 
-    // if vesting is not set we need to send the out tokens to the user
     if !vesting_flag {
         let send_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: info.sender.to_string(),
@@ -700,14 +764,13 @@ pub fn execute_exit_stream(
         messages.push(send_msg);
     }
 
-    // if there is any unspent in balance, send it back to the user
     if !position.in_balance.is_zero() {
         let unspent = position.in_balance;
         let uint128_unspent = Uint128::try_from(unspent)?;
         let unspent_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: info.sender.to_string(),
             amount: vec![Coin {
-                denom: stream_state.in_denom,
+                denom: stream_state.in_denom.clone(),
                 amount: uint128_unspent,
             }],
         });
@@ -716,6 +779,7 @@ pub fn execute_exit_stream(
 
     attributes.extend(vec![
         attr("action", "exit_stream"),
+        attr("status_info", stream_state.status_info.status.to_string()),
         attr("spent", position.spent.checked_sub(swap_fee)?),
         attr("purchased", position.purchased),
         attr("swap_fee_paid", swap_fee),
@@ -723,6 +787,37 @@ pub fn execute_exit_stream(
 
     Ok(Response::new()
         .add_messages(messages)
+        .add_attributes(attributes))
+}
+
+/// Handles the full refund exit scenario, where the stream is cancelled or threshold is not reached
+fn handle_full_refund_exit(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    stream_state: &mut StreamState,
+    position: &mut Position,
+) -> Result<Response, ContractError> {
+    // Calculate total balance and update exit date
+    let total_balance = position.in_balance + position.spent;
+    position.exit_date = env.block.time;
+    position.last_updated = env.block.time;
+    POSITIONS.save(deps.storage, &position.owner, position)?;
+
+    let send_msg = build_u128_bank_send_msg(
+        stream_state.in_denom.clone(),
+        info.sender.to_string(),
+        total_balance,
+    )?;
+    let attributes = vec![
+        attr("action", "exit_stream"),
+        attr("total_balance", total_balance),
+        attr("status_info", stream_state.status_info.status.to_string()),
+    ];
+
+    // Return the funds to the sender
+    Ok(Response::new()
+        .add_message(send_msg)
         .add_attributes(attributes))
 }
 
@@ -743,7 +838,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
         QueryMsg::AveragePrice {} => to_json_binary(&query_average_price(deps, env)?),
         QueryMsg::LastStreamedPrice {} => to_json_binary(&query_last_streamed_price(deps, env)?),
-        QueryMsg::Threshold {} => to_json_binary(&query_threshold_state(deps, env)?),
         QueryMsg::ToS { addr } => {
             if let Some(addr) = addr {
                 to_json_binary(&query_tos_signed(
@@ -753,6 +847,19 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             } else {
                 to_json_binary(&query_tos(deps)?)
             }
+        }
+        QueryMsg::CreatorVesting {} => {
+            let creator_vesting = CREATOR_VESTING
+                .load(deps.storage)
+                .unwrap_or(Addr::unchecked("".to_string()));
+            to_json_binary(&creator_vesting)
+        }
+        QueryMsg::SubscriberVesting { addr } => {
+            let addr = deps.api.addr_validate(&addr)?;
+            let subscriber_vesting = SUBSCRIBER_VESTING
+                .load(deps.storage, addr)
+                .unwrap_or(Addr::unchecked("".to_string()));
+            to_json_binary(&subscriber_vesting)
         }
     }
 }
@@ -845,12 +952,6 @@ pub fn query_last_streamed_price(deps: Deps, _env: Env) -> StdResult<LatestStrea
     Ok(LatestStreamedPriceResponse {
         current_streamed_price: stream.current_streamed_price,
     })
-}
-
-pub fn query_threshold_state(deps: Deps, _env: Env) -> Result<Option<Uint256>, StdError> {
-    let threshold_state = ThresholdState::new();
-    let threshold = threshold_state.get_threshold(deps.storage)?;
-    Ok(threshold)
 }
 
 pub fn query_tos(deps: Deps) -> StdResult<String> {

@@ -7,7 +7,7 @@
 import { MsgExecuteContractEncodeObject } from "@cosmjs/cosmwasm-stargate";
 import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
 import { toUtf8 } from "@cosmjs/encoding";
-import { Timestamp, Uint64, Schedule, Uint128, PoolConfig, Uint256, Binary, InstantiateMsg, VestingConfig, Coin, ExecuteMsg, CreatePool, QueryMsg, Decimal256, AveragePriceResponse, LatestStreamedPriceResponse, PositionsResponse, PositionResponse, Addr, Params, Status, StreamResponse, String } from "./StreamSwapStream.types";
+import { Timestamp, Uint64, Schedule, Uint128, PoolConfig, Uint256, Binary, InstantiateMsg, VestingConfig, Coin, ExecuteMsg, CreatePool, QueryMsg, Decimal256, AveragePriceResponse, String, LatestStreamedPriceResponse, PositionsResponse, PositionResponse, Addr, Params, Status, FinalizedStatus, StreamResponse } from "./StreamSwapStream.types";
 export interface StreamSwapStreamMsg {
   contractAddress: string;
   sender: string;
@@ -33,9 +33,7 @@ export interface StreamSwapStreamMsg {
   }: {
     salt?: Binary;
   }, _funds?: Coin[]) => MsgExecuteContractEncodeObject;
-  exitCancelled: (_funds?: Coin[]) => MsgExecuteContractEncodeObject;
   cancelStream: (_funds?: Coin[]) => MsgExecuteContractEncodeObject;
-  cancelStreamWithThreshold: (_funds?: Coin[]) => MsgExecuteContractEncodeObject;
   streamAdminCancel: (_funds?: Coin[]) => MsgExecuteContractEncodeObject;
 }
 export class StreamSwapStreamMsgComposer implements StreamSwapStreamMsg {
@@ -51,9 +49,7 @@ export class StreamSwapStreamMsgComposer implements StreamSwapStreamMsg {
     this.syncPosition = this.syncPosition.bind(this);
     this.finalizeStream = this.finalizeStream.bind(this);
     this.exitStream = this.exitStream.bind(this);
-    this.exitCancelled = this.exitCancelled.bind(this);
     this.cancelStream = this.cancelStream.bind(this);
-    this.cancelStreamWithThreshold = this.cancelStreamWithThreshold.bind(this);
     this.streamAdminCancel = this.streamAdminCancel.bind(this);
   }
 
@@ -159,19 +155,6 @@ export class StreamSwapStreamMsgComposer implements StreamSwapStreamMsg {
       })
     };
   };
-  exitCancelled = (_funds?: Coin[]): MsgExecuteContractEncodeObject => {
-    return {
-      typeUrl: "/cosmwasm.wasm.v1.MsgExecuteContract",
-      value: MsgExecuteContract.fromPartial({
-        sender: this.sender,
-        contract: this.contractAddress,
-        msg: toUtf8(JSON.stringify({
-          exit_cancelled: {}
-        })),
-        funds: _funds
-      })
-    };
-  };
   cancelStream = (_funds?: Coin[]): MsgExecuteContractEncodeObject => {
     return {
       typeUrl: "/cosmwasm.wasm.v1.MsgExecuteContract",
@@ -180,19 +163,6 @@ export class StreamSwapStreamMsgComposer implements StreamSwapStreamMsg {
         contract: this.contractAddress,
         msg: toUtf8(JSON.stringify({
           cancel_stream: {}
-        })),
-        funds: _funds
-      })
-    };
-  };
-  cancelStreamWithThreshold = (_funds?: Coin[]): MsgExecuteContractEncodeObject => {
-    return {
-      typeUrl: "/cosmwasm.wasm.v1.MsgExecuteContract",
-      value: MsgExecuteContract.fromPartial({
-        sender: this.sender,
-        contract: this.contractAddress,
-        msg: toUtf8(JSON.stringify({
-          cancel_stream_with_threshold: {}
         })),
         funds: _funds
       })

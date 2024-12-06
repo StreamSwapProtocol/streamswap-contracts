@@ -7,8 +7,6 @@ use std::convert::Infallible;
 use streamswap_utils::payment_checker::CustomPaymentError;
 use thiserror::Error;
 
-use streamswap_types::stream::ThresholdError;
-
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
     #[error("{0}")]
@@ -25,9 +23,6 @@ pub enum ContractError {
 
     #[error("{0}")]
     DivideByZeroError(#[from] DivideByZeroError),
-
-    #[error("{0}")]
-    ThresholdError(#[from] ThresholdError),
 
     #[error("{0}")]
     CustomPayment(#[from] CustomPaymentError),
@@ -156,4 +151,10 @@ pub enum ContractError {
 
     #[error("Invalid pool config")]
     InvalidPoolConfig {},
+
+    #[error("Threshold must be greater than zero")]
+    InvalidThreshold {},
+
+    #[error("Vesting contract not found")]
+    VestingContractNotFound {},
 }

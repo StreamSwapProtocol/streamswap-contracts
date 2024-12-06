@@ -11,7 +11,8 @@ mod vesting {
     use cw_vesting::CheckedDenom;
     use streamswap_types::controller::VestingConfig;
     use streamswap_types::stream::{
-        ExecuteMsg as StreamSwapExecuteMsg, QueryMsg as StreamSwapQueryMsg, Status, StreamResponse,
+        ExecuteMsg as StreamSwapExecuteMsg, FinalizedStatus, QueryMsg as StreamSwapQueryMsg,
+        Status, StreamResponse,
     };
 
     #[test]
@@ -121,7 +122,10 @@ mod vesting {
             )
             .unwrap();
 
-        assert_eq!(stream.status, Status::Finalized);
+        assert_eq!(
+            stream.status,
+            Status::Finalized(FinalizedStatus::ThresholdReached)
+        );
 
         // no salt expect error
         let exit_msg = StreamSwapExecuteMsg::ExitStream { salt: None };
@@ -277,7 +281,10 @@ mod vesting {
             )
             .unwrap();
 
-        assert_eq!(stream.status, Status::Finalized);
+        assert_eq!(
+            stream.status,
+            Status::Finalized(FinalizedStatus::ThresholdReached)
+        );
 
         let vesting_addr = get_wasm_attribute_with_key(res.clone(), "vesting_address".to_string());
         let contract_data = app
