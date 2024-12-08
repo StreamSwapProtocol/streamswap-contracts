@@ -888,6 +888,7 @@ pub fn query_stream(deps: Deps, _env: Env) -> StdResult<StreamResponse> {
         url: stream_info.url,
         current_streamed_price: stream.current_streamed_price,
         stream_admin: stream_info.stream_admin.into_string(),
+        threshold: stream.threshold,
     };
     Ok(stream)
 }
