@@ -763,13 +763,29 @@ mod finalize_stream_tests {
         let stream_swap_funds = get_funds_from_res(res);
         assert_eq!(
             stream_swap_funds,
-            vec![(
-                String::from(test_accounts.creator_1.clone()),
-                Coin {
-                    denom: "out_denom".to_string(),
-                    amount: Uint128::new(1_000_000)
-                }
-            ),]
+            vec![
+                (
+                    String::from(test_accounts.creator_1.clone()),
+                    Coin {
+                        denom: "out_denom".to_string(),
+                        amount: Uint128::new(10000)
+                    },
+                ),
+                (
+                    String::from(test_accounts.creator_1.clone()),
+                    Coin {
+                        denom: "in_denom".to_string(),
+                        amount: Uint128::new(197)
+                    },
+                ),
+                (
+                    String::from(test_accounts.admin.clone()),
+                    Coin {
+                        denom: "in_denom".to_string(),
+                        amount: Uint128::new(1)
+                    },
+                )
+            ]
         );
     }
 }
