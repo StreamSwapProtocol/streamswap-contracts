@@ -100,6 +100,8 @@ pub struct ConfigResponse {
 }
 #[cw_serde]
 pub struct StreamResponse {
+    /// Unique name of the stream.
+    pub name: String,
     /// Address of the treasury where the stream earnings will be sent.
     pub treasury: String,
     /// URL of the stream.
