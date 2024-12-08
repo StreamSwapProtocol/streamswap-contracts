@@ -652,4 +652,140 @@ mod finalize_stream_tests {
             .unwrap();
         assert_eq!(contract_balance.len(), 0);
     }
+
+    #[test]
+    fn out_amount_refund() {
+        let Suite {
+            mut app,
+            test_accounts,
+            stream_swap_code_id,
+            stream_swap_controller_code_id,
+            vesting_code_id,
+        } = SuiteBuilder::default().build();
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
+        let msg = get_controller_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
+        let controller_address = app
+            .instantiate_contract(
+                stream_swap_controller_code_id,
+                test_accounts.admin.clone(),
+                &msg,
+                &[],
+                "Controller".to_string(),
+                None,
+            )
+            .unwrap();
+        let create_stream_msg = CreateStreamMsgBuilder::new(
+            "Stream Swap tests",
+            test_accounts.creator_1.as_ref(),
+            coin(1_000_000, "out_denom"),
+            "in_denom",
+            bootstrapping_start_time,
+            start_time,
+            end_time,
+        )
+        .build();
+
+        // This case handles the scenario where the `out_amount` is refunded to the creator.
+        // For this to happen, the allocated amount for the stream must remain unspent during the stream's lifetime.
+        // If, at any point during the stream phase, no subscribers are active,
+        // a portion of the `out_amount` may remain unused and will be left in the contract.
+        // This unspent amount should be refunded separately to the creator.
+
+        let res = app
+            .execute_contract(
+                test_accounts.creator_1.clone(),
+                controller_address.clone(),
+                &create_stream_msg,
+                &[coin(100, "fee_denom"), coin(1_000_000, "out_denom")],
+            )
+            .unwrap();
+        let stream_swap_contract_address: String = get_contract_address_from_res(res);
+        let subscribe_msg = StreamSwapExecuteMsg::Subscribe {};
+
+        app.set_block(BlockInfo {
+            height: 1_100,
+            time: start_time,
+            chain_id: "test".to_string(),
+        });
+
+        // First subscription
+        let _res = app
+            .execute_contract(
+                test_accounts.subscriber_1.clone(),
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &subscribe_msg,
+                &[coin(200, "in_denom")],
+            )
+            .unwrap();
+
+        // Update environment time to end_time
+        app.set_block(BlockInfo {
+            height: 1_100,
+            time: end_time.minus_seconds(1),
+            chain_id: "test".to_string(),
+        });
+
+        // Subscriber 1 withdraws from the stream
+        let withdraw_msg = StreamSwapExecuteMsg::Withdraw { cap: None };
+        let _res = app
+            .execute_contract(
+                test_accounts.subscriber_1.clone(),
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &withdraw_msg,
+                &[],
+            )
+            .unwrap();
+
+        //Update environment time to end_time
+        app.set_block(BlockInfo {
+            height: 1_100,
+            time: end_time,
+            chain_id: "test".to_string(),
+        });
+
+        // Finalize the stream
+        let finalized_msg = StreamSwapExecuteMsg::FinalizeStream {
+            new_treasury: None,
+            create_pool: None,
+            salt: None,
+        };
+        let res = app
+            .execute_contract(
+                test_accounts.creator_1.clone(),
+                Addr::unchecked(stream_swap_contract_address.clone()),
+                &finalized_msg,
+                &[],
+            )
+            .unwrap();
+
+        let stream_swap_funds = get_funds_from_res(res);
+        assert_eq!(
+            stream_swap_funds,
+            vec![
+                (
+                    String::from(test_accounts.creator_1.clone()),
+                    Coin {
+                        denom: "out_denom".to_string(),
+                        amount: Uint128::new(10000)
+                    },
+                ),
+                (
+                    String::from(test_accounts.creator_1.clone()),
+                    Coin {
+                        denom: "in_denom".to_string(),
+                        amount: Uint128::new(197)
+                    },
+                ),
+                (
+                    String::from(test_accounts.admin.clone()),
+                    Coin {
+                        denom: "in_denom".to_string(),
+                        amount: Uint128::new(1)
+                    },
+                )
+            ]
+        );
+    }
 }
