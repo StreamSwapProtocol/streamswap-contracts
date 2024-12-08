@@ -104,7 +104,7 @@ pub struct StreamResponse {
     pub dist_index: Decimal256,
     /// Last updated time of stream.
     pub last_updated: Timestamp,
-
+    /// Out asset of the stream.
     pub out_asset: Coin,
     /// Total number of remaining out tokens at the time of update.
     pub out_remaining: Uint256,
@@ -126,6 +126,8 @@ pub struct StreamResponse {
     pub status: Status,
     /// Address of the stream admin.
     pub stream_admin: String,
+    /// Threshold for the stream to be finalized.
+    pub threshold: Option<Uint256>,
 }
 
 #[cw_serde]

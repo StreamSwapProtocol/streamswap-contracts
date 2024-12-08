@@ -152,6 +152,7 @@ export interface StreamResponse {
   in_denom: string;
   in_supply: Uint256;
   last_updated: Timestamp;
+  name: string;
   out_asset: Coin;
   out_remaining: Uint256;
   shares: Uint256;
@@ -159,6 +160,7 @@ export interface StreamResponse {
   start_time: Timestamp;
   status: Status;
   stream_admin: string;
+  threshold?: Uint256 | null;
   treasury: string;
   url?: string | null;
 }
