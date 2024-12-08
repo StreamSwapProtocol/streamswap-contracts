@@ -872,6 +872,7 @@ pub fn query_stream(deps: Deps, _env: Env) -> StdResult<StreamResponse> {
     let stream = STREAM_STATE.load(deps.storage)?;
     let stream_info = STREAM_INFO.load(deps.storage)?;
     let stream = StreamResponse {
+        name: stream_info.name,
         treasury: stream_info.treasury.to_string(),
         in_denom: stream.in_denom,
         out_asset: stream.out_asset,
