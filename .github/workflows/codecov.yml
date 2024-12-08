@@ -13,7 +13,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    environment: main
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
