@@ -8,6 +8,7 @@ mod pool {
     use cosmwasm_std::{coin, Addr, BlockInfo, Coin, Uint256};
     use cw_multi_test::Executor;
     use cw_utils::NativeBalance;
+    use streamswap_controller::error::ContractError as ControllerError;
     use streamswap_types::controller::{CreatePool, PoolConfig};
     use streamswap_types::stream::ExecuteMsg as StreamSwapExecuteMsg;
     use streamswap_types::stream::QueryMsg as StreamSwapQueryMsg;
@@ -485,5 +486,102 @@ mod pool {
             .map(|coin| (test_accounts.creator_1.to_string(), coin.clone()))
             .collect();
         assert_eq!(res_funds, expected_res);
+    }
+
+    #[test]
+    fn pool_validations() {
+        let Suite {
+            mut app,
+            test_accounts,
+            stream_swap_code_id,
+            stream_swap_controller_code_id,
+            vesting_code_id,
+        } = SuiteBuilder::default().build();
+
+        let msg = get_controller_inst_msg(stream_swap_code_id, vesting_code_id, &test_accounts);
+        let controller_address = app
+            .instantiate_contract(
+                stream_swap_controller_code_id,
+                test_accounts.admin.clone(),
+                &msg,
+                &[],
+                "Controller".to_string(),
+                None,
+            )
+            .unwrap();
+
+        let start_time = app.block_info().time.plus_seconds(100);
+        let end_time = app.block_info().time.plus_seconds(200);
+        let bootstrapping_start_time = app.block_info().time.plus_seconds(50);
+        let out_supply = 1_000_000u128;
+        let out_denom = "out_denom";
+
+        let out_coin = coin(out_supply, out_denom);
+        let pool_creation_fee = coin(1000000, "fee_denom");
+        let stream_creation_fee = coin(100, "fee_denom");
+        let in_denom = "in_denom";
+
+        // Pool amount 0 case
+        let create_stream_msg = CreateStreamMsgBuilder::new(
+            "stream",
+            test_accounts.creator_1.as_ref(),
+            out_coin.clone(),
+            in_denom,
+            bootstrapping_start_time,
+            start_time,
+            end_time,
+        )
+        .threshold(Uint256::from(100u128))
+        .pool_config(PoolConfig::ConcentratedLiquidity {
+            out_amount_clp: Uint256::zero(),
+        })
+        .build();
+
+        let res = app
+            .execute_contract(
+                test_accounts.creator_1.clone(),
+                controller_address.clone(),
+                &create_stream_msg,
+                &[
+                    pool_creation_fee.clone(),
+                    out_coin.clone(),
+                    stream_creation_fee.clone(),
+                ],
+            )
+            .unwrap_err();
+        let err = res.downcast::<ControllerError>().unwrap();
+        assert_eq!(err, ControllerError::InvalidPoolOutAmount {});
+
+        // Pool amount greater than out supply case
+        let create_stream_msg = CreateStreamMsgBuilder::new(
+            "stream",
+            test_accounts.creator_1.as_ref(),
+            out_coin.clone(),
+            in_denom,
+            bootstrapping_start_time,
+            start_time,
+            end_time,
+        )
+        .threshold(Uint256::from(100u128))
+        .pool_config(PoolConfig::ConcentratedLiquidity {
+            out_amount_clp: Uint256::from(out_supply + 1),
+        })
+        .build();
+
+        let res = app
+            .execute_contract(
+                test_accounts.creator_1.clone(),
+                controller_address.clone(),
+                &create_stream_msg,
+                &[
+                    pool_creation_fee.clone(),
+                    out_coin.clone(),
+                    stream_creation_fee,
+                ],
+            )
+            .unwrap_err();
+
+        let err = res.downcast::<ControllerError>().unwrap();
+        assert_eq!(err, ControllerError::InvalidPoolOutAmount {});
     }
 }

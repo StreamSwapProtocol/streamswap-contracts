@@ -47,12 +47,6 @@ pub enum QueryMsg {
     /// Returns a stream's current state.
     #[returns(StreamResponse)]
     Stream {},
-    /// Returns list of streams paginated by `start_after` and `limit`.
-    // #[returns(StreamsResponse)]
-    // ListStreams {
-    //     start_after: Option<u64>,
-    //     limit: Option<u32>,
-    // },
     /// Returns current state of a position.
     #[returns(PositionResponse)]
     Position { owner: String },
