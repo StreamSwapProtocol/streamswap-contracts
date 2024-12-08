@@ -1,7 +1,7 @@
+#![cfg(test)]
 use crate::helpers::mock_messages::{get_controller_inst_msg, CreateStreamMsgBuilder};
 use crate::helpers::suite::{Suite, SuiteBuilder};
 use crate::helpers::utils::get_wasm_attribute_with_key;
-#[cfg(test)]
 use cosmwasm_std::coin;
 use cosmwasm_std::Binary;
 use cw_multi_test::Executor;
