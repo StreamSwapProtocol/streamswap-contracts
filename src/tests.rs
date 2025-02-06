@@ -14,8 +14,8 @@ mod test_module {
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::StdError::{self};
     use cosmwasm_std::{
-        attr, coin, Addr, BankMsg, Coin, CosmosMsg, Decimal256, Response, SubMsg, Timestamp,
-        Uint128, Uint256, Uint64,
+        attr, coin, Addr, Attribute, BankMsg, Coin, CosmosMsg, Decimal256, Response, SubMsg,
+        Timestamp, Uint128, Uint256, Uint64,
     };
     use cw_utils::PaymentError;
     use std::ops::Sub;
@@ -1159,14 +1159,20 @@ mod test_module {
             operator_target: None,
         };
         let info = mock_info("creator1", &[]);
-        let res = execute(deps.as_mut(), env, info, update_msg).unwrap();
+        let res = execute(deps.as_mut(), env.clone(), info, update_msg).unwrap();
 
-        assert_eq!(res.attributes[1].key, "stream_id");
-        assert_eq!(res.attributes[1].value, "1");
-        assert_eq!(res.attributes[3].key, "purchased");
-        assert_eq!(res.attributes[3].value, "0");
-        assert_eq!(res.attributes[4].key, "spent");
-        assert_eq!(res.attributes[4].value, "0");
+        let expected_attributes = vec![
+            Attribute::new("action", "update_position"),
+            Attribute::new("stream_id", "1"),
+            Attribute::new("in_balance", "1000000"),
+            Attribute::new("shares", "1000000"),
+            Attribute::new("index", "0"),
+            Attribute::new("last_updated", start.to_string()),
+            Attribute::new("pending_purchase", "0"),
+            Attribute::new("purchased", "0"),
+            Attribute::new("spent", "0"),
+        ];
+        assert_eq!(res.attributes, expected_attributes);
 
         // query stream before withdraw
         let mut env = mock_env();
@@ -1339,22 +1345,40 @@ mod test_module {
                 .unwrap_err();
         assert_eq!(res, ContractError::Unauthorized {});
 
-        // owner can update with position owner field
-        let info = mock_info("creator1", &[]);
+        // update creator 1 position no distrubution is excepted
         let mut env = mock_env();
         env.block.time = start.plus_seconds(100);
-        let res =
-            execute_update_position(deps.as_mut(), env, info, 1, Some("creator1".to_string()))
-                .unwrap();
-        assert_eq!(
-            res,
-            Response::new()
-                .add_attribute("action", "update_position")
-                .add_attribute("stream_id", "1")
-                .add_attribute("operator_target", "creator1")
-                .add_attribute("purchased", "0")
-                .add_attribute("spent", "0")
-        );
+        let update_msg = crate::msg::ExecuteMsg::UpdatePosition {
+            stream_id: 1,
+            operator_target: None,
+        };
+        let info = mock_info("creator1", &[]);
+        let res = execute(deps.as_mut(), env.clone(), info, update_msg).unwrap();
+
+        let expected_attributes = vec![
+            Attribute::new("action", "update_position"),
+            Attribute::new("stream_id", "1"),
+            Attribute::new("in_balance", "1000000"),
+            Attribute::new("shares", "1000000"),
+            Attribute::new("index", "0"),
+            Attribute::new("last_updated", "1590797519.000000000"),
+            Attribute::new("pending_purchase", "0"),
+            Attribute::new("purchased", "0"),
+            Attribute::new("spent", "0"),
+        ];
+        assert_eq!(res.attributes, expected_attributes);
+
+        // Optional: Add query to verify position state matches response
+        let position =
+            query_position(deps.as_ref(), env.clone(), 1, "creator1".to_string()).unwrap();
+        assert_eq!(position.in_balance, Uint256::from(1000000u128));
+        assert_eq!(position.shares, Uint256::from(1000000u128));
+        assert_eq!(position.index, Decimal256::zero());
+        assert_eq!(position.last_updated, env.block.time);
+        assert_eq!(position.pending_purchase, Decimal256::zero());
+        assert_eq!(position.purchased, Uint256::zero());
+        assert_eq!(position.spent, Uint256::zero());
+        assert_eq!(position.tos_version, "v1");
 
         // random cannot update
         let info = mock_info("random", &[]);
@@ -1404,15 +1428,24 @@ mod test_module {
             tos_version: "v1".to_string(),
         };
         let res = execute(deps.as_mut(), env, info, msg).unwrap();
-        assert_eq!(
-            res,
-            Response::new()
-                .add_attribute("action", "subscribe")
-                .add_attribute("stream_id", "1")
-                .add_attribute("owner", "creator1")
-                .add_attribute("in_supply", "2000000")
-                .add_attribute("in_amount", "1000000")
-        );
+        let expected_attributes = vec![
+            Attribute::new("action", "subscribe"),
+            Attribute::new("stream_id", "1"),
+            Attribute::new("in_balance", "2000000"),
+            Attribute::new("shares", "2000000"),
+            Attribute::new("index", "0"),
+            Attribute::new("last_updated", "1590797519.000000000"),
+            Attribute::new("pending_purchase", "0"),
+            Attribute::new("purchased", "0"),
+            Attribute::new("spent", "0"),
+            Attribute::new("tos_version", "v1"),
+            Attribute::new("stream_new_in_supply", "2000000"),
+            Attribute::new("stream_previous_in_supply", "2000000"),
+            Attribute::new("stream_new_shares", "2000000"),
+            Attribute::new("stream_previous_shares", "2000000"),
+            Attribute::new("stream_status", "Active"),
+        ];
+        assert_eq!(res.attributes, expected_attributes);
 
         // random cannot update operator
         let info = mock_info("random", &[]);
@@ -1439,15 +1472,18 @@ mod test_module {
         let res =
             execute_update_position(deps.as_mut(), env, info, 1, Some("creator1".to_string()))
                 .unwrap();
-        assert_eq!(
-            res,
-            Response::new()
-                .add_attribute("action", "update_position")
-                .add_attribute("stream_id", "1")
-                .add_attribute("operator_target", "creator1")
-                .add_attribute("purchased", "0")
-                .add_attribute("spent", "0")
-        );
+        let expected_attributes = vec![
+            Attribute::new("action", "update_position"),
+            Attribute::new("stream_id", "1"),
+            Attribute::new("in_balance", "2000000"),
+            Attribute::new("shares", "2000000"),
+            Attribute::new("index", "0"),
+            Attribute::new("last_updated", "1590797519.000000000"),
+            Attribute::new("pending_purchase", "0"),
+            Attribute::new("purchased", "0"),
+            Attribute::new("spent", "0"),
+        ];
+        assert_eq!(res.attributes, expected_attributes);
 
         // operator can withdraw
         let _info = mock_info("operator1", &[]);
@@ -1547,11 +1583,25 @@ mod test_module {
         let res = execute_update_stream(deps.as_mut(), env, 1).unwrap();
         assert_eq!(
             res,
-            Response::default()
-                .add_attribute("action", "update_stream")
-                .add_attribute("stream_id", "1")
-                .add_attribute("new_distribution_amount", "0")
-                .add_attribute("dist_index", "0")
+            Response::default().add_attributes(vec![
+                attr("action", "update_stream"),
+                attr("stream_id", "1"),
+                attr("new_distribution_amount", "0"),
+                attr("dist_index", "0"),
+                attr("last_updated", "1000100.000000000"),
+                attr("start_time", "1000000.000000000"),
+                attr("end_time", "5000000.000000000"),
+                attr("in_denom", "in"),
+                attr("out_denom", "out_denom"),
+                attr("in_supply", "0"),
+                attr("out_supply", "1000000"),
+                attr("out_remaining", "1000000"),
+                attr("spent_in", "0"),
+                attr("shares", "0"),
+                attr("current_streamed_price", "0"),
+                attr("status", "Waiting"),
+                attr("tos_version", "v1")
+            ])
         );
         //first subscription
         //On first subscription index is not incresed because no distrubution prior to that(Execute_subscibe also includes update_stream)
@@ -2095,18 +2145,25 @@ mod test_module {
 
         let res = execute_finalize_stream(deps.as_mut(), env, info, 1, None).unwrap();
         assert_eq!(
-            res.attributes,
             vec![
-                attr("action", "finalize_stream"),
-                attr("stream_id", "1"),
-                attr("treasury", "treasury"),
-                attr("fee_collector", "collector"),
-                attr("creators_revenue", "1980000000000"),
-                attr("refunded_out_remaining", "0"),
-                attr("total_sold", "1000000000000"),
-                attr("swap_fee", "20000000000"),
-                attr("creation_fee", "100"),
-            ]
+                Attribute::new("action", "finalize_stream"),
+                Attribute::new("stream_id", "1"),
+                Attribute::new("stream_dist_index", "0.5"),
+                Attribute::new("stream_shares", "2000000000000"),
+                Attribute::new("stream_last_updated", "5000001.000000000"),
+                Attribute::new("stream_in_supply", "0"),
+                Attribute::new("stream_out_remaining", "0"),
+                Attribute::new("stream_status", "Finalized"),
+                Attribute::new("stream_exit_fee_percent", "0.01"),
+                Attribute::new("treasury", "treasury"),
+                Attribute::new("creators_revenue", "1980000000000"),
+                Attribute::new("refunded_out_remaining", "0"),
+                Attribute::new("total_sold", "1000000000000"),
+                Attribute::new("fee_collector", "collector"),
+                Attribute::new("swap_fee", "20000000000"),
+                Attribute::new("creation_fee", "100"),
+            ],
+            res.attributes,
         );
         assert_eq!(
             res.messages,
@@ -3128,15 +3185,36 @@ mod test_module {
             };
             let res = execute(deps.as_mut(), env, info, msg).unwrap();
             assert_eq!(res.attributes[0].key, "action");
-            assert_eq!(res.attributes[0].value, "subscribe");
             assert_eq!(res.attributes[1].key, "stream_id");
+            assert_eq!(res.attributes[2].key, "in_balance");
+            assert_eq!(res.attributes[3].key, "shares");
+            assert_eq!(res.attributes[4].key, "index");
+            assert_eq!(res.attributes[5].key, "last_updated");
+            assert_eq!(res.attributes[6].key, "pending_purchase");
+            assert_eq!(res.attributes[7].key, "purchased");
+            assert_eq!(res.attributes[8].key, "spent");
+            assert_eq!(res.attributes[9].key, "tos_version");
+            assert_eq!(res.attributes[10].key, "stream_new_in_supply");
+            assert_eq!(res.attributes[11].key, "stream_previous_in_supply");
+            assert_eq!(res.attributes[12].key, "stream_new_shares");
+            assert_eq!(res.attributes[13].key, "stream_previous_shares");
+            assert_eq!(res.attributes[14].key, "stream_status");
+            // validate values
+            assert_eq!(res.attributes[0].value, "subscribe");
             assert_eq!(res.attributes[1].value, "1");
-            assert_eq!(res.attributes[2].key, "owner");
-            assert_eq!(res.attributes[2].value, "position2");
-            assert_eq!(res.attributes[3].key, "in_supply");
-            assert_eq!(res.attributes[3].value, "6000");
-            assert_eq!(res.attributes[4].key, "in_amount");
-            assert_eq!(res.attributes[4].value, "3000");
+            assert_eq!(res.attributes[2].value, "3000");
+            assert_eq!(res.attributes[3].value, "3000");
+            assert_eq!(res.attributes[4].value, "222.222");
+            assert_eq!(res.attributes[5].value, "2000004.000000000");
+            assert_eq!(res.attributes[6].value, "0");
+            assert_eq!(res.attributes[7].value, "0");
+            assert_eq!(res.attributes[8].value, "0");
+            assert_eq!(res.attributes[9].value, "v1");
+            assert_eq!(res.attributes[10].value, "6000");
+            assert_eq!(res.attributes[11].value, "6000");
+            assert_eq!(res.attributes[12].value, "6000");
+            assert_eq!(res.attributes[13].value, "6000");
+            assert_eq!(res.attributes[14].value, "Active");
 
             // protocol admin can pause
             let info = mock_info("protocol_admin", &[]);

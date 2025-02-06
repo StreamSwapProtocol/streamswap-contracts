@@ -372,19 +372,46 @@ pub fn execute_create_stream(
     let threshold_state = ThresholdState::new();
     threshold_state.set_threshold_if_any(threshold, id, deps.storage)?;
 
-    let attr = vec![
+    let attrs = vec![
+        // Primary identifiers (for indexing)
         attr("action", "create_stream"),
-        attr("id", id.to_string()),
+        attr("stream_id", id.to_string()),
+        attr("creator", info.sender.to_string()),
+        attr("block_height", env.block.height.to_string()),
+        // Core stream details
         attr("treasury", treasury),
         attr("name", name),
         attr("url", url.unwrap_or_default()),
+        // Token configuration
         attr("in_denom", in_denom),
         attr("out_denom", out_denom),
-        attr("out_supply", out_supply),
+        attr("out_supply", out_supply.to_string()),
+        // Time configuration
         attr("start_time", start_time.to_string()),
         attr("end_time", end_time.to_string()),
+        attr("last_updated", env.block.time.seconds().to_string()),
+        // Fee configuration
+        attr("stream_creation_denom", stream.stream_creation_denom),
+        attr(
+            "stream_creation_fee",
+            stream.stream_creation_fee.to_string(),
+        ),
+        attr(
+            "stream_exit_fee_percent",
+            stream.stream_exit_fee_percent.to_string(),
+        ),
+        // Initial state
+        attr("dist_index", "0"),
+        attr("out_remaining", out_supply.to_string()),
+        attr("in_supply", "0"),
+        attr("shares", "0"),
+        attr("spent_in", "0"),
+        attr("status", Status::Waiting.as_str()),
+        attr("current_streamed_price", "0"),
+        // Version
+        attr("tos_version", tos_version),
     ];
-    Ok(Response::default().add_attributes(attr))
+    Ok(Response::default().add_attributes(attrs))
 }
 
 pub fn execute_update_protocol_admin(
@@ -427,9 +454,26 @@ pub fn execute_update_stream(
 
     let attrs = vec![
         attr("action", "update_stream"),
+        // Stream details
         attr("stream_id", stream_id.to_string()),
-        attr("new_distribution_amount", dist_amount),
+        attr("new_distribution_amount", dist_amount.to_string()),
         attr("dist_index", stream.dist_index.to_string()),
+        attr("last_updated", stream.last_updated.to_string()),
+        attr("start_time", stream.start_time.to_string()),
+        attr("end_time", stream.end_time.to_string()),
+        attr("in_denom", stream.in_denom),
+        attr("out_denom", stream.out_denom),
+        attr("in_supply", stream.in_supply),
+        attr("out_supply", stream.out_supply),
+        attr("out_remaining", stream.out_remaining),
+        attr("spent_in", stream.spent_in),
+        attr("shares", stream.shares),
+        attr(
+            "current_streamed_price",
+            stream.current_streamed_price.to_string(),
+        ),
+        attr("status", stream.status.as_str()),
+        attr("tos_version", stream.tos_version),
     ];
     let res = Response::new().add_attributes(attrs);
     Ok(res)
@@ -527,7 +571,7 @@ pub fn execute_update_position(
 
     // updates position to latest distribution. Returns the amount of out tokens that has been purchased
     // and in tokens that has been spent.
-    let (purchased, spent) = update_position(
+    let (_purchased, _spent) = update_position(
         stream.dist_index,
         stream.shares,
         stream.last_updated,
@@ -539,9 +583,14 @@ pub fn execute_update_position(
     Ok(Response::new()
         .add_attribute("action", "update_position")
         .add_attribute("stream_id", stream_id.to_string())
-        .add_attribute("operator_target", operator_target)
-        .add_attribute("purchased", purchased)
-        .add_attribute("spent", spent))
+        // Position details
+        .add_attribute("in_balance", position.in_balance.to_string())
+        .add_attribute("shares", position.shares.to_string())
+        .add_attribute("index", position.index.to_string())
+        .add_attribute("last_updated", position.last_updated.to_string())
+        .add_attribute("pending_purchase", position.pending_purchase.to_string())
+        .add_attribute("purchased", position.purchased.to_string())
+        .add_attribute("spent", position.spent.to_string()))
 }
 
 // calculate the user purchase based on the positions index and the global index.
@@ -621,7 +670,7 @@ pub fn execute_subscribe(
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
     let position = POSITIONS.may_load(deps.storage, (stream_id, &operator_target))?;
-    match position {
+    let position = match position {
         None => {
             // operator cannot create a position in behalf of anyone
             if operator_target != info.sender {
@@ -640,6 +689,7 @@ pub fn execute_subscribe(
                 stream.tos_version.clone(),
             );
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
+            new_position
         }
         Some(mut position) => {
             check_access(&info, &position.owner, &position.operator)?;
@@ -658,22 +708,35 @@ pub fn execute_subscribe(
             position.in_balance = position.in_balance.checked_add(in_amount_uint256)?;
             position.shares = position.shares.checked_add(new_shares)?;
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &position)?;
+            position
         }
-    }
+    };
 
     // increase in supply and shares
     stream.in_supply = stream.in_supply.checked_add(in_amount_uint256)?;
     stream.shares = stream.shares.checked_add(new_shares)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
-    let res = Response::new()
-        .add_attribute("action", "subscribe")
-        .add_attribute("stream_id", stream_id.to_string())
-        .add_attribute("owner", operator_target)
-        .add_attribute("in_supply", stream.in_supply)
-        .add_attribute("in_amount", in_amount);
-
-    Ok(res)
+    let attrs = vec![
+        attr("action", "subscribe"),
+        attr("stream_id", stream_id.to_string()),
+        // Position details
+        attr("in_balance", position.in_balance.to_string()),
+        attr("shares", position.shares.to_string()),
+        attr("index", position.index.to_string()),
+        attr("last_updated", position.last_updated.to_string()),
+        attr("pending_purchase", position.pending_purchase.to_string()),
+        attr("purchased", position.purchased.to_string()),
+        attr("spent", position.spent.to_string()),
+        attr("tos_version", position.tos_version),
+        // Stream updates
+        attr("stream_new_in_supply", stream.in_supply.to_string()),
+        attr("stream_previous_in_supply", stream.in_supply.to_string()),
+        attr("stream_new_shares", stream.shares.to_string()),
+        attr("stream_previous_shares", stream.shares.to_string()),
+        attr("stream_status", stream.status.as_str()),
+    ];
+    Ok(Response::new().add_attributes(attrs))
 }
 
 pub fn execute_subscribe_pending(
@@ -697,7 +760,7 @@ pub fn execute_subscribe_pending(
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
     let position = POSITIONS.may_load(deps.storage, (stream_id, &operator_target))?;
-    match position {
+    let position = match position {
         None => {
             // operator cannot create a position in behalf of anyone
             if operator_target != info.sender {
@@ -713,6 +776,7 @@ pub fn execute_subscribe_pending(
                 stream.tos_version.clone(),
             );
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &new_position)?;
+            new_position
         }
         Some(mut position) => {
             check_access(&info, &position.owner, &position.operator)?;
@@ -720,8 +784,9 @@ pub fn execute_subscribe_pending(
             position.in_balance = position.in_balance.checked_add(in_amount_uint256)?;
             position.shares = position.shares.checked_add(new_shares)?;
             POSITIONS.save(deps.storage, (stream_id, &operator_target), &position)?;
+            position
         }
-    }
+    };
     stream.in_supply = stream.in_supply.checked_add(in_amount_uint256)?;
     stream.shares = stream.shares.checked_add(new_shares)?;
     STREAMS.save(deps.storage, stream_id, &stream)?;
@@ -731,7 +796,19 @@ pub fn execute_subscribe_pending(
         .add_attribute("stream_id", stream_id.to_string())
         .add_attribute("owner", operator_target)
         .add_attribute("in_supply", stream.in_supply)
-        .add_attribute("in_amount", in_amount))
+        .add_attribute("stream_dist_index", stream.dist_index.to_string())
+        .add_attribute("stream_shares", stream.shares.to_string())
+        .add_attribute("stream_last_updated", stream.last_updated.to_string())
+        .add_attribute("stream_in_supply", stream.in_supply.to_string())
+        // Position details
+        .add_attribute("in_balance", position.in_balance.to_string())
+        .add_attribute("shares", position.shares.to_string())
+        .add_attribute("index", position.index.to_string())
+        .add_attribute("last_updated", position.last_updated.to_string())
+        .add_attribute("pending_purchase", position.pending_purchase.to_string())
+        .add_attribute("purchased", position.purchased.to_string())
+        .add_attribute("spent", position.spent.to_string())
+        .add_attribute("tos_version", position.tos_version))
 }
 
 pub fn execute_update_operator(
@@ -816,7 +893,21 @@ pub fn execute_withdraw(
         attr("action", "withdraw"),
         attr("stream_id", stream_id.to_string()),
         attr("operator_target", operator_target.clone()),
-        attr("withdraw_amount", withdraw_amount),
+        attr("withdraw_amount", withdraw_amount.to_string()),
+        // Stream details
+        attr("stream_dist_index", stream.dist_index.to_string()),
+        attr("stream_shares", stream.shares.to_string()),
+        attr("stream_last_updated", stream.last_updated.to_string()),
+        attr("stream_in_supply", stream.in_supply.to_string()),
+        // Position details
+        attr("in_balance", position.in_balance.to_string()),
+        attr("shares", position.shares.to_string()),
+        attr("index", position.index.to_string()),
+        attr("last_updated", position.last_updated.to_string()),
+        attr("pending_purchase", position.pending_purchase.to_string()),
+        attr("purchased", position.purchased.to_string()),
+        attr("spent", position.spent.to_string()),
+        attr("tos_version", position.tos_version),
     ];
     // TODO: This might be a problem if the withdraw amount is too large but unlikely
     let withdraw_amount: Uint128 = Uint128::try_from(withdraw_amount)?;
@@ -879,7 +970,21 @@ pub fn execute_withdraw_pending(
         attr("action", "withdraw_pending"),
         attr("stream_id", stream_id.to_string()),
         attr("operator_target", operator_target.clone()),
-        attr("withdraw_amount", withdraw_amount),
+        attr("withdraw_amount", withdraw_amount.to_string()),
+        // Stream details
+        attr("stream_dist_index", stream.dist_index.to_string()),
+        attr("stream_shares", stream.shares.to_string()),
+        attr("stream_last_updated", stream.last_updated.to_string()),
+        attr("stream_in_supply", stream.in_supply.to_string()),
+        // Position details
+        attr("in_balance", position.in_balance.to_string()),
+        attr("shares", position.shares.to_string()),
+        attr("index", position.index.to_string()),
+        attr("last_updated", position.last_updated.to_string()),
+        attr("pending_purchase", position.pending_purchase.to_string()),
+        attr("purchased", position.purchased.to_string()),
+        attr("spent", position.spent.to_string()),
+        attr("tos_version", position.tos_version),
     ];
 
     let withdraw_amount: Uint128 = Uint128::try_from(withdraw_amount)?;
@@ -993,8 +1098,19 @@ pub fn execute_finalize_stream(
     Ok(Response::new().add_messages(messages).add_attributes(vec![
         attr("action", "finalize_stream"),
         attr("stream_id", stream_id.to_string()),
+        // Stream details
+        attr("stream_dist_index", stream.dist_index.to_string()),
+        attr("stream_shares", stream.shares.to_string()),
+        attr("stream_last_updated", stream.last_updated.to_string()),
+        attr("stream_in_supply", stream.in_supply.to_string()),
+        attr("stream_out_remaining", stream.out_remaining.to_string()),
+        attr("stream_status", stream.status.as_str()),
+        attr(
+            "stream_exit_fee_percent",
+            stream.stream_exit_fee_percent.to_string(),
+        ),
+        // Creator related attributes
         attr("treasury", treasury.as_str()),
-        attr("fee_collector", config.fee_collector.to_string()),
         attr("creators_revenue", creator_revenue),
         attr("refunded_out_remaining", stream.out_remaining.to_string()),
         attr(
@@ -1004,6 +1120,7 @@ pub fn execute_finalize_stream(
                 .checked_sub(stream.out_remaining)?
                 .to_string(),
         ),
+        attr("fee_collector", config.fee_collector.to_string()),
         attr("swap_fee", swap_fee),
         attr("creation_fee", config.stream_creation_fee.to_string()),
     ]))
@@ -1066,10 +1183,23 @@ pub fn execute_exit_stream(
 
     let attributes = vec![
         attr("action", "exit_stream"),
+        // Stream details
         attr("stream_id", stream_id.to_string()),
-        attr("spent", position.spent.checked_sub(swap_fee)?),
+        attr("stream_dist_index", stream.dist_index.to_string()),
+        attr("stream_shares", stream.shares.to_string()),
+        attr("stream_last_updated", stream.last_updated.to_string()),
+        attr("stream_in_supply", stream.in_supply.to_string()),
+        attr("stream_out_remaining", stream.out_remaining.to_string()),
+        attr("stream_status", stream.status.as_str()),
+        // Position details
+        attr("spent", position.spent),
         attr("purchased", position.purchased),
-        attr("swap_fee_paid", swap_fee),
+        attr("in_balance", position.in_balance),
+        attr("shares", position.shares),
+        attr("index", position.index.to_string()),
+        attr("last_updated", position.last_updated.to_string()),
+        attr("pending_purchase", position.pending_purchase.to_string()),
+        attr("swap_fee_paid", swap_fee.to_string()),
     ];
     if !position.in_balance.is_zero() {
         let unspent: Uint128 = Uint128::try_from(position.in_balance)?;
@@ -1324,11 +1454,11 @@ pub fn list_streams(
                 start_time: stream.start_time,
                 end_time: stream.end_time,
                 spent_in: stream.spent_in,
-                last_updated: stream.last_updated,
                 dist_index: stream.dist_index,
                 out_remaining: stream.out_remaining,
                 in_supply: stream.in_supply,
                 shares: stream.shares,
+                last_updated: stream.last_updated,
                 status: stream.status,
                 pause_date: stream.pause_date,
                 url: stream.url,

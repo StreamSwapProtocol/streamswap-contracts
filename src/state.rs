@@ -83,6 +83,20 @@ pub enum Status {
     Paused,
     Cancelled,
 }
+
+impl Status {
+    // Return the status as a string
+    pub fn as_str(&self) -> &str {
+        match self {
+            Status::Waiting => "Waiting",
+            Status::Active => "Active",
+            Status::Finalized => "Finalized",
+            Status::Paused => "Paused",
+            Status::Cancelled => "Cancelled",
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Stream {
     pub fn new(
