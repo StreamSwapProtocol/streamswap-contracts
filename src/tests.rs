@@ -22,6 +22,76 @@ mod test_module {
     use std::ops::Sub;
     use std::str::FromStr;
 
+    // Test helpers: centralize defaults and builders for readability and reuse
+    mod test_helpers {
+        use cosmwasm_std::{testing::mock_env, Addr, Coin, MessageInfo, Uint256, Uint64};
+
+        pub const DEFAULT_FEE_COLLECTOR: &str = "collector";
+        pub const DEFAULT_PROTOCOL_ADMIN: &str = "protocol_admin";
+        pub const DEFAULT_ACCEPTED_IN_DENOM: &str = "in";
+        pub const DEFAULT_STREAM_CREATION_DENOM: &str = "fee";
+
+        pub fn mock_info(sender: &str, funds: &[Coin]) -> MessageInfo {
+            MessageInfo {
+                sender: Addr::unchecked(sender),
+                funds: funds.to_vec(),
+            }
+        }
+
+        pub fn env_now() -> cosmwasm_std::Env {
+            mock_env()
+        }
+
+        pub struct InstantiateBuilder {
+            pub min_stream_seconds: Uint64,
+            pub min_seconds_until_start_time: Uint64,
+            pub stream_creation_denom: String,
+            pub stream_creation_fee: Uint256,
+            pub exit_fee_percent: cosmwasm_std::Decimal256,
+            pub fee_collector: String,
+            pub protocol_admin: String,
+            pub accepted_in_denom: String,
+            pub tos_version: String,
+        }
+
+        impl Default for InstantiateBuilder {
+            fn default() -> Self {
+                Self {
+                    min_stream_seconds: Uint64::new(1000),
+                    min_seconds_until_start_time: Uint64::new(1000),
+                    stream_creation_denom: DEFAULT_STREAM_CREATION_DENOM.to_string(),
+                    stream_creation_fee: Uint256::from(100u128),
+                    exit_fee_percent: cosmwasm_std::Decimal256::percent(1),
+                    fee_collector: DEFAULT_FEE_COLLECTOR.to_string(),
+                    protocol_admin: DEFAULT_PROTOCOL_ADMIN.to_string(),
+                    accepted_in_denom: DEFAULT_ACCEPTED_IN_DENOM.to_string(),
+                    tos_version: "v1".to_string(),
+                }
+            }
+        }
+
+        impl InstantiateBuilder {
+            pub fn exit_fee_percent(mut self, pct: cosmwasm_std::Decimal256) -> Self {
+                self.exit_fee_percent = pct;
+                self
+            }
+
+            pub fn build(self) -> crate::msg::InstantiateMsg {
+                crate::msg::InstantiateMsg {
+                    min_stream_seconds: self.min_stream_seconds,
+                    min_seconds_until_start_time: self.min_seconds_until_start_time,
+                    stream_creation_denom: self.stream_creation_denom,
+                    stream_creation_fee: self.stream_creation_fee,
+                    exit_fee_percent: self.exit_fee_percent,
+                    fee_collector: self.fee_collector,
+                    protocol_admin: self.protocol_admin,
+                    accepted_in_denom: self.accepted_in_denom,
+                    tos_version: self.tos_version,
+                }
+            }
+        }
+    }
+
     fn mock_info(sender: &str, funds: &[Coin]) -> MessageInfo {
         MessageInfo {
             sender: Addr::unchecked(sender),
@@ -72,20 +142,17 @@ mod test_module {
     #[test]
     fn test_create_stream() {
         let mut deps = mock_dependencies();
-        // Invalid exit fee
-        let msg = crate::msg::InstantiateMsg {
-            min_stream_seconds: Uint64::new(1000),
-            min_seconds_until_start_time: Uint64::new(1000),
-            stream_creation_denom: "fee".to_string(),
-            stream_creation_fee: Uint256::from(100u128),
-            exit_fee_percent: Decimal256::percent(101),
-            fee_collector: "collector".to_string(),
-            protocol_admin: "protocol_admin".to_string(),
-            accepted_in_denom: "in".to_string(),
-            tos_version: "v1".to_string(),
-        };
-        let err =
-            instantiate(deps.as_mut(), mock_env(), mock_info("creator", &[]), msg).unwrap_err();
+        // Invalid exit fee (refactored to use helpers)
+        let msg = test_helpers::InstantiateBuilder::default()
+            .exit_fee_percent(Decimal256::percent(101))
+            .build();
+        let err = instantiate(
+            deps.as_mut(),
+            test_helpers::env_now(),
+            test_helpers::mock_info("creator", &[]),
+            msg,
+        )
+        .unwrap_err();
         assert_eq!(err, ContractError::InvalidExitFeePercent {});
 
         // Invalid stream creation fee
