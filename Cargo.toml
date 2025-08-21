@@ -20,6 +20,7 @@ crate-type = ["cdylib", "rlib"]
 [features]
 # use library feature to disable all instantiate/execute/query exports
 library = []
+backtrace = []
 
 [package.metadata.scripts]
 optimize = """docker run --rm -v "$(pwd)":/code \
@@ -29,7 +30,7 @@ optimize = """docker run --rm -v "$(pwd)":/code \
 """
 
 [dependencies]
-cosmwasm-std = "3.0.1"
+cosmwasm-std = { version = "3.0.1", default-features = false, features = ["std", "stargate"] }
 cosmwasm-schema = "3.0.1"
 cw-controllers = "3.0.0"
 cw-storage-plus = "3.0.0"
