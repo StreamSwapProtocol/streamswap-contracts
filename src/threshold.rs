@@ -6,7 +6,7 @@ use crate::state::Stream;
 
 pub type Threshold = Uint256;
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug)]
 pub enum ThresholdError {
     #[error(transparent)]
     Std(#[from] StdError),
@@ -25,15 +25,15 @@ pub enum ThresholdError {
 }
 pub const THRESHOLDS_STATE_KEY: &str = "thresholds";
 
-pub struct ThresholdState<'a>(Map<'a, u64, Threshold>);
+pub struct ThresholdState(Map<u64, Threshold>);
 
-impl<'a> Default for ThresholdState<'a> {
+impl Default for ThresholdState {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<'a> ThresholdState<'a> {
+impl ThresholdState {
     pub fn new() -> Self {
         ThresholdState(Map::new(THRESHOLDS_STATE_KEY))
     }
@@ -116,7 +116,7 @@ mod tests {
     use super::*;
     use crate::state::Stream;
     use cosmwasm_std::testing::MockStorage;
-    use cosmwasm_std::{Addr, Decimal256, Timestamp, Uint128};
+    use cosmwasm_std::{Addr, Decimal256, Timestamp};
 
     #[test]
     fn test_thresholds_state() {
@@ -140,7 +140,7 @@ mod tests {
             spent_in: Uint256::zero(),
             status: crate::state::Status::Active,
             stream_creation_denom: "uusd".to_string(),
-            stream_creation_fee: Uint128::new(0),
+            stream_creation_fee: Uint256::from(0 as u128),
             stream_exit_fee_percent: Decimal256::from_str("0.042").unwrap(),
             treasury: Addr::unchecked("treasury"),
             tos_version: "".to_string(),

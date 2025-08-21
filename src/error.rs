@@ -6,7 +6,7 @@ use cw_utils::PaymentError;
 use std::convert::Infallible;
 use thiserror::Error;
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug)]
 pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
@@ -157,7 +157,7 @@ pub enum ContractError {
 
     #[error("Invalid terms and services")]
     InvalidToSVersion {},
-  
+
     #[error("Treasury cancel period : Active")]
     TreasuryCancelPeriodActive {},
 

@@ -1,5 +1,5 @@
 use crate::ContractError;
-use cosmwasm_std::{Decimal256, StdError, Uint128, Uint256};
+use cosmwasm_std::{Decimal256, StdError};
 use std::str::FromStr;
 
 /// Stream validation related constants
@@ -57,9 +57,5 @@ pub fn check_name_and_url(name: &String, url: &Option<String>) -> Result<(), Con
 }
 
 pub fn from_semver(err: semver::Error) -> ContractError {
-    ContractError::from(StdError::generic_err(format!("Semver: {}", err)))
-}
-
-pub fn to_uint256(value: Uint128) -> Uint256 {
-    Uint256::from(value.u128())
+    ContractError::from(StdError::msg(format!("Semver: {}", err)))
 }
