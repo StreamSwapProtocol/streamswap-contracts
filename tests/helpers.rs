@@ -149,6 +149,25 @@ impl CreateStreamBuilder {
         self.tos_version = v.to_string();
         self
     }
+    pub fn threshold(mut self, t: Option<Uint256>) -> Self {
+        self.threshold = t;
+        self
+    }
+
+    pub fn build(self) -> cw_streamswap::msg::ExecuteMsg {
+        cw_streamswap::msg::ExecuteMsg::CreateStream {
+            treasury: self.treasury,
+            name: self.name,
+            url: self.url,
+            in_denom: self.in_denom,
+            out_denom: self.out_denom,
+            out_supply: self.out_supply,
+            start_time: self.start_time,
+            end_time: self.end_time,
+            threshold: self.threshold,
+            tos_version: self.tos_version,
+        }
+    }
 }
 
 #[allow(dead_code)]

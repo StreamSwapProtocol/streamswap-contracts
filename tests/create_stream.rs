@@ -2,7 +2,7 @@ use cosmwasm_std::testing::mock_dependencies;
 use cosmwasm_std::Timestamp;
 use cosmwasm_std::{Coin, Decimal256, Uint256};
 use cw_streamswap::{
-    contract::{execute_create_stream, instantiate},
+    contract::{execute, instantiate},
     ContractError,
 };
 mod helpers;
@@ -49,21 +49,7 @@ fn create_stream_in_denom_not_accepted() {
     let b = helpers::CreateStreamBuilder::default().in_denom("random");
     let env = helpers::env_at(0);
     let info = helpers::mock_info("creator", &[]);
-    let res = execute_create_stream(
-        deps.as_mut(),
-        env,
-        info,
-        b.treasury,
-        b.name,
-        b.url,
-        b.in_denom,
-        b.out_denom,
-        b.out_supply,
-        b.start_time,
-        b.end_time,
-        b.threshold,
-        b.tos_version,
-    );
+    let res = execute(deps.as_mut(), env, info, b.build());
     assert_eq!(res.unwrap_err(), ContractError::InDenomIsNotAccepted {});
 }
 
@@ -77,21 +63,7 @@ fn create_stream_end_before_start() {
         .end_time(Timestamp::from_seconds(5_000));
     let env = helpers::env_at(0);
     let info = helpers::mock_info("creator", &[]);
-    let res = execute_create_stream(
-        deps.as_mut(),
-        env,
-        info,
-        b.treasury,
-        b.name,
-        b.url,
-        b.in_denom,
-        b.out_denom,
-        b.out_supply,
-        b.start_time,
-        b.end_time,
-        b.threshold,
-        b.tos_version,
-    );
+    let res = execute(deps.as_mut(), env, info, b.build());
     assert_eq!(res.unwrap_err(), ContractError::StreamInvalidEndTime {});
 }
 
@@ -105,21 +77,7 @@ fn create_stream_start_in_past() {
         .end_time(Timestamp::from_seconds(10_000));
     let env = helpers::env_at(20_000);
     let info = helpers::mock_info("creator", &[]);
-    let res = execute_create_stream(
-        deps.as_mut(),
-        env,
-        info,
-        b.treasury,
-        b.name,
-        b.url,
-        b.in_denom,
-        b.out_denom,
-        b.out_supply,
-        b.start_time,
-        b.end_time,
-        b.threshold,
-        b.tos_version,
-    );
+    let res = execute(deps.as_mut(), env, info, b.build());
     assert_eq!(res.unwrap_err(), ContractError::StreamInvalidStartTime {});
 }
 
@@ -134,21 +92,7 @@ fn create_stream_duration_too_short() {
         .end_time(Timestamp::from_seconds(5_500));
     let env = helpers::env_at(0);
     let info = helpers::mock_info("creator", &[]);
-    let res = execute_create_stream(
-        deps.as_mut(),
-        env,
-        info,
-        b.treasury,
-        b.name,
-        b.url,
-        b.in_denom,
-        b.out_denom,
-        b.out_supply,
-        b.start_time,
-        b.end_time,
-        b.threshold,
-        b.tos_version,
-    );
+    let res = execute(deps.as_mut(), env, info, b.build());
     assert_eq!(res.unwrap_err(), ContractError::StreamDurationTooShort {});
 }
 
@@ -163,21 +107,7 @@ fn create_stream_starts_too_soon() {
         .end_time(Timestamp::from_seconds(7_000));
     let env = helpers::env_at(5_000);
     let info = helpers::mock_info("creator", &[]);
-    let res = execute_create_stream(
-        deps.as_mut(),
-        env,
-        info,
-        b.treasury,
-        b.name,
-        b.url,
-        b.in_denom,
-        b.out_denom,
-        b.out_supply,
-        b.start_time,
-        b.end_time,
-        b.threshold,
-        b.tos_version,
-    );
+    let res = execute(deps.as_mut(), env, info, b.build());
     assert_eq!(res.unwrap_err(), ContractError::StreamStartsTooSoon {});
 }
 
@@ -191,21 +121,7 @@ fn create_stream_same_denom_each_side() {
         .out_denom(helpers::DEFAULT_ACCEPTED_IN_DENOM);
     let env = helpers::env_at(0);
     let info = helpers::mock_info("creator", &[]);
-    let res = execute_create_stream(
-        deps.as_mut(),
-        env,
-        info,
-        b.treasury,
-        b.name,
-        b.url,
-        b.in_denom,
-        b.out_denom,
-        b.out_supply,
-        b.start_time,
-        b.end_time,
-        b.threshold,
-        b.tos_version,
-    );
+    let res = execute(deps.as_mut(), env, info, b.build());
     assert_eq!(res.unwrap_err(), ContractError::SameDenomOnEachSide {});
 }
 
@@ -217,21 +133,7 @@ fn create_stream_zero_out_supply() {
     let b = helpers::CreateStreamBuilder::default().out_supply(Uint256::zero());
     let env = helpers::env_at(0);
     let info = helpers::mock_info("creator", &[]);
-    let res = execute_create_stream(
-        deps.as_mut(),
-        env,
-        info,
-        b.treasury,
-        b.name,
-        b.url,
-        b.in_denom,
-        b.out_denom,
-        b.out_supply,
-        b.start_time,
-        b.end_time,
-        b.threshold,
-        b.tos_version,
-    );
+    let res = execute(deps.as_mut(), env, info, b.build());
     assert_eq!(res.unwrap_err(), ContractError::ZeroOutSupply {});
 }
 
@@ -243,21 +145,7 @@ fn create_stream_invalid_tos_version() {
     let b = helpers::CreateStreamBuilder::default().tos_version("v2");
     let env = helpers::env_at(0);
     let info = helpers::mock_info("creator", &[]);
-    let res = execute_create_stream(
-        deps.as_mut(),
-        env,
-        info,
-        b.treasury,
-        b.name,
-        b.url,
-        b.in_denom,
-        b.out_denom,
-        b.out_supply,
-        b.start_time,
-        b.end_time,
-        b.threshold,
-        b.tos_version,
-    );
+    let res = execute(deps.as_mut(), env, info, b.build());
     assert_eq!(res.unwrap_err(), ContractError::InvalidToSVersion {});
 }
 
@@ -270,21 +158,7 @@ fn create_stream_else_branch_missing_out_funds() {
     let b = helpers::CreateStreamBuilder::default().out_denom("token");
     let env = helpers::env_at(0);
     let info = helpers::mock_info("creator", &[]);
-    let res = execute_create_stream(
-        deps.as_mut(),
-        env,
-        info,
-        b.treasury,
-        b.name,
-        b.url,
-        b.in_denom,
-        b.out_denom,
-        b.out_supply,
-        b.start_time,
-        b.end_time,
-        b.threshold,
-        b.tos_version,
-    );
+    let res = execute(deps.as_mut(), env, info, b.build());
     assert_eq!(res.unwrap_err(), ContractError::NoFundsSent {});
 }
 
@@ -306,21 +180,7 @@ fn create_stream_else_branch_wrong_out_amount() {
         },
     ];
     let info = helpers::mock_info("creator", &funds);
-    let res = execute_create_stream(
-        deps.as_mut(),
-        env,
-        info,
-        b.treasury,
-        b.name,
-        b.url,
-        b.in_denom,
-        b.out_denom,
-        b.out_supply,
-        b.start_time,
-        b.end_time,
-        b.threshold,
-        b.tos_version,
-    );
+    let res = execute(deps.as_mut(), env, info, b.build());
     assert_eq!(
         res.unwrap_err(),
         ContractError::StreamOutSupplyFundsRequired {}
@@ -339,21 +199,7 @@ fn create_stream_else_branch_missing_creation_fee() {
         amount: b.out_supply,
     }];
     let info = helpers::mock_info("creator", &funds);
-    let res = execute_create_stream(
-        deps.as_mut(),
-        env,
-        info,
-        b.treasury,
-        b.name,
-        b.url,
-        b.in_denom,
-        b.out_denom,
-        b.out_supply,
-        b.start_time,
-        b.end_time,
-        b.threshold,
-        b.tos_version,
-    );
+    let res = execute(deps.as_mut(), env, info, b.build());
     assert_eq!(res.unwrap_err(), ContractError::NoFundsSent {});
 }
 
@@ -375,21 +221,7 @@ fn create_stream_else_branch_wrong_creation_fee_amount() {
         },
     ];
     let info = helpers::mock_info("creator", &funds);
-    let res = execute_create_stream(
-        deps.as_mut(),
-        env,
-        info,
-        b.treasury,
-        b.name,
-        b.url,
-        b.in_denom,
-        b.out_denom,
-        b.out_supply,
-        b.start_time,
-        b.end_time,
-        b.threshold,
-        b.tos_version,
-    );
+    let res = execute(deps.as_mut(), env, info, b.build());
     assert_eq!(
         res.unwrap_err(),
         ContractError::StreamCreationFeeRequired {}
@@ -418,21 +250,7 @@ fn create_stream_else_branch_invalid_extra_funds() {
         },
     ];
     let info = helpers::mock_info("creator", &funds);
-    let res = execute_create_stream(
-        deps.as_mut(),
-        env,
-        info,
-        b.treasury,
-        b.name,
-        b.url,
-        b.in_denom,
-        b.out_denom,
-        b.out_supply,
-        b.start_time,
-        b.end_time,
-        b.threshold,
-        b.tos_version,
-    );
+    let res = execute(deps.as_mut(), env, info, b.build());
     assert_eq!(res.unwrap_err(), ContractError::InvalidFunds {});
 }
 
@@ -446,21 +264,7 @@ fn create_stream_fee_branch_missing_funds() {
         helpers::CreateStreamBuilder::default().out_denom(helpers::DEFAULT_STREAM_CREATION_DENOM);
     let env = helpers::env_at(0);
     let info = helpers::mock_info("creator", &[]);
-    let res = execute_create_stream(
-        deps.as_mut(),
-        env,
-        info,
-        b.treasury,
-        b.name,
-        b.url,
-        b.in_denom,
-        b.out_denom,
-        b.out_supply,
-        b.start_time,
-        b.end_time,
-        b.threshold,
-        b.tos_version,
-    );
+    let res = execute(deps.as_mut(), env, info, b.build());
     assert_eq!(res.unwrap_err(), ContractError::NoFundsSent {});
 }
 
@@ -477,21 +281,7 @@ fn create_stream_fee_branch_wrong_total_amount() {
         amount: b.out_supply + Uint256::from(99u128),
     }];
     let info = helpers::mock_info("creator", &funds);
-    let res = execute_create_stream(
-        deps.as_mut(),
-        env,
-        info,
-        b.treasury,
-        b.name,
-        b.url,
-        b.in_denom,
-        b.out_denom,
-        b.out_supply,
-        b.start_time,
-        b.end_time,
-        b.threshold,
-        b.tos_version,
-    );
+    let res = execute(deps.as_mut(), env, info, b.build());
     assert_eq!(
         res.unwrap_err(),
         ContractError::StreamOutSupplyFundsRequired {}
@@ -517,20 +307,168 @@ fn create_stream_fee_branch_invalid_extra_funds() {
         },
     ];
     let info = helpers::mock_info("creator", &funds);
-    let res = execute_create_stream(
-        deps.as_mut(),
-        env,
-        info,
-        b.treasury,
-        b.name,
-        b.url,
-        b.in_denom,
-        b.out_denom,
-        b.out_supply,
-        b.start_time,
-        b.end_time,
-        b.threshold,
-        b.tos_version,
-    );
+    let res = execute(deps.as_mut(), env, info, b.build());
     assert_eq!(res.unwrap_err(), ContractError::InvalidFunds {});
+}
+
+#[test]
+fn create_stream_threshold_zero() {
+    let mut deps = mock_dependencies();
+    helpers::instantiate_defaults(deps.as_mut());
+
+    let b = helpers::CreateStreamBuilder::default().threshold(Some(Uint256::zero()));
+    let env = helpers::env_at(0);
+    let funds = vec![
+        Coin {
+            denom: helpers::DEFAULT_STREAM_CREATION_DENOM.to_string(),
+            amount: Uint256::from(100u128),
+        },
+        Coin {
+            denom: "out_denom".to_string(),
+            amount: b.out_supply,
+        },
+    ];
+    let info = helpers::mock_info("creator", &funds);
+    let res = execute(deps.as_mut(), env, info, b.build());
+    assert_eq!(
+        res.unwrap_err(),
+        ContractError::ThresholdError(cw_streamswap::threshold::ThresholdError::ThresholdZero {})
+    );
+}
+
+#[test]
+fn create_stream_name_validation() {
+    let mut deps = mock_dependencies();
+    helpers::instantiate_defaults(deps.as_mut());
+
+    // Test name too short (less than 2 characters)
+    let b = helpers::CreateStreamBuilder::default().name("n");
+    let env = helpers::env_at(0);
+    let funds = vec![
+        Coin {
+            denom: "out_denom".to_string(),
+            amount: b.out_supply,
+        },
+        Coin {
+            denom: helpers::DEFAULT_STREAM_CREATION_DENOM.to_string(),
+            amount: Uint256::from(100u128),
+        },
+    ];
+    let info = helpers::mock_info("creator", &funds);
+    let res = execute(deps.as_mut(), env.clone(), info, b.build());
+    assert_eq!(res.unwrap_err(), ContractError::StreamNameTooShort {});
+
+    // Test name too long (more than 64 characters)
+    let long_name = "12345678901234567890123456789012345678901234567890123456789012345";
+    let b = helpers::CreateStreamBuilder::default().name(long_name);
+    let info = helpers::mock_info("creator", &funds);
+    let res = execute(deps.as_mut(), env.clone(), info, b.build());
+    assert_eq!(res.unwrap_err(), ContractError::StreamNameTooLong {});
+
+    // Test invalid characters in name
+    let b = helpers::CreateStreamBuilder::default().name("abc~ß");
+    let info = helpers::mock_info("creator", &funds);
+    let res = execute(deps.as_mut(), env, info, b.build());
+    assert_eq!(res.unwrap_err(), ContractError::InvalidStreamName {});
+}
+
+#[test]
+fn create_stream_url_validation() {
+    let mut deps = mock_dependencies();
+    helpers::instantiate_defaults(deps.as_mut());
+
+    // Test URL too short (less than 10 characters)
+    let b = helpers::CreateStreamBuilder::default().url(Some("https://a.b"));
+    let env = helpers::env_at(0);
+    let funds = vec![
+        Coin {
+            denom: "out_denom".to_string(),
+            amount: b.out_supply,
+        },
+        Coin {
+            denom: helpers::DEFAULT_STREAM_CREATION_DENOM.to_string(),
+            amount: Uint256::from(100u128),
+        },
+    ];
+    let info = helpers::mock_info("creator", &funds);
+    let res = execute(deps.as_mut(), env.clone(), info, b.build());
+    assert_eq!(res.unwrap_err(), ContractError::StreamUrlTooShort {});
+
+    // Test URL too long (more than 128 characters)
+    let long_url = "https://abcdefghijklmnopqrstuvw.xyz/abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz/abcdefghijklmnopqrstuvwxyzabcdefghijklmn";
+    let b = helpers::CreateStreamBuilder::default().url(Some(long_url));
+    let info = helpers::mock_info("creator", &funds);
+    let res = execute(deps.as_mut(), env.clone(), info, b.build());
+    assert_eq!(res.unwrap_err(), ContractError::StreamUrlTooLong {});
+
+    // Test invalid URL format (contains spaces)
+    let b =
+        helpers::CreateStreamBuilder::default().url(Some("https://abc defghijklmnopqrstuvw.xyz/"));
+    let info = helpers::mock_info("creator", &funds);
+    let res = execute(deps.as_mut(), env, info, b.build());
+    assert_eq!(res.unwrap_err(), ContractError::InvalidStreamUrl {});
+}
+
+#[test]
+fn create_stream_happy_path() {
+    let mut deps = mock_dependencies();
+    helpers::instantiate_defaults(deps.as_mut());
+
+    let b = helpers::CreateStreamBuilder::default();
+    let env = helpers::env_at(0);
+    let funds = vec![
+        Coin {
+            denom: "out_denom".to_string(),
+            amount: b.out_supply,
+        },
+        Coin {
+            denom: helpers::DEFAULT_STREAM_CREATION_DENOM.to_string(),
+            amount: Uint256::from(100u128),
+        },
+    ];
+    let info = helpers::mock_info("creator", &funds);
+    let res = execute(deps.as_mut(), env, info, b.build());
+
+    // Should succeed
+    assert!(res.is_ok());
+
+    // Verify the response has the expected attributes
+    let response = res.unwrap();
+    assert_eq!(response.attributes[0].key, "action");
+    assert_eq!(response.attributes[0].value, "create_stream");
+    assert_eq!(response.attributes[1].key, "stream_id");
+    assert_eq!(response.attributes[1].value, "1");
+}
+
+#[test]
+fn create_stream_successful_with_threshold() {
+    let mut deps = mock_dependencies();
+    helpers::instantiate_defaults(deps.as_mut());
+
+    let b = helpers::CreateStreamBuilder::default().threshold(Some(Uint256::from(1000u128)));
+    let env = helpers::env_at(0);
+    let funds = vec![
+        Coin {
+            denom: "out_denom".to_string(),
+            amount: b.out_supply,
+        },
+        Coin {
+            denom: helpers::DEFAULT_STREAM_CREATION_DENOM.to_string(),
+            amount: Uint256::from(100u128),
+        },
+    ];
+    let info = helpers::mock_info("creator", &funds);
+    let res = execute(deps.as_mut(), env, info, b.build());
+
+    // Should succeed
+    assert!(res.is_ok());
+
+    // Verify the response has the expected attributes
+    let response = res.unwrap();
+    assert_eq!(response.attributes[0].key, "action");
+    assert_eq!(response.attributes[0].value, "create_stream");
+    assert_eq!(response.attributes[1].key, "stream_id");
+    assert_eq!(response.attributes[1].value, "1");
+
+    // Stream created successfully with threshold
 }
