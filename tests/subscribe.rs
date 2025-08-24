@@ -222,3 +222,78 @@ fn subscribe_first_subscription() {
     assert_eq!(position.purchased, Uint256::zero());
     assert_eq!(position.spent, Uint256::zero());
 }
+
+#[test]
+fn subscribe_increase_subscription() {
+    let mut deps = mock_dependencies();
+    helpers::instantiate_defaults(deps.as_mut());
+
+    // Create a stream first
+    let b = helpers::CreateStreamBuilder::default()
+        .start_time(Timestamp::from_seconds(2000))
+        .end_time(Timestamp::from_seconds(10000));
+    let env = helpers::env_at(0);
+    let funds = vec![
+        Coin {
+            denom: "out_denom".to_string(),
+            amount: b.out_supply,
+        },
+        Coin {
+            denom: helpers::DEFAULT_STREAM_CREATION_DENOM.to_string(),
+            amount: Uint256::from(100u128),
+        },
+    ];
+    let info = helpers::mock_info("creator", &funds);
+    execute(deps.as_mut(), env, info, b.build()).unwrap();
+
+    // First subscription
+    let env = helpers::env_at(2500); // During stream
+    let info = helpers::mock_info("user1", &[Coin::new(1000u128, "in")]);
+    let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
+        stream_id: 1,
+        operator_target: None,
+        operator: None,
+        tos_version: "v1".to_string(),
+    };
+
+    let res = execute(deps.as_mut(), env, info, msg);
+    assert!(res.is_ok());
+
+    // Query stream after first subscription
+    let query_env = helpers::env_at(2500);
+    let stream =
+        cw_streamswap::contract::query_stream(deps.as_ref(), query_env.clone(), 1).unwrap();
+    assert_eq!(stream.dist_index, Decimal256::zero());
+    assert_eq!(stream.in_supply, Uint256::from(1000u128));
+
+    // Second subscription (increase) by the same user
+    let env = helpers::env_at(3000); // Later during stream
+    let info = helpers::mock_info("user1", &[Coin::new(500u128, "in")]);
+    let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
+        stream_id: 1,
+        operator_target: None,
+        operator: None,
+        tos_version: "v1".to_string(),
+    };
+
+    let res = execute(deps.as_mut(), env, info.clone(), msg);
+    assert!(res.is_ok());
+
+    // Query stream after second subscription
+    let query_env = helpers::env_at(3000);
+    let stream =
+        cw_streamswap::contract::query_stream(deps.as_ref(), query_env.clone(), 1).unwrap();
+
+    // Distribution index should now be updated (non-zero)
+    assert!(stream.dist_index > Decimal256::zero());
+
+    // Query position to verify user's updated details
+    let position = cw_streamswap::contract::query_position(
+        deps.as_ref(),
+        query_env,
+        1,
+        info.sender.to_string(),
+    )
+    .unwrap();
+    assert!(position.in_balance < Uint256::from(1500u128)); // Total balance minus spent between subscriptions
+}

@@ -109,7 +109,7 @@ impl Default for CreateStreamBuilder {
             url: Some("https://sample.url".to_string()),
             in_denom: DEFAULT_ACCEPTED_IN_DENOM.to_string(),
             out_denom: "out_denom".to_string(),
-            out_supply: Uint256::from(1u128),
+            out_supply: Uint256::from(1_000_000u128),
             start_time: Timestamp::from_seconds(5_000),
             end_time: Timestamp::from_seconds(10_000),
             threshold: None,
