@@ -469,6 +469,4 @@ fn create_stream_successful_with_threshold() {
     assert_eq!(response.attributes[0].value, "create_stream");
     assert_eq!(response.attributes[1].key, "stream_id");
     assert_eq!(response.attributes[1].value, "1");
-
-    // Stream created successfully with threshold
 }

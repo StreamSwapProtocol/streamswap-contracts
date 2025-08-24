@@ -1,10 +1,12 @@
-use cosmwasm_std::testing::{mock_env, MOCK_CONTRACT_ADDR};
+use cosmwasm_std::testing::mock_env;
 use cosmwasm_std::{Addr, Coin, Decimal256, DepsMut, MessageInfo, Timestamp, Uint256, Uint64};
+use cw_multi_test::MockApiBech32;
 
 use cw_streamswap::{contract::instantiate, msg::InstantiateMsg};
 
-fn valid_addr() -> String {
-    MOCK_CONTRACT_ADDR.to_string()
+fn valid_addr(name: &str) -> Addr {
+    let api = MockApiBech32::new("cosmwasm");
+    api.addr_make(name)
 }
 
 pub const DEFAULT_ACCEPTED_IN_DENOM: &str = "in";
@@ -12,7 +14,7 @@ pub const DEFAULT_STREAM_CREATION_DENOM: &str = "fee";
 
 pub fn mock_info(sender: &str, funds: &[Coin]) -> MessageInfo {
     MessageInfo {
-        sender: Addr::unchecked(sender),
+        sender: valid_addr(sender),
         funds: funds.to_vec(),
     }
 }
@@ -47,8 +49,8 @@ impl Default for InstantiateBuilder {
             stream_creation_denom: DEFAULT_STREAM_CREATION_DENOM.to_string(),
             stream_creation_fee: Uint256::from(100u128),
             exit_fee_percent: Decimal256::percent(1),
-            fee_collector: valid_addr(),
-            protocol_admin: valid_addr(),
+            fee_collector: valid_addr("collector").to_string(),
+            protocol_admin: valid_addr("protocol_admin").to_string(),
             accepted_in_denom: DEFAULT_ACCEPTED_IN_DENOM.to_string(),
             tos_version: "v1".to_string(),
         }
@@ -102,7 +104,7 @@ pub struct CreateStreamBuilder {
 impl Default for CreateStreamBuilder {
     fn default() -> Self {
         Self {
-            treasury: valid_addr(),
+            treasury: valid_addr("treasury").to_string(),
             name: "name".to_string(),
             url: Some("https://sample.url".to_string()),
             in_denom: DEFAULT_ACCEPTED_IN_DENOM.to_string(),

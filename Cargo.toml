@@ -45,6 +45,6 @@ ed25519-zebra = { version = "4.1.0", features = ["alloc"] }
 
 
 [dev-dependencies]
-cw-multi-test = { version = "0.20.1", features = ["cosmwasm_1_2"] }
+cw-multi-test = { version = "3.0.1", features = ["cosmwasm_1_2"] }
 
 
