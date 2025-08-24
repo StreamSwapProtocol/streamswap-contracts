@@ -630,7 +630,7 @@ pub fn update_position(
         position.pending_purchase = decimals;
 
         // floors the decimal points
-        purchased_uint128 = purchased.atomics();
+        purchased_uint128 = purchased.to_uint_floor();
         position.purchased = position.purchased.checked_add(purchased_uint128)?;
     }
 

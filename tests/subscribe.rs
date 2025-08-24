@@ -306,7 +306,8 @@ fn subscribe_pending_stream() {
     // Create a stream that hasn't started yet
     let b = helpers::CreateStreamBuilder::default()
         .start_time(Timestamp::from_seconds(5000)) // Start in the future
-        .end_time(Timestamp::from_seconds(10000));
+        .end_time(Timestamp::from_seconds(10000))
+        .out_supply(Uint256::from(1_000_000u128));
     let env = helpers::env_at(0);
     let funds = vec![
         Coin {
@@ -410,7 +411,7 @@ fn subscribe_pending_treasury_cancel_period() {
 }
 
 #[test]
-fn subscribe_pending_multiple() {
+fn subscribe_pending_multiple_with_transition() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
 
@@ -432,9 +433,9 @@ fn subscribe_pending_multiple() {
     let info = helpers::mock_info("creator", &funds);
     execute(deps.as_mut(), env, info, b.build()).unwrap();
 
-    // First subscription after cancel period but before start time
-    let env = helpers::env_at(2000); // After cancel period (0-1000), before start (5000)
-    let info1 = helpers::mock_info("user1", &[Coin::new(1000u128, "in")]);
+    // First subscription before start time (pending)
+    let env = helpers::env_at(2000); // After cancel period, before start time
+    let info1 = helpers::mock_info("subscriber1", &[Coin::new(1000000u128, "in")]);
     let msg1 = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
@@ -448,9 +449,41 @@ fn subscribe_pending_multiple() {
     assert_eq!(response1.attributes[0].key, "action");
     assert_eq!(response1.attributes[0].value, "subscribe_pending");
 
-    // Second subscription by different user while still waiting
+    // Query stream after first subscription
+    let query_env = helpers::env_at(2000);
+    let stream = cw_streamswap::contract::query_stream(deps.as_ref(), query_env, 1).unwrap();
+    assert_eq!(stream.status, cw_streamswap::state::Status::Waiting);
+    assert_eq!(stream.in_supply, Uint256::from(1000000u128));
+    assert_eq!(stream.shares, Uint256::from(1000000u128));
+
+    // Second subscription still waiting (by same user)
     let env = helpers::env_at(3000); // Still before start time
-    let info2 = helpers::mock_info("user2", &[Coin::new(500u128, "in")]);
+    let info1_second = helpers::mock_info("subscriber1", &[Coin::new(1000000u128, "in")]);
+    let msg1_second = cw_streamswap::msg::ExecuteMsg::Subscribe {
+        stream_id: 1,
+        operator_target: None,
+        operator: None,
+        tos_version: "v1".to_string(),
+    };
+
+    let res1_second = execute(deps.as_mut(), env, info1_second.clone(), msg1_second);
+    assert!(res1_second.is_ok());
+    let response1_second = res1_second.unwrap();
+    assert_eq!(response1_second.attributes[0].key, "action");
+    assert_eq!(response1_second.attributes[0].value, "subscribe_pending");
+
+    // Query stream after second subscription
+    let query_env = helpers::env_at(3000);
+    let stream = cw_streamswap::contract::query_stream(deps.as_ref(), query_env, 1).unwrap();
+    assert_eq!(stream.status, cw_streamswap::state::Status::Waiting);
+    assert_eq!(stream.in_supply, Uint256::from(2000000u128)); // 1M + 1M
+
+    // Before stream start time: 2 subscriptions made, stream is pending
+    // Subscriber1 has 2 subscriptions and 2_000_000 in balance
+
+    // Third subscription after start time (stream becomes active)
+    let env = helpers::env_at(6000); // After start time (5000)
+    let info2 = helpers::mock_info("subscriber2", &[Coin::new(1000000u128, "in")]);
     let msg2 = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
@@ -462,38 +495,113 @@ fn subscribe_pending_multiple() {
     assert!(res2.is_ok());
     let response2 = res2.unwrap();
     assert_eq!(response2.attributes[0].key, "action");
-    assert_eq!(response2.attributes[0].value, "subscribe_pending");
+    // Different action because stream is now active
+    assert_eq!(response2.attributes[0].value, "subscribe");
 
-    // Query stream to verify both subscriptions are recorded
-    let query_env = helpers::env_at(3000);
+    // Query stream after third subscription
+    let query_env = helpers::env_at(6000);
     let stream =
         cw_streamswap::contract::query_stream(deps.as_ref(), query_env.clone(), 1).unwrap();
-    assert_eq!(stream.status, cw_streamswap::state::Status::Waiting);
-    assert_eq!(stream.in_supply, Uint256::from(1500u128)); // 1000 + 500
-    assert_eq!(stream.shares, Uint256::from(1500u128)); // 1000 + 500
+    assert_eq!(stream.status, cw_streamswap::state::Status::Active);
+    // update_stream ran at t=6000 before adding creator2's 1,000,000, spending 400,000 from 2,000,000
+    // then +1,000,000 added → 1,600,000 + 1,000,000 = 2,600,000
+    assert_eq!(stream.in_supply, Uint256::from(3_000_000u128 - 400_000u128));
+    assert_eq!(stream.spent_in, Uint256::from(400_000u128));
 
-    // Query both positions to verify they're created correctly
+    // Update creator1 position to calculate spent/purchased amounts
+    let update_msg = cw_streamswap::msg::ExecuteMsg::UpdatePosition {
+        stream_id: 1,
+        operator_target: None,
+    };
+    let update_info = helpers::mock_info("subscriber1", &[]);
+    let update_env = helpers::env_at(6000);
+    let update_res = execute(deps.as_mut(), update_env, update_info.clone(), update_msg);
+    assert!(update_res.is_ok());
+
+    // Query subscriber1 position after update
     let position1 = cw_streamswap::contract::query_position(
         deps.as_ref(),
         query_env.clone(),
         1,
-        info1.sender.to_string(),
+        update_info.sender.to_string(),
     )
     .unwrap();
-    assert_eq!(position1.in_balance, Uint256::from(1000u128));
-    assert_eq!(position1.shares, Uint256::from(1000u128));
-    assert_eq!(position1.index, Decimal256::zero());
 
-    let position2 = cw_streamswap::contract::query_position(
+    // At 6000 seconds, subscriber1 should have spent 400,000
+    assert_eq!(position1.spent, Uint256::from(400_000u128));
+
+    // Query stream to see updated state
+    let stream_after_update =
+        cw_streamswap::contract::query_stream(deps.as_ref(), query_env.clone(), 1).unwrap();
+    assert_eq!(
+        stream_after_update.status,
+        cw_streamswap::state::Status::Active
+    );
+    assert!(stream_after_update.spent_in > Uint256::zero());
+
+    // Update subscriber1 position at 7500
+    let update_msg_7500 = cw_streamswap::msg::ExecuteMsg::UpdatePosition {
+        stream_id: 1,
+        operator_target: None,
+    };
+    let update_info_7500 = helpers::mock_info("subscriber1", &[]);
+    let update_env_7500 = helpers::env_at(7500);
+    let update_res_7500 = execute(
+        deps.as_mut(),
+        update_env_7500,
+        update_info_7500.clone(),
+        update_msg_7500,
+    );
+    assert!(update_res_7500.is_ok());
+
+    // Query position at 7500 for subscriber1
+    let pos1_7500 = cw_streamswap::contract::query_position(
         deps.as_ref(),
-        query_env,
+        helpers::env_at(7500),
         1,
-        info2.sender.to_string(),
+        update_info_7500.sender.to_string(),
     )
     .unwrap();
-    assert_eq!(position2.in_balance, Uint256::from(500u128));
-    assert_eq!(position2.shares, Uint256::from(500u128));
-    assert_eq!(position2.index, Decimal256::zero());
+    assert_eq!(
+        pos1_7500.purchased,
+        Uint256::from(184_615u128 + 200_000u128)
+    );
+    assert_eq!(pos1_7500.spent, Uint256::from(2_000_000u128 / 2u128));
+
+    // Update creator2 position at 3500
+    let update_msg2 = cw_streamswap::msg::ExecuteMsg::UpdatePosition {
+        stream_id: 1,
+        operator_target: None,
+    };
+    let update_info2 = helpers::mock_info("subscriber2", &[]);
+    let update_env2 = helpers::env_at(3500);
+    let update_res2 = execute(
+        deps.as_mut(),
+        update_env2,
+        update_info2.clone(),
+        update_msg2,
+    );
+    assert!(update_res2.is_ok());
+
+    // Query position for creator2 at 3500
+    let pos2_3500 = cw_streamswap::contract::query_position(
+        deps.as_ref(),
+        helpers::env_at(3500),
+        1,
+        update_info2.sender.to_string(),
+    )
+    .unwrap();
+    assert_eq!(pos2_3500.purchased, Uint256::from(115_384u128));
+    assert_eq!(
+        pos2_3500.spent,
+        Uint256::from(1_000_000u128 * 1_500u128 / 4_000u128)
+    );
+
+    // Query stream at 3500
+    let stream_3500 =
+        cw_streamswap::contract::query_stream(deps.as_ref(), helpers::env_at(3500), 1).unwrap();
+    assert_eq!(stream_3500.status, cw_streamswap::state::Status::Active);
+    assert_eq!(stream_3500.in_supply, Uint256::from(1_625_000u128));
 }
 
 #[test]
