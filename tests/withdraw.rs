@@ -10,6 +10,11 @@ fn withdraw_pending_basic_flow() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
 
+    // Define actors (MessageInfo with empty funds)
+    let treasury = helpers::mock_info("creator", &[]);
+    let subscriber1 = helpers::mock_info("subscriber1", &[]);
+    let _unauthorized = helpers::mock_info("unauthorized", &[]);
+
     // Create a stream that hasn't started yet
     let b = helpers::CreateStreamBuilder::default()
         .start_time(Timestamp::from_seconds(2000)) // Start in the future
@@ -25,19 +30,21 @@ fn withdraw_pending_basic_flow() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
-    execute(deps.as_mut(), env, info, b.build()).unwrap();
+    let mut treasury_funded = treasury.clone();
+    treasury_funded.funds = funds;
+    execute(deps.as_mut(), env, treasury_funded, b.build()).unwrap();
 
     // First subscribe before start time (pending)
     let env = helpers::env_at(2000 - 1); // Before start time
-    let info = helpers::mock_info("subscriber1", &[Coin::new(1_000_000u128, "in")]);
+    let mut subscriber1_funded = subscriber1.clone();
+    subscriber1_funded.funds = vec![Coin::new(1_000_000u128, "in")];
     let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
         operator: None,
         tos_version: "v1".to_string(),
     };
-    let res = execute(deps.as_mut(), env, info, msg);
+    let res = execute(deps.as_mut(), env, subscriber1_funded, msg);
     assert!(res.is_ok());
 
     // Update subscriber1 position - no distribution expected
@@ -46,7 +53,7 @@ fn withdraw_pending_basic_flow() {
         stream_id: 1,
         operator_target: None,
     };
-    let update_info = helpers::mock_info("subscriber1", &[]);
+    let update_info = subscriber1.clone();
     let res = execute(deps.as_mut(), env.clone(), update_info, update_msg);
     assert!(res.is_ok());
 
@@ -82,7 +89,7 @@ fn withdraw_pending_basic_flow() {
 
     // Withdraw before start time (pending withdraw)
     let env = helpers::env_at(2000 - 1);
-    let info = helpers::mock_info("subscriber1", &[]);
+    let info = subscriber1.clone();
     let msg = cw_streamswap::msg::ExecuteMsg::Withdraw {
         stream_id: 1,
         cap: Some(Uint256::from(500_000u128)),
@@ -105,7 +112,7 @@ fn withdraw_pending_basic_flow() {
     assert_eq!(
         bank_msg,
         &CosmosMsg::Bank(BankMsg::Send {
-            to_address: info.sender.to_string(),
+            to_address: subscriber1.sender.to_string(),
             amount: vec![Coin::new(500000u128, "in")],
         })
     );
@@ -125,6 +132,11 @@ fn withdraw_after_start_time() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
 
+    // Define actors (MessageInfo with empty funds)
+    let treasury = helpers::mock_info("creator", &[]);
+    let subscriber1 = helpers::mock_info("subscriber1", &[]);
+    let _unauthorized = helpers::mock_info("unauthorized", &[]);
+
     // Create a stream that hasn't started yet
     let b = helpers::CreateStreamBuilder::default()
         .start_time(Timestamp::from_seconds(2000)) // Start in the future
@@ -140,24 +152,26 @@ fn withdraw_after_start_time() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
-    execute(deps.as_mut(), env, info, b.build()).unwrap();
+    let mut treasury_funded = treasury.clone();
+    treasury_funded.funds = funds;
+    execute(deps.as_mut(), env, treasury_funded, b.build()).unwrap();
 
     // Subscribe before start time
     let env = helpers::env_at(2000 - 1);
-    let info = helpers::mock_info("subscriber1", &[Coin::new(1_000_000u128, "in")]);
+    let mut subscriber1_funded = subscriber1.clone();
+    subscriber1_funded.funds = vec![Coin::new(1_000_000u128, "in")];
     let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
         operator: None,
         tos_version: "v1".to_string(),
     };
-    let res = execute(deps.as_mut(), env, info, msg);
+    let res = execute(deps.as_mut(), env, subscriber1_funded, msg);
     assert!(res.is_ok());
 
     // Withdraw after start time (active withdraw)
     let env = helpers::env_at(3000); // After start time (2000)
-    let info = helpers::mock_info("subscriber1", &[]);
+    let info = subscriber1.clone();
     let msg = cw_streamswap::msg::ExecuteMsg::Withdraw {
         stream_id: 1,
         cap: Some(Uint256::from(400_000u128)),
@@ -197,6 +211,11 @@ fn withdraw_invalid_amounts() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
 
+    // Define all actors upfront
+    let treasury = helpers::mock_info("creator", &[]);
+    let subscriber1 = helpers::mock_info("subscriber1", &[]);
+    let _unauthorized = helpers::mock_info("unauthorized", &[]);
+
     // Create a stream
     let b = helpers::CreateStreamBuilder::default()
         .start_time(Timestamp::from_seconds(1_000_000))
@@ -212,24 +231,26 @@ fn withdraw_invalid_amounts() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
-    execute(deps.as_mut(), env, info, b.build()).unwrap();
+    let mut treasury_funded = treasury.clone();
+    treasury_funded.funds = funds.clone();
+    execute(deps.as_mut(), env, treasury_funded, b.build()).unwrap();
 
     // Subscribe to the stream
     let env = helpers::env_at(1_000_000);
     let funds = Coin::new(2_000_000_000_000u128, "in");
-    let info = helpers::mock_info("creator1", &[funds.clone()]);
+    let mut subscriber1_funded = subscriber1.clone();
+    subscriber1_funded.funds = vec![funds];
     let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
         operator: None,
         tos_version: "v1".to_string(),
     };
-    let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+    let _res = execute(deps.as_mut(), env, subscriber1_funded, msg).unwrap();
 
     // Test 1: Withdraw with cap = 0 (should fail)
     let env = helpers::env_at(1_000_000 + 5000);
-    let info = helpers::mock_info("creator1", &[]);
+    let info = subscriber1.clone();
     let cap = Uint256::zero();
     let msg = cw_streamswap::msg::ExecuteMsg::Withdraw {
         stream_id: 1,
@@ -263,6 +284,11 @@ fn withdraw_with_valid_cap() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
 
+    // Define all actors upfront
+    let treasury = helpers::mock_info("creator", &[]);
+    let subscriber1 = helpers::mock_info("subscriber1", &[]);
+    let _unauthorized = helpers::mock_info("unauthorized", &[]);
+
     // Create a stream
     let b = helpers::CreateStreamBuilder::default()
         .start_time(Timestamp::from_seconds(1_000_000))
@@ -278,24 +304,26 @@ fn withdraw_with_valid_cap() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
-    execute(deps.as_mut(), env, info, b.build()).unwrap();
+    let mut treasury_funded = treasury.clone();
+    treasury_funded.funds = funds;
+    execute(deps.as_mut(), env, treasury_funded, b.build()).unwrap();
 
     // Subscribe to the stream
     let env = helpers::env_at(1_000_000);
     let funds = Coin::new(2_000_000_000_000u128, "in");
-    let info = helpers::mock_info("creator1", &[funds.clone()]);
+    let mut subscriber1_funded = subscriber1.clone();
+    subscriber1_funded.funds = vec![funds.clone()];
     let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
         operator: None,
         tos_version: "v1".to_string(),
     };
-    let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+    let _res = execute(deps.as_mut(), env, subscriber1_funded, msg).unwrap();
 
     // Withdraw with valid cap
     let env = helpers::env_at(1_000_000 + 5000);
-    let info = helpers::mock_info("creator1", &[]);
+    let info = subscriber1.clone();
     let cap = Uint256::from(25_000_000u128);
     let msg = cw_streamswap::msg::ExecuteMsg::Withdraw {
         stream_id: 1,
@@ -309,7 +337,7 @@ fn withdraw_with_valid_cap() {
         deps.as_ref(),
         helpers::env_at(1_000_000 + 5000),
         1,
-        helpers::mock_info("creator1", &[]).sender.to_string(),
+        subscriber1.sender.to_string(),
     )
     .unwrap();
 
@@ -329,6 +357,11 @@ fn withdraw_full_balance() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
 
+    // Define all actors upfront
+    let treasury = helpers::mock_info("creator", &[]);
+    let subscriber = helpers::mock_info("subscriber1", &[]);
+    let _unauthorized = helpers::mock_info("unauthorized", &[]);
+
     // Create a stream
     let b = helpers::CreateStreamBuilder::default()
         .start_time(Timestamp::from_seconds(1_000_000))
@@ -344,13 +377,19 @@ fn withdraw_full_balance() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
+    let info = cosmwasm_std::MessageInfo {
+        sender: treasury.sender.clone(),
+        funds,
+    };
     execute(deps.as_mut(), env, info, b.build()).unwrap();
 
     // Subscribe to the stream
     let env = helpers::env_at(1_000_000);
     let funds = Coin::new(2_000_000_000_000u128, "in");
-    let info = helpers::mock_info("creator1", &[funds.clone()]);
+    let info = cosmwasm_std::MessageInfo {
+        sender: subscriber.sender.clone(),
+        funds: vec![funds.clone()],
+    };
     let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
@@ -361,7 +400,10 @@ fn withdraw_full_balance() {
 
     // Withdraw full balance (cap = None)
     let env = helpers::env_at(1_000_000 + 1_000_000);
-    let info = helpers::mock_info("creator1", &[]);
+    let info = cosmwasm_std::MessageInfo {
+        sender: subscriber.sender.clone(),
+        funds: vec![],
+    };
     let msg = cw_streamswap::msg::ExecuteMsg::Withdraw {
         stream_id: 1,
         cap: None,
@@ -374,7 +416,7 @@ fn withdraw_full_balance() {
         deps.as_ref(),
         helpers::env_at(1_000_000 + 1_000_000),
         1,
-        helpers::mock_info("creator1", &[]).sender.to_string(),
+        subscriber.sender.to_string(),
     )
     .unwrap();
 
@@ -388,7 +430,7 @@ fn withdraw_full_balance() {
     assert_eq!(
         msg.msg,
         CosmosMsg::Bank(BankMsg::Send {
-            to_address: helpers::mock_info("creator1", &[]).sender.to_string(),
+            to_address: subscriber.sender.to_string(),
             amount: vec![Coin::new(1500000000000u128, "in")]
         })
     );
@@ -398,6 +440,11 @@ fn withdraw_full_balance() {
 fn withdraw_after_stream_ends() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
+
+    // Define all actors upfront
+    let treasury = helpers::mock_info("creator", &[]);
+    let subscriber = helpers::mock_info("subscriber1", &[]);
+    let _unauthorized = helpers::mock_info("unauthorized", &[]);
 
     // Create a stream
     let b = helpers::CreateStreamBuilder::default()
@@ -414,13 +461,19 @@ fn withdraw_after_stream_ends() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
+    let info = cosmwasm_std::MessageInfo {
+        sender: treasury.sender.clone(),
+        funds,
+    };
     execute(deps.as_mut(), env, info, b.build()).unwrap();
 
     // Subscribe to the stream
     let env = helpers::env_at(1_000_000);
     let funds = Coin::new(2_000_000_000_000u128, "in");
-    let info = helpers::mock_info("creator1", &[funds.clone()]);
+    let info = cosmwasm_std::MessageInfo {
+        sender: subscriber.sender.clone(),
+        funds: vec![funds.clone()],
+    };
     let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
@@ -431,7 +484,10 @@ fn withdraw_after_stream_ends() {
 
     // Attempt withdrawal after stream ends (should fail)
     let env = helpers::env_at(5_000_000 + 1); // After end time
-    let info = helpers::mock_info("creator1", &[]);
+    let info = cosmwasm_std::MessageInfo {
+        sender: subscriber.sender.clone(),
+        funds: vec![],
+    };
     let msg = cw_streamswap::msg::ExecuteMsg::Withdraw {
         stream_id: 1,
         cap: None,

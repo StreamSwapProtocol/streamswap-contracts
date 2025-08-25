@@ -10,6 +10,9 @@ fn update_stream_no_subscriptions() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
 
+    // Define actors
+    let treasury = helpers::mock_info("creator", &[]);
+
     // Create a stream that starts in the future
     let b = helpers::CreateStreamBuilder::default()
         .start_time(Timestamp::from_seconds(1_000_000))
@@ -25,8 +28,9 @@ fn update_stream_no_subscriptions() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
-    execute(deps.as_mut(), env, info, b.build()).unwrap();
+    let mut treasury_funded = treasury.clone();
+    treasury_funded.funds = funds;
+    execute(deps.as_mut(), env, treasury_funded, b.build()).unwrap();
 
     // Update stream without subscriptions - no distribution should occur
     let env = helpers::env_at(1_000_000 + 100); // After start time
@@ -63,6 +67,10 @@ fn update_stream_first_subscription() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
 
+    // Define actors
+    let treasury = helpers::mock_info("creator", &[]);
+    let subscriber1 = helpers::mock_info("creator1", &[]);
+
     // Create a stream
     let b = helpers::CreateStreamBuilder::default()
         .start_time(Timestamp::from_seconds(1_000_000))
@@ -78,19 +86,21 @@ fn update_stream_first_subscription() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
-    execute(deps.as_mut(), env, info, b.build()).unwrap();
+    let mut treasury_funded = treasury.clone();
+    treasury_funded.funds = funds;
+    execute(deps.as_mut(), env, treasury_funded, b.build()).unwrap();
 
     // First subscription - dist_index should remain 0 (no prior distribution)
     let env = helpers::env_at(1_000_000 + 100);
-    let info = helpers::mock_info("creator1", &[Coin::new(1_000_000u128, "in")]);
+    let mut subscriber1_funded = subscriber1.clone();
+    subscriber1_funded.funds = vec![Coin::new(1_000_000u128, "in")];
     let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
         operator: None,
         tos_version: "v1".to_string(),
     };
-    let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+    let _res = execute(deps.as_mut(), env, subscriber1_funded, msg).unwrap();
 
     // Query stream after first subscription - dist_index should still be 0 (no prior distribution)
     let env = helpers::env_at(1_000_000 + 200);
@@ -103,6 +113,10 @@ fn update_stream_with_subscribers() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
 
+    // Define actors
+    let treasury = helpers::mock_info("creator", &[]);
+    let subscriber1 = helpers::mock_info("creator1", &[]);
+
     // Create a stream
     let b = helpers::CreateStreamBuilder::default()
         .start_time(Timestamp::from_seconds(1_000_000))
@@ -118,19 +132,21 @@ fn update_stream_with_subscribers() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
-    execute(deps.as_mut(), env, info, b.build()).unwrap();
+    let mut treasury_funded = treasury.clone();
+    treasury_funded.funds = funds;
+    execute(deps.as_mut(), env, treasury_funded, b.build()).unwrap();
 
     // First subscription
     let env = helpers::env_at(1_000_000 + 100);
-    let info = helpers::mock_info("creator1", &[Coin::new(1_000_000u128, "in")]);
+    let mut subscriber1_funded = subscriber1.clone();
+    subscriber1_funded.funds = vec![Coin::new(1_000_000u128, "in")];
     let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
         operator: None,
         tos_version: "v1".to_string(),
     };
-    let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+    let _res = execute(deps.as_mut(), env, subscriber1_funded, msg).unwrap();
 
     // Update stream again with existing subscribers - dist_index should increase
     let env = helpers::env_at(1_000_000 + 300);

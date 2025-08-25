@@ -13,6 +13,11 @@ fn test_rounding_leftover() {
     // Setup: Instantiate the contract
     helpers::instantiate_defaults(deps.as_mut());
 
+    // Define actors
+    let treasury = helpers::mock_info("creator", &[]);
+    let subscriber1 = helpers::mock_info("creator1", &[]);
+    let subscriber2 = helpers::mock_info("creator2", &[]);
+
     // Setup: Create a stream with specific parameters
     let start = Timestamp::from_seconds(1_000_000);
     let end = Timestamp::from_seconds(5_000_000);
@@ -36,34 +41,37 @@ fn test_rounding_leftover() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
-    execute(deps.as_mut(), env, info, b.build()).unwrap();
+    let mut treasury_funded = treasury.clone();
+    treasury_funded.funds = funds;
+    execute(deps.as_mut(), env, treasury_funded, b.build()).unwrap();
 
     // Setup: First subscription
     let env = helpers::env_at(1_000_000 + 100);
-    let info = helpers::mock_info("creator1", &[Coin::new(1_000_000_000u128, "in")]);
+    let mut s1 = subscriber1.clone();
+    s1.funds = vec![Coin::new(1_000_000_000u128, "in")];
     let msg = ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
         operator: None,
         tos_version: "v1".to_string(),
     };
-    execute(deps.as_mut(), env, info, msg).unwrap();
+    execute(deps.as_mut(), env, s1, msg).unwrap();
 
     // Setup: Second subscription
     let env = helpers::env_at(1_000_000 + 100_000);
-    let info = helpers::mock_info("creator2", &[Coin::new(3_000_000_000u128, "in")]);
+    let mut s2 = subscriber2.clone();
+    s2.funds = vec![Coin::new(3_000_000_000u128, "in")];
     let msg = ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
         operator: None,
         tos_version: "v1".to_string(),
     };
-    execute(deps.as_mut(), env, info, msg).unwrap();
+    execute(deps.as_mut(), env, s2, msg).unwrap();
 
     // Test 1: Update position creator1 during stream
     let env = helpers::env_at(1_000_000 + 3_000_000);
-    let info = helpers::mock_info("creator1", &[]);
+    let info = subscriber1.clone();
     let msg = ExecuteMsg::UpdatePosition {
         stream_id: 1,
         operator_target: None,
@@ -75,7 +83,7 @@ fn test_rounding_leftover() {
         deps.as_ref(),
         env.clone(),
         1,
-        helpers::mock_info("creator1", &[]).sender.to_string(),
+        subscriber1.sender.to_string(),
     )
     .unwrap();
     assert_eq!(
@@ -94,7 +102,7 @@ fn test_rounding_leftover() {
 
     // Test 2: Update position creator2 during stream
     let env = helpers::env_at(1_000_000 + 3_575_000);
-    let info = helpers::mock_info("creator2", &[]);
+    let info = subscriber2.clone();
     let msg = ExecuteMsg::UpdatePosition {
         stream_id: 1,
         operator_target: None,
@@ -106,7 +114,7 @@ fn test_rounding_leftover() {
         deps.as_ref(),
         env.clone(),
         1,
-        helpers::mock_info("creator2", &[]).sender.to_string(),
+        subscriber2.sender.to_string(),
     )
     .unwrap();
     assert_eq!(
@@ -125,7 +133,7 @@ fn test_rounding_leftover() {
 
     // Test 3: Update position creator1 after stream ends
     let env = helpers::env_at(5_000_000 + 1);
-    let info = helpers::mock_info("creator1", &[]);
+    let info = subscriber1.clone();
     let msg = ExecuteMsg::UpdatePosition {
         stream_id: 1,
         operator_target: None,
@@ -143,7 +151,7 @@ fn test_rounding_leftover() {
         deps.as_ref(),
         env,
         1,
-        helpers::mock_info("creator1", &[]).sender.to_string(),
+        subscriber1.sender.to_string(),
     )
     .unwrap();
     assert_eq!(
@@ -155,7 +163,7 @@ fn test_rounding_leftover() {
 
     // Test 4: Update position creator2 after stream ends
     let env = helpers::env_at(5_000_000 + 1);
-    let info = helpers::mock_info("creator2", &[]);
+    let info = subscriber2.clone();
     let msg = ExecuteMsg::UpdatePosition {
         stream_id: 1,
         operator_target: None,
@@ -173,7 +181,7 @@ fn test_rounding_leftover() {
         deps.as_ref(),
         env,
         1,
-        helpers::mock_info("creator2", &[]).sender.to_string(),
+        subscriber2.sender.to_string(),
     )
     .unwrap();
     assert_eq!(

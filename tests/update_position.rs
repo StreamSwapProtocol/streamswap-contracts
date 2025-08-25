@@ -11,6 +11,11 @@ fn update_position_unauthorized_operator() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
 
+    // Define actors
+    let treasury = helpers::mock_info("creator", &[]);
+    let subscriber1 = helpers::mock_info("creator1", &[]);
+    let unauthorized = helpers::mock_info("random", &[]);
+
     // Create a stream
     let b = helpers::CreateStreamBuilder::default()
         .start_time(Timestamp::from_seconds(1_000_000))
@@ -26,26 +31,28 @@ fn update_position_unauthorized_operator() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
-    execute(deps.as_mut(), env, info, b.build()).unwrap();
+    let mut treasury_funded = treasury.clone();
+    treasury_funded.funds = funds;
+    execute(deps.as_mut(), env, treasury_funded, b.build()).unwrap();
 
     // First subscription
     let env = helpers::env_at(1_000_000 + 100);
-    let info = helpers::mock_info("creator1", &[Coin::new(1_000_000u128, "in")]);
+    let mut subscriber1_funded = subscriber1.clone();
+    subscriber1_funded.funds = vec![Coin::new(1_000_000u128, "in")];
     let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
         operator: None,
         tos_version: "v1".to_string(),
     };
-    let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+    let _res = execute(deps.as_mut(), env, subscriber1_funded, msg).unwrap();
 
     // Non-owner cannot update position (should fail because random user has no position)
     let env = helpers::env_at(1_000_000 + 3_000_000);
-    let info = helpers::mock_info("random", &[]);
+    let info = unauthorized.clone();
     let msg = cw_streamswap::msg::ExecuteMsg::UpdatePosition {
         stream_id: 1,
-        operator_target: Some(helpers::mock_info("creator1", &[]).sender.to_string()),
+        operator_target: Some(subscriber1.sender.to_string()),
     };
     let err = execute(deps.as_mut(), env, info, msg).unwrap_err();
     assert_eq!(err, ContractError::Unauthorized {});
@@ -56,6 +63,10 @@ fn update_position_basic_flow() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
 
+    // Define actors
+    let treasury = helpers::mock_info("creator", &[]);
+    let subscriber1 = helpers::mock_info("creator1", &[]);
+
     // Create a stream
     let b = helpers::CreateStreamBuilder::default()
         .start_time(Timestamp::from_seconds(1_000_000))
@@ -71,23 +82,25 @@ fn update_position_basic_flow() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
-    execute(deps.as_mut(), env, info, b.build()).unwrap();
+    let mut treasury_funded = treasury.clone();
+    treasury_funded.funds = funds;
+    execute(deps.as_mut(), env, treasury_funded, b.build()).unwrap();
 
     // First subscription
     let env = helpers::env_at(1_000_000 + 100);
-    let info = helpers::mock_info("creator1", &[Coin::new(1_000_000u128, "in")]);
+    let mut subscriber1_funded = subscriber1.clone();
+    subscriber1_funded.funds = vec![Coin::new(1_000_000u128, "in")];
     let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
         operator: None,
         tos_version: "v1".to_string(),
     };
-    let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+    let _res = execute(deps.as_mut(), env, subscriber1_funded, msg).unwrap();
 
     // Update position
     let env = helpers::env_at(1_000_000 + 3_000_000);
-    let info = helpers::mock_info("creator1", &[]);
+    let info = subscriber1.clone();
     let msg = cw_streamswap::msg::ExecuteMsg::UpdatePosition {
         stream_id: 1,
         operator_target: None,
@@ -100,7 +113,7 @@ fn update_position_basic_flow() {
         deps.as_ref(),
         query_env.clone(),
         1,
-        helpers::mock_info("creator1", &[]).sender.to_string(),
+        subscriber1.sender.to_string(),
     )
     .unwrap();
     assert_eq!(
@@ -124,6 +137,10 @@ fn update_position_after_stream_ends() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
 
+    // Define actors
+    let treasury = helpers::mock_info("creator", &[]);
+    let subscriber1 = helpers::mock_info("creator1", &[]);
+
     // Create a stream
     let b = helpers::CreateStreamBuilder::default()
         .start_time(Timestamp::from_seconds(1_000_000))
@@ -139,23 +156,25 @@ fn update_position_after_stream_ends() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
-    execute(deps.as_mut(), env, info, b.build()).unwrap();
+    let mut treasury_funded = treasury.clone();
+    treasury_funded.funds = funds;
+    execute(deps.as_mut(), env, treasury_funded, b.build()).unwrap();
 
     // First subscription
     let env = helpers::env_at(1_000_000 + 100);
-    let info = helpers::mock_info("creator1", &[Coin::new(1_000_000u128, "in")]);
+    let mut subscriber1_funded = subscriber1.clone();
+    subscriber1_funded.funds = vec![Coin::new(1_000_000u128, "in")];
     let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
         operator: None,
         tos_version: "v1".to_string(),
     };
-    let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+    let _res = execute(deps.as_mut(), env, subscriber1_funded, msg).unwrap();
 
     // Update position after stream ends
     let env = helpers::env_at(5_000_000 + 1);
-    let info = helpers::mock_info("creator1", &[]);
+    let info = subscriber1.clone();
     let msg = cw_streamswap::msg::ExecuteMsg::UpdatePosition {
         stream_id: 1,
         operator_target: None,
@@ -174,7 +193,7 @@ fn update_position_after_stream_ends() {
         deps.as_ref(),
         query_env,
         1,
-        helpers::mock_info("creator1", &[]).sender.to_string(),
+        subscriber1.sender.to_string(),
     )
     .unwrap();
     assert_eq!(position.index, Decimal256::from_str("1").unwrap());

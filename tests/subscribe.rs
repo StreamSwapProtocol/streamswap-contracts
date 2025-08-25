@@ -10,6 +10,10 @@ fn subscribe_stream_ended() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
 
+    // Define actors
+    let treasury = helpers::mock_info("creator", &[]);
+    let user1 = helpers::mock_info("user1", &[]);
+
     // Create a stream first
     let b = helpers::CreateStreamBuilder::default()
         .start_time(Timestamp::from_seconds(2000))
@@ -25,12 +29,14 @@ fn subscribe_stream_ended() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
-    execute(deps.as_mut(), env, info, b.build()).unwrap();
+    let mut treasury_funded = treasury.clone();
+    treasury_funded.funds = funds;
+    execute(deps.as_mut(), env, treasury_funded, b.build()).unwrap();
 
     // Try to subscribe after stream has ended
     let env = helpers::env_at(4000); // After end time
-    let info = helpers::mock_info("user1", &[Coin::new(1000u128, "in")]);
+    let mut user1_funded = user1.clone();
+    user1_funded.funds = vec![Coin::new(1000u128, "in")];
     let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
@@ -38,7 +44,7 @@ fn subscribe_stream_ended() {
         tos_version: "v1".to_string(),
     };
 
-    let res = execute(deps.as_mut(), env, info, msg);
+    let res = execute(deps.as_mut(), env, user1_funded, msg);
     assert_eq!(res.unwrap_err(), ContractError::StreamEnded {});
 }
 
@@ -46,6 +52,10 @@ fn subscribe_stream_ended() {
 fn subscribe_no_funds() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
+
+    // Define actors
+    let treasury = helpers::mock_info("creator", &[]);
+    let user1 = helpers::mock_info("user1", &[]);
 
     // Create a stream first
     let b = helpers::CreateStreamBuilder::default()
@@ -62,12 +72,13 @@ fn subscribe_no_funds() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
-    execute(deps.as_mut(), env, info, b.build()).unwrap();
+    let mut treasury_funded = treasury.clone();
+    treasury_funded.funds = funds;
+    execute(deps.as_mut(), env, treasury_funded, b.build()).unwrap();
 
     // Try to subscribe without funds
     let env = helpers::env_at(2500); // During stream
-    let info = helpers::mock_info("user1", &[]); // No funds
+    let info = user1.clone(); // No funds
     let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
@@ -84,6 +95,10 @@ fn subscribe_incorrect_denom() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
 
+    // Define actors
+    let treasury = helpers::mock_info("creator", &[]);
+    let user1 = helpers::mock_info("user1", &[]);
+
     // Create a stream first
     let b = helpers::CreateStreamBuilder::default()
         .start_time(Timestamp::from_seconds(2000))
@@ -99,12 +114,14 @@ fn subscribe_incorrect_denom() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
-    execute(deps.as_mut(), env, info, b.build()).unwrap();
+    let mut treasury_funded = treasury.clone();
+    treasury_funded.funds = funds;
+    execute(deps.as_mut(), env, treasury_funded, b.build()).unwrap();
 
     // Try to subscribe with wrong denom
     let env = helpers::env_at(2500); // During stream
-    let info = helpers::mock_info("user1", &[Coin::new(1000u128, "wrong_denom")]);
+    let mut user1_funded = user1.clone();
+    user1_funded.funds = vec![Coin::new(1000u128, "wrong_denom")];
     let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
@@ -112,7 +129,7 @@ fn subscribe_incorrect_denom() {
         tos_version: "v1".to_string(),
     };
 
-    let res = execute(deps.as_mut(), env, info, msg);
+    let res = execute(deps.as_mut(), env, user1_funded, msg);
     assert_eq!(
         res.unwrap_err(),
         PaymentError::MissingDenom("in".to_string()).into()
@@ -124,6 +141,10 @@ fn subscribe_incorrect_tos_version() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
 
+    // Define actors
+    let treasury = helpers::mock_info("creator", &[]);
+    let user1 = helpers::mock_info("user1", &[]);
+
     // Create a stream first
     let b = helpers::CreateStreamBuilder::default()
         .start_time(Timestamp::from_seconds(2000))
@@ -139,12 +160,14 @@ fn subscribe_incorrect_tos_version() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
-    execute(deps.as_mut(), env, info, b.build()).unwrap();
+    let mut treasury_funded = treasury.clone();
+    treasury_funded.funds = funds;
+    execute(deps.as_mut(), env, treasury_funded, b.build()).unwrap();
 
     // Try to subscribe with incorrect ToS version
     let env = helpers::env_at(2500); // During stream
-    let info = helpers::mock_info("user1", &[Coin::new(1000u128, "in")]);
+    let mut user1_funded = user1.clone();
+    user1_funded.funds = vec![Coin::new(1000u128, "in")];
     let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
@@ -152,7 +175,7 @@ fn subscribe_incorrect_tos_version() {
         tos_version: "random".to_string(), // Invalid ToS version
     };
 
-    let res = execute(deps.as_mut(), env, info, msg);
+    let res = execute(deps.as_mut(), env, user1_funded, msg);
     assert_eq!(res.unwrap_err(), ContractError::InvalidToSVersion {});
 }
 
@@ -161,6 +184,10 @@ fn subscribe_first_subscription() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
 
+    // Define actors
+    let treasury = helpers::mock_info("creator", &[]);
+    let user1 = helpers::mock_info("user1", &[]);
+
     // Create a stream first
     let b = helpers::CreateStreamBuilder::default()
         .start_time(Timestamp::from_seconds(2000))
@@ -176,12 +203,14 @@ fn subscribe_first_subscription() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
-    execute(deps.as_mut(), env, info, b.build()).unwrap();
+    let mut treasury_funded = treasury.clone();
+    treasury_funded.funds = funds;
+    execute(deps.as_mut(), env, treasury_funded, b.build()).unwrap();
 
     // First subscription
     let env = helpers::env_at(2500); // During stream
-    let info = helpers::mock_info("user1", &[Coin::new(1000u128, "in")]);
+    let mut user1_funded = user1.clone();
+    user1_funded.funds = vec![Coin::new(1000u128, "in")];
     let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
@@ -189,7 +218,7 @@ fn subscribe_first_subscription() {
         tos_version: "v1".to_string(),
     };
 
-    let res = execute(deps.as_mut(), env, info.clone(), msg);
+    let res = execute(deps.as_mut(), env, user1_funded.clone(), msg);
     assert!(res.is_ok());
 
     // Verify the response attributes
@@ -212,7 +241,7 @@ fn subscribe_first_subscription() {
         deps.as_ref(),
         query_env,
         1,
-        info.sender.to_string(),
+        user1_funded.sender.to_string(),
     )
     .unwrap();
     assert_eq!(position.index, Decimal256::zero());
@@ -227,6 +256,10 @@ fn subscribe_first_subscription() {
 fn subscribe_increase_subscription() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
+
+    // Define actors
+    let treasury = helpers::mock_info("creator", &[]);
+    let user1 = helpers::mock_info("user1", &[]);
 
     // Create a stream first
     let b = helpers::CreateStreamBuilder::default()
@@ -243,12 +276,14 @@ fn subscribe_increase_subscription() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
-    execute(deps.as_mut(), env, info, b.build()).unwrap();
+    let mut treasury_funded = treasury.clone();
+    treasury_funded.funds = funds;
+    execute(deps.as_mut(), env, treasury_funded, b.build()).unwrap();
 
     // First subscription
     let env = helpers::env_at(2500); // During stream
-    let info = helpers::mock_info("user1", &[Coin::new(1000u128, "in")]);
+    let mut user1_funded = user1.clone();
+    user1_funded.funds = vec![Coin::new(1000u128, "in")];
     let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
@@ -256,7 +291,7 @@ fn subscribe_increase_subscription() {
         tos_version: "v1".to_string(),
     };
 
-    let res = execute(deps.as_mut(), env, info, msg);
+    let res = execute(deps.as_mut(), env, user1_funded.clone(), msg);
     assert!(res.is_ok());
 
     // Query stream after first subscription
@@ -268,7 +303,8 @@ fn subscribe_increase_subscription() {
 
     // Second subscription (increase) by the same user
     let env = helpers::env_at(3000); // Later during stream
-    let info = helpers::mock_info("user1", &[Coin::new(500u128, "in")]);
+    let mut user1_funded = user1.clone();
+    user1_funded.funds = vec![Coin::new(500u128, "in")];
     let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
@@ -276,7 +312,7 @@ fn subscribe_increase_subscription() {
         tos_version: "v1".to_string(),
     };
 
-    let res = execute(deps.as_mut(), env, info.clone(), msg);
+    let res = execute(deps.as_mut(), env, user1_funded.clone(), msg);
     assert!(res.is_ok());
 
     // Query stream after second subscription
@@ -292,7 +328,7 @@ fn subscribe_increase_subscription() {
         deps.as_ref(),
         query_env,
         1,
-        info.sender.to_string(),
+        user1_funded.sender.to_string(),
     )
     .unwrap();
     assert!(position.in_balance < Uint256::from(1500u128)); // Total balance minus spent between subscriptions
@@ -302,6 +338,10 @@ fn subscribe_increase_subscription() {
 fn subscribe_pending_stream() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
+
+    // Define actors
+    let treasury = helpers::mock_info("creator", &[]);
+    let user1 = helpers::mock_info("user1", &[]);
 
     // Create a stream that hasn't started yet
     let b = helpers::CreateStreamBuilder::default()
@@ -319,14 +359,16 @@ fn subscribe_pending_stream() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
-    execute(deps.as_mut(), env, info, b.build()).unwrap();
+    let mut treasury_funded = treasury.clone();
+    treasury_funded.funds = funds;
+    execute(deps.as_mut(), env, treasury_funded, b.build()).unwrap();
 
     // Subscribe before stream starts (pending subscription)
     // Note: Treasury cancel period is active from time 0 to 1000 (min_seconds_until_start_time)
     // So we need to subscribe after time 1000 but before start time 5000
     let env = helpers::env_at(2000); // After cancel period, before start time
-    let info = helpers::mock_info("user1", &[Coin::new(1000u128, "in")]);
+    let mut user1_funded = user1.clone();
+    user1_funded.funds = vec![Coin::new(1000u128, "in")];
     let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
@@ -334,7 +376,7 @@ fn subscribe_pending_stream() {
         tos_version: "v1".to_string(),
     };
 
-    let res = execute(deps.as_mut(), env, info.clone(), msg);
+    let res = execute(deps.as_mut(), env, user1_funded.clone(), msg);
     assert!(res.is_ok());
 
     let response = res.unwrap();
@@ -354,7 +396,7 @@ fn subscribe_pending_stream() {
         deps.as_ref(),
         query_env,
         1,
-        info.sender.to_string(),
+        user1_funded.sender.to_string(),
     )
     .unwrap();
     assert_eq!(position.in_balance, Uint256::from(1000u128));
@@ -366,6 +408,10 @@ fn subscribe_pending_stream() {
 fn subscribe_pending_treasury_cancel_period() {
     let mut deps = mock_dependencies();
     helpers::instantiate_defaults(deps.as_mut());
+
+    // Define actors
+    let treasury = helpers::mock_info("creator", &[]);
+    let user1 = helpers::mock_info("user1", &[]);
 
     // Create a stream that hasn't started yet
     let b = helpers::CreateStreamBuilder::default()
@@ -382,13 +428,15 @@ fn subscribe_pending_treasury_cancel_period() {
             amount: Uint256::from(100u128),
         },
     ];
-    let info = helpers::mock_info("creator", &funds);
-    execute(deps.as_mut(), env, info, b.build()).unwrap();
+    let mut treasury_funded = treasury.clone();
+    treasury_funded.funds = funds;
+    execute(deps.as_mut(), env, treasury_funded, b.build()).unwrap();
 
     // Try to subscribe during treasury cancel period (time 0 to 1000)
     // This should fail with TreasuryCancelPeriodActive
     let env = helpers::env_at(500); // During cancel period
-    let info = helpers::mock_info("user1", &[Coin::new(1000u128, "in")]);
+    let mut user1_funded = user1.clone();
+    user1_funded.funds = vec![Coin::new(1000u128, "in")];
     let msg = cw_streamswap::msg::ExecuteMsg::Subscribe {
         stream_id: 1,
         operator_target: None,
@@ -396,7 +444,7 @@ fn subscribe_pending_treasury_cancel_period() {
         tos_version: "v1".to_string(),
     };
 
-    let res = execute(deps.as_mut(), env, info, msg);
+    let res = execute(deps.as_mut(), env, user1_funded, msg);
     assert!(res.is_err());
     assert_eq!(
         res.unwrap_err(),
@@ -562,6 +610,7 @@ fn subscribe_pending_multiple_with_transition() {
         update_info_7500.sender.to_string(),
     )
     .unwrap();
+    // 184_615 + 200_000 = 384_615
     assert_eq!(
         pos1_7500.purchased,
         Uint256::from(184_615u128 + 200_000u128)

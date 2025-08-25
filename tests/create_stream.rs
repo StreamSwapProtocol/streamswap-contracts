@@ -10,32 +10,24 @@ mod helpers;
 #[test]
 fn instantiate_invalid_exit_fee_percent() {
     let mut deps = mock_dependencies();
+    // Define actors
+    let treasury = helpers::mock_info("creator", &[]);
     let msg = helpers::InstantiateBuilder::default()
         .exit_fee_percent(Decimal256::percent(101))
         .build();
-    let err = instantiate(
-        deps.as_mut(),
-        helpers::env_now(),
-        helpers::mock_info("creator", &[]),
-        msg,
-    )
-    .unwrap_err();
+    let err = instantiate(deps.as_mut(), helpers::env_now(), treasury.clone(), msg).unwrap_err();
     assert_eq!(err, ContractError::InvalidExitFeePercent {});
 }
 
 #[test]
 fn instantiate_invalid_stream_creation_fee() {
     let mut deps = mock_dependencies();
+    // Define actors
+    let treasury = helpers::mock_info("creator", &[]);
     let msg = helpers::InstantiateBuilder::default()
         .stream_creation_fee(Uint256::zero())
         .build();
-    let err = instantiate(
-        deps.as_mut(),
-        helpers::env_now(),
-        helpers::mock_info("creator", &[]),
-        msg,
-    )
-    .unwrap_err();
+    let err = instantiate(deps.as_mut(), helpers::env_now(), treasury.clone(), msg).unwrap_err();
     assert_eq!(err, ContractError::InvalidStreamCreationFee {});
 }
 
