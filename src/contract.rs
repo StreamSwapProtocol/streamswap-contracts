@@ -1041,7 +1041,7 @@ pub fn execute_finalize_stream(
     //Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
     let swap_fee = Decimal256::from_ratio(stream.spent_in, Uint256::one())
         .checked_mul(stream.stream_exit_fee_percent)?
-        .atomics();
+        .to_uint_ceil();
 
     let creator_revenue = stream.spent_in.checked_sub(swap_fee)?;
 

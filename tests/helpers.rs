@@ -104,7 +104,7 @@ pub struct CreateStreamBuilder {
 impl Default for CreateStreamBuilder {
     fn default() -> Self {
         Self {
-            treasury: valid_addr("treasury").to_string(),
+            treasury: valid_addr("creator").to_string(),
             name: "name".to_string(),
             url: Some("https://sample.url".to_string()),
             in_denom: DEFAULT_ACCEPTED_IN_DENOM.to_string(),
@@ -153,6 +153,10 @@ impl CreateStreamBuilder {
     }
     pub fn threshold(mut self, t: Option<Uint256>) -> Self {
         self.threshold = t;
+        self
+    }
+    pub fn treasury(mut self, t: &str) -> Self {
+        self.treasury = t.to_string();
         self
     }
 
