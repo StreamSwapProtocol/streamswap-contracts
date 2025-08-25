@@ -1,6 +1,6 @@
 use crate::state::Status;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal256, Timestamp, Uint128, Uint256, Uint64};
+use cosmwasm_std::{Addr, Decimal256, Timestamp, Uint256, Uint64};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -186,7 +186,7 @@ pub enum QueryMsg {
     /// Returns currently streaming price of a sale.
     #[returns(LatestStreamedPriceResponse)]
     LastStreamedPrice { stream_id: u64 },
-    #[returns(Uint128)]
+    #[returns(Option<Uint256>)]
     Threshold { stream_id: u64 },
 }
 
