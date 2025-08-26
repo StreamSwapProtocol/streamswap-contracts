@@ -31,11 +31,7 @@ pub fn execute_withdraw_paused(
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
-    if position.owner != info.sender
-        && position
-            .operator
-            .as_ref()
-            .map_or(true, |o| o != info.sender)
+    if position.owner != info.sender && position.operator.as_ref().is_none_or(|o| o != info.sender)
     {
         return Err(ContractError::Unauthorized {});
     }
@@ -133,11 +129,7 @@ pub fn execute_exit_cancelled(
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
     let position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
-    if position.owner != info.sender
-        && position
-            .operator
-            .as_ref()
-            .map_or(true, |o| o != info.sender)
+    if position.owner != info.sender && position.operator.as_ref().is_none_or(|o| o != info.sender)
     {
         return Err(ContractError::Unauthorized {});
     }
@@ -280,7 +272,7 @@ pub fn execute_cancel_stream(
             to_address: stream.treasury.to_string(),
             amount: vec![Coin {
                 denom: stream.stream_creation_denom,
-                amount: Uint256::from(stream.stream_creation_fee),
+                amount: stream.stream_creation_fee,
             }],
         }),
     ];
@@ -488,7 +480,7 @@ pub fn sudo_cancel_stream(
             to_address: stream.treasury.to_string(),
             amount: vec![Coin {
                 denom: stream.stream_creation_denom,
-                amount: Uint256::from(stream.stream_creation_fee),
+                amount: stream.stream_creation_fee,
             }],
         }),
     ];

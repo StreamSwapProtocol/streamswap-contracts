@@ -29,9 +29,6 @@ pub enum ContractError {
     #[error("{0}")]
     ConversionOverflowError(#[from] ConversionOverflowError),
 
-    #[error("Cannot migrate from different contract type: {previous_contract}")]
-    CannotMigrate { previous_contract: String },
-
     #[error("No rewards accrued")]
     NoDistribution {},
 

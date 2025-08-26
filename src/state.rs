@@ -251,7 +251,6 @@ impl TreasuryCancelStreamPeriod {
 }
 // Testing module
 #[cfg(test)]
-
 mod tests {
     use super::*;
     use cosmwasm_std::Addr;

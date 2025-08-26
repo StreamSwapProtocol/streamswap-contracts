@@ -140,7 +140,7 @@ mod tests {
             spent_in: Uint256::zero(),
             status: crate::state::Status::Active,
             stream_creation_denom: "uusd".to_string(),
-            stream_creation_fee: Uint256::from(0 as u128),
+            stream_creation_fee: Uint256::from(0_u128),
             stream_exit_fee_percent: Decimal256::from_str("0.042").unwrap(),
             treasury: Addr::unchecked("treasury"),
             tos_version: "".to_string(),

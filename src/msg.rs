@@ -150,9 +150,6 @@ pub enum ExecuteMsg {
     TreasuryCancelStream {
         stream_id: u64,
     },
-    MigratePosition {
-        stream_id: u64,
-    },
 }
 
 #[cw_serde]
@@ -303,6 +300,3 @@ pub enum SudoMsg {
     CancelStream { stream_id: u64 },
     ResumeStream { stream_id: u64 },
 }
-
-#[cw_serde]
-pub struct MigrateMsg {}

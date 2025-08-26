@@ -1,9 +1,8 @@
 use crate::killswitch::execute_cancel_stream_with_threshold;
-use crate::migrate_v0_1_4::OLD_POSITIONS;
+
 use crate::msg::{
     AveragePriceResponse, ConfigResponse, ExecuteMsg, InstantiateMsg, LatestStreamedPriceResponse,
-    MigrateMsg, PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse,
-    SudoMsg,
+    PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse, SudoMsg,
 };
 use crate::state::{
     next_stream_id, Config, Position, Status, Stream, TreasuryCancelStreamPeriod, CONFIG,
@@ -11,15 +10,16 @@ use crate::state::{
 };
 use crate::threshold::ThresholdState;
 use crate::{killswitch, ContractError};
+#[allow(unused_imports)]
+use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    attr, entry_point, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
-    Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdError, StdResult, Timestamp,
-    Uint256, Uint64,
+    attr, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256, Deps,
+    DepsMut, Env, Fraction, MessageInfo, Order, Response, StdError, StdResult, Timestamp, Uint256,
+    Uint64,
 };
-use cw2::{get_contract_version, set_contract_version};
-use semver::Version;
+use cw2::set_contract_version;
 
-use crate::helpers::{check_name_and_url, from_semver, get_decimals};
+use crate::helpers::{check_name_and_url, get_decimals};
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay};
 
@@ -248,9 +248,6 @@ pub fn execute(
             exit_fee_percent,
             tos_version,
         ),
-        ExecuteMsg::MigratePosition { stream_id } => {
-            execute_migrate_position(deps, env, info, stream_id)
-        }
     }
 }
 #[allow(clippy::too_many_arguments)]
@@ -307,7 +304,7 @@ pub fn execute_create_stream(
             .find(|p| p.denom == config.stream_creation_denom)
             .ok_or(ContractError::NoFundsSent {})?;
 
-        if total_funds.amount != Uint256::from(config.stream_creation_fee) + out_supply {
+        if total_funds.amount != config.stream_creation_fee + out_supply {
             return Err(ContractError::StreamOutSupplyFundsRequired {});
         }
         // check for extra funds sent in msg
@@ -330,7 +327,7 @@ pub fn execute_create_stream(
             .iter()
             .find(|p| p.denom == config.stream_creation_denom)
             .ok_or(ContractError::NoFundsSent {})?;
-        if creation_fee.amount != Uint256::from(config.stream_creation_fee) {
+        if creation_fee.amount != config.stream_creation_fee {
             return Err(ContractError::StreamCreationFeeRequired {});
         }
 
@@ -349,7 +346,7 @@ pub fn execute_create_stream(
         TreasuryCancelStreamPeriod::new(config.min_seconds_until_start_time.u64(), env.block.time);
 
     let id = next_stream_id(deps.storage)?;
-    TREASURY_STREAM_CANCEL_PERIOD.save(deps.storage, id.clone(), &treasury_cancel_period)?;
+    TREASURY_STREAM_CANCEL_PERIOD.save(deps.storage, id, &treasury_cancel_period)?;
 
     let stream = Stream::new(
         name.clone(),
@@ -1058,7 +1055,7 @@ pub fn execute_finalize_stream(
         to_address: config.fee_collector.to_string(),
         amount: vec![Coin {
             denom: stream.stream_creation_denom,
-            amount: Uint256::from(stream.stream_creation_fee),
+            amount: stream.stream_creation_fee,
         }],
     });
 
@@ -1272,46 +1269,13 @@ pub fn execute_update_config(
 
     Ok(Response::default().add_attributes(attributes))
 }
-pub fn execute_migrate_position(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    stream_id: u64,
-) -> Result<Response, ContractError> {
-    // Old positions state is loaded and saved in new format
-    let old_position = OLD_POSITIONS.load(deps.storage, (stream_id, info.sender.clone()))?;
-    let position: Position = Position {
-        owner: old_position.owner,
-        in_balance: Uint256::from_uint128(old_position.in_balance),
-        shares: Uint256::from_uint128(old_position.shares),
-        index: old_position.index,
-        last_updated: old_position.last_updated,
-        operator: old_position.operator,
-        tos_version: "".to_string(),
-        pending_purchase: old_position.pending_purchase,
-        purchased: Uint256::new(old_position.purchased.into()),
-        spent: Uint256::new(old_position.spent.into()),
-    };
-    OLD_POSITIONS.remove(deps.storage, (stream_id, info.sender.clone()));
-    POSITIONS.save(deps.storage, (stream_id, &info.sender.clone()), &position)?;
-
-    let attributes = vec![
-        attr("action", "migrate_position"),
-        attr("stream_id", stream_id.to_string()),
-        attr("owner", info.sender.clone()),
-    ];
-    Ok(Response::default().add_attributes(attributes))
-}
 
 fn check_access(
     info: &MessageInfo,
     position_owner: &Addr,
     position_operator: &Option<Addr>,
 ) -> Result<(), ContractError> {
-    if position_owner != info.sender
-        && position_operator
-            .as_ref()
-            .map_or(true, |o| o != info.sender)
+    if position_owner != info.sender && position_operator.as_ref().is_none_or(|o| o != info.sender)
     {
         return Err(ContractError::Unauthorized {});
     }
@@ -1325,30 +1289,6 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
         SudoMsg::CancelStream { stream_id } => killswitch::sudo_cancel_stream(deps, env, stream_id),
         SudoMsg::ResumeStream { stream_id } => killswitch::sudo_resume_stream(deps, env, stream_id),
     }
-}
-
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    const OLDER_CONTRACT_VERSION: &str = "0.1.4";
-    let contract_info = get_contract_version(deps.storage)?;
-    let storage_contract_name: String = contract_info.contract;
-    let storage_contract_version: Version = contract_info.version.parse().map_err(from_semver)?;
-
-    if !(storage_contract_name == CONTRACT_NAME) {
-        return Err(ContractError::CannotMigrate {
-            previous_contract: storage_contract_name,
-        });
-    }
-
-    if storage_contract_version.to_string() != OLDER_CONTRACT_VERSION {
-        return Err(ContractError::CannotMigrate {
-            previous_contract: storage_contract_name,
-        });
-    }
-    // Set the new contract version
-    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-
-    Ok(Response::default())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

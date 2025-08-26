@@ -29,6 +29,7 @@ pub fn env_at(seconds: u64) -> cosmwasm_std::Env {
     env
 }
 
+#[allow(dead_code)]
 pub struct InstantiateBuilder {
     pub min_stream_seconds: Uint64,
     pub min_seconds_until_start_time: Uint64,
@@ -57,6 +58,7 @@ impl Default for InstantiateBuilder {
     }
 }
 
+#[allow(dead_code)]
 impl InstantiateBuilder {
     pub fn exit_fee_percent(mut self, pct: Decimal256) -> Self {
         self.exit_fee_percent = pct;
@@ -83,11 +85,13 @@ impl InstantiateBuilder {
     }
 }
 
+#[allow(dead_code)]
 pub fn instantiate_defaults(deps: DepsMut) {
     let msg = InstantiateBuilder::default().build();
     instantiate(deps, env_now(), mock_info("creator", &[]), msg).unwrap();
 }
 
+#[allow(dead_code)]
 pub struct CreateStreamBuilder {
     pub treasury: String,
     pub name: String,
@@ -118,6 +122,7 @@ impl Default for CreateStreamBuilder {
     }
 }
 
+#[allow(dead_code)]
 impl CreateStreamBuilder {
     pub fn in_denom(mut self, denom: &str) -> Self {
         self.in_denom = denom.to_string();
