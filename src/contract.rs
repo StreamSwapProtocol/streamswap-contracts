@@ -1154,7 +1154,7 @@ pub fn execute_exit_stream(
     // Swap fee = fixed_rate*position.spent_in this calculation is only for execution reply attributes
     let swap_fee = Decimal256::from_ratio(position.spent, Uint256::one())
         .checked_mul(stream.stream_exit_fee_percent)?
-        .atomics();
+        .to_uint_ceil();
 
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: operator_target.to_string(),
