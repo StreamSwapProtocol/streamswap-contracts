@@ -1,5 +1,5 @@
 use crate::ContractError;
-use cosmwasm_std::{Decimal256, StdError, Uint128, Uint256};
+use cosmwasm_std::Decimal256;
 use std::str::FromStr;
 
 /// Stream validation related constants
@@ -26,7 +26,7 @@ pub fn get_decimals(value: Decimal256) -> Result<Decimal256, ContractError> {
     }
 }
 
-pub fn check_name_and_url(name: &String, url: &Option<String>) -> Result<(), ContractError> {
+pub fn check_name_and_url(name: &str, url: &Option<String>) -> Result<(), ContractError> {
     if name.len() < MIN_NAME_LENGTH {
         return Err(ContractError::StreamNameTooShort {});
     }
@@ -54,12 +54,4 @@ pub fn check_name_and_url(name: &String, url: &Option<String>) -> Result<(), Con
         }
     }
     Ok(())
-}
-
-pub fn from_semver(err: semver::Error) -> ContractError {
-    ContractError::from(StdError::generic_err(format!("Semver: {}", err)))
-}
-
-pub fn to_uint256(value: Uint128) -> Uint256 {
-    Uint256::from(value.u128())
 }

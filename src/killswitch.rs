@@ -4,7 +4,7 @@ use crate::threshold::{ThresholdError, ThresholdState};
 use crate::ContractError;
 use cosmwasm_std::{
     attr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult, Timestamp,
-    Uint128, Uint256,
+    Uint256,
 };
 use cw_utils::maybe_addr;
 
@@ -31,11 +31,7 @@ pub fn execute_withdraw_paused(
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
     let mut position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
-    if position.owner != info.sender
-        && position
-            .operator
-            .as_ref()
-            .map_or(true, |o| o != info.sender)
+    if position.owner != info.sender && position.operator.as_ref().is_none_or(|o| o != info.sender)
     {
         return Err(ContractError::Unauthorized {});
     }
@@ -80,14 +76,13 @@ pub fn execute_withdraw_paused(
         attr("operator_target", operator_target.clone()),
         attr("withdraw_amount", withdraw_amount),
     ];
-    let withdraw_amount_u128: Uint128 = withdraw_amount.to_string().parse().unwrap();
     // send funds to withdraw address or to the sender
     let res = Response::new()
         .add_message(CosmosMsg::Bank(BankMsg::Send {
             to_address: operator_target.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
-                amount: withdraw_amount_u128,
+                amount: withdraw_amount,
             }],
         }))
         .add_attributes(attributes);
@@ -134,11 +129,7 @@ pub fn execute_exit_cancelled(
     let operator_target =
         maybe_addr(deps.api, operator_target)?.unwrap_or_else(|| info.sender.clone());
     let position = POSITIONS.load(deps.storage, (stream_id, &operator_target))?;
-    if position.owner != info.sender
-        && position
-            .operator
-            .as_ref()
-            .map_or(true, |o| o != info.sender)
+    if position.owner != info.sender && position.operator.as_ref().is_none_or(|o| o != info.sender)
     {
         return Err(ContractError::Unauthorized {});
     }
@@ -153,14 +144,13 @@ pub fn execute_exit_cancelled(
         attr("operator_target", operator_target.clone()),
         attr("total_balance", total_balance),
     ];
-    let total_balance_u128: Uint128 = total_balance.to_string().parse().unwrap();
     // send funds to withdraw address or to the sender
     let res = Response::new()
         .add_message(CosmosMsg::Bank(BankMsg::Send {
             to_address: operator_target.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
-                amount: total_balance_u128,
+                amount: total_balance,
             }],
         }))
         .add_attributes(attributes);
@@ -268,15 +258,13 @@ pub fn execute_cancel_stream(
     stream.status = Status::Cancelled;
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
-    let out_supply_u128: Uint128 = stream.out_supply.to_string().parse().unwrap();
-
     //Refund all out tokens to stream creator(treasury)
     let messages: Vec<CosmosMsg> = vec![
         CosmosMsg::Bank(BankMsg::Send {
             to_address: stream.treasury.to_string(),
             amount: vec![Coin {
                 denom: stream.out_denom,
-                amount: out_supply_u128,
+                amount: stream.out_supply,
             }],
         }),
         //Refund stream creation fee to stream creator
@@ -340,12 +328,11 @@ pub fn execute_cancel_stream_with_threshold(
     STREAMS.save(deps.storage, stream_id, &stream)?;
 
     //Refund all out tokens to stream creator(treasury)
-    let out_supply_u128: Uint128 = stream.out_supply.to_string().parse().unwrap();
     let messages: Vec<CosmosMsg> = vec![CosmosMsg::Bank(BankMsg::Send {
         to_address: stream.treasury.to_string(),
         amount: vec![Coin {
             denom: stream.out_denom,
-            amount: out_supply_u128,
+            amount: stream.out_supply,
         }],
     })];
 
@@ -387,12 +374,11 @@ pub fn execute_treasury_cancel_stream(
     STREAMS.remove(deps.storage, stream_id);
 
     //Refund all out tokens to stream creator(treasury)
-    let out_supply_u128: Uint128 = stream.out_supply.to_string().parse().unwrap();
     let messages: Vec<CosmosMsg> = vec![CosmosMsg::Bank(BankMsg::Send {
         to_address: stream.treasury.to_string(),
         amount: vec![Coin {
             denom: stream.out_denom,
-            amount: out_supply_u128,
+            amount: stream.out_supply,
         }],
     })];
 
@@ -480,14 +466,13 @@ pub fn sudo_cancel_stream(
     }
     stream.status = Status::Cancelled;
     STREAMS.save(deps.storage, stream_id, &stream)?;
-    let out_supply_u128: Uint128 = stream.out_supply.to_string().parse().unwrap();
     //Refund all out tokens to stream creator(treasury)
     let messages: Vec<CosmosMsg> = vec![
         CosmosMsg::Bank(BankMsg::Send {
             to_address: stream.treasury.to_string(),
             amount: vec![Coin {
                 denom: stream.out_denom,
-                amount: out_supply_u128,
+                amount: stream.out_supply,
             }],
         }),
         //Refund stream creation fee to stream creator

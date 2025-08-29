@@ -1,6 +1,6 @@
 use crate::state::Status;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal256, Timestamp, Uint128, Uint256, Uint64};
+use cosmwasm_std::{Addr, Decimal256, Timestamp, Uint256, Uint64};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -11,7 +11,7 @@ pub struct InstantiateMsg {
     /// Accepted stream creation fee denom
     pub stream_creation_denom: String,
     /// Stream creation fee amount
-    pub stream_creation_fee: Uint128,
+    pub stream_creation_fee: Uint256,
     /// in/buy token exit fee in percent
     pub exit_fee_percent: Decimal256,
     /// Address of the fee collector
@@ -135,7 +135,7 @@ pub enum ExecuteMsg {
         min_stream_duration: Option<Uint64>,
         min_duration_until_start_time: Option<Uint64>,
         stream_creation_denom: Option<String>,
-        stream_creation_fee: Option<Uint128>,
+        stream_creation_fee: Option<Uint256>,
         fee_collector: Option<String>,
         accepted_in_denom: Option<String>,
         exit_fee_percent: Option<Decimal256>,
@@ -148,9 +148,6 @@ pub enum ExecuteMsg {
         stream_id: u64,
     },
     TreasuryCancelStream {
-        stream_id: u64,
-    },
-    MigratePosition {
         stream_id: u64,
     },
 }
@@ -186,7 +183,7 @@ pub enum QueryMsg {
     /// Returns currently streaming price of a sale.
     #[returns(LatestStreamedPriceResponse)]
     LastStreamedPrice { stream_id: u64 },
-    #[returns(Uint128)]
+    #[returns(Option<Uint256>)]
     Threshold { stream_id: u64 },
 }
 
@@ -201,7 +198,7 @@ pub struct ConfigResponse {
     /// Denom used as fee for creating a stream.
     pub stream_creation_denom: String,
     /// Creation fee amount.
-    pub stream_creation_fee: Uint128,
+    pub stream_creation_fee: Uint256,
     /// This percentage represents the fee that will be collected from the investors.
     pub exit_fee_percent: Decimal256,
     /// Address of the fee collector.
@@ -251,7 +248,7 @@ pub struct StreamResponse {
     /// Exit fee percent.
     pub exit_fee_percent: Decimal256,
     /// Creation fee amount.
-    pub stream_creation_fee: Uint128,
+    pub stream_creation_fee: Uint256,
 }
 
 #[cw_serde]
@@ -303,6 +300,3 @@ pub enum SudoMsg {
     CancelStream { stream_id: u64 },
     ResumeStream { stream_id: u64 },
 }
-
-#[cw_serde]
-pub struct MigrateMsg {}

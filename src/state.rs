@@ -1,6 +1,6 @@
 use crate::ContractError;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Decimal256, Storage, Timestamp, Uint128, Uint256, Uint64};
+use cosmwasm_std::{Addr, Decimal256, Storage, Timestamp, Uint256, Uint64};
 use cw_storage_plus::{Item, Map};
 use std::ops::Mul;
 
@@ -15,7 +15,7 @@ pub struct Config {
     /// Accepted stream creation fee denom
     pub stream_creation_denom: String,
     /// Stream creation fee amount
-    pub stream_creation_fee: Uint128,
+    pub stream_creation_fee: Uint256,
     /// in/buy token exit fee in percent
     pub exit_fee_percent: Decimal256,
     /// Address of the fee collector
@@ -67,7 +67,7 @@ pub struct Stream {
     /// Stream creation fee denom. Saved under here to avoid any changes in config to efect existing streams.
     pub stream_creation_denom: String,
     /// Stream creation fee amount. Saved under here to avoid any changes in config to efect existing streams.
-    pub stream_creation_fee: Uint128,
+    pub stream_creation_fee: Uint256,
     /// Stream swap fee in percent. Saved under here to avoid any changes in config to efect existing streams.
     pub stream_exit_fee_percent: Decimal256,
     // Tos version
@@ -110,7 +110,7 @@ impl Stream {
         end_time: Timestamp,
         last_updated: Timestamp,
         stream_creation_denom: String,
-        stream_creation_fee: Uint128,
+        stream_creation_fee: Uint256,
         stream_exit_fee_percent: Decimal256,
         tos_version: String,
     ) -> Self {
@@ -251,10 +251,9 @@ impl TreasuryCancelStreamPeriod {
 }
 // Testing module
 #[cfg(test)]
-
 mod tests {
     use super::*;
-    use cosmwasm_std::{Addr, Uint128};
+    use cosmwasm_std::Addr;
 
     // Test compute_shares_amount
     #[test]
@@ -278,7 +277,7 @@ mod tests {
             status: Status::Waiting,
             pause_date: None,
             stream_creation_denom: "fee_denom".to_string(),
-            stream_creation_fee: Uint128::from(150000000000000000000u128),
+            stream_creation_fee: Uint256::from(150000000000000000000u128),
             stream_exit_fee_percent: Decimal256::percent(1),
             tos_version: "".to_string(),
         };

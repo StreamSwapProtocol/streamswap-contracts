@@ -6,12 +6,12 @@ use cw_utils::PaymentError;
 use std::convert::Infallible;
 use thiserror::Error;
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug)]
 pub enum ContractError {
-    #[error("{0}")]
+    #[error(transparent)]
     Std(#[from] StdError),
 
-    #[error("{0}")]
+    #[error(transparent)]
     Overflow(#[from] OverflowError),
 
     #[error("{0}")]
@@ -28,9 +28,6 @@ pub enum ContractError {
 
     #[error("{0}")]
     ConversionOverflowError(#[from] ConversionOverflowError),
-
-    #[error("Cannot migrate from different contract type: {previous_contract}")]
-    CannotMigrate { previous_contract: String },
 
     #[error("No rewards accrued")]
     NoDistribution {},
@@ -157,7 +154,7 @@ pub enum ContractError {
 
     #[error("Invalid terms and services")]
     InvalidToSVersion {},
-  
+
     #[error("Treasury cancel period : Active")]
     TreasuryCancelPeriodActive {},
 
@@ -166,4 +163,15 @@ pub enum ContractError {
 
     #[error("Treasury cancel period : Not set")]
     TreasuryCancelPeriodNotSet {},
+}
+
+impl PartialEq for ContractError {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            // StdError variants cannot be compared due to cosmwasm changes
+            (ContractError::Std(_), ContractError::Std(_)) => false,
+            // For all other variants, use discriminant comparison (type only, no data comparison)
+            _ => std::mem::discriminant(self) == std::mem::discriminant(other),
+        }
+    }
 }

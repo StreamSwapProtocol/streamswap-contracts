@@ -1,9 +1,8 @@
 use crate::killswitch::execute_cancel_stream_with_threshold;
-use crate::migrate_v0_1_4::OLD_POSITIONS;
+
 use crate::msg::{
     AveragePriceResponse, ConfigResponse, ExecuteMsg, InstantiateMsg, LatestStreamedPriceResponse,
-    MigrateMsg, PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse,
-    SudoMsg,
+    PositionResponse, PositionsResponse, QueryMsg, StreamResponse, StreamsResponse, SudoMsg,
 };
 use crate::state::{
     next_stream_id, Config, Position, Status, Stream, TreasuryCancelStreamPeriod, CONFIG,
@@ -11,15 +10,16 @@ use crate::state::{
 };
 use crate::threshold::ThresholdState;
 use crate::{killswitch, ContractError};
+#[allow(unused_imports)]
+use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    attr, entry_point, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256,
-    Deps, DepsMut, Env, Fraction, MessageInfo, Order, Response, StdError, StdResult, Timestamp,
-    Uint128, Uint256, Uint64,
+    attr, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Decimal256, Deps,
+    DepsMut, Env, Fraction, MessageInfo, Order, Response, StdError, StdResult, Timestamp, Uint256,
+    Uint64,
 };
-use cw2::{get_contract_version, set_contract_version};
-use semver::Version;
+use cw2::set_contract_version;
 
-use crate::helpers::{check_name_and_url, from_semver, get_decimals, to_uint256};
+use crate::helpers::{check_name_and_url, get_decimals};
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, must_pay};
 
@@ -248,9 +248,6 @@ pub fn execute(
             exit_fee_percent,
             tos_version,
         ),
-        ExecuteMsg::MigratePosition { stream_id } => {
-            execute_migrate_position(deps, env, info, stream_id)
-        }
     }
 }
 #[allow(clippy::too_many_arguments)]
@@ -307,7 +304,7 @@ pub fn execute_create_stream(
             .find(|p| p.denom == config.stream_creation_denom)
             .ok_or(ContractError::NoFundsSent {})?;
 
-        if to_uint256(total_funds.amount) != to_uint256(config.stream_creation_fee) + out_supply {
+        if total_funds.amount != config.stream_creation_fee + out_supply {
             return Err(ContractError::StreamOutSupplyFundsRequired {});
         }
         // check for extra funds sent in msg
@@ -321,7 +318,7 @@ pub fn execute_create_stream(
             .find(|p| p.denom == out_denom)
             .ok_or(ContractError::NoFundsSent {})?;
 
-        if to_uint256(funds.amount) != out_supply {
+        if funds.amount != out_supply {
             return Err(ContractError::StreamOutSupplyFundsRequired {});
         }
 
@@ -349,7 +346,7 @@ pub fn execute_create_stream(
         TreasuryCancelStreamPeriod::new(config.min_seconds_until_start_time.u64(), env.block.time);
 
     let id = next_stream_id(deps.storage)?;
-    TREASURY_STREAM_CANCEL_PERIOD.save(deps.storage, id.clone(), &treasury_cancel_period)?;
+    TREASURY_STREAM_CANCEL_PERIOD.save(deps.storage, id, &treasury_cancel_period)?;
 
     let stream = Stream::new(
         name.clone(),
@@ -630,7 +627,7 @@ pub fn update_position(
         position.pending_purchase = decimals;
 
         // floors the decimal points
-        purchased_uint128 = purchased * Uint256::one();
+        purchased_uint128 = purchased.to_uint_floor();
         position.purchased = position.purchased.checked_add(purchased_uint128)?;
     }
 
@@ -663,7 +660,7 @@ pub fn execute_subscribe(
     }
 
     let in_amount = must_pay(&info, &stream.in_denom)?;
-    let in_amount_uint256 = to_uint256(in_amount);
+    let in_amount_uint256 = in_amount;
     let new_shares;
 
     let operator = maybe_addr(deps.api, operator)?;
@@ -753,7 +750,7 @@ pub fn execute_subscribe_pending(
         return Err(ContractError::StreamKillswitchActive {});
     }
     let in_amount = must_pay(&info, &stream.in_denom)?;
-    let in_amount_uint256 = to_uint256(in_amount);
+    let in_amount_uint256 = in_amount;
     let new_shares = stream.compute_shares_amount(in_amount_uint256, false);
 
     let operator = maybe_addr(deps.api, operator)?;
@@ -909,8 +906,6 @@ pub fn execute_withdraw(
         attr("spent", position.spent.to_string()),
         attr("tos_version", position.tos_version),
     ];
-    // TODO: This might be a problem if the withdraw amount is too large but unlikely
-    let withdraw_amount: Uint128 = Uint128::try_from(withdraw_amount)?;
 
     // send funds to withdraw address or to the sender
     let res = Response::new()
@@ -987,8 +982,6 @@ pub fn execute_withdraw_pending(
         attr("tos_version", position.tos_version),
     ];
 
-    let withdraw_amount: Uint128 = Uint128::try_from(withdraw_amount)?;
-
     // send funds to withdraw address or to the sender
     let res = Response::new()
         .add_message(CosmosMsg::Bank(BankMsg::Send {
@@ -1029,7 +1022,7 @@ pub fn execute_finalize_stream(
         update_stream(env.block.time, &mut stream)?;
     }
 
-    if stream.status == Status::Active {
+    if stream.status == Status::Active || stream.status == Status::Waiting {
         stream.status = Status::Finalized
     }
     // If threshold is set and not reached, finalize will fail
@@ -1045,17 +1038,16 @@ pub fn execute_finalize_stream(
     //Stream's swap fee collected at fixed rate from accumulated spent_in of positions(ie stream.spent_in)
     let swap_fee = Decimal256::from_ratio(stream.spent_in, Uint256::one())
         .checked_mul(stream.stream_exit_fee_percent)?
-        * Uint256::one();
+        .to_uint_ceil();
 
     let creator_revenue = stream.spent_in.checked_sub(swap_fee)?;
-    let creator_revenue_u128: Uint128 = Uint128::try_from(creator_revenue)?;
 
     //Creator's revenue claimed at finalize
     let revenue_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: treasury.to_string(),
         amount: vec![Coin {
             denom: stream.in_denom.clone(),
-            amount: creator_revenue_u128,
+            amount: creator_revenue,
         }],
     });
     //Exact fee for stream creation charged at creation but claimed at finalize
@@ -1067,12 +1059,11 @@ pub fn execute_finalize_stream(
         }],
     });
 
-    let swap_fee_128: Uint128 = Uint128::try_from(swap_fee)?;
     let swap_fee_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: config.fee_collector.to_string(),
         amount: vec![Coin {
             denom: stream.in_denom,
-            amount: swap_fee_128,
+            amount: swap_fee,
         }],
     });
 
@@ -1084,12 +1075,11 @@ pub fn execute_finalize_stream(
 
     // In case the stream is ended without any shares in it. We need to refund the remaining out tokens although that is unlikely to happen
     if stream.out_remaining > Uint256::zero() {
-        let remaining_out: Uint128 = Uint128::try_from(stream.out_remaining)?;
         let remaining_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: treasury.to_string(),
             amount: vec![Coin {
                 denom: stream.out_denom,
-                amount: remaining_out,
+                amount: stream.out_remaining,
             }],
         });
         messages.push(remaining_msg);
@@ -1164,15 +1154,13 @@ pub fn execute_exit_stream(
     // Swap fee = fixed_rate*position.spent_in this calculation is only for execution reply attributes
     let swap_fee = Decimal256::from_ratio(position.spent, Uint256::one())
         .checked_mul(stream.stream_exit_fee_percent)?
-        * Uint256::one();
-
-    let purchased = Uint128::try_from(position.purchased)?;
+        .to_uint_ceil();
 
     let send_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: operator_target.to_string(),
         amount: vec![Coin {
             denom: stream.out_denom.to_string(),
-            amount: purchased,
+            amount: position.purchased,
         }],
     });
 
@@ -1202,12 +1190,11 @@ pub fn execute_exit_stream(
         attr("swap_fee_paid", swap_fee.to_string()),
     ];
     if !position.in_balance.is_zero() {
-        let unspent: Uint128 = Uint128::try_from(position.in_balance)?;
         let unspent_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: operator_target.to_string(),
             amount: vec![Coin {
                 denom: stream.in_denom,
-                amount: unspent,
+                amount: position.in_balance,
             }],
         });
 
@@ -1230,7 +1217,7 @@ pub fn execute_update_config(
     min_stream_duration: Option<Uint64>,
     min_duration_until_start_time: Option<Uint64>,
     stream_creation_denom: Option<String>,
-    stream_creation_fee: Option<Uint128>,
+    stream_creation_fee: Option<Uint256>,
     fee_collector: Option<String>,
     accepted_in_denom: Option<String>,
     exit_fee_percent: Option<Decimal256>,
@@ -1282,46 +1269,13 @@ pub fn execute_update_config(
 
     Ok(Response::default().add_attributes(attributes))
 }
-pub fn execute_migrate_position(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    stream_id: u64,
-) -> Result<Response, ContractError> {
-    // Old positions state is loaded and saved in new format
-    let old_position = OLD_POSITIONS.load(deps.storage, (stream_id, info.sender.clone()))?;
-    let position: Position = Position {
-        owner: old_position.owner,
-        in_balance: Uint256::from_uint128(old_position.in_balance),
-        shares: Uint256::from_uint128(old_position.shares),
-        index: old_position.index,
-        last_updated: old_position.last_updated,
-        operator: old_position.operator,
-        tos_version: "".to_string(),
-        pending_purchase: old_position.pending_purchase,
-        purchased: Uint256::from_u128(old_position.purchased.into()),
-        spent: Uint256::from_u128(old_position.spent.into()),
-    };
-    OLD_POSITIONS.remove(deps.storage, (stream_id, info.sender.clone()));
-    POSITIONS.save(deps.storage, (stream_id, &info.sender.clone()), &position)?;
-
-    let attributes = vec![
-        attr("action", "migrate_position"),
-        attr("stream_id", stream_id.to_string()),
-        attr("owner", info.sender.clone()),
-    ];
-    Ok(Response::default().add_attributes(attributes))
-}
 
 fn check_access(
     info: &MessageInfo,
     position_owner: &Addr,
     position_operator: &Option<Addr>,
 ) -> Result<(), ContractError> {
-    if position_owner.as_ref() != info.sender
-        && position_operator
-            .as_ref()
-            .map_or(true, |o| o != info.sender)
+    if position_owner != info.sender && position_operator.as_ref().is_none_or(|o| o != info.sender)
     {
         return Err(ContractError::Unauthorized {});
     }
@@ -1335,30 +1289,6 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractE
         SudoMsg::CancelStream { stream_id } => killswitch::sudo_cancel_stream(deps, env, stream_id),
         SudoMsg::ResumeStream { stream_id } => killswitch::sudo_resume_stream(deps, env, stream_id),
     }
-}
-
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    const OLDER_CONTRACT_VERSION: &str = "0.1.4";
-    let contract_info = get_contract_version(deps.storage)?;
-    let storage_contract_name: String = contract_info.contract;
-    let storage_contract_version: Version = contract_info.version.parse().map_err(from_semver)?;
-
-    if !(storage_contract_name == CONTRACT_NAME) {
-        return Err(ContractError::CannotMigrate {
-            previous_contract: storage_contract_name,
-        });
-    }
-
-    if storage_contract_version.to_string() != OLDER_CONTRACT_VERSION {
-        return Err(ContractError::CannotMigrate {
-            previous_contract: storage_contract_name,
-        });
-    }
-    // Set the new contract version
-    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-
-    Ok(Response::default())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -1388,6 +1318,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
     }
 }
+
 pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let cfg = CONFIG.load(deps.storage)?;
     Ok(ConfigResponse {
