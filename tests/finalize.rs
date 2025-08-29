@@ -1,7 +1,8 @@
 use cosmwasm_std::testing::mock_dependencies;
 use cosmwasm_std::{BankMsg, Coin, CosmosMsg, Timestamp, Uint256};
-use cw_streamswap::contract::{execute, execute_finalize_stream};
+use cw_streamswap::contract::{execute, execute_finalize_stream, query_stream};
 use cw_streamswap::msg::ExecuteMsg;
+use cw_streamswap::state::Status;
 use cw_streamswap::ContractError;
 
 mod helpers;
@@ -154,7 +155,8 @@ fn finalize_happy_path() {
                                         // Note: execute_update_stream function call would go here if available
 
     // Happy path finalization
-    let res = execute_finalize_stream(deps.as_mut(), env, treasury.clone(), 1, None).unwrap();
+    let res =
+        execute_finalize_stream(deps.as_mut(), env.clone(), treasury.clone(), 1, None).unwrap();
 
     // Verify finalization attributes
     assert_eq!(res.attributes[0].key, "action");
@@ -222,6 +224,10 @@ fn finalize_happy_path() {
             amount: vec![Coin::new(20_000_000_000u128, "in")],
         })
     );
+
+    // Query stream
+    let stream = query_stream(deps.as_ref(), env, 1).unwrap();
+    assert_eq!(stream.status, Status::Finalized);
 }
 
 #[test]
@@ -277,4 +283,59 @@ fn finalize_duplicate_prevention() {
     // Second finalization (should fail with StreamAlreadyFinalized)
     let res = execute_finalize_stream(deps.as_mut(), env, treasury, 1, None);
     assert_eq!(res.unwrap_err(), ContractError::StreamAlreadyFinalized {});
+}
+
+#[test]
+fn finalize_stream_in_waiting_state() {
+    let mut deps = mock_dependencies();
+    helpers::instantiate_defaults(deps.as_mut());
+
+    // Define actors
+    let treasury = helpers::mock_info("creator", &[]);
+    let subscriber1 = helpers::mock_info("creator1", &[]);
+
+    // Create a stream
+    let b = helpers::CreateStreamBuilder::default()
+        .start_time(Timestamp::from_seconds(1_000_000))
+        .end_time(Timestamp::from_seconds(5_000_000));
+    let env = helpers::env_at(0);
+    let funds = vec![
+        Coin {
+            denom: "out_denom".to_string(),
+            amount: b.out_supply,
+        },
+        Coin {
+            denom: helpers::DEFAULT_STREAM_CREATION_DENOM.to_string(),
+            amount: Uint256::from(100u128),
+        },
+    ];
+    let mut treasury_funded = treasury.clone();
+    treasury_funded.funds = funds.clone();
+    execute(deps.as_mut(), env, treasury_funded, b.build()).unwrap();
+
+    // Subscribe to the stream during waiting state
+    let env = helpers::env_at(500_000);
+    let funds = Coin::new(2_000_000_000_000u128, "in");
+    let mut subscriber1_funded = subscriber1.clone();
+    subscriber1_funded.funds = vec![funds];
+    let msg = ExecuteMsg::Subscribe {
+        stream_id: 1,
+        operator_target: None,
+        operator: None,
+        tos_version: "v1".to_string(),
+    };
+    let _res = execute(deps.as_mut(), env.clone(), subscriber1_funded, msg).unwrap();
+
+    // Query stream
+    let stream = query_stream(deps.as_ref(), env.clone(), 1).unwrap();
+    assert_eq!(stream.status, Status::Waiting);
+
+    // Finalize stream
+    let env = helpers::env_at(5_000_000 + 1);
+    let _res =
+        execute_finalize_stream(deps.as_mut(), env.clone(), treasury.clone(), 1, None).unwrap();
+
+    // Verify stream is finalized
+    let stream = query_stream(deps.as_ref(), env, 1).unwrap();
+    assert_eq!(stream.status, Status::Finalized);
 }

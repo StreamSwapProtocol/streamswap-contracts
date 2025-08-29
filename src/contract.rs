@@ -1022,7 +1022,7 @@ pub fn execute_finalize_stream(
         update_stream(env.block.time, &mut stream)?;
     }
 
-    if stream.status == Status::Active {
+    if stream.status == Status::Active || stream.status == Status::Waiting {
         stream.status = Status::Finalized
     }
     // If threshold is set and not reached, finalize will fail
